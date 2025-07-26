@@ -26,6 +26,7 @@ use crate::{
 };
 
 /// 构建标准的RPC交易
+/// Build standard RPC transaction
 pub async fn build_rpc_transaction(
     payer: Arc<Keypair>,
     priority_fee: &PriorityFee,
@@ -37,23 +38,29 @@ pub async fn build_rpc_transaction(
     let mut instructions = vec![];
 
     // 添加nonce指令
+    // Add nonce instruction
     if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref()) {
         return Err(e);
     }
 
     // 添加计算预算指令
+    // Add compute budget instructions
     add_rpc_compute_budget_instructions(&mut instructions, priority_fee, data_size_limit);
 
     // 添加业务指令
+    // Add business instructions
     instructions.extend(business_instructions);
 
     // 获取交易使用的blockhash
+    // Get blockhash for transaction
     let blockhash = get_transaction_blockhash(recent_blockhash);
 
     // 获取地址查找表账户
+    // Get address lookup table accounts
     let address_lookup_table_accounts = get_address_lookup_table_accounts(lookup_table_key).await;
 
     // 构建交易
+    // Build transaction
     build_versioned_transaction(
         payer,
         instructions,
@@ -64,6 +71,7 @@ pub async fn build_rpc_transaction(
 }
 
 /// 构建带小费的交易
+/// Build transaction with tip
 pub async fn build_tip_transaction(
     payer: Arc<Keypair>,
     priority_fee: &PriorityFee,
@@ -77,17 +85,21 @@ pub async fn build_tip_transaction(
     let mut instructions = vec![];
 
     // 添加nonce指令
+    // Add nonce instruction
     if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref()) {
         return Err(e);
     }
 
     // 添加计算预算指令
+    // Add compute budget instructions
     add_tip_compute_budget_instructions(&mut instructions, priority_fee, data_size_limit);
 
     // 添加业务指令
+    // Add business instructions
     instructions.extend(business_instructions);
 
     // 添加小费转账指令
+    // Add tip transfer instruction
     instructions.push(system_instruction::transfer(
         &payer.pubkey(),
         tip_account,
@@ -95,12 +107,15 @@ pub async fn build_tip_transaction(
     ));
 
     // 获取交易使用的blockhash
+    // Get blockhash for transaction
     let blockhash = get_transaction_blockhash(recent_blockhash);
 
     // 获取地址查找表账户
+    // Get address lookup table accounts
     let address_lookup_table_accounts = get_address_lookup_table_accounts(lookup_table_key).await;
 
     // 构建交易
+    // Build transaction
     build_versioned_transaction(
         payer,
         instructions,
@@ -111,6 +126,7 @@ pub async fn build_tip_transaction(
 }
 
 /// 构建版本化交易的底层函数
+/// Build versioned transaction underlying function
 async fn build_versioned_transaction(
     payer: Arc<Keypair>,
     instructions: Vec<Instruction>,
@@ -131,6 +147,7 @@ async fn build_versioned_transaction(
 }
 
 /// 构建带小费的交易（使用PriorityFee中的tip_fee）
+/// Build transaction with tip (using tip_fee from PriorityFee)
 pub async fn build_tip_transaction_with_priority_fee(
     payer: Arc<Keypair>,
     priority_fee: &PriorityFee,
@@ -154,6 +171,7 @@ pub async fn build_tip_transaction_with_priority_fee(
 }
 
 /// 构建标准的RPC交易
+/// Build standard RPC transaction
 pub async fn build_sell_transaction(
     payer: Arc<Keypair>,
     priority_fee: &PriorityFee,
@@ -164,15 +182,19 @@ pub async fn build_sell_transaction(
     let mut instructions = vec![];
 
     // 添加计算预算指令
+    // Add compute budget instructions
     add_sell_compute_budget_instructions(&mut instructions, priority_fee);
 
     // 添加业务指令
+    // Add business instructions
     instructions.extend(business_instructions);
 
     // 获取地址查找表账户
+    // Get address lookup table accounts
     let address_lookup_table_accounts = get_address_lookup_table_accounts(lookup_table_key).await;
 
     // 构建交易
+    // Build transaction
     build_versioned_transaction(
         payer,
         instructions,
@@ -194,12 +216,15 @@ pub async fn build_sell_tip_transaction(
     let mut instructions = vec![];
 
     // 添加计算预算指令
+    // Add compute budget instructions
     add_sell_tip_compute_budget_instructions(&mut instructions, priority_fee);
 
     // 添加业务指令
+    // Add business instructions
     instructions.extend(business_instructions);
 
     // 添加小费转账指令
+    // Add tip transfer instruction
     instructions.push(system_instruction::transfer(
         &payer.pubkey(),
         tip_account,
@@ -207,9 +232,11 @@ pub async fn build_sell_tip_transaction(
     ));
 
     // 获取地址查找表账户
+    // Get address lookup table accounts
     let address_lookup_table_accounts = get_address_lookup_table_accounts(lookup_table_key).await;
 
     // 构建交易
+    // Build transaction
     build_versioned_transaction(
         payer,
         instructions,

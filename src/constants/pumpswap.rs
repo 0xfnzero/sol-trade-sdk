@@ -53,6 +53,7 @@ pub mod accounts {
         pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
     // PumpSwap 协议费用接收者
+    // PumpSwap protocol fee recipient
     pub const PROTOCOL_FEE_RECIPIENT: Pubkey =
         pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
 

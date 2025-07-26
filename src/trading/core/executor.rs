@@ -15,6 +15,7 @@ use crate::{
 const MAX_LOADED_ACCOUNTS_DATA_SIZE_LIMIT: u32 = 256 * 1024;
 
 /// 通用交易执行器实现
+/// Generic trade executor implementation
 pub struct GenericTradeExecutor {
     instruction_builder: Arc<dyn InstructionBuilder>,
     protocol_name: &'static str,
@@ -43,14 +44,17 @@ impl TradeExecutor for GenericTradeExecutor {
         }
         let rpc = params.rpc.as_ref().unwrap().clone();
         let mut timer = TradeTimer::new("构建买入交易指令");
+        // Build buy transaction instructions
         // 构建指令
         let instructions = self
             .instruction_builder
             .build_buy_instructions(&params)
             .await?;
         timer.stage("构建rpc交易指令");
+        // Build RPC transaction instructions
 
         // 构建交易
+        // Build transaction
         let transaction = build_rpc_transaction(
             params.payer.clone(),
             &params.priority_fee,
@@ -61,8 +65,10 @@ impl TradeExecutor for GenericTradeExecutor {
         )
         .await?;
         timer.stage("rpc提交确认");
+        // RPC submit confirmation
 
         // 发送交易
+        // Send transaction
         rpc.send_and_confirm_transaction(&transaction).await?;
         timer.finish();
 
@@ -74,8 +80,10 @@ impl TradeExecutor for GenericTradeExecutor {
             params.data_size_limit = MAX_LOADED_ACCOUNTS_DATA_SIZE_LIMIT;
         }
         let timer = TradeTimer::new("构建买入交易指令");
+        // Build buy transaction instructions
 
         // 验证参数 - 转换为BuyParams进行验证
+        // Validate parameters - convert to BuyParams for validation
         let buy_params = BuyParams {
             rpc: params.rpc,
             payer: params.payer.clone(),
@@ -91,6 +99,7 @@ impl TradeExecutor for GenericTradeExecutor {
         };
 
         // 构建指令
+        // Build instructions
         let instructions = self
             .instruction_builder
             .build_buy_instructions(&buy_params)
@@ -99,6 +108,7 @@ impl TradeExecutor for GenericTradeExecutor {
         timer.finish();
 
         // 并行执行交易
+        // Execute transaction in parallel
         parallel_execute_with_tips(
             params.swqos_clients,
             params.payer,
@@ -120,15 +130,19 @@ impl TradeExecutor for GenericTradeExecutor {
         }
         let rpc = params.rpc.as_ref().unwrap().clone();
         let mut timer = TradeTimer::new("构建卖出交易指令");
+        // Build sell transaction instructions
 
         // 构建指令
+        // Build instructions
         let instructions = self
             .instruction_builder
             .build_sell_instructions(&params)
             .await?;
         timer.stage("卖出交易指令");
+        // Sell transaction instructions
 
         // 构建交易
+        // Build transaction
         let transaction = build_sell_transaction(
             params.payer.clone(),
             &params.priority_fee,
@@ -138,8 +152,10 @@ impl TradeExecutor for GenericTradeExecutor {
         )
         .await?;
         timer.stage("卖出交易签名");
+        // Sell transaction signing
 
         // 发送交易
+        // Send transaction
         rpc.send_and_confirm_transaction(&transaction).await?;
         timer.finish();
 
@@ -148,8 +164,10 @@ impl TradeExecutor for GenericTradeExecutor {
 
     async fn sell_with_tip(&self, params: SellWithTipParams) -> Result<()> {
         let timer = TradeTimer::new("构建卖出交易指令");
+        // Build sell transaction instructions
 
         // 转换为SellParams进行指令构建
+        // Convert to SellParams for instruction building
         let sell_params = SellParams {
             rpc: params.rpc,
             payer: params.payer.clone(),
@@ -164,6 +182,7 @@ impl TradeExecutor for GenericTradeExecutor {
         };
 
         // 构建指令
+        // Build instructions
         let instructions = self
             .instruction_builder
             .build_sell_instructions(&sell_params)
@@ -172,6 +191,7 @@ impl TradeExecutor for GenericTradeExecutor {
         timer.finish();
 
         // 并行执行交易
+        // Execute transaction in parallel
         parallel_execute_with_tips(
             params.swqos_clients,
             params.payer,

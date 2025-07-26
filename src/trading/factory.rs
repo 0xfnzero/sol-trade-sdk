@@ -9,6 +9,7 @@ use crate::instruction::{
 use super::core::{executor::GenericTradeExecutor, traits::TradeExecutor};
 
 /// 支持的交易协议
+/// Supported trading protocols
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DexType {
     PumpFun,
@@ -43,10 +44,12 @@ impl std::str::FromStr for DexType {
 }
 
 /// 交易工厂 - 用于创建不同协议的交易执行器
+/// Trade factory - used to create trade executors for different protocols
 pub struct TradeFactory;
 
 impl TradeFactory {
     /// 创建指定协议的交易执行器
+    /// Create trade executor for specified protocol
     pub fn create_executor(dex_type: DexType) -> Arc<dyn TradeExecutor> {
         match dex_type {
             DexType::PumpFun => {
@@ -72,11 +75,13 @@ impl TradeFactory {
     }
 
     /// 获取所有支持的协议
+    /// Get all supported protocols
     pub fn supported_dex_types() -> Vec<DexType> {
         vec![DexType::PumpFun, DexType::PumpSwap, DexType::Bonk, DexType::RaydiumCpmm]
     }
 
     /// 检查协议是否支持
+    /// Check if protocol is supported
     pub fn is_supported(dex_type: &DexType) -> bool {
         Self::supported_dex_types().contains(dex_type)
     }

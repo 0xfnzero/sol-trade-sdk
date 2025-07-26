@@ -3,6 +3,7 @@ use solana_sdk::{compute_budget::ComputeBudgetInstruction, instruction::Instruct
 use crate::common::PriorityFee;
 
 /// 为RPC交易添加计算预算指令
+/// Add compute budget instructions for RPC transactions
 pub fn add_rpc_compute_budget_instructions(
     instructions: &mut Vec<Instruction>,
     priority_fee: &PriorityFee,
@@ -19,6 +20,7 @@ pub fn add_rpc_compute_budget_instructions(
 }
 
 /// 为带小费的交易添加计算预算指令
+/// Add compute budget instructions for transactions with tips
 pub fn add_tip_compute_budget_instructions(
     instructions: &mut Vec<Instruction>,
     priority_fee: &PriorityFee,
@@ -35,6 +37,7 @@ pub fn add_tip_compute_budget_instructions(
 }
 
 /// 通用的计算预算指令添加函数
+/// Generic compute budget instruction addition function
 pub fn add_compute_budget_instructions(
     instructions: &mut Vec<Instruction>,
     unit_price: u64,
@@ -60,6 +63,7 @@ pub fn add_sell_compute_budget_instructions(
 }
 
 /// 为带小费的交易添加计算预算指令
+/// Add compute budget instructions for transactions with tips
 pub fn add_sell_tip_compute_budget_instructions(
     instructions: &mut Vec<Instruction>,
     priority_fee: &PriorityFee,

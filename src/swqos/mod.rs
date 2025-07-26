@@ -30,10 +30,10 @@ pub enum TradeType {
 impl std::fmt::Display for TradeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            TradeType::Create => "创建",
-            TradeType::CreateAndBuy => "创建并买入",
-            TradeType::Buy => "买入",
-            TradeType::Sell => "卖出",
+            TradeType::Create => "Create",
+            TradeType::CreateAndBuy => "Create and Buy",
+            TradeType::Buy => "Buy",
+            TradeType::Sell => "Sell",
         };
         write!(f, "{}", s)
     }

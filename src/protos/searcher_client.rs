@@ -90,7 +90,7 @@ pub async fn send_bundle_with_confirmation(
 ) -> Result<Vec<Signature>, anyhow::Error> {
     let start_time = Instant::now();
     let signatures = send_bundle_no_wait(transactions, searcher_client).await?;
-    println!(" Jito{}提交: {:?}", trade_type, start_time.elapsed());
+    println!(" Jito{} submit: {:?}", trade_type, start_time.elapsed());
 
     let start_time: Instant = Instant::now();
     for signature in signatures.clone() {
@@ -100,7 +100,7 @@ pub async fn send_bundle_with_confirmation(
         }
     }
     
-    println!(" Jito{}确认: {:?}", trade_type, start_time.elapsed());
+    println!(" Jito{} confirmation: {:?}", trade_type, start_time.elapsed());
 
     Ok(signatures)
 }

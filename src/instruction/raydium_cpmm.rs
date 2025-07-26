@@ -18,6 +18,7 @@ use crate::{
 };
 
 /// RaydiumCpmm协议的指令构建器
+/// RaydiumCpmm protocol instruction builder
 pub struct RaydiumCpmmInstructionBuilder;
 
 #[async_trait::async_trait]
@@ -36,6 +37,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
 impl RaydiumCpmmInstructionBuilder {
     /// 使用提供的账户信息构建买入指令
+    /// Build buy instructions using provided account information
     async fn build_buy_instructions_with_accounts(
         &self,
         params: &BuyParams,
@@ -78,6 +80,7 @@ impl RaydiumCpmmInstructionBuilder {
         );
 
         // 获取池的代币账户
+        // Get pool token accounts
         let wsol_vault_account = get_vault_pda(&pool_state, &accounts::WSOL_TOKEN_ACCOUNT).unwrap();
         let mint_vault_account = get_vault_pda(&pool_state, &params.mint).unwrap();
 
@@ -87,7 +90,8 @@ impl RaydiumCpmmInstructionBuilder {
         let mut minimum_amount_out: u64 = if protocol_params.minimum_amount_out.is_some() {
             protocol_params.minimum_amount_out.unwrap()
         } else {
-            println!("未提供minimum_amount_out，使用默认值0");
+            println!("minimum_amount_out not provided, using default value 0");
+            // 未提供minimum_amount_out，使用默认值0
             0
         };
         if minimum_amount_out != 0 {
@@ -105,8 +109,10 @@ impl RaydiumCpmmInstructionBuilder {
 
         if protocol_params.auto_handle_wsol {
             // 插入wsol
+            // Insert wSOL
             instructions.push(
                 // 创建wSOL ATA账户，如果不存在
+                // Create wSOL ATA account if it doesn't exist
                 create_associated_token_account_idempotent(
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
@@ -116,6 +122,7 @@ impl RaydiumCpmmInstructionBuilder {
             );
             instructions.push(
                 // 将SOL转入wSOL ATA账户
+                // Transfer SOL to wSOL ATA account
                 solana_sdk::system_instruction::transfer(
                     &params.payer.pubkey(),
                     &wsol_token_account,
@@ -124,6 +131,7 @@ impl RaydiumCpmmInstructionBuilder {
             );
 
             // 同步wSOL余额
+            // Sync wSOL balance
             instructions.push(
                 spl_token::instruction::sync_native(&accounts::TOKEN_PROGRAM, &wsol_token_account)
                     .unwrap(),
@@ -131,6 +139,7 @@ impl RaydiumCpmmInstructionBuilder {
         }
 
         // 创建用户的基础代币账户
+        // Create user base token account
         instructions.push(create_associated_token_account_idempotent(
             &params.payer.pubkey(),
             &params.payer.pubkey(),
@@ -175,6 +184,7 @@ impl RaydiumCpmmInstructionBuilder {
 
         if protocol_params.auto_handle_wsol {
             // 关闭wSOL ATA账户，回收租金
+            // Close wSOL ATA account to reclaim rent
             instructions.push(
                 spl_token::instruction::close_account(
                     &accounts::TOKEN_PROGRAM,
@@ -222,7 +232,8 @@ impl RaydiumCpmmInstructionBuilder {
         let mut minimum_amount_out: u64 = if protocol_params.minimum_amount_out.is_some() {
             protocol_params.minimum_amount_out.unwrap()
         } else {
-            println!("未提供minimum_amount_out，使用默认值0");
+            println!("minimum_amount_out not provided, using default value 0");
+            // 未提供minimum_amount_out，使用默认值0
             0
         };
         if minimum_amount_out != 0 {
@@ -268,6 +279,7 @@ impl RaydiumCpmmInstructionBuilder {
         );
 
         // 获取池的代币账户
+        // Get pool token accounts
         let wsol_vault_account = get_vault_pda(&pool_state, &accounts::WSOL_TOKEN_ACCOUNT).unwrap();
         let mint_vault_account = get_vault_pda(&pool_state, &params.mint).unwrap();
 
@@ -276,8 +288,10 @@ impl RaydiumCpmmInstructionBuilder {
         let mut instructions = vec![];
 
         // 插入wsol
+        // Insert wSOL
         instructions.push(
             // 创建wSOL ATA账户，如果不存在
+            // Create wSOL ATA account if it doesn't exist
             create_associated_token_account_idempotent(
                 &params.payer.pubkey(),
                 &params.payer.pubkey(),

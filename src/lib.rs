@@ -62,15 +62,19 @@ impl SolanaTrade {
         let commitment = trade_config.commitment.clone();
         if priority_fee.buy_tip_fees.len() < swqos_configs.len() {
             // 补齐数组,只补齐缺少的
+            // Fill the array, only fill the missing ones
             let mut buy_tip_fees = priority_fee.buy_tip_fees.clone();
             let default_fee = priority_fee.buy_tip_fee;
             // 计算需要补充的元素数量
+            // Calculate the number of elements that need to be supplemented
             let missing_count = swqos_configs.len() - buy_tip_fees.len();
             // 添加缺少的元素，使用默认值
+            // Add missing elements using default values
             for _ in 0..missing_count {
                 buy_tip_fees.push(default_fee);
             }
             // 更新 priority_fee 中的 buy_tip_fees
+            // Update buy_tip_fees in priority_fee
             priority_fee.buy_tip_fees = buy_tip_fees;
             trade_config.priority_fee = priority_fee.clone();
         }
