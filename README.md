@@ -1,9 +1,41 @@
-# Sol Trade SDK
-[中文](https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md) | [English](https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md) | [Website](https://fnzero.dev/) | [Telegram](https://t.me/fnzero_group)
+<div align="center">
+    <h1>🚀 Sol Trade SDK</h1>
+    <h3><em>A comprehensive Rust SDK for seamless Solana DEX trading</em></h3>
+</div>
 
-A comprehensive Rust SDK for seamless interaction with Solana DEX trading programs. This SDK provides a robust set of tools and interfaces to integrate PumpFun, PumpSwap, and Bonk functionality into your applications.
+<p align="center">
+    <strong>Integrate PumpFun, PumpSwap, Bonk, and Raydium trading functionality into your applications with powerful tools and unified interfaces.</strong>
+</p>
 
-## Project Features
+<p align="center">
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
+    <a href="https://fnzero.dev/">Website</a> |
+    <a href="https://t.me/fnzero_group">Telegram</a>
+</p>
+
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [📦 Installation](#-installation)
+- [🛠️ Usage Examples](#️-usage-examples)
+  - [📋 Important Parameter Description](#-important-parameter-description)
+  - [📊 Usage Examples Summary Table](#-usage-examples-summary-table)
+  - [⚙️ SWQOS Service Configuration](#️-swqos-service-configuration)
+  - [🔧 Middleware System](#-middleware-system)
+  - [⚡ Custom Priority Fee Configuration](#-custom-priority-fee-configuration)
+- [🏪 Supported Trading Platforms](#-supported-trading-platforms)
+- [🛡️ MEV Protection Services](#️-mev-protection-services)
+- [💰 Price Calculation Utilities](#-price-calculation-utilities)
+- [🧮 Amount Calculation Utilities](#-amount-calculation-utilities)
+- [📁 Project Structure](#-project-structure)
+- [📄 License](#-license)
+- [💬 Contact](#-contact)
+- [⚠️ Important Notes](#️-important-notes)
+
+---
+
+## ✨ Features
 
 1. **PumpFun Trading**: Support for `buy` and `sell` operations
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
@@ -18,7 +50,7 @@ A comprehensive Rust SDK for seamless interaction with Solana DEX trading progra
 11. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 12. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
 
-## Installation
+## 📦 Installation
 
 ### Direct Clone
 
@@ -43,9 +75,10 @@ sol-trade-sdk = { path = "./sol-trade-sdk", version = "0.6.4" }
 sol-trade-sdk = "0.6.4"
 ```
 
-## Usage Examples
+## 🛠️ Usage Examples
 
-### Important Parameter Description
+### 📋 Important Parameter Description
+
 #### 🌱 open_seed_optimize Parameter
 
 `open_seed_optimize` is used to specify whether to use seed optimization to reduce transaction CU consumption.
@@ -80,7 +113,6 @@ The `lookup_table_key` parameter is an optional `Pubkey` that specifies an addre
 
 - **Purpose**: Address lookup tables can reduce transaction size and improve execution speed by storing frequently used addresses
 - **Usage**: 
-  - Can be set globally in `TradeConfig` for all transactions
   - Can be overridden per transaction in `buy()` and `sell()` methods
   - If not provided, defaults to `None`
 - **Benefits**:
@@ -107,7 +139,7 @@ The `priority_fee` parameter is an optional `PriorityFee` that allows you to ove
 When using shred to subscribe to events, due to the nature of shreds, you cannot get complete information about transaction events.
 Please ensure that the parameters your trading logic depends on are available in shreds when using them.
 
-### Usage Examples Summary Table
+### 📊 Usage Examples Summary Table
 
 | Feature Type | Package Name | Description | Run Command | Source Code |
 |-------------|--------------|-------------|-------------|-------------|
@@ -126,19 +158,12 @@ Please ensure that the parameters your trading logic depends on are available in
 | WSOL Wrapper | `wsol_wrapper` | Wrap/unwrap SOL to/from WSOL example | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
 | Seed Trading | `seed_trading` | Seed trading example | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
 
-### SWQOS Service Configuration
+### ⚙️ SWQOS Service Configuration
 
 When configuring SWQOS services, note the different parameter requirements for each service:
 
-- **Jito**: The first parameter is UUID, if you don't have a UUID, pass an empty string `""`
-- **NextBlock**: The first parameter is API Token
-- **Bloxroute**: The first parameter is API Token  
-- **ZeroSlot**: The first parameter is API Token
-- **Temporal**: The first parameter is API Token
-- **FlashBlock**: The first parameter is API Token, Add community TG admin [xyz_0xfnzero](https://t.me/xyz_0xfnzero) to get a free key and instantly speed up your trading (with tip refunds available)!
-- **BlockRazor**: The first parameter is API Token, Add official TG support to get a free key and instantly accelerate your trades!
-- **Node1**: The first parameter is API Token, Add the official TG support at https://t.me/node1_me to get a free key and instantly accelerate your trades!
-- **Astralane**: The first parameter is API Token
+- **Jito**: The first parameter is UUID (if no UUID, pass an empty string `""`)
+- **Other MEV services**: The first parameter is the API Token
 
 #### Custom URL Support
 
@@ -167,7 +192,9 @@ let nextblock_config = SwqosConfig::NextBlock(
 
 When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `blockhash` when trading.
 
-### Middleware System Explanation
+---
+
+### 🔧 Middleware System
 
 The SDK provides a powerful middleware system that allows you to modify, add, or remove instructions before transaction execution. Middleware executes in the order they are added:
 
@@ -178,7 +205,7 @@ let middleware_manager = MiddlewareManager::new()
     .add_middleware(Box::new(ThirdMiddleware));  // Executes last
 ```
 
-### 9. Custom Priority Fee Configuration
+### ⚡ Custom Priority Fee Configuration
 
 ```rust
 use sol_trade_sdk::common::PriorityFee;
@@ -203,7 +230,7 @@ let trade_config = TradeConfig {
 };
 ```
 
-## Supported Trading Platforms
+## 🏪 Supported Trading Platforms
 
 - **PumpFun**: Primary meme coin trading platform
 - **PumpSwap**: PumpFun's swap protocol
@@ -211,7 +238,7 @@ let trade_config = TradeConfig {
 - **Raydium CPMM**: Raydium's Concentrated Pool Market Maker protocol
 - **Raydium AMM V4**: Raydium's Automated Market Maker V4 protocol
 
-## MEV Protection Services
+## 🛡️ MEV Protection Services
 
 - **Jito**: High-performance block space
 - **NextBlock**: Fast transaction execution
@@ -223,31 +250,11 @@ let trade_config = TradeConfig {
 - **Node1**: High-speed transaction execution with API key authentication - [Official Documentation](https://node1.me/docs.html) 
 - **Astralane**: Blockchain network acceleration
 
-## New Architecture Features
-
-### Unified Trading Interface
-
-- **TradingProtocol Enum**: Use unified protocol enums (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4)
-- **Unified buy/sell Methods**: All protocols use the same trading method signatures
-- **Protocol-specific Parameters**: Each protocol has its own parameter structure (PumpFunParams, RaydiumCpmmParams, RaydiumAmmV4Params, etc.)
-
-### Event Parsing System
-
-- **Unified Event Interface**: All protocol events implement the UnifiedEvent trait
-- **Protocol-specific Events**: Each protocol has its own event types
-- **Event Factory**: Automatically identifies and parses events from different protocols
-
-### Trading Engine
-
-- **Unified Trading Interface**: All trading operations use the same methods
-- **Protocol Abstraction**: Supports trading operations across multiple protocols
-- **Concurrent Execution**: Supports sending transactions to multiple MEV services simultaneously
-
-## Price Calculation Utilities
+## 💰 Price Calculation Utilities
 
 The SDK includes price calculation utilities for all supported protocols in `src/utils/price/`.
 
-## Amount Calculation Utilities
+## 🧮 Amount Calculation Utilities
 
 The SDK provides trading amount calculation functionality for various protocols, located in `src/utils/calc/`:
 
@@ -265,7 +272,7 @@ Key features include:
 - Slippage protection calculations
 - Liquidity pool state calculations
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
@@ -306,25 +313,20 @@ src/
 └── main.rs           # Example program
 ```
 
-## License
+## 📄 License
 
 MIT License
 
-## Contact
+## 💬 Contact
 
 - Official Website: https://fnzero.dev/
 - Project Repository: https://github.com/0xfnzero/sol-trade-sdk
 - Telegram Group: https://t.me/fnzero_group
 
-## Important Notes
+## ⚠️ Important Notes
 
 1. Test thoroughly before using on mainnet
 2. Properly configure private keys and API tokens
 3. Pay attention to slippage settings to avoid transaction failures
 4. Monitor balances and transaction fees
 5. Comply with relevant laws and regulations
-
-## Language Versions
-
-- [English](README.md)
-- [中文](README_CN.md)

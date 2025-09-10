@@ -1,9 +1,41 @@
-# Sol Trade SDK
-[中文](https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md) | [English](https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md) | [Website](https://fnzero.dev/) | [Telegram](https://t.me/fnzero_group)
+<div align="center">
+    <h1>🚀 Sol Trade SDK</h1>
+    <h3><em>全面的 Rust SDK，用于无缝 Solana DEX 交易</em></h3>
+</div>
 
-一个全面的 Rust SDK，用于与 Solana DEX 交易程序进行无缝交互。此 SDK 提供强大的工具和接口集，将 PumpFun、PumpSwap 和 Bonk 功能集成到您的应用程序中。
+<p align="center">
+    <strong>将 PumpFun、PumpSwap、Bonk 和 Raydium 交易功能集成到您的应用程序中，提供强大的工具和统一的接口。</strong>
+</p>
 
-## 项目特性
+<p align="center">
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
+    <a href="https://fnzero.dev/">Website</a> |
+    <a href="https://t.me/fnzero_group">Telegram</a>
+</p>
+
+## 📋 目录
+
+- [✨ 项目特性](#-项目特性)
+- [📦 安装](#-安装)
+- [🛠️ 使用示例](#️-使用示例)
+  - [📋 重要说明](#-重要说明)
+  - [📊 使用示例汇总表格](#-使用示例汇总表格)
+  - [⚙️ SWQOS 服务配置说明](#️-swqos-服务配置说明)
+  - [🔧 中间件系统说明](#-中间件系统说明)
+  - [⚡ 自定义优先费用配置](#-自定义优先费用配置)
+- [🏪 支持的交易平台](#-支持的交易平台)
+- [🛡️ MEV 保护服务](#️-mev-保护服务)
+- [💰 价格计算工具](#-价格计算工具)
+- [🧮 数量计算工具](#-数量计算工具)
+- [📁 项目结构](#-项目结构)
+- [📄 许可证](#-许可证)
+- [💬 联系方式](#-联系方式)
+- [⚠️ 重要注意事项](#️-重要注意事项)
+
+---
+
+## ✨ 项目特性
 
 1. **PumpFun 交易**: 支持`购买`、`卖出`功能
 2. **PumpSwap 交易**: 支持 PumpSwap 池的交易操作
@@ -18,7 +50,7 @@
 11. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 12. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
 
-## 安装
+## 📦 安装
 
 ### 直接克隆
 
@@ -43,9 +75,9 @@ sol-trade-sdk = { path = "./sol-trade-sdk", version = "0.6.4" }
 sol-trade-sdk = "0.6.4"
 ```
 
-## 使用示例
+## 🛠️ 使用示例
 
-### 重要说明
+### 📋 重要说明
 
 #### 🌱 open_seed_optimize 参数
 
@@ -81,7 +113,6 @@ sol-trade-sdk = "0.6.4"
 
 - **用途**：地址查找表可以通过存储常用地址来减少交易大小并提高执行速度
 - **使用方法**：
-  - 可以在 `TradeConfig` 中全局设置，用于所有交易
   - 可以在 `buy()` 和 `sell()` 方法中按交易覆盖
   - 如果不提供，默认为 `None`
 - **优势**：
@@ -108,7 +139,7 @@ sol-trade-sdk = "0.6.4"
 当你使用 shred 订阅事件时，由于 shred 的特性，你无法获取到交易事件的完整信息。
 请你在使用时，确保你的交易逻辑依赖的参数，在shred中都能获取到。
 
-### 使用示例汇总表格
+### 📊 使用示例汇总表格
 
 | 功能类型 | 示例包名 | 描述 | 运行命令 | 源码路径 |
 |---------|---------|------|---------|----------|
@@ -127,19 +158,12 @@ sol-trade-sdk = "0.6.4"
 | WSOL 包装器 | `wsol_wrapper` | SOL与WSOL相互转换示例 | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
 | Seed 优化 | `seed_trading` | Seed 优化交易示例 | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
 
-### SWQOS 服务配置说明
+### ⚙️ SWQOS 服务配置说明
 
 在配置 SWQOS 服务时，需要注意不同服务的参数要求：
 
-- **Jito**: 第一个参数是 UUID，如果没有 UUID 则传空字符串 `""`
-- **NextBlock**: 第一个参数是 API Token
-- **Bloxroute**: 第一个参数是 API Token  
-- **ZeroSlot**: 第一个参数是 API Token
-- **Temporal**: 第一个参数是 API Token
-- **FlashBlock**: 第一个参数是 API Token, 添加社区tg管理员[xyz_0xfnzero](https://t.me/xyz_0xfnzero)获取免费key立即加速你的交易(可获得小费返还)！
-- **BlockRazor**: 第一个参数是 API Token, 添加tg官方客服获取免费key立即加速你的交易！
-- **Node1**: 第一个参数是 API Token, 添加tg官方客服https://t.me/node1_me 获取免费key立即加速你的交易！
-- **Astralane**: 第一个参数是 API Token
+- **Jito**: 第一个参数为 UUID（如无 UUID 请传入空字符串 `""`）
+- 其他的MEV服务，第一个参数为 API Token
 
 #### 自定义 URL 支持
 
@@ -168,7 +192,9 @@ let nextblock_config = SwqosConfig::NextBlock(
 
 当使用多个MEV服务时，需要使用`Durable Nonce`。你需要初始化`NonceCache`类（或者自行写一个管理nonce的类），获取最新的`nonce`值，并在交易的时候作为`blockhash`使用。
 
-### 中间件系统说明
+---
+
+### 🔧 中间件系统说明
 
 SDK 提供了强大的中间件系统，允许您在交易执行前对指令进行修改、添加或移除。中间件按照添加顺序依次执行：
 
@@ -179,7 +205,7 @@ let middleware_manager = MiddlewareManager::new()
     .add_middleware(Box::new(ThirdMiddleware));  // 最后执行
 ```
 
-### 9. 自定义优先费用配置
+### ⚡ 自定义优先费用配置
 
 ```rust
 use sol_trade_sdk::common::PriorityFee;
@@ -204,7 +230,7 @@ let trade_config = TradeConfig {
 };
 ```
 
-## 支持的交易平台
+## 🏪 支持的交易平台
 
 - **PumpFun**: 主要的 meme 币交易平台
 - **PumpSwap**: PumpFun 的交换协议
@@ -212,7 +238,7 @@ let trade_config = TradeConfig {
 - **Raydium CPMM**: Raydium 的集中流动性做市商协议
 - **Raydium AMM V4**: Raydium 的自动做市商 V4 协议
 
-## MEV 保护服务
+## 🛡️ MEV 保护服务
 
 - **Jito**: 高性能区块空间
 - **NextBlock**: 快速交易执行
@@ -224,31 +250,12 @@ let trade_config = TradeConfig {
 - **Node1**: 高速交易执行，支持 API 密钥认证 - [官方文档](https://node1.me/docs.html)
 - **Astralane**: 高速交易执行，支持 API 密钥认证
 
-## 新架构特性
 
-### 统一交易接口
-
-- **TradingProtocol 枚举**: 使用统一的协议枚举（PumpFun、PumpSwap、Bonk、RaydiumCpmm、RaydiumAmmV4）
-- **统一的 buy/sell 方法**: 所有协议都使用相同的交易方法签名
-- **协议特定参数**: 每个协议都有自己的参数结构（PumpFunParams、RaydiumCpmmParams、RaydiumAmmV4Params 等）
-
-### 事件解析系统
-
-- **统一事件接口**: 所有协议事件都实现 UnifiedEvent 特征
-- **协议特定事件**: 每个协议都有自己的事件类型
-- **事件工厂**: 自动识别和解析不同协议的事件
-
-### 交易引擎
-
-- **统一交易接口**: 所有交易操作都使用相同的方法
-- **协议抽象**: 支持多个协议的交易操作
-- **并发执行**: 支持同时向多个 MEV 服务发送交易
-
-## 价格计算工具
+## 💰 价格计算工具
 
 SDK 包含所有支持协议的价格计算工具，位于 `src/utils/price/` 目录。
 
-## 数量计算工具
+## 🧮 数量计算工具
 
 SDK 提供各种协议的交易数量计算功能，位于 `src/utils/calc/` 目录：
 
@@ -266,7 +273,7 @@ SDK 提供各种协议的交易数量计算功能，位于 `src/utils/calc/` 目
 - 滑点保护计算
 - 流动性池状态计算
 
-## 项目结构
+## 📁 项目结构
 
 ```
 src/
@@ -307,17 +314,17 @@ src/
 └── main.rs           # 示例程序
 ```
 
-## 许可证
+## 📄 许可证
 
 MIT 许可证
 
-## 联系方式
+## 💬 联系方式
 
 - 官方网站: https://fnzero.dev/
 - 项目仓库: https://github.com/0xfnzero/sol-trade-sdk
 - Telegram 群组: https://t.me/fnzero_group
 
-## 重要注意事项
+## ⚠️ 重要注意事项
 
 1. 在主网使用前请充分测试
 2. 正确设置私钥和 API 令牌
@@ -325,7 +332,3 @@ MIT 许可证
 4. 监控余额和交易费用
 5. 遵循相关法律法规
 
-## 语言版本
-
-- [English](README.md)
-- [中文](README_CN.md)
