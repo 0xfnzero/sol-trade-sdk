@@ -69,7 +69,8 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Configure account filter for program-owned accounts
-    let account_filter = AccountFilter { account: vec![], owner: account_include.clone() };
+    let account_filter =
+        AccountFilter { account: vec![], owner: account_include.clone(), filters: vec![] };
 
     // Configure event type filter (all events)
     let event_type_filter = None;
