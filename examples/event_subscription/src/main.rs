@@ -83,8 +83,8 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     grpc.subscribe_events_immediate(
         protocols,
         None,
-        transaction_filter,
-        account_filter,
+        vec![transaction_filter],
+        vec![account_filter],
         event_type_filter,
         None,
         callback,

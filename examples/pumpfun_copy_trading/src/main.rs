@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Listen to account data belonging to owner programs -> account event monitoring
-    let account_filter = AccountFilter { account: vec![], owner: vec![] };
+    let account_filter = AccountFilter { account: vec![], owner: vec![], filters: vec![] };
 
     // listen to specific event type
     let event_type_filter =
@@ -61,8 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     grpc.subscribe_events_immediate(
         protocols,
         None,
-        transaction_filter,
-        account_filter,
+        vec![transaction_filter],
+        vec![account_filter],
         Some(event_type_filter),
         None,
         callback,
