@@ -110,7 +110,13 @@ async fn parallel_execute(
 
             let tip_account_str = swqos_client.get_tip_account()?;
             let tip_account = Arc::new(Pubkey::from_str(&tip_account_str).unwrap_or_default());
-            let tip_amount = if with_tip { priority_fee.buy_tip_fees[i] } else { 0.0 };
+
+            let tip_amount = if priority_fee.buy_tip_fees.len() > i {
+                priority_fee.buy_tip_fees[i]
+            } else {
+                priority_fee.buy_tip_fees[0]
+            };
+            let tip_amount = if with_tip { tip_amount } else { 0.0 };
 
             let transaction = build_transaction(
                 payer,

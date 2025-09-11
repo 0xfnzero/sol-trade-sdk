@@ -58,6 +58,18 @@ pub struct SellParams {
     pub close_wsol_ata: bool,
 }
 
+impl std::fmt::Debug for BuyParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BuyParams: {:?}", self)
+    }
+}
+
+impl std::fmt::Debug for SellParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SellParams: {:?}", self)
+    }
+}
+
 /// PumpFun protocol specific parameters
 /// Configuration parameters specific to PumpFun trading protocol
 #[derive(Clone)]

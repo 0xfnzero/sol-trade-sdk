@@ -295,6 +295,7 @@ impl SolanaTrade {
             create_wsol_ata,
             close_wsol_ata,
         };
+
         if custom_priority_fee.is_some() {
             sell_params.priority_fee = Arc::new(custom_priority_fee.unwrap());
         }
