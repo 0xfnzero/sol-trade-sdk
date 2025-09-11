@@ -60,11 +60,13 @@ impl SolanaTrade {
 
     // -------------------------------- PumpFun --------------------------------
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub fn get_pumpfun_token_buy_price(&self, amount: u64, trade_info: &PumpFunTradeEvent) -> u64 {
         crate::instruction::utils::pumpfun::get_buy_price(amount, trade_info)
     }
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpfun_token_current_price(
         &self,
@@ -80,6 +82,7 @@ impl SolanaTrade {
         Ok(price::pumpfun::price_token_in_sol(virtual_sol_reserves, virtual_token_reserves))
     }
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpfun_token_real_sol_reserves(
         &self,
@@ -94,6 +97,7 @@ impl SolanaTrade {
         Ok(actual_sol_reserves)
     }
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpfun_token_creator(&self, mint: &Pubkey) -> Result<Pubkey, anyhow::Error> {
         let (bonding_curve, _) =
@@ -107,6 +111,7 @@ impl SolanaTrade {
 
     // -------------------------------- PumpSwap --------------------------------
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpswap_token_current_price(
         &self,
@@ -128,6 +133,7 @@ impl SolanaTrade {
         Ok(price)
     }
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpswap_token_real_sol_reserves(
         &self,
@@ -141,6 +147,7 @@ impl SolanaTrade {
         Ok(quote_amount)
     }
 
+    #[deprecated(since = "0.6.7", note = "This function is deprecated and will be removed in a future version")]
     #[inline]
     pub async fn get_pumpswap_payer_token_balance(
         &self,

@@ -26,4 +26,5 @@ tmp_*.rs
 tmp_*.log
 
 
+.claude/
 .serena/
