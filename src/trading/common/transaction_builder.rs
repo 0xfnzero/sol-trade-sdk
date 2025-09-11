@@ -54,7 +54,7 @@ pub async fn build_transaction(
     instructions.extend(business_instructions);
 
     // Add tip transfer instruction
-    if with_tip {
+    if with_tip && tip_amount > 0.0 {
         instructions.push(transfer(
             &payer.pubkey(),
             tip_account,
