@@ -74,18 +74,12 @@ async fn parallel_execute(
 ) -> Result<Signature> {
     let cores = core_affinity::get_core_ids().unwrap();
     let mut handles: Vec<JoinHandle<Result<Signature>>> = Vec::with_capacity(swqos_clients.len());
-    if is_buy
-        && (swqos_clients.len() > priority_fee.buy_tip_fees.len()
-            || priority_fee.buy_tip_fees.is_empty())
-    {
-        return Err(anyhow!("Number of tip clients exceeds the configured buy tip fees. Please configure buy_tip_fees to match swqos_clients"));
+
+    if is_buy && with_tip && priority_fee.buy_tip_fees.is_empty() {
+        return Err(anyhow!("buy_tip_fees is empty"));
     }
-    if !is_buy
-        && !with_tip
-        && (swqos_clients.len() > priority_fee.sell_tip_fees.len()
-            || priority_fee.sell_tip_fees.is_empty())
-    {
-        return Err(anyhow!("Number of tip clients exceeds the configured sell tip fees. Please configure sell_tip_fees to match swqos_clients"));
+    if !is_buy && with_tip && priority_fee.sell_tip_fees.is_empty() {
+        return Err(anyhow!("sell_tip_fees is empty"));
     }
 
     let instructions = Arc::new(instructions);
@@ -111,12 +105,31 @@ async fn parallel_execute(
             let tip_account_str = swqos_client.get_tip_account()?;
             let tip_account = Arc::new(Pubkey::from_str(&tip_account_str).unwrap_or_default());
 
-            let tip_amount = if priority_fee.buy_tip_fees.len() > i {
-                priority_fee.buy_tip_fees[i]
+            let tip_amount = if with_tip {
+                if is_buy {
+                    if priority_fee.buy_tip_fees.len() > i {
+                        priority_fee.buy_tip_fees[i]
+                    } else {
+                        println!(
+                            "❗️❗️❗️[{:?}] - Using buy_tip_fees[0]: {:?}",
+                            swqos_type, priority_fee.buy_tip_fees[0]
+                        );
+                        priority_fee.buy_tip_fees[0]
+                    }
+                } else {
+                    if priority_fee.sell_tip_fees.len() > i {
+                        priority_fee.sell_tip_fees[i]
+                    } else {
+                        println!(
+                            "❗️❗️❗️[{:?}] - Using sell_tip_fees[0]: {:?}",
+                            swqos_type, priority_fee.sell_tip_fees[0]
+                        );
+                        priority_fee.sell_tip_fees[0]
+                    }
+                }
             } else {
-                priority_fee.buy_tip_fees[0]
+                0.0
             };
-            let tip_amount = if with_tip { tip_amount } else { 0.0 };
 
             let transaction = build_transaction(
                 payer,
