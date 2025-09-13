@@ -35,7 +35,8 @@
     <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md">中文</a> |
     <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
     <a href="https://fnzero.dev/">Website</a> |
-    <a href="https://t.me/fnzero_group">Telegram</a>
+    <a href="https://t.me/fnzero_group">Telegram</a> |
+    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
 ## 📋 Table of Contents
@@ -346,6 +347,7 @@ MIT License
 - Official Website: https://fnzero.dev/
 - Project Repository: https://github.com/0xfnzero/sol-trade-sdk
 - Telegram Group: https://t.me/fnzero_group
+- Discord: https://discord.gg/vuazbGkqQE
 
 ## ⚠️ Important Notes
 
