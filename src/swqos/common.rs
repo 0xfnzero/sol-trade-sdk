@@ -26,7 +26,7 @@ impl FormatBase64VersionedTransaction for VersionedTransaction {
 }
 
 pub async fn poll_transaction_confirmation(rpc: &SolanaRpcClient, txt_sig: Signature) -> Result<Signature> {
-    let timeout: Duration = Duration::from_secs(5);
+    let timeout: Duration = Duration::from_secs(10);
     let interval: Duration = Duration::from_millis(1000);
     let start: Instant = Instant::now();
 
