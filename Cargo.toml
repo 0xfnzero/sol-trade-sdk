@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "0.6.14"
+version = "0.6.15"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -38,7 +38,7 @@ members = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-solana-streamer-sdk =  "0.4.11"
+solana-streamer-sdk =  "0.4.12"
 solana-sdk = "2.3.0"
 solana-client = "2.3.6"
 solana-program = "2.3.0" 

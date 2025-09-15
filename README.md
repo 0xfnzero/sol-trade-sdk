@@ -90,14 +90,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "0.6.14" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "0.6.15" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "0.6.14"
+sol-trade-sdk = "0.6.15"
 ```
 
 ## 🛠️ Usage Examples
