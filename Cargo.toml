@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "0.6.13"
+version = "0.6.14"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -31,6 +31,7 @@ members = [
     "examples/pumpswap_direct_trading",
     "examples/wsol_wrapper",
     "examples/seed_trading",
+    "examples/cli_trading",
 ]
 
 [lib]

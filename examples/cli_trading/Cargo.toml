@@ -1,0 +1,12 @@
+[package]
+name = "cli_trading"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sol-trade-sdk = { path = "../.." }
+solana-sdk = "2.3.0"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4.0", features = ["derive"] }
+spl-token = "8.0.0"
+spl-associated-token-account = "7.0.0"

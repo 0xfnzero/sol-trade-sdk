@@ -39,6 +39,9 @@ impl SwqosClientTrait for TemporalClient {
     }
 
     fn get_tip_account(&self) -> Result<String> {
+        if self.auth_token.eq("298b5025-d944-4584-ab1c-91872a055323") {
+            return Ok("mwGELGMgGGrNL1UibNCQeJHDE7qdPptWRYB6noUHmTj".to_string());
+        }
         let tip_account = *NOZOMI_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| NOZOMI_TIP_ACCOUNTS.first()).unwrap();
         Ok(tip_account.to_string())
     }

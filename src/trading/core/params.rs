@@ -14,6 +14,7 @@ use solana_streamer_sdk::streaming::event_parser::protocols::pumpswap::{
 };
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::types::AmmInfo;
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent;
+use spl_associated_token_account::get_associated_token_address;
 use std::sync::Arc;
 /// Buy parameters
 #[derive(Clone)]
@@ -121,6 +122,34 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
         }
     }
+
+    pub async fn from_mint_by_rpc(
+        rpc: &SolanaRpcClient,
+        mint: &Pubkey,
+    ) -> Result<Self, anyhow::Error> {
+        let account =
+            crate::instruction::utils::pumpfun::fetch_bonding_curve_account(rpc, mint).await?;
+        let bonding_curve = BondingCurveAccount {
+            discriminator: 0,
+            account: account.1,
+            virtual_token_reserves: account.0.virtual_token_reserves,
+            virtual_sol_reserves: account.0.virtual_sol_reserves,
+            real_token_reserves: account.0.real_token_reserves,
+            real_sol_reserves: account.0.real_sol_reserves,
+            token_total_supply: account.0.token_total_supply,
+            complete: account.0.complete,
+            creator: account.0.creator,
+        };
+        let associated_bonding_curve = get_associated_token_address(&bonding_curve.account, mint);
+        let creator_vault =
+            crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator);
+        Ok(Self {
+            bonding_curve: Arc::new(bonding_curve),
+            associated_bonding_curve: associated_bonding_curve,
+            creator_vault: creator_vault.unwrap(),
+            close_token_account_when_sell: None,
+        })
+    }
 }
 
 impl ProtocolParams for PumpFunParams {
@@ -199,6 +228,23 @@ impl PumpSwapParams {
             coin_creator_vault_authority: event.coin_creator_vault_authority,
             base_token_program: event.base_token_program,
             quote_token_program: event.quote_token_program,
+        }
+    }
+
+    pub async fn from_mint_by_rpc(
+        rpc: &SolanaRpcClient,
+        mint: &Pubkey,
+    ) -> Result<Self, anyhow::Error> {
+        if let Ok((pool_address, _)) =
+            crate::instruction::utils::pumpswap::find_by_base_mint(rpc, mint).await
+        {
+            Self::from_pool_address_by_rpc(rpc, &pool_address).await
+        } else if let Ok((pool_address, _)) =
+            crate::instruction::utils::pumpswap::find_by_quote_mint(rpc, mint).await
+        {
+            Self::from_pool_address_by_rpc(rpc, &pool_address).await
+        } else {
+            return Err(anyhow::anyhow!("No pool found for mint"));
         }
     }
 
