@@ -6,7 +6,7 @@ use crate::{
         SWAP_BASE_IN_DISCRIMINATOR,
     },
     trading::core::{
-        params::{BuyParams, RaydiumCpmmParams, SellParams},
+        params::{InternalBuyParams, RaydiumCpmmParams, InternalSellParams},
         traits::InstructionBuilder,
     },
     utils::calc::raydium_cpmm::compute_swap_amount,
@@ -23,7 +23,7 @@ pub struct RaydiumCpmmInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -153,7 +153,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================

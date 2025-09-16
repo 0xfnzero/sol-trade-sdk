@@ -5,7 +5,7 @@ use std::{sync::Arc, time::Instant};
 use crate::trading::core::parallel::{buy_parallel_execute, sell_parallel_execute};
 
 use super::{
-    params::{BuyParams, SellParams},
+    params::{InternalBuyParams, InternalSellParams},
     traits::{InstructionBuilder, TradeExecutor},
 };
 
@@ -26,7 +26,7 @@ impl GenericTradeExecutor {
 
 #[async_trait::async_trait]
 impl TradeExecutor for GenericTradeExecutor {
-    async fn buy_with_tip(&self, params: BuyParams) -> Result<Signature> {
+    async fn buy_with_tip(&self, params: InternalBuyParams) -> Result<Signature> {
         let start = Instant::now();
 
         // Build instructions directly from params to avoid unnecessary cloning
@@ -47,7 +47,7 @@ impl TradeExecutor for GenericTradeExecutor {
         buy_parallel_execute(params, final_instructions, self.protocol_name).await
     }
 
-    async fn sell_with_tip(&self, params: SellParams) -> Result<Signature> {
+    async fn sell_with_tip(&self, params: InternalSellParams) -> Result<Signature> {
         let start = Instant::now();
 
         // Build instructions directly from params to avoid unnecessary cloning

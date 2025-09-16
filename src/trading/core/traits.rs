@@ -1,4 +1,4 @@
-use super::params::{BuyParams, SellParams};
+use super::params::{InternalBuyParams, InternalSellParams};
 use anyhow::Result;
 use solana_sdk::{instruction::Instruction, signature::Signature};
 
@@ -6,9 +6,9 @@ use solana_sdk::{instruction::Instruction, signature::Signature};
 #[async_trait::async_trait]
 pub trait TradeExecutor: Send + Sync {
     /// 使用MEV服务执行买入交易
-    async fn buy_with_tip(&self, params: BuyParams) -> Result<Signature>;
+    async fn buy_with_tip(&self, params: InternalBuyParams) -> Result<Signature>;
     /// 使用MEV服务执行卖出交易
-    async fn sell_with_tip(&self, params: SellParams) -> Result<Signature>;
+    async fn sell_with_tip(&self, params: InternalSellParams) -> Result<Signature>;
     /// 获取协议名称
     fn protocol_name(&self) -> &'static str;
 }
@@ -17,10 +17,10 @@ pub trait TradeExecutor: Send + Sync {
 #[async_trait::async_trait]
 pub trait InstructionBuilder: Send + Sync {
     /// 构建买入指令
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>>;
+    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>>;
 
     /// 构建卖出指令
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>>;
+    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>>;
 }
 
 /// 协议特定参数trait - 允许每个协议定义自己的参数

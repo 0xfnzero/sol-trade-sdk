@@ -16,12 +16,13 @@ use super::{
     compute_budget_manager::compute_budget_instructions,
     nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
 };
-use crate::{common::PriorityFee, trading::MiddlewareManager};
+use crate::trading::MiddlewareManager;
 
 /// Build standard RPC transaction
 pub async fn build_transaction(
     payer: Arc<Keypair>,
-    priority_fee: &PriorityFee,
+    unit_limit: u32,
+    unit_price: u64,
     business_instructions: Vec<Instruction>,
     lookup_table_key: Option<Pubkey>,
     recent_blockhash: Hash,
@@ -36,10 +37,8 @@ pub async fn build_transaction(
     let mut instructions = Vec::with_capacity(business_instructions.len() + 5);
 
     // Add nonce instruction
-    if is_buy {
-        if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref()) {
-            return Err(e);
-        }
+    if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref()) {
+        return Err(e);
     }
 
     // Add tip transfer instruction
@@ -53,9 +52,9 @@ pub async fn build_transaction(
 
     // Add compute budget instructions
     instructions.extend(compute_budget_instructions(
-        priority_fee,
+        unit_price,
+        unit_limit,
         data_size_limit,
-        !with_tip,
         is_buy,
     ));
 

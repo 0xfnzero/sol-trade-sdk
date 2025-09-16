@@ -1,7 +1,7 @@
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     trading::core::{
-        params::{BuyParams, PumpFunParams, SellParams},
+        params::{InternalBuyParams, PumpFunParams, InternalSellParams},
         traits::InstructionBuilder,
     },
 };
@@ -25,7 +25,7 @@ pub struct PumpFunInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for PumpFunInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -138,7 +138,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================

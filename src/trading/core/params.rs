@@ -1,9 +1,9 @@
 use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
-use crate::common::{PriorityFee, SolanaRpcClient};
+use crate::common::SolanaRpcClient;
 use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use crate::swqos::SwqosClient;
+use crate::swqos::settings::SwqosSettings;
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
 use solana_hash::Hash;
@@ -18,56 +18,56 @@ use spl_associated_token_account::get_associated_token_address;
 use std::sync::Arc;
 /// Buy parameters
 #[derive(Clone)]
-pub struct BuyParams {
+pub struct InternalBuyParams {
     pub rpc: Option<Arc<SolanaRpcClient>>,
     pub payer: Arc<Keypair>,
     pub mint: Pubkey,
     pub sol_amount: u64,
     pub slippage_basis_points: Option<u64>,
-    pub priority_fee: Arc<PriorityFee>,
     pub lookup_table_key: Option<Pubkey>,
     pub recent_blockhash: Hash,
     pub data_size_limit: u32,
     pub wait_transaction_confirmed: bool,
     pub protocol_params: Box<dyn ProtocolParams>,
     pub open_seed_optimize: bool,
-    pub swqos_clients: Vec<Arc<SwqosClient>>,
+    pub swqos_settings: Vec<Arc<SwqosSettings>>,
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
     pub create_mint_ata: bool,
+    pub custom_cu_limit: Option<u32>,
 }
 
 /// Sell parameters
 #[derive(Clone)]
-pub struct SellParams {
+pub struct InternalSellParams {
     pub rpc: Option<Arc<SolanaRpcClient>>,
     pub payer: Arc<Keypair>,
     pub mint: Pubkey,
     pub token_amount: Option<u64>,
     pub slippage_basis_points: Option<u64>,
-    pub priority_fee: Arc<PriorityFee>,
     pub lookup_table_key: Option<Pubkey>,
     pub recent_blockhash: Hash,
     pub wait_transaction_confirmed: bool,
     pub with_tip: bool,
     pub protocol_params: Box<dyn ProtocolParams>,
     pub open_seed_optimize: bool,
-    pub swqos_clients: Vec<Arc<SwqosClient>>,
+    pub swqos_settings: Vec<Arc<SwqosSettings>>,
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
+    pub custom_cu_limit: Option<u32>,
 }
 
-impl std::fmt::Debug for BuyParams {
+impl std::fmt::Debug for InternalBuyParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BuyParams: {:?}", self)
+        write!(f, "InternalBuyParams: {:?}", self)
     }
 }
 
-impl std::fmt::Debug for SellParams {
+impl std::fmt::Debug for InternalSellParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SellParams: {:?}", self)
+        write!(f, "InternalSellParams: {:?}", self)
     }
 }
 

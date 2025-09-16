@@ -14,7 +14,9 @@ use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
 };
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::{
-    common::{AnyResult, PriorityFee, TradeConfig},
+    common::AnyResult,
+    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
+    swqos::settings::SwqosSettings,
     swqos::SwqosConfig,
     trading::{core::params::PumpFunParams, factory::DexType},
     SolanaTrade,
@@ -97,28 +99,20 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("Creating SolanaTrade client...");
-
+    println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-
-    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
-
-    let mut priority_fee = PriorityFee::default();
-    // Configure according to your needs
-    priority_fee.rpc_unit_limit = 100000;
-
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: priority_fee,
-        swqos_configs,
-    };
-
-    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("SolanaTrade client created successfully!");
-
-    Ok(solana_trade_client)
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_settings: Vec<SwqosSettings> = vec![SwqosSettings::new(
+        SwqosConfig::Default(rpc_url.clone()),
+        DEFAULT_CU_LIMIT,
+        DEFAULT_CU_PRICE,
+        0.0,
+        0.0,
+    )];
+    let solana_trade = SolanaTrade::new(Arc::new(payer), rpc_url, commitment, swqos_settings).await;
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 /// PumpFun sniper trade
@@ -134,23 +128,22 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     // Buy tokens
     println!("Buying tokens from PumpFun...");
     let buy_sol_amount = 100_000;
-    client
-        .buy(
-            DexType::PumpFun,
-            mint_pubkey,
-            buy_sol_amount,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            Box::new(PumpFunParams::from_trade(&trade_info, None)),
-            None,
-            true,
-            false,
-            false,
-            true,
-            false,
-        )
-        .await?;
+    let buy_params = sol_trade_sdk::TradeBuyParams {
+        dex_type: DexType::PumpFun,
+        mint: mint_pubkey,
+        sol_amount: buy_sol_amount,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
+        custom_cu_limit: None,
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: false,
+        close_wsol_ata: false,
+        create_mint_ata: true,
+        open_seed_optimize: false,
+    };
+    client.buy(buy_params).await?;
 
     // Sell tokens
     println!("Selling tokens from PumpFun...");
@@ -163,23 +156,22 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     println!("Selling {} tokens", amount_token);
-    client
-        .sell(
-            DexType::PumpFun,
-            mint_pubkey,
-            amount_token,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(PumpFunParams::from_trade(&trade_info, Some(true))),
-            None,
-            true,
-            false,
-            false,
-            false,
-        )
-        .await?;
+    let sell_params = sol_trade_sdk::TradeSellParams {
+        dex_type: DexType::PumpFun,
+        mint: mint_pubkey,
+        token_amount: amount_token,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(PumpFunParams::from_trade(&trade_info, Some(true))),
+        custom_cu_limit: None,
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: false,
+        close_wsol_ata: false,
+        open_seed_optimize: false,
+    };
+    client.sell(sell_params).await?;
 
     // PumpFunParams can also be set as PumpFunParams::immediate_sell(creator_vault, close_token_account_when_sell)
     // creator_vault can be obtained from the trade event

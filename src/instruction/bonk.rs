@@ -7,7 +7,7 @@ use crate::{
     trading::{
         common::utils::get_token_balance,
         core::{
-            params::{BonkParams, BuyParams, SellParams},
+            params::{BonkParams, InternalBuyParams, InternalSellParams},
             traits::InstructionBuilder,
         },
     },
@@ -27,7 +27,7 @@ pub struct BonkInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for BonkInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -144,7 +144,7 @@ impl InstructionBuilder for BonkInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
