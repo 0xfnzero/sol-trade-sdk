@@ -31,6 +31,7 @@ pub async fn buy_parallel_execute(
         true,
         params.wait_transaction_confirmed,
         true,
+        params.custom_cu_limit,
     )
     .await
 }
@@ -52,6 +53,7 @@ pub async fn sell_parallel_execute(
         false,
         params.wait_transaction_confirmed,
         params.with_tip,
+        params.custom_cu_limit,
     )
     .await
 }
@@ -69,6 +71,7 @@ async fn parallel_execute(
     is_buy: bool,
     wait_transaction_confirmed: bool,
     with_tip: bool,
+    custom_cu_limit: Option<u32>,
 ) -> Result<Signature> {
     if swqos_settings.is_empty() {
         return Err(anyhow!("swqos_settings is empty"));
@@ -101,8 +104,12 @@ async fn parallel_execute(
             let swqos_client = swqos_client.clone();
             let buy_tip_fee = swqos_settings[i].buy_tip_fee;
             let sell_tip_fee = swqos_settings[i].sell_tip_fee;
-            let unit_limit = swqos_settings[i].unit_limit;
+            let mut unit_limit = swqos_settings[i].unit_limit;
             let unit_price = swqos_settings[i].unit_price;
+
+            if let Some(custom_cu_limit) = custom_cu_limit {
+                unit_limit = custom_cu_limit;
+            }
 
             let handle = tokio::spawn(async move {
                 core_affinity::set_for_current(core_id);
