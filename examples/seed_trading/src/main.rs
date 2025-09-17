@@ -1,7 +1,9 @@
 use sol_trade_sdk::{
-    common::{fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult},
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
-    swqos::{settings::SwqosSettings, SwqosConfig},
+    common::{
+        fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult,
+        PriorityFee, TradeConfig,
+    },
+    swqos::SwqosConfig,
     trading::{core::params::PumpSwapParams, factory::DexType},
     SolanaTrade,
 };
@@ -22,24 +24,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Buy tokens
     println!("Buying tokens from PumpSwap...");
     let buy_sol_amount = 100_000;
-    let buy_params = sol_trade_sdk::TradeBuyParams {
-        dex_type: DexType::PumpSwap,
-        mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
-        slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
-        extension_params: Box::new(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
-        ),
-        custom_cu_limit: None,
-        lookup_table_key: None,
-        wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
-        create_mint_ata: true,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
-    };
-    client.buy(buy_params).await?;
+    client
+        .buy(
+            DexType::PumpSwap,
+            mint_pubkey,
+            buy_sol_amount,
+            slippage_basis_points,
+            recent_blockhash,
+            None,
+            Box::new(PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?),
+            None,
+            true,
+            true,
+            true,
+            true,
+            true, // ❗️❗️❗️❗️ open seed optimize
+        )
+        .await?;
 
     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
 
@@ -58,24 +59,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();
-    let sell_params = sol_trade_sdk::TradeSellParams {
-        dex_type: DexType::PumpSwap,
-        mint: mint_pubkey,
-        token_amount: amount_token,
-        slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
-        with_tip: false,
-        extension_params: Box::new(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
-        ),
-        custom_cu_limit: None,
-        lookup_table_key: None,
-        wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
-    };
-    client.sell(sell_params).await?;
+    client
+        .sell(
+            DexType::PumpSwap,
+            mint_pubkey,
+            amount_token,
+            slippage_basis_points,
+            recent_blockhash,
+            None,
+            false,
+            Box::new(PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?),
+            None,
+            true,
+            true,
+            true,
+            true, // ❗️❗️❗️❗️ open seed optimize
+        )
+        .await?;
 
     tokio::signal::ctrl_c().await?;
     Ok(())
@@ -84,18 +84,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    println!("Creating SolanaTrade client...");
+
+    let payer = Keypair::from_base58_string("use_your_own_keypair");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-    let commitment = CommitmentConfig::confirmed();
-    let swqos_settings: Vec<SwqosSettings> = vec![SwqosSettings::new(
-        SwqosConfig::Default(rpc_url.clone()),
-        DEFAULT_CU_LIMIT,
-        DEFAULT_CU_PRICE,
-        0.0,
-        0.0,
-    )];
-    let solana_trade = SolanaTrade::new(Arc::new(payer), rpc_url, commitment, swqos_settings).await;
-    println!("✅ SolanaTrade client initialized successfully!");
-    Ok(solana_trade)
+
+    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
+
+    let mut priority_fee = PriorityFee::default();
+    priority_fee.buy_tip_fees = vec![0.001];
+    // Configure according to your needs
+    priority_fee.rpc_unit_limit = 150000;
+
+    let trade_config = TradeConfig {
+        rpc_url,
+        commitment: CommitmentConfig::confirmed(),
+        priority_fee: priority_fee,
+        swqos_configs,
+    };
+
+    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    println!("SolanaTrade client created successfully!");
+
+    Ok(solana_trade_client)
 }

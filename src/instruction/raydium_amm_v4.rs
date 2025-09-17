@@ -2,7 +2,7 @@ use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::utils::raydium_amm_v4::{accounts, SWAP_BASE_IN_DISCRIMINATOR},
     trading::core::{
-        params::{InternalBuyParams, RaydiumAmmV4Params, InternalSellParams},
+        params::{BuyParams, RaydiumAmmV4Params, SellParams},
         traits::InstructionBuilder,
     },
     utils::calc::raydium_amm_v4::compute_swap_amount,
@@ -18,7 +18,7 @@ pub struct RaydiumAmmV4InstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
-    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -122,7 +122,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================

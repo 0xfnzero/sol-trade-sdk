@@ -14,9 +14,7 @@ use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
 };
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::{
-    common::AnyResult,
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
-    swqos::settings::SwqosSettings,
+    common::{AnyResult, PriorityFee, TradeConfig},
     swqos::SwqosConfig,
     trading::{core::params::BonkParams, factory::DexType},
     SolanaTrade,
@@ -105,20 +103,28 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("🚀 Initializing SolanaTrade client...");
+    println!("Creating SolanaTrade client...");
+
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-    let commitment = CommitmentConfig::confirmed();
-    let swqos_settings: Vec<SwqosSettings> = vec![SwqosSettings::new(
-        SwqosConfig::Default(rpc_url.clone()),
-        DEFAULT_CU_LIMIT,
-        DEFAULT_CU_PRICE,
-        0.0,
-        0.0,
-    )];
-    let solana_trade = SolanaTrade::new(Arc::new(payer), rpc_url, commitment, swqos_settings).await;
-    println!("✅ SolanaTrade client initialized successfully!");
-    Ok(solana_trade)
+
+    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
+
+    let mut priority_fee = PriorityFee::default();
+    // Configure according to your needs
+    priority_fee.rpc_unit_limit = 150000;
+
+    let trade_config = TradeConfig {
+        rpc_url,
+        commitment: CommitmentConfig::confirmed(),
+        priority_fee: priority_fee,
+        swqos_configs,
+    };
+
+    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    println!("SolanaTrade client created successfully!");
+
+    Ok(solana_trade_client)
 }
 
 /// Bonk sniper trade
@@ -134,22 +140,23 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     // Buy tokens
     println!("Buying tokens from Bonk...");
     let buy_sol_amount = 100_000;
-    let buy_params = sol_trade_sdk::TradeBuyParams {
-        dex_type: DexType::Bonk,
-        mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
-        slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
-        extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
-        lookup_table_key: None,
-        wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
-        create_mint_ata: true,
-        open_seed_optimize: false,
-        custom_cu_limit: None,
-    };
-    client.buy(buy_params).await?;
+    client
+        .buy(
+            DexType::Bonk,
+            mint_pubkey,
+            buy_sol_amount,
+            slippage_basis_points,
+            recent_blockhash,
+            None,
+            Box::new(BonkParams::from_trade(trade_info.clone())),
+            None,
+            true,
+            true,
+            true,
+            true,
+            false,
+        )
+        .await?;
 
     // Sell tokens
     println!("Selling tokens from Bonk...");
@@ -162,22 +169,23 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     println!("Selling {} tokens", amount_token);
-    let sell_params = sol_trade_sdk::TradeSellParams {
-        dex_type: DexType::Bonk,
-        mint: mint_pubkey,
-        token_amount: amount_token,
-        slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
-        extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
-        lookup_table_key: None,
-        wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
-        open_seed_optimize: false,
-        with_tip: false,
-        custom_cu_limit: None,
-    };
-    client.sell(sell_params).await?;
+    client
+        .sell(
+            DexType::Bonk,
+            mint_pubkey,
+            amount_token,
+            slippage_basis_points,
+            recent_blockhash,
+            None,
+            false,
+            Box::new(BonkParams::from_trade(trade_info.clone())),
+            None,
+            true,
+            true,
+            true,
+            false,
+        )
+        .await?;
 
     // Exit program
     std::process::exit(0);

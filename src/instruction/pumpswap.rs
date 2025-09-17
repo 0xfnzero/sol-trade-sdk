@@ -7,7 +7,7 @@ use crate::{
     trading::{
         common::wsol_manager,
         core::{
-            params::{InternalBuyParams, PumpSwapParams, InternalSellParams},
+            params::{BuyParams, PumpSwapParams, SellParams},
             traits::InstructionBuilder,
         },
     },
@@ -25,7 +25,7 @@ pub struct PumpSwapInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for PumpSwapInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &InternalBuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -197,7 +197,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &InternalSellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================

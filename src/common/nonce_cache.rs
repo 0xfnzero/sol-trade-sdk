@@ -15,6 +15,8 @@ pub struct NonceInfo {
     pub nonce_account: Option<Pubkey>,
     /// Current nonce value
     pub current_nonce: Hash,
+    /// Next available time (Unix timestamp in seconds)
+    pub next_buy_time: i64,
     /// Whether it has been used
     pub used: bool,
 }
@@ -37,6 +39,7 @@ impl NonceCache {
                     nonce_info: Mutex::new(NonceInfo {
                         nonce_account: None,
                         current_nonce: Hash::default(),
+                        next_buy_time: 0,
                         used: false,
                     }),
                 })
@@ -47,7 +50,7 @@ impl NonceCache {
     /// Initialize nonce information
     pub fn init(&self, nonce_account_str: Option<String>) {
         let nonce_account = nonce_account_str.and_then(|s| Pubkey::from_str(&s).ok());
-        self.update_nonce_info_partial(nonce_account, None, Some(false));
+        self.update_nonce_info_partial(nonce_account, None, None, Some(false));
     }
 
     /// Get a copy of NonceInfo
@@ -56,6 +59,7 @@ impl NonceCache {
         NonceInfo {
             nonce_account: nonce_info.nonce_account,
             current_nonce: nonce_info.current_nonce,
+            next_buy_time: nonce_info.next_buy_time,
             used: nonce_info.used,
         }
     }
@@ -65,6 +69,7 @@ impl NonceCache {
         &self,
         nonce_account: Option<Pubkey>,
         current_nonce: Option<Hash>,
+        next_buy_time: Option<i64>,
         used: Option<bool>,
     ) {
         let mut current = self.nonce_info.lock();
@@ -78,6 +83,10 @@ impl NonceCache {
             current.current_nonce = nonce;
         }
 
+        if let Some(time) = next_buy_time {
+            current.next_buy_time = time;
+        }
+
         if let Some(u) = used {
             current.used = u;
         }
@@ -85,7 +94,7 @@ impl NonceCache {
 
     /// Mark nonce as used
     pub fn mark_used(&self) {
-        self.update_nonce_info_partial(None, None, Some(true));
+        self.update_nonce_info_partial(None, None, None, Some(true));
     }
 
     /// Fetch nonce information using RPC
@@ -100,7 +109,12 @@ impl NonceCache {
                         let blockhash = data.durable_nonce.as_hash();
                         let old_nonce_info = self.get_nonce_info();
                         if old_nonce_info.current_nonce != *blockhash {
-                            self.update_nonce_info_partial(None, Some(*blockhash), Some(false));
+                            self.update_nonce_info_partial(
+                                None,
+                                Some(*blockhash),
+                                None,
+                                Some(false),
+                            );
                         }
                     }
                 }

@@ -1,6 +1,5 @@
 use sol_trade_sdk::{
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
-    swqos::{settings::SwqosSettings, SwqosConfig},
+    common::{PriorityFee, TradeConfig},
     SolanaTrade,
 };
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
@@ -58,15 +57,13 @@ async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error:
     println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-    let commitment = CommitmentConfig::confirmed();
-    let swqos_settings: Vec<SwqosSettings> = vec![SwqosSettings::new(
-        SwqosConfig::Default(rpc_url.clone()),
-        DEFAULT_CU_LIMIT,
-        DEFAULT_CU_PRICE,
-        0.0,
-        0.0,
-    )];
-    let solana_trade = SolanaTrade::new(Arc::new(payer), rpc_url, commitment, swqos_settings).await;
+    let trade_config = TradeConfig {
+        rpc_url,
+        commitment: CommitmentConfig::confirmed(),
+        priority_fee: PriorityFee::default(),
+        swqos_configs: vec![],
+    };
+    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

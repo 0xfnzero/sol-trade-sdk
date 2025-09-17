@@ -9,7 +9,6 @@ pub mod node1;
 pub mod flashblock;
 pub mod blockrazor;
 pub mod astralane;
-pub mod settings;
 
 use std::sync::Arc;
 
@@ -108,23 +107,14 @@ pub enum SwqosRegion {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SwqosConfig {
     Default(String),
-    /// Jito(uuid, region, custom_url)
     Jito(String, SwqosRegion, Option<String>),
-    /// NextBlock(api_token, region, custom_url)
     NextBlock(String, SwqosRegion, Option<String>),
-    /// Bloxroute(api_token, region, custom_url)
     Bloxroute(String, SwqosRegion, Option<String>),
-    /// Temporal(api_token, region, custom_url)
     Temporal(String, SwqosRegion, Option<String>),
-    /// ZeroSlot(api_token, region, custom_url)
     ZeroSlot(String, SwqosRegion, Option<String>),
-    /// Node1(api_token, region, custom_url)
     Node1(String, SwqosRegion, Option<String>),
-    /// FlashBlock(api_token, region, custom_url)
     FlashBlock(String, SwqosRegion, Option<String>),
-    /// BlockRazor(api_token, region, custom_url)
     BlockRazor(String, SwqosRegion, Option<String>),
-    /// Astralane(api_token, region, custom_url)
     Astralane(String, SwqosRegion, Option<String>),
 }
 
