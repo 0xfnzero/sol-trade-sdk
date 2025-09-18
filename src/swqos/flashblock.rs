@@ -61,7 +61,6 @@ impl FlashBlockClient {
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
-        println!(" Transaction encoded to base64: {:?}", start_time.elapsed());
 
         // FlashBlock API format
         let request_body = serde_json::to_string(&json!({
@@ -85,12 +84,12 @@ impl FlashBlockClient {
         // Parse response
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("success").is_some() || response_json.get("result").is_some() {
-                println!(" FlashBlock {} submitted: {:?}", trade_type, start_time.elapsed());
+                println!(" [FlashBlock] {} submitted: {:?}", trade_type, start_time.elapsed());
             } else if let Some(_error) = response_json.get("error") {
-                eprintln!(" FlashBlock {} submission failed: {:?}", trade_type, _error);
+                eprintln!(" [FlashBlock] {} submission failed: {:?}", trade_type, _error);
             }
         } else {
-            eprintln!(" FlashBlock {} submission failed: {:?}", trade_type, response_text);
+            eprintln!(" [FlashBlock] {} submission failed: {:?}", trade_type, response_text);
         }
 
         let start_time: Instant = Instant::now();
@@ -98,12 +97,12 @@ impl FlashBlockClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" FlashBlock {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(" [FlashBlock] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
             },
         }
         println!(" signature: {:?}", signature);
-        println!(" FlashBlock {} confirmed: {:?}", trade_type, start_time.elapsed());
+        println!(" [FlashBlock] {} confirmed: {:?}", trade_type, start_time.elapsed());
 
         Ok(())
     }

@@ -3,9 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{
-    common::EventType, protocols::pumpswap::PumpSwapSellEvent,
-};
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
 use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
     AccountFilter, TransactionFilter,
@@ -15,10 +12,17 @@ use sol_trade_sdk::solana_streamer_sdk::{
     match_event, streaming::event_parser::protocols::pumpswap::parser::PUMPSWAP_PROGRAM_ID,
 };
 use sol_trade_sdk::{
-    common::{AnyResult, PriorityFee, TradeConfig},
+    common::AnyResult,
+    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
     swqos::SwqosConfig,
     trading::{core::params::PumpSwapParams, factory::DexType},
     SolanaTrade,
+};
+use sol_trade_sdk::{
+    common::TradeConfig,
+    solana_streamer_sdk::streaming::event_parser::{
+        common::EventType, protocols::pumpswap::PumpSwapSellEvent,
+    },
 };
 use sol_trade_sdk::{
     instruction::utils::pumpswap::accounts,
@@ -120,28 +124,15 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("Creating SolanaTrade client...");
-
+    println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-
-    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
-
-    let mut priority_fee = PriorityFee::default();
-    // Configure according to your needs
-    priority_fee.rpc_unit_limit = 150000;
-
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: priority_fee,
-        swqos_configs,
-    };
-
-    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("SolanaTrade client created successfully!");
-
-    Ok(solana_trade_client)
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> AnyResult<()> {
@@ -176,23 +167,21 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     // Buy tokens
     println!("Buying tokens from PumpSwap...");
     let buy_sol_amount = 100_000;
-    client
-        .buy(
-            DexType::PumpSwap,
-            mint_pubkey,
-            buy_sol_amount,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            Box::new(params.clone()),
-            None,
-            true,
-            true,
-            true,
-            true,
-            false,
-        )
-        .await?;
+    let buy_params = sol_trade_sdk::TradeBuyParams {
+        dex_type: DexType::PumpSwap,
+        mint: mint_pubkey,
+        sol_amount: buy_sol_amount,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(params.clone()),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: true,
+        create_mint_ata: true,
+        open_seed_optimize: false,
+    };
+    client.buy(buy_params).await?;
 
     // Sell tokens
     println!("Selling tokens from PumpSwap...");
@@ -207,23 +196,21 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let account = get_associated_token_address_with_program_id(&payer, &mint_pubkey, &program_id);
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();
-    client
-        .sell(
-            DexType::PumpSwap,
-            mint_pubkey,
-            amount_token,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(params.clone()),
-            None,
-            true,
-            true,
-            true,
-            false,
-        )
-        .await?;
+    let sell_params = sol_trade_sdk::TradeSellParams {
+        dex_type: DexType::PumpSwap,
+        mint: mint_pubkey,
+        token_amount: amount_token,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(params.clone()),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: true,
+        open_seed_optimize: false,
+    };
+    client.sell(sell_params).await?;
 
     // Exit program
     std::process::exit(0);

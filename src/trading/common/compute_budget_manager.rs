@@ -1,4 +1,3 @@
-use crate::common::PriorityFee;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use smallvec::SmallVec;
@@ -20,19 +19,18 @@ static COMPUTE_BUDGET_CACHE: Lazy<DashMap<ComputeBudgetCacheKey, SmallVec<[Instr
 
 #[inline(always)]
 pub fn compute_budget_instructions(
-    priority_fee: &PriorityFee,
+    unit_price: u64,
+    unit_limit: u32,
     data_size_limit: u32,
-    is_rpc: bool,
     is_buy: bool,
 ) -> SmallVec<[Instruction; 3]> {
-    let (unit_price, unit_limit) = if is_rpc {
-        (priority_fee.rpc_unit_price, priority_fee.rpc_unit_limit)
-    } else {
-        (priority_fee.tip_unit_price, priority_fee.tip_unit_limit)
-    };
-
     // Create cache key
-    let cache_key = ComputeBudgetCacheKey { data_size_limit, unit_price, unit_limit, is_buy };
+    let cache_key = ComputeBudgetCacheKey {
+        data_size_limit,
+        unit_price: unit_price,
+        unit_limit: unit_limit,
+        is_buy,
+    };
 
     // Try to get from cache first
     if let Some(cached_insts) = COMPUTE_BUDGET_CACHE.get(&cache_key) {

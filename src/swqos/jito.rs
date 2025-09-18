@@ -64,7 +64,6 @@ impl JitoClient {
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
-        println!(" Transaction encoded to base64: {:?}", start_time.elapsed());
 
         let request_body = serde_json::to_string(&json!({
             "id": 1,
@@ -99,12 +98,12 @@ impl JitoClient {
 
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
-                println!(" jito {} submitted: {:?}", trade_type, start_time.elapsed());
+                println!(" [jito] {} submitted: {:?}", trade_type, start_time.elapsed());
             } else if let Some(_error) = response_json.get("error") {
-                eprintln!(" jito {} submission failed: {:?}", trade_type, _error);
+                eprintln!(" [jito] {} submission failed: {:?}", trade_type, _error);
             }
         } else {
-            eprintln!(" jito {} submission failed: {:?}", trade_type, response_text);
+            eprintln!(" [jito] {} submission failed: {:?}", trade_type, response_text);
         }
 
         let start_time: Instant = Instant::now();
@@ -112,12 +111,12 @@ impl JitoClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" jito {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(" [jito] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
             },
         }
         println!(" signature: {:?}", signature);
-        println!(" jito {} confirmed: {:?}", trade_type, start_time.elapsed());
+        println!(" [jito] {} confirmed: {:?}", trade_type, start_time.elapsed());
 
         Ok(())
     }

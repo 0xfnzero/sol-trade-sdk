@@ -156,7 +156,6 @@ impl BlockRazorClient {
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
-        println!(" Transaction encoded to base64: {:?}", start_time.elapsed());
 
         // BlockRazor使用fast模式的请求格式
         let request_body = serde_json::to_string(&json!({
@@ -177,12 +176,12 @@ impl BlockRazorClient {
         // Parse JSON response
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() || response_json.get("signature").is_some() {
-                println!(" blockrazor {} submitted: {:?}", trade_type, start_time.elapsed());
+                println!(" [blockrazor] {} submitted: {:?}", trade_type, start_time.elapsed());
             } else if let Some(_error) = response_json.get("error") {
-                eprintln!(" blockrazor {} submission failed: {:?}", trade_type, _error);
+                eprintln!(" [blockrazor] {} submission failed: {:?}", trade_type, _error);
             }
         } else {
-            eprintln!(" blockrazor {} submission failed: {:?}", trade_type, response_text);
+            eprintln!(" [blockrazor] {} submission failed: {:?}", trade_type, response_text);
         }
 
         let start_time: Instant = Instant::now();
@@ -190,12 +189,12 @@ impl BlockRazorClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" blockrazor {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(" [blockrazor] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
             },
         }
         println!(" signature: {:?}", signature);
-        println!(" blockrazor {} confirmed: {:?}", trade_type, start_time.elapsed());
+        println!(" [blockrazor] {} confirmed: {:?}", trade_type, start_time.elapsed());
 
         Ok(())
     }

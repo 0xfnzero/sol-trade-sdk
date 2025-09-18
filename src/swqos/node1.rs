@@ -143,7 +143,6 @@ impl Node1Client {
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
-        println!(" Transaction encoded to base64: {:?}", start_time.elapsed());
 
         let request_body = serde_json::to_string(&json!({
             "jsonrpc": "2.0",
@@ -168,12 +167,12 @@ impl Node1Client {
         // Parse JSON response
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
-                println!(" node1 {} submitted: {:?}", trade_type, start_time.elapsed());
+                println!(" [node1] {} submitted: {:?}", trade_type, start_time.elapsed());
             } else if let Some(_error) = response_json.get("error") {
-                eprintln!(" node1 {} submission failed: {:?}", trade_type, _error);
+                eprintln!(" [node1] {} submission failed: {:?}", trade_type, _error);
             }
         } else {
-            eprintln!(" node1 {} submission failed: {:?}", trade_type, response_text);
+            eprintln!(" [node1] {} submission failed: {:?}", trade_type, response_text);
         }
 
         let start_time: Instant = Instant::now();
@@ -181,12 +180,12 @@ impl Node1Client {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" node1 {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(" [node1] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
             },
         }
         println!(" signature: {:?}", signature);
-        println!(" node1 {} confirmed: {:?}", trade_type, start_time.elapsed());
+        println!(" [node1] {} confirmed: {:?}", trade_type, start_time.elapsed());
 
         Ok(())
     }

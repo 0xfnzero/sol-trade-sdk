@@ -3,17 +3,18 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::{instruction::utils::raydium_amm_v4::{accounts, fetch_amm_info}, solana_streamer_sdk::{match_event, streaming::event_parser::protocols::raydium_amm_v4::RaydiumAmmV4SwapEvent}, trading::common::get_multi_token_balances};
+use sol_trade_sdk::{common::TradeConfig, instruction::utils::raydium_amm_v4::{accounts, fetch_amm_info}, solana_streamer_sdk::{match_event, streaming::event_parser::protocols::raydium_amm_v4::RaydiumAmmV4SwapEvent}, trading::common::get_multi_token_balances};
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::parser::RAYDIUM_AMM_V4_PROGRAM_ID;
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
+use sol_trade_sdk::{solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent}};
 use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
     AccountFilter, TransactionFilter,
 };
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::{
-    common::{AnyResult, PriorityFee, TradeConfig},
+    common::AnyResult,
+    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
     swqos::SwqosConfig,
     trading::{core::params::RaydiumAmmV4Params, factory::DexType},
     SolanaTrade,
@@ -97,28 +98,15 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("Creating SolanaTrade client...");
-
+    println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-
-    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
-
-    let mut priority_fee = PriorityFee::default();
-    // Configure according to your needs
-    priority_fee.rpc_unit_limit = 150000;
-
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: priority_fee,
-        swqos_configs,
-    };
-
-    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("SolanaTrade client created successfully!");
-
-    Ok(solana_trade_client)
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 /// Raydium_amm_v4 sniper trade
@@ -147,23 +135,21 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");
     let buy_sol_amount = 100_000;
-    client
-        .buy(
-            DexType::RaydiumAmmV4,
-            mint_pubkey,
-            buy_sol_amount,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            Box::new(params),
-            None,
-            true,
-            true,
-            true,
-            true,
-            false,
-        )
-        .await?;
+    let buy_params = sol_trade_sdk::TradeBuyParams {
+        dex_type: DexType::RaydiumAmmV4,
+        mint: mint_pubkey,
+        sol_amount: buy_sol_amount,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(params),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: true,
+        create_mint_ata: true,
+        open_seed_optimize: false,
+    };
+    client.buy(buy_params).await?;
 
     // Sell tokens
     println!("Selling tokens from Raydium_amm_v4...");
@@ -177,23 +163,21 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
 
     println!("Selling {} tokens", amount_token);
     let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, trade_info.amm).await?;
-    client
-        .sell(
-            DexType::RaydiumAmmV4,
-            mint_pubkey,
-            amount_token,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(params),
-            None,
-            true,
-            true,
-            true,
-            false,
-        )
-        .await?;
+    let sell_params = sol_trade_sdk::TradeSellParams {
+        dex_type: DexType::RaydiumAmmV4,
+        mint: mint_pubkey,
+        token_amount: amount_token,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(params),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: true,
+        open_seed_optimize: false,
+    };
+    client.sell(sell_params).await?;
 
     // Exit program
     std::process::exit(0);

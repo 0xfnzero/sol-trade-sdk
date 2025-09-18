@@ -1,9 +1,9 @@
 use clap::Parser;
 use sol_trade_sdk::{
     common::{
-        fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult,
-        PriorityFee, TradeConfig,
+        fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult, TradeConfig,
     },
+    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
     swqos::SwqosConfig,
     trading::{
         core::params::{
@@ -11,7 +11,7 @@ use sol_trade_sdk::{
         },
         factory::DexType,
     },
-    SolanaTrade,
+    SolanaTrade, TradeBuyParams, TradeSellParams,
 };
 use solana_sdk::{
     commitment_config::CommitmentConfig, native_token::sol_str_to_lamports, pubkey::Pubkey,
@@ -604,24 +604,21 @@ async fn handle_buy_pumpfun(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
-    match client
-        .buy(
-            DexType::PumpFun,
-            mint_pubkey,
-            sol_lamports,
-            slippage,
-            recent_blockhash,
-            None,
-            Box::new(param),
-            None,
-            true,
-            false,
-            false,
-            create_mint_ata,
-            use_seed,
-        )
-        .await
-    {
+    let buy_params = TradeBuyParams {
+        dex_type: DexType::PumpFun,
+        mint: mint_pubkey,
+        sol_amount: sol_lamports,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: false,
+        close_wsol_ata: false,
+        create_mint_ata: create_mint_ata,
+        open_seed_optimize: use_seed,
+    };
+    match client.buy(buy_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully bought tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -654,24 +651,21 @@ async fn handle_buy_pumpswap(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
-    match client
-        .buy(
-            DexType::PumpSwap,
-            mint_pubkey,
-            sol_lamports,
-            slippage,
-            recent_blockhash,
-            None,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            create_mint_ata,
-            use_seed,
-        )
-        .await
-    {
+    let buy_params = TradeBuyParams {
+        dex_type: DexType::PumpSwap,
+        mint: mint_pubkey,
+        sol_amount: sol_lamports,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        create_mint_ata: create_mint_ata,
+        open_seed_optimize: use_seed,
+    };
+    match client.buy(buy_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully bought tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -703,24 +697,21 @@ async fn handle_buy_bonk(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
-    match client
-        .buy(
-            DexType::Bonk,
-            mint_pubkey,
-            sol_lamports,
-            slippage,
-            recent_blockhash,
-            None,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            create_mint_ata,
-            use_seed,
-        )
-        .await
-    {
+    let buy_params = TradeBuyParams {
+        dex_type: DexType::Bonk,
+        mint: mint_pubkey,
+        sol_amount: sol_lamports,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        create_mint_ata: create_mint_ata,
+        open_seed_optimize: use_seed,
+    };
+    match client.buy(buy_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully bought tokens from Bonk!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -756,24 +747,21 @@ async fn handle_buy_raydium_v4(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
-    match client
-        .buy(
-            DexType::RaydiumAmmV4,
-            mint_pubkey,
-            sol_lamports,
-            slippage,
-            recent_blockhash,
-            None,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            create_mint_ata,
-            use_seed,
-        )
-        .await
-    {
+    let buy_params = TradeBuyParams {
+        dex_type: DexType::RaydiumAmmV4,
+        mint: mint_pubkey,
+        sol_amount: sol_lamports,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        create_mint_ata: create_mint_ata,
+        open_seed_optimize: use_seed,
+    };
+    match client.buy(buy_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully bought tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -809,24 +797,21 @@ async fn handle_buy_raydium_cpmm(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
-    match client
-        .buy(
-            DexType::RaydiumCpmm,
-            mint_pubkey,
-            sol_lamports,
-            slippage,
-            recent_blockhash,
-            None,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            create_mint_ata,
-            use_seed,
-        )
-        .await
-    {
+    let buy_params = TradeBuyParams {
+        dex_type: DexType::RaydiumCpmm,
+        mint: mint_pubkey,
+        sol_amount: sol_lamports,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        create_mint_ata: create_mint_ata,
+        open_seed_optimize: use_seed,
+    };
+    match client.buy(buy_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully bought tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -972,24 +957,22 @@ async fn handle_sell_pumpfun(
     let param = PumpFunParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
-    match client
-        .sell(
-            DexType::PumpFun,
-            mint_pubkey,
-            amount as u64,
-            slippage,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            use_seed,
-        )
-        .await
-    {
+    let sell_params = TradeSellParams {
+        dex_type: DexType::PumpFun,
+        mint: mint_pubkey,
+        token_amount: amount as u64,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        open_seed_optimize: use_seed,
+    };
+
+    match client.sell(sell_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully sold tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -1024,24 +1007,21 @@ async fn handle_sell_pumpswap(
     let param = PumpSwapParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
-    match client
-        .sell(
-            DexType::PumpSwap,
-            mint_pubkey,
-            amount as u64,
-            slippage,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            use_seed,
-        )
-        .await
-    {
+    let sell_params = TradeSellParams {
+        dex_type: DexType::PumpSwap,
+        mint: mint_pubkey,
+        token_amount: amount as u64,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        open_seed_optimize: use_seed,
+    };
+    match client.sell(sell_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully sold tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -1076,24 +1056,21 @@ async fn handle_sell_bonk(
     let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
-    match client
-        .sell(
-            DexType::Bonk,
-            mint_pubkey,
-            amount as u64,
-            slippage,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            use_seed,
-        )
-        .await
-    {
+    let sell_params = TradeSellParams {
+        dex_type: DexType::Bonk,
+        mint: mint_pubkey,
+        token_amount: amount as u64,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        open_seed_optimize: use_seed,
+    };
+    match client.sell(sell_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully sold tokens from Bonk!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -1131,24 +1108,21 @@ async fn handle_sell_raydium_v4(
     let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, amm_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
-    match client
-        .sell(
-            DexType::RaydiumAmmV4,
-            mint_pubkey,
-            amount as u64,
-            slippage,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            use_seed,
-        )
-        .await
-    {
+    let sell_params = TradeSellParams {
+        dex_type: DexType::RaydiumAmmV4,
+        mint: mint_pubkey,
+        token_amount: amount as u64,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        open_seed_optimize: use_seed,
+    };
+    match client.sell(sell_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully sold tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -1186,24 +1160,21 @@ async fn handle_sell_raydium_cpmm(
     let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &pool_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
-    match client
-        .sell(
-            DexType::RaydiumCpmm,
-            mint_pubkey,
-            amount as u64,
-            slippage,
-            recent_blockhash,
-            None,
-            false,
-            Box::new(param),
-            None,
-            true,
-            true,
-            false,
-            use_seed,
-        )
-        .await
-    {
+    let sell_params = TradeSellParams {
+        dex_type: DexType::RaydiumCpmm,
+        mint: mint_pubkey,
+        token_amount: amount as u64,
+        slippage_basis_points: slippage,
+        recent_blockhash: recent_blockhash,
+        with_tip: false,
+        extension_params: Box::new(param),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: false,
+        open_seed_optimize: use_seed,
+    };
+    match client.sell(sell_params).await {
         Ok(signature) => {
             println!("   ✅ Successfully sold tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {}", signature);
@@ -1307,22 +1278,15 @@ async fn handle_wallet() -> Result<(), Box<dyn std::error::Error>> {
 // Real implementation functions
 async fn initialize_real_client() -> AnyResult<SolanaTrade> {
     // You need to update this with a real RPC URL
-
-    let swqos_configs = vec![SwqosConfig::Default(RPC_URL.to_string())];
-
-    let mut priority_fee = PriorityFee::default();
-    priority_fee.rpc_unit_limit = 200000;
-    let trade_config = TradeConfig {
-        rpc_url: RPC_URL.to_string(),
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee,
-        swqos_configs,
-    };
-
-    let client =
-        SolanaTrade::new(Arc::new(Keypair::try_from(&PAYER.to_bytes()[..]).unwrap()), trade_config)
-            .await;
-    Ok(client)
+    println!("🚀 Initializing SolanaTrade client...");
+    let payer = Arc::new(Keypair::try_from(&PAYER.to_bytes()[..]).unwrap());
+    let rpc_url = RPC_URL.to_string();
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+    let solana_trade = SolanaTrade::new(payer, trade_config).await;
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 async fn wrap_sol_real(

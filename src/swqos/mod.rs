@@ -48,7 +48,7 @@ lazy_static::lazy_static! {
     static ref TIP_ACCOUNT_CACHE: RwLock<Vec<String>> = RwLock::new(Vec::new());
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TradeType {
     Create,
     CreateAndBuy,
@@ -68,7 +68,7 @@ impl std::fmt::Display for TradeType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SwqosType {
     Jito,
     NextBlock,
@@ -80,6 +80,23 @@ pub enum SwqosType {
     BlockRazor,
     Astralane,
     Default,
+}
+
+impl SwqosType {
+    pub fn values() -> Vec<Self> {
+        vec![
+            Self::Jito,
+            Self::NextBlock,
+            Self::ZeroSlot,
+            Self::Temporal,
+            Self::Bloxroute,
+            Self::Node1,
+            Self::FlashBlock,
+            Self::BlockRazor,
+            Self::Astralane,
+            Self::Default,
+        ]
+    }
 }
 
 pub type SwqosClient = dyn SwqosClientTrait + Send + Sync + 'static;
@@ -107,14 +124,23 @@ pub enum SwqosRegion {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SwqosConfig {
     Default(String),
+    /// Jito(uuid, region, custom_url)
     Jito(String, SwqosRegion, Option<String>),
+    /// NextBlock(api_token, region, custom_url)
     NextBlock(String, SwqosRegion, Option<String>),
+    /// Bloxroute(api_token, region, custom_url)
     Bloxroute(String, SwqosRegion, Option<String>),
+    /// Temporal(api_token, region, custom_url)
     Temporal(String, SwqosRegion, Option<String>),
+    /// ZeroSlot(api_token, region, custom_url)
     ZeroSlot(String, SwqosRegion, Option<String>),
+    /// Node1(api_token, region, custom_url)
     Node1(String, SwqosRegion, Option<String>),
+    /// FlashBlock(api_token, region, custom_url)
     FlashBlock(String, SwqosRegion, Option<String>),
+    /// BlockRazor(api_token, region, custom_url)
     BlockRazor(String, SwqosRegion, Option<String>),
+    /// Astralane(api_token, region, custom_url)
     Astralane(String, SwqosRegion, Option<String>),
 }
 

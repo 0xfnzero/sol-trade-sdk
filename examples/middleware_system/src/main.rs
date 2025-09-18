@@ -1,6 +1,7 @@
 use anyhow::Result;
 use sol_trade_sdk::{
-    common::{AnyResult, PriorityFee, TradeConfig},
+    common::{AnyResult, TradeConfig},
+    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
     swqos::{SwqosConfig, SwqosRegion},
     trading::{
         core::params::PumpSwapParams, factory::DexType, middleware::builtin::LoggingMiddleware,
@@ -59,25 +60,15 @@ impl InstructionMiddleware for CustomMiddleware {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("Creating SolanaTrade client...");
-
-    // In real transactions, use your own private key to initialize the payer
-    let payer = Keypair::new();
+    println!("🚀 Initializing SolanaTrade client...");
+    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-
-    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
-
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: PriorityFee::default(),
-        swqos_configs,
-    };
-
-    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("SolanaTrade client created successfully!");
-
-    Ok(solana_trade_client)
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 async fn test_middleware() -> AnyResult<()> {
@@ -91,23 +82,24 @@ async fn test_middleware() -> AnyResult<()> {
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let pool_address = Pubkey::from_str("539m4mVWt6iduB6W8rDGPMarzNCMesuqY5eUTiiYHAgR")?;
-    client
-        .buy(
-            DexType::PumpSwap,
-            mint_pubkey,
-            buy_sol_cost,
-            slippage_basis_points,
-            recent_blockhash,
-            None,
-            Box::new(PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?),
-            None,
-            true,
-            true,
-            true,
-            true,
-            false,
-        )
-        .await?;
+
+    let buy_params = sol_trade_sdk::TradeBuyParams {
+        dex_type: DexType::PumpSwap,
+        mint: mint_pubkey,
+        sol_amount: buy_sol_cost,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(
+            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?,
+        ),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: true,
+        close_wsol_ata: true,
+        create_mint_ata: true,
+        open_seed_optimize: false,
+    };
+    client.buy(buy_params).await?;
     println!("tip: This transaction will not succeed because we're using a test account. You can modify the code to initialize the payer with your own private key");
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "0.6.15"
+version = "1.0.1"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -98,3 +98,4 @@ dashmap = "6.1.0"
 clru = "0.6"
 smallvec = "1.15.1"
 parking_lot = "0.12"
+arc-swap = "1.7"
