@@ -16,9 +16,9 @@ Each (SwqosType, TradeType) combination can only configure one strategy. Subsequ
 ### 2. Set Global Strategy (can also be configured individually)
 
 ```rust
-use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy, set_global_gas_fee_strategy};
+use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy};
 // Set global strategy (normal strategy)
-set_global_gas_fee_strategy(
+GasFeeStrategy::set_global_fee_strategy(
     150000, // cu_limit
     500000, // cu_price
     0.001,  // buy tip

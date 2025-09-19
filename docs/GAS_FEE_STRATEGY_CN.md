@@ -16,9 +16,9 @@
 ### 2. 设置全局策略(也可以不设置，单独去配置单个策略)
 
 ```rust
-use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy, set_global_gas_fee_strategy};
+use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy};
 // 设置全局策略(normal 策略)
-set_global_gas_fee_strategy(
+GasFeeStrategy::set_global_fee_strategy(
     150000, // cu_limit
     500000, // cu_price
     0.001,  // buy tip

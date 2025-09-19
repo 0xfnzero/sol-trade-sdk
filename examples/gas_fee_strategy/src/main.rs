@@ -1,5 +1,5 @@
 use sol_trade_sdk::{
-    common::{gas_fee_strategy::GasFeeStrategy, set_global_gas_fee_strategy},
+    common::gas_fee_strategy::GasFeeStrategy,
     swqos::{SwqosType, TradeType},
 };
 
@@ -10,7 +10,7 @@ async fn main() {
 
     // Set global strategy
     println!("1. Set global strategy");
-    set_global_gas_fee_strategy(150000, 500000, 0.001, 0.001);
+    GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 
     // Print all strategies
     println!("\n2. Print all strategies");
