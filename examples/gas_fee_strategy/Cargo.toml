@@ -1,0 +1,8 @@
+[package]
+name = "gas_fee_strategy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sol-trade-sdk = { path = "../.." }
+tokio = { version = "1.0", features = ["full"] }

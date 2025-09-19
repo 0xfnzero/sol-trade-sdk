@@ -1,6 +1,6 @@
 use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
-use crate::common::{PriorityFee, SolanaRpcClient};
+use crate::common::SolanaRpcClient;
 use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
 use crate::swqos::SwqosClient;
@@ -24,7 +24,6 @@ pub struct BuyParams {
     pub mint: Pubkey,
     pub sol_amount: u64,
     pub slippage_basis_points: Option<u64>,
-    pub priority_fee: Arc<PriorityFee>,
     pub lookup_table_key: Option<Pubkey>,
     pub recent_blockhash: Hash,
     pub data_size_limit: u32,
@@ -36,6 +35,8 @@ pub struct BuyParams {
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
     pub create_mint_ata: bool,
+    pub nonce_account: Option<Pubkey>,
+    pub current_nonce: Option<Hash>,
 }
 
 /// Sell parameters
@@ -46,7 +47,6 @@ pub struct SellParams {
     pub mint: Pubkey,
     pub token_amount: Option<u64>,
     pub slippage_basis_points: Option<u64>,
-    pub priority_fee: Arc<PriorityFee>,
     pub lookup_table_key: Option<Pubkey>,
     pub recent_blockhash: Hash,
     pub wait_transaction_confirmed: bool,
@@ -57,6 +57,8 @@ pub struct SellParams {
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
+    pub nonce_account: Option<Pubkey>,
+    pub current_nonce: Option<Hash>,
 }
 
 impl std::fmt::Debug for BuyParams {

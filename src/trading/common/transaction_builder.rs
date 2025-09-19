@@ -16,12 +16,14 @@ use super::{
     compute_budget_manager::compute_budget_instructions,
     nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
 };
-use crate::{common::PriorityFee, trading::MiddlewareManager};
+use crate::{common::SolanaRpcClient, trading::MiddlewareManager};
 
 /// Build standard RPC transaction
 pub async fn build_transaction(
     payer: Arc<Keypair>,
-    priority_fee: &PriorityFee,
+    rpc: Option<Arc<SolanaRpcClient>>,
+    unit_limit: u32,
+    unit_price: u64,
     business_instructions: Vec<Instruction>,
     lookup_table_key: Option<Pubkey>,
     recent_blockhash: Hash,
@@ -32,14 +34,16 @@ pub async fn build_transaction(
     with_tip: bool,
     tip_account: &Pubkey,
     tip_amount: f64,
+    nonce_account: Option<Pubkey>,
+    current_nonce: Option<Hash>,
 ) -> Result<VersionedTransaction, anyhow::Error> {
     let mut instructions = Vec::with_capacity(business_instructions.len() + 5);
 
     // Add nonce instruction
-    if is_buy {
-        if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref()) {
-            return Err(e);
-        }
+    if let Err(e) =
+        add_nonce_instruction(&mut instructions, payer.as_ref(), nonce_account, current_nonce)
+    {
+        return Err(e);
     }
 
     // Add tip transfer instruction
@@ -53,9 +57,9 @@ pub async fn build_transaction(
 
     // Add compute budget instructions
     instructions.extend(compute_budget_instructions(
-        priority_fee,
+        unit_price,
+        unit_limit,
         data_size_limit,
-        !with_tip,
         is_buy,
     ));
 
@@ -63,11 +67,11 @@ pub async fn build_transaction(
     instructions.extend(business_instructions);
 
     // Get blockhash for transaction
-    let blockhash =
-        if is_buy { get_transaction_blockhash(recent_blockhash) } else { recent_blockhash };
+    let blockhash = get_transaction_blockhash(recent_blockhash, nonce_account, current_nonce);
 
     // Get address lookup table accounts
-    let address_lookup_table_accounts = get_address_lookup_table_accounts(lookup_table_key).await;
+    let address_lookup_table_accounts =
+        get_address_lookup_table_accounts(rpc, lookup_table_key).await;
 
     // Build transaction
     build_versioned_transaction(

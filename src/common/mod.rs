@@ -6,5 +6,7 @@ pub mod nonce_cache;
 pub mod seed;
 pub mod subscription_handle;
 pub mod types;
+pub mod gas_fee_strategy;
 
 pub use types::*;
+pub use gas_fee_strategy::*;

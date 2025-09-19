@@ -1,7 +1,4 @@
-use sol_trade_sdk::{
-    common::{PriorityFee, TradeConfig},
-    SolanaTrade,
-};
+use sol_trade_sdk::{common::TradeConfig, swqos::SwqosConfig, SolanaTrade};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use std::sync::Arc;
 
@@ -57,13 +54,12 @@ async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error:
     println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: PriorityFee::default(),
-        swqos_configs: vec![],
-    };
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    // set global strategy
+    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

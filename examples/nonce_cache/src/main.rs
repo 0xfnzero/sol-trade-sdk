@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::match_event;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
@@ -17,11 +16,12 @@ use sol_trade_sdk::{
     solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::parser::PUMPFUN_PROGRAM_ID,
 };
 use sol_trade_sdk::{
-    common::{AnyResult, PriorityFee, TradeConfig},
+    common::AnyResult,
     swqos::SwqosConfig,
     trading::{core::params::PumpFunParams, factory::DexType},
     SolanaTrade,
 };
+use sol_trade_sdk::{common::TradeConfig, solana_streamer_sdk::match_event};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 
 // Global static flag to ensure transaction is executed only once
@@ -98,28 +98,17 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("Creating SolanaTrade client...");
-
+    println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
-
-    let swqos_configs = vec![SwqosConfig::Default(rpc_url.clone())];
-
-    let mut priority_fee = PriorityFee::default();
-    // Configure according to your needs
-    priority_fee.rpc_unit_limit = 100000;
-
-    let trade_config = TradeConfig {
-        rpc_url,
-        commitment: CommitmentConfig::confirmed(),
-        priority_fee: priority_fee,
-        swqos_configs,
-    };
-
-    let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("SolanaTrade client created successfully!");
-
-    Ok(solana_trade_client)
+    let commitment = CommitmentConfig::confirmed();
+    let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    // set global strategy
+    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    println!("✅ SolanaTrade client initialized successfully!");
+    Ok(solana_trade)
 }
 
 /// PumpFun sniper trade
@@ -130,34 +119,36 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let client = create_solana_trade_client().await?;
     let mint_pubkey = trade_info.mint;
     let slippage_basis_points = Some(100);
+    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     // Setup nonce cache
     let nonce_account_str = "use_your_nonce_account_here";
     NonceCache::get_instance().init(Some(nonce_account_str.to_string()));
     NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
-    let last_nonce = NonceCache::get_instance().get_nonce_info().current_nonce;
-    println!("Last nonce: {}", last_nonce);
+    let current_nonce = NonceCache::get_instance().get_nonce_info().current_nonce;
+    let nonce_account = NonceCache::get_instance().get_nonce_info().nonce_account;
+    println!("current_nonce: {}", current_nonce);
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
     let buy_sol_amount = 100_000;
-    client
-        .buy(
-            DexType::PumpFun,
-            mint_pubkey,
-            buy_sol_amount,
-            slippage_basis_points,
-            last_nonce,
-            None,
-            Box::new(PumpFunParams::from_trade(&trade_info, None)),
-            None,
-            true,
-            false,
-            false,
-            true,
-            false,
-        )
-        .await?;
+    let buy_params = sol_trade_sdk::TradeBuyParams {
+        dex_type: DexType::PumpFun,
+        mint: mint_pubkey,
+        sol_amount: buy_sol_amount,
+        slippage_basis_points: slippage_basis_points,
+        recent_blockhash: recent_blockhash,
+        extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
+        lookup_table_key: None,
+        wait_transaction_confirmed: true,
+        create_wsol_ata: false,
+        close_wsol_ata: false,
+        create_mint_ata: true,
+        open_seed_optimize: false,
+        nonce_account: nonce_account,
+        current_nonce: Some(current_nonce),
+    };
+    client.buy(buy_params).await?;
 
     // Exit program
     std::process::exit(0);

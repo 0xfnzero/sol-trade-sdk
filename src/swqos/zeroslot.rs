@@ -61,7 +61,6 @@ impl ZeroSlotClient {
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
-        println!(" Transaction encoded to base64: {:?}", start_time.elapsed());
 
         let request_body = serde_json::to_string(&json!({
             "jsonrpc": "2.0",
@@ -90,12 +89,12 @@ impl ZeroSlotClient {
         // 5. Use `serde_json::from_str()` to parse JSON, reducing extra wait from `.json().await?`
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
-                println!(" 0slot {} submitted: {:?}", trade_type, start_time.elapsed());
+                println!(" [0slot] {} submitted: {:?}", trade_type, start_time.elapsed());
             } else if let Some(_error) = response_json.get("error") {
-                eprintln!(" 0slot {} submission failed: {:?}", trade_type, _error);
+                eprintln!(" [0slot] {} submission failed: {:?}", trade_type, _error);
             }
         } else {
-            eprintln!(" 0slot {} submission failed: {:?}", trade_type, response_text);
+            eprintln!(" [0slot] {} submission failed: {:?}", trade_type, response_text);
         }
 
         let start_time: Instant = Instant::now();
@@ -103,12 +102,12 @@ impl ZeroSlotClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" 0slot {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(" [0slot] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
             },
         }
         println!(" signature: {:?}", signature);
-        println!(" 0slot {} confirmed: {:?}", trade_type, start_time.elapsed());
+        println!(" [0slot] {} confirmed: {:?}", trade_type, start_time.elapsed());
 
         Ok(())
     }

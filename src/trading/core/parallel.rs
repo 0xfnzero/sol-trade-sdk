@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::{
-    common::PriorityFee,
+    common::{GasFeeStrategy, SolanaRpcClient},
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::{common::build_transaction, BuyParams, MiddlewareManager, SellParams},
 };
@@ -21,10 +21,12 @@ pub async fn buy_parallel_execute(
     parallel_execute(
         params.swqos_clients,
         params.payer,
+        params.rpc,
         instructions,
-        params.priority_fee,
         params.lookup_table_key,
         params.recent_blockhash,
+        params.nonce_account,
+        params.current_nonce,
         params.data_size_limit,
         params.middleware_manager,
         protocol_name,
@@ -43,10 +45,12 @@ pub async fn sell_parallel_execute(
     parallel_execute(
         params.swqos_clients,
         params.payer,
+        params.rpc,
         instructions,
-        params.priority_fee,
         params.lookup_table_key,
         params.recent_blockhash,
+        params.nonce_account,
+        params.current_nonce,
         0,
         params.middleware_manager,
         protocol_name,
@@ -61,10 +65,12 @@ pub async fn sell_parallel_execute(
 async fn parallel_execute(
     swqos_clients: Vec<Arc<SwqosClient>>,
     payer: Arc<Keypair>,
+    rpc: Option<Arc<SolanaRpcClient>>,
     instructions: Vec<Instruction>,
-    priority_fee: Arc<PriorityFee>,
     lookup_table_key: Option<Pubkey>,
     recent_blockhash: Hash,
+    nonce_account: Option<Pubkey>,
+    current_nonce: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &'static str,
@@ -72,68 +78,74 @@ async fn parallel_execute(
     wait_transaction_confirmed: bool,
     with_tip: bool,
 ) -> Result<Signature> {
+    if swqos_clients.is_empty() {
+        return Err(anyhow!("swqos_clients is empty"));
+    }
+    if !with_tip
+        && swqos_clients
+            .iter()
+            .find(|swqos| matches!(swqos.get_swqos_type(), SwqosType::Default))
+            .is_none()
+    {
+        return Err(anyhow!("No Rpc Default Swqos configured."));
+    }
     let cores = core_affinity::get_core_ids().unwrap();
     let mut handles: Vec<JoinHandle<Result<Signature>>> = Vec::with_capacity(swqos_clients.len());
 
-    if is_buy && with_tip && priority_fee.buy_tip_fees.is_empty() {
-        return Err(anyhow!("buy_tip_fees is empty"));
-    }
-    if !is_buy && with_tip && priority_fee.sell_tip_fees.is_empty() {
-        return Err(anyhow!("sell_tip_fees is empty"));
-    }
-
     let instructions = Arc::new(instructions);
 
-    for i in 0..swqos_clients.len() {
-        let swqos_client = swqos_clients[i].clone();
-        if !with_tip && !matches!(swqos_client.get_swqos_type(), SwqosType::Default) {
-            continue;
-        }
+    // 预先计算所有有效的组合
+    let task_configs: Vec<_> = swqos_clients
+        .iter()
+        .enumerate()
+        .filter(|(_, swqos_client)| {
+            with_tip || matches!(swqos_client.get_swqos_type(), SwqosType::Default)
+        })
+        .flat_map(|(i, swqos_client)| {
+            let gas_fee_strategy_configs = GasFeeStrategy::get_strategies(if is_buy {
+                TradeType::Buy
+            } else {
+                TradeType::Sell
+            });
+            gas_fee_strategy_configs
+                .into_iter()
+                .filter(|config| config.0.eq(&swqos_client.get_swqos_type()))
+                .map(move |config| (i, swqos_client.clone(), config))
+        })
+        .collect();
+
+    if task_configs.is_empty() {
+        return Err(anyhow!("No available gas fee strategy configs. Please configure GasFeeStrategy for specific SwqosType."));
+    }
+
+    for (i, swqos_client, gas_fee_strategy_config) in task_configs {
+        let core_id = cores[i % cores.len()];
         let payer = payer.clone();
         let instructions = instructions.clone();
-        let priority_fee = priority_fee.clone();
-        let core_id = cores[i % cores.len()];
-
         let middleware_manager = middleware_manager.clone();
+        let swqos_type = swqos_client.get_swqos_type();
+        let tip_account_str = swqos_client.get_tip_account()?;
+        let tip_account = Arc::new(Pubkey::from_str(&tip_account_str).unwrap_or_default());
+
+        let tip = gas_fee_strategy_config.2.tip;
+        let unit_limit = gas_fee_strategy_config.2.cu_limit;
+        let unit_price = gas_fee_strategy_config.2.cu_price;
+        let swqos_type = swqos_type.clone();
+        let tip_account = tip_account.clone();
+        let rpc = rpc.clone();
 
         let handle = tokio::spawn(async move {
             core_affinity::set_for_current(core_id);
 
-            let swqos_type = swqos_client.get_swqos_type();
             let mut start = Instant::now();
 
-            let tip_account_str = swqos_client.get_tip_account()?;
-            let tip_account = Arc::new(Pubkey::from_str(&tip_account_str).unwrap_or_default());
-
-            let tip_amount = if with_tip {
-                if is_buy {
-                    if priority_fee.buy_tip_fees.len() > i {
-                        priority_fee.buy_tip_fees[i]
-                    } else {
-                        println!(
-                            "❗️❗️❗️[{:?}] - Using buy_tip_fees[0]: {:?}",
-                            swqos_type, priority_fee.buy_tip_fees[0]
-                        );
-                        priority_fee.buy_tip_fees[0]
-                    }
-                } else {
-                    if priority_fee.sell_tip_fees.len() > i {
-                        priority_fee.sell_tip_fees[i]
-                    } else {
-                        println!(
-                            "❗️❗️❗️[{:?}] - Using sell_tip_fees[0]: {:?}",
-                            swqos_type, priority_fee.sell_tip_fees[0]
-                        );
-                        priority_fee.sell_tip_fees[0]
-                    }
-                }
-            } else {
-                0.0
-            };
+            let tip_amount = if with_tip { tip } else { 0.0 };
 
             let transaction = build_transaction(
                 payer,
-                &priority_fee,
+                rpc,
+                unit_limit,
+                unit_price,
                 instructions.as_ref().clone(),
                 lookup_table_key,
                 recent_blockhash,
@@ -144,12 +156,15 @@ async fn parallel_execute(
                 swqos_type != SwqosType::Default,
                 &tip_account,
                 tip_amount,
+                nonce_account,
+                current_nonce,
             )
             .await?;
 
             println!(
-                "[{:?}] - Building transaction instructions: {:?}",
+                "[{:?}] - [{:?}] - Building transaction instructions: {:?}",
                 swqos_type,
+                gas_fee_strategy_config.1,
                 start.elapsed()
             );
 
@@ -163,8 +178,9 @@ async fn parallel_execute(
                 .await?;
 
             println!(
-                "[{:?}] - Submitting transaction instructions: {:?}",
+                "[{:?}] - [{:?}] - Submitting transaction instructions: {:?}",
                 swqos_type,
+                gas_fee_strategy_config.1,
                 start.elapsed()
             );
 
@@ -178,7 +194,7 @@ async fn parallel_execute(
         handles.push(handle);
     }
     // Return as soon as any one succeeds
-    let (tx, mut rx) = mpsc::channel(swqos_clients.len());
+    let (tx, mut rx) = mpsc::channel(handles.len());
 
     // Start monitoring tasks
     for handle in handles {
