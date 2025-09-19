@@ -1,9 +1,4 @@
-use sol_trade_sdk::{
-    common::TradeConfig,
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
-    swqos::SwqosConfig,
-    SolanaTrade,
-};
+use sol_trade_sdk::{common::TradeConfig, swqos::SwqosConfig, SolanaTrade};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use std::sync::Arc;
 
@@ -63,6 +58,8 @@ async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error:
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    // init gas fee strategy
+    sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

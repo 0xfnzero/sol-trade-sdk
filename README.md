@@ -130,7 +130,14 @@ let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
 let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 ```
 
-#### 2. Build Trading Parameters
+#### 2. Configure Gas Fee Strategy
+
+For detailed information about Gas Fee Strategy, see the [Gas Fee Strategy Reference](docs/GAS_FEE_STRATEGY.md).
+```rust
+sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
+```
+
+#### 3. Build Trading Parameters
 
 For detailed information about all trading parameters, see the [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
 
@@ -151,7 +158,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
 };
 ```
 
-#### 3. Execute Trading
+#### 4. Execute Trading
 
 ```rust
 client.buy(buy_params).await?;
@@ -184,6 +191,7 @@ Please ensure that the parameters your trading logic depends on are available in
 | Nonce example | `cargo run --package nonce_cache` | [examples/nonce_cache](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/nonce_cache/src/main.rs) |
 | Wrap/unwrap SOL to/from WSOL example | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
 | Seed trading example | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
+| Gas fee strategy example | `cargo run --package gas_fee_strategy` | [examples/gas_fee_strategy](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/gas_fee_strategy/src/main.rs) |
 
 ### ⚙️ SWQOS Service Configuration
 

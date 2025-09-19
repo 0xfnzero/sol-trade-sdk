@@ -1,7 +1,6 @@
 use anyhow::Result;
 use sol_trade_sdk::{
     common::{AnyResult, TradeConfig},
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
     swqos::{SwqosConfig, SwqosRegion},
     trading::{
         core::params::PumpSwapParams, factory::DexType, middleware::builtin::LoggingMiddleware,
@@ -67,6 +66,8 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    // init gas fee strategy
+    sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

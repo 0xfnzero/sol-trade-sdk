@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 
+use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::solana_streamer_sdk::{
     match_event, streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent,
@@ -11,10 +12,6 @@ use sol_trade_sdk::{common::AnyResult, swqos::SwqosConfig, SolanaTrade};
 use sol_trade_sdk::{
     common::TradeConfig,
     solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter},
-};
-use sol_trade_sdk::{
-    constants::trade::trade::{DEFAULT_CU_LIMIT, DEFAULT_CU_PRICE},
-    solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent},
 };
 use sol_trade_sdk::{
     instruction::utils::raydium_cpmm::accounts,
@@ -114,6 +111,8 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
+    // init gas fee strategy
+    sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

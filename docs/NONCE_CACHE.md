@@ -57,7 +57,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     mint: mint_pubkey,
     sol_amount: buy_sol_amount,
     slippage_basis_points: Some(100),
-    recent_blockhash: current_nonce, // Use nonce as blockhash
+    recent_blockhash: current_nonce, // Use nonce as blockhash. Please use the latest nonce value for each transaction.
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
     lookup_table_key: None,
     wait_transaction_confirmed: true,

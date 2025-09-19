@@ -78,7 +78,7 @@ async fn parallel_execute(
             .find(|swqos| matches!(swqos.get_swqos_type(), SwqosType::Default))
             .is_none()
     {
-        return Err(anyhow!("No Rpc Default Swqos configured"));
+        return Err(anyhow!("No Rpc Default Swqos configured."));
     }
     let cores = core_affinity::get_core_ids().unwrap();
     let mut handles: Vec<JoinHandle<Result<Signature>>> = Vec::with_capacity(swqos_clients.len());
@@ -106,7 +106,7 @@ async fn parallel_execute(
         .collect();
 
     if task_configs.is_empty() {
-        return Err(anyhow!("No available gas fee strategy configs"));
+        return Err(anyhow!("No available gas fee strategy configs. Please configure GasFeeStrategy for specific SwqosType."));
     }
 
     for (i, swqos_client, gas_fee_strategy_config) in task_configs {

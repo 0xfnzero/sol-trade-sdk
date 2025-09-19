@@ -130,7 +130,15 @@ let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
 let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 ```
 
-#### 2. 构建交易参数
+#### 2. 配置 Gas Fee 策略
+
+有关 Gas Fee 策略的详细信息，请参阅 [Gas Fee 策略参考手册](docs/GAS_FEE_STRATEGY_CN.md)。
+```rust
+// 使用内置策略
+sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
+```
+
+#### 3. 构建交易参数
 
 有关所有交易参数的详细信息，请参阅 [交易参数参考手册](docs/TRADING_PARAMETERS_CN.md)。
 
@@ -151,7 +159,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
 };
 ```
 
-#### 3. 执行交易
+#### 4. 执行交易
 
 ```rust
 client.buy(buy_params).await?;
@@ -184,6 +192,7 @@ client.buy(buy_params).await?;
 | Nonce示例 | `cargo run --package nonce_cache` | [examples/nonce_cache](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/nonce_cache/src/main.rs) |
 | SOL与WSOL相互转换示例 | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
 | Seed 优化交易示例 | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
+| Gas费用策略示例 | `cargo run --package gas_fee_strategy` | [examples/gas_fee_strategy](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/gas_fee_strategy/src/main.rs) |
 
 ### ⚙️ SWQOS 服务配置说明
 
