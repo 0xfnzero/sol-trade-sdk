@@ -10,9 +10,7 @@ use tokio::task::JoinHandle;
 use crate::{
     common::GasFeeStrategy,
     swqos::{SwqosClient, SwqosType, TradeType},
-    trading::{
-        common::build_transaction, BuyParams, SellParams, MiddlewareManager,
-    },
+    trading::{common::build_transaction, BuyParams, MiddlewareManager, SellParams},
 };
 
 pub async fn buy_parallel_execute(
@@ -95,8 +93,11 @@ async fn parallel_execute(
             with_tip || matches!(swqos_client.get_swqos_type(), SwqosType::Default)
         })
         .flat_map(|(i, swqos_client)| {
-            let gas_fee_strategy_configs = GasFeeStrategy::instance()
-                .get_available_strategies(if is_buy { TradeType::Buy } else { TradeType::Sell });
+            let gas_fee_strategy_configs = GasFeeStrategy::get_strategies(if is_buy {
+                TradeType::Buy
+            } else {
+                TradeType::Sell
+            });
             gas_fee_strategy_configs
                 .into_iter()
                 .filter(|config| config.0.eq(&swqos_client.get_swqos_type()))
