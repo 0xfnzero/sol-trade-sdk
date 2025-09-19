@@ -134,7 +134,7 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 
 For detailed information about Gas Fee Strategy, see the [Gas Fee Strategy Reference](docs/GAS_FEE_STRATEGY.md).
 ```rust
-sol_trade_sdk::common::GasFeeStrategy::init_builtin_fee_strategies();
+sol_trade_sdk::common::set_global_gas_fee_strategy(150000, 500000, 0.001, 0.001);
 ```
 
 #### 3. Build Trading Parameters

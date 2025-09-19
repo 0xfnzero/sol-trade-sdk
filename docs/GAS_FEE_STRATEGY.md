@@ -13,12 +13,17 @@ This module supports users to configure strategies for SwqosType under different
 
 Each (SwqosType, TradeType) combination can only configure one strategy. Subsequent strategy configurations will override previous ones.
 
-### 2. Using Built-in Strategies
+### 2. Set Global Strategy (can also be configured individually)
 
 ```rust
-use sol_trade_sdk::common::gas_fee_strategy::GasFeeStrategy;
-// Use built-in strategies (includes normal strategies for various SwqosTypes)
-GasFeeStrategy::init_builtin_fee_strategies();
+use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy, set_global_gas_fee_strategy};
+// Set global strategy (normal strategy)
+set_global_gas_fee_strategy(
+    150000, // cu_limit
+    500000, // cu_price
+    0.001,  // buy tip
+    0.001   // sell tip
+);
 ```
 
 ### 3. Configuring Single Strategy

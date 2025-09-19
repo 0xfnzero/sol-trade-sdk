@@ -13,12 +13,17 @@
 
 每个 (SwqosType, TradeType) 的组合仅可配置一个策略。后续配置的策略会覆盖之前的策略。
 
-### 2. 使用内置策略
+### 2. 设置全局策略(也可以不设置，单独去配置单个策略)
 
 ```rust
-use sol_trade_sdk::common::gas_fee_strategy::GasFeeStrategy;
-// 使用内置策略（内置了各个 SwqosType 的 normal 策略）
-GasFeeStrategy::init_builtin_fee_strategies();
+use sol_trade_sdk::common::{gas_fee_strategy::GasFeeStrategy, set_global_gas_fee_strategy};
+// 设置全局策略(normal 策略)
+set_global_gas_fee_strategy(
+    150000, // cu_limit
+    500000, // cu_price
+    0.001,  // buy tip
+    0.001   // sell tip
+);
 ```
 
 ### 3. 配置单个策略
