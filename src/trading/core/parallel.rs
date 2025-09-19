@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::{
-    common::GasFeeStrategy,
+    common::{GasFeeStrategy, SolanaRpcClient},
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::{common::build_transaction, BuyParams, MiddlewareManager, SellParams},
 };
@@ -21,9 +21,12 @@ pub async fn buy_parallel_execute(
     parallel_execute(
         params.swqos_clients,
         params.payer,
+        params.rpc,
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
+        params.nonce_account,
+        params.current_nonce,
         params.data_size_limit,
         params.middleware_manager,
         protocol_name,
@@ -42,9 +45,12 @@ pub async fn sell_parallel_execute(
     parallel_execute(
         params.swqos_clients,
         params.payer,
+        params.rpc,
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
+        params.nonce_account,
+        params.current_nonce,
         0,
         params.middleware_manager,
         protocol_name,
@@ -59,9 +65,12 @@ pub async fn sell_parallel_execute(
 async fn parallel_execute(
     swqos_clients: Vec<Arc<SwqosClient>>,
     payer: Arc<Keypair>,
+    rpc: Option<Arc<SolanaRpcClient>>,
     instructions: Vec<Instruction>,
     lookup_table_key: Option<Pubkey>,
     recent_blockhash: Hash,
+    nonce_account: Option<Pubkey>,
+    current_nonce: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &'static str,
@@ -123,6 +132,7 @@ async fn parallel_execute(
         let unit_price = gas_fee_strategy_config.2.cu_price;
         let swqos_type = swqos_type.clone();
         let tip_account = tip_account.clone();
+        let rpc = rpc.clone();
 
         let handle = tokio::spawn(async move {
             core_affinity::set_for_current(core_id);
@@ -133,6 +143,7 @@ async fn parallel_execute(
 
             let transaction = build_transaction(
                 payer,
+                rpc,
                 unit_limit,
                 unit_price,
                 instructions.as_ref().clone(),
@@ -145,6 +156,8 @@ async fn parallel_execute(
                 swqos_type != SwqosType::Default,
                 &tip_account,
                 tip_amount,
+                nonce_account,
+                current_nonce,
             )
             .await?;
 

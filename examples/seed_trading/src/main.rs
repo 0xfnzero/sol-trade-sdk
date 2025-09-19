@@ -38,6 +38,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
+        nonce_account: None,
+        current_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -73,6 +75,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_wsol_ata: true,
         close_wsol_ata: true,
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
+        nonce_account: None,
+        current_nonce: None,
     };
     client.sell(sell_params).await?;
 

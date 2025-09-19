@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::solana_streamer_sdk::{
     match_event, streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent,
@@ -12,6 +11,10 @@ use sol_trade_sdk::{common::AnyResult, swqos::SwqosConfig, SolanaTrade};
 use sol_trade_sdk::{
     common::TradeConfig,
     solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter},
+};
+use sol_trade_sdk::{
+    constants::WSOL_TOKEN_ACCOUNT,
+    solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent},
 };
 use sol_trade_sdk::{
     instruction::utils::raydium_cpmm::accounts,
@@ -86,6 +89,9 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     |event: Box<dyn UnifiedEvent>| {
         match_event!(event, {
             RaydiumCpmmSwapEvent => |e: RaydiumCpmmSwapEvent| {
+                if e.input_token_mint != WSOL_TOKEN_ACCOUNT && e.output_token_mint != WSOL_TOKEN_ACCOUNT {
+                    return;
+                }
                 // Test code, only test one transaction
                 if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                     let event_clone = e.clone();
@@ -105,8 +111,17 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
-    let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
+
+    let payer = Keypair::from_bytes(
+        &std::fs::read_to_string("/Users/ysq/.config/solana/sdk_test.json")
+            .unwrap()
+            .trim_matches(|c| c == '[' || c == ']')
+            .split(',')
+            .map(|s| s.trim().parse::<u8>().unwrap())
+            .collect::<Vec<u8>>(),
+    )
+    .unwrap();
+    let rpc_url = "https://ultra-bold-sunset.solana-mainnet.quiknode.pro/1210ea22139565495810678ac0aa33243fea8406/".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
@@ -150,6 +165,8 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -180,6 +197,8 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         create_wsol_ata: true,
         close_wsol_ata: true,
         open_seed_optimize: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.sell(sell_params).await?;
 

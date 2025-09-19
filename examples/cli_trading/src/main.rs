@@ -616,6 +616,8 @@ async fn handle_buy_pumpfun(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -663,6 +665,8 @@ async fn handle_buy_pumpswap(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -709,6 +713,8 @@ async fn handle_buy_bonk(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -759,6 +765,8 @@ async fn handle_buy_raydium_v4(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -809,6 +817,8 @@ async fn handle_buy_raydium_cpmm(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -969,6 +979,8 @@ async fn handle_sell_pumpfun(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
 
     match client.sell(sell_params).await {
@@ -1019,6 +1031,8 @@ async fn handle_sell_pumpswap(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1068,6 +1082,8 @@ async fn handle_sell_bonk(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1120,6 +1136,8 @@ async fn handle_sell_raydium_v4(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1172,6 +1190,8 @@ async fn handle_sell_raydium_cpmm(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
+        nonce_account: None,
+        current_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {

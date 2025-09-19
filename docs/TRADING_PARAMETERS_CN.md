@@ -34,6 +34,8 @@
 | `close_wsol_ata` | `bool` | ✅ | 交易后是否关闭 wSOL ATA |
 | `create_mint_ata` | `bool` | ✅ | 是否创建代币 mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
+| `nonce_account` | `Option<Pubkey>` | ❌ | nonce 账户 |
+| `current_nonce` | `Option<u64>` | ❌ | nonce 值 |
 
 
 ## TradeSellParams
@@ -61,6 +63,8 @@
 | `create_wsol_ata` | `bool` | ✅ | 是否创建 wSOL 关联代币账户 |
 | `close_wsol_ata` | `bool` | ✅ | 交易后是否关闭 wSOL ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
+| `nonce_account` | `Option<Pubkey>` | ❌ | nonce 账户 |
+| `current_nonce` | `Option<u64>` | ❌ | nonce 值 |
 
 
 ## 参数分类
@@ -95,6 +99,12 @@
 
 - **lookup_table_key**: 使用地址查找表减少交易大小
 - **open_seed_optimize**: 使用基于 seed 的账户创建以降低 CU 消耗
+
+### 🔄 非必填参数
+
+当你需要使用 durable nonce 时，需要填入这两个参数：
+- **nonce_account**: nonce 账户
+- **current_nonce**: nonce 值
 
 ## 重要说明
 

@@ -85,15 +85,6 @@ impl AddressLookupTableCache {
                 key: *lookup_table_address,
                 addresses: Vec::new(),
             });
-
-        if result.addresses.len() == 0 {
-            eprintln!(" ❌ Address lookup table account {} not setup", lookup_table_address);
-            eprintln!(" ❌ Please update the address table account information using 【AddressLookupTableCache】 first");
-            eprintln!(
-                " ❌ The current transaction will not include this address lookup table account"
-            );
-        }
-
         return result;
     }
 }

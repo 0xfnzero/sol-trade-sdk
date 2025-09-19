@@ -40,16 +40,17 @@ NonceCache::get_instance().init(Some(nonce_account_str.to_string()));
 ```rust
 // 获取并更新 nonce 信息
 NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
-
-// 获取当前 nonce 值
+// 或者手动管理nonce
+// NonceCache::get_instance().update_nonce_info_partial(nonce_account, current_nonce, used);
 let nonce_info = NonceCache::get_instance().get_nonce_info();
 let current_nonce = nonce_info.current_nonce;
+let nonce_account = nonce_info.nonce_account;
 println!("Current nonce: {}", current_nonce);
 ```
 
 ### 3. 在交易中使用 Nonce
 
-将 nonce 作为 recent_blockhash 参数传递给交易：
+设置 nonce 参数：nonce_account 和 recent_nonce
 
 ```rust
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -57,7 +58,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     mint: mint_pubkey,
     sol_amount: buy_sol_amount,
     slippage_basis_points: Some(100),
-    recent_blockhash: current_nonce, // 使用 nonce 作为 blockhash。请在每次交易时，都使用最新的 nonce 值。
+    recent_blockhash: recent_blockhash,
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
     lookup_table_key: None,
     wait_transaction_confirmed: true,
@@ -65,6 +66,8 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     close_wsol_ata: false,
     create_mint_ata: true,
     open_seed_optimize: false,
+    nonce_account: nonce_account, // 设置 nonce 账户
+    current_nonce: Some(current_nonce), // 设置 nonce 值
 };
 
 // 执行交易
@@ -75,8 +78,8 @@ client.buy(buy_params).await?;
 
 1. **初始化**: 设置 nonce 账户地址
 2. **获取**: 从 RPC 获取最新 nonce 值
-4. **使用**: 在交易中作为 blockhash 使用
-6. **刷新**: 下次使用前重新获取新的 nonce 值
+3. **使用**: 在交易中设置 nonce 参数
+4. **刷新**: 下次使用前重新获取新的 nonce 值
 
 ## 🔗 相关文档
 

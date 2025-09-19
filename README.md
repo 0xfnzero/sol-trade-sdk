@@ -225,7 +225,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - If no custom URL is provided (`None`), the system will use the default endpoint for the specified `SwqosRegion`
 - This allows for maximum flexibility while maintaining backward compatibility 
 
-When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `blockhash` when trading.
+When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `nonce_account` and `current_nonce` when trading.
 
 ---
 

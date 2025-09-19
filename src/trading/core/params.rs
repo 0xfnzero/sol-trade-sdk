@@ -35,6 +35,8 @@ pub struct BuyParams {
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
     pub create_mint_ata: bool,
+    pub nonce_account: Option<Pubkey>,
+    pub current_nonce: Option<Hash>,
 }
 
 /// Sell parameters
@@ -55,6 +57,8 @@ pub struct SellParams {
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
+    pub nonce_account: Option<Pubkey>,
+    pub current_nonce: Option<Hash>,
 }
 
 impl std::fmt::Debug for BuyParams {

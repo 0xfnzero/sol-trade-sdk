@@ -34,6 +34,8 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
+| `nonce_account` | `Option<Pubkey>` | ❌ | nonce account |
+| `current_nonce` | `Option<u64>` | ❌ | nonce value |
 
 
 ## TradeSellParams
@@ -61,6 +63,8 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `create_wsol_ata` | `bool` | ✅ | Whether to create wSOL Associated Token Account |
 | `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
+| `nonce_account` | `Option<Pubkey>` | ❌ | nonce account |
+| `current_nonce` | `Option<u64>` | ❌ | nonce value |
 
 
 ## Parameter Categories
@@ -95,6 +99,12 @@ These parameters enable advanced optimizations:
 
 - **lookup_table_key**: Use address lookup tables for reduced transaction size
 - **open_seed_optimize**: Use seed-based account creation for lower CU consumption
+
+### 🔄 Optional Parameters
+
+When you need to use durable nonce, you need to fill in these two parameters:
+- **nonce_account**: nonce account
+- **current_nonce**: nonce value
 
 ## Important Notes
 

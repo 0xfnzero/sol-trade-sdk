@@ -17,8 +17,8 @@ use crate::trading::core::params::RaydiumCpmmParams;
 use crate::trading::core::traits::ProtocolParams;
 use crate::trading::factory::DexType;
 use crate::trading::BuyParams;
-use crate::trading::SellParams;
 use crate::trading::MiddlewareManager;
+use crate::trading::SellParams;
 use crate::trading::TradeFactory;
 use common::SolanaRpcClient;
 use parking_lot::Mutex;
@@ -90,6 +90,10 @@ pub struct TradeBuyParams {
     pub create_mint_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
+    /// Nonce account for transaction validity
+    pub nonce_account: Option<Pubkey>,
+    /// Recent nonce for transaction validity
+    pub current_nonce: Option<Hash>,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -124,6 +128,10 @@ pub struct TradeSellParams {
     pub close_wsol_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
+    /// Nonce account for transaction validity
+    pub nonce_account: Option<Pubkey>,
+    /// Recent nonce for transaction validity
+    pub current_nonce: Option<Hash>,
 }
 
 impl SolanaTrade {
@@ -264,6 +272,8 @@ impl SolanaTrade {
             create_mint_ata: params.create_mint_ata,
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
+            nonce_account: params.nonce_account,
+            current_nonce: params.current_nonce,
         };
 
         // Validate protocol params
@@ -334,6 +344,8 @@ impl SolanaTrade {
             middleware_manager: self.middleware_manager.clone(),
             create_wsol_ata: params.create_wsol_ata,
             close_wsol_ata: params.close_wsol_ata,
+            nonce_account: params.nonce_account,
+            current_nonce: params.current_nonce,
         };
 
         // Validate protocol params

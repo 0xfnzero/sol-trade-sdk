@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::bonk::parser::BONK_PROGRAM_ID;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
@@ -19,6 +18,10 @@ use sol_trade_sdk::{
     SolanaTrade,
 };
 use sol_trade_sdk::{common::TradeConfig, solana_streamer_sdk::match_event};
+use sol_trade_sdk::{
+    constants::WSOL_TOKEN_ACCOUNT,
+    solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter,
+};
 use solana_sdk::signer::Signer;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use spl_associated_token_account::get_associated_token_address;
@@ -85,6 +88,9 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     |event: Box<dyn UnifiedEvent>| {
         match_event!(event, {
             BonkTradeEvent => |e: BonkTradeEvent| {
+                if e.base_token_mint != WSOL_TOKEN_ACCOUNT && e.quote_token_mint != WSOL_TOKEN_ACCOUNT {
+                    return;
+                }
                 // Test code, only test one transaction
                 if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                     let event_clone = e.clone();
@@ -142,6 +148,8 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -169,6 +177,8 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         close_wsol_ata: true,
         open_seed_optimize: false,
         with_tip: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.sell(sell_params).await?;
 

@@ -136,6 +136,8 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         close_wsol_ata: false,
         create_mint_ata: true,
         open_seed_optimize: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -163,6 +165,8 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         create_wsol_ata: false,
         close_wsol_ata: false,
         open_seed_optimize: false,
+        nonce_account: None,
+        current_nonce: None,
     };
     client.sell(sell_params).await?;
 
