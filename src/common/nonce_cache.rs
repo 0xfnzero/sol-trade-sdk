@@ -19,6 +19,15 @@ pub struct NonceInfo {
     pub used: bool,
 }
 
+/// DurableNonceInfo structure to store durable nonce-related information
+#[derive(Clone)]
+pub struct DurableNonceInfo {
+    /// Nonce account address
+    pub nonce_account: Option<Pubkey>,
+    /// Current nonce value
+    pub current_nonce: Option<Hash>,
+}
+
 /// NonceInfoStore singleton for storing and managing NonceInfo
 pub struct NonceCache {
     /// Internally stored NonceInfo data
@@ -50,13 +59,27 @@ impl NonceCache {
         self.update_nonce_info_partial(nonce_account, None, Some(false));
     }
 
-    /// Get a copy of NonceInfo
-    pub fn get_nonce_info(&self) -> NonceInfo {
+     /// Get a copy of NonceInfo
+     pub fn get_nonce_info(&self) -> NonceInfo {
         let nonce_info = self.nonce_info.lock();
         NonceInfo {
             nonce_account: nonce_info.nonce_account,
             current_nonce: nonce_info.current_nonce,
             used: nonce_info.used,
+        }
+    }
+
+    pub fn get_durable_nonce_info() -> DurableNonceInfo {
+        let nonce_info = Self::get_instance().get_nonce_info();
+        let nonce_account = nonce_info.nonce_account;
+        let current_nonce = if nonce_account.is_some() && nonce_info.current_nonce != Hash::default() {
+            Some(nonce_info.current_nonce)
+        } else {
+            None
+        };
+        DurableNonceInfo {
+            nonce_account,
+            current_nonce,
         }
     }
 

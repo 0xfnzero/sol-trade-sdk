@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 
 use crate::{
     common::{GasFeeStrategy, SolanaRpcClient},
+    common::nonce_cache::DurableNonceInfo,
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::{common::build_transaction, BuyParams, MiddlewareManager, SellParams},
 };
@@ -25,8 +26,9 @@ pub async fn buy_parallel_execute(
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
-        params.nonce_account,
-        params.current_nonce,
+        params.durable_nonce.clone(),
+        // params.nonce_account,
+        // params.current_nonce,
         params.data_size_limit,
         params.middleware_manager,
         protocol_name,
@@ -49,8 +51,9 @@ pub async fn sell_parallel_execute(
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
-        params.nonce_account,
-        params.current_nonce,
+        params.durable_nonce.clone(),
+        // params.nonce_account,
+        // params.current_nonce,
         0,
         params.middleware_manager,
         protocol_name,
@@ -68,9 +71,10 @@ async fn parallel_execute(
     rpc: Option<Arc<SolanaRpcClient>>,
     instructions: Vec<Instruction>,
     lookup_table_key: Option<Pubkey>,
-    recent_blockhash: Hash,
-    nonce_account: Option<Pubkey>,
-    current_nonce: Option<Hash>,
+    recent_blockhash: Option<Hash>,
+    durable_nonce: Option<DurableNonceInfo>,
+    // nonce_account: Option<Pubkey>,
+    // current_nonce: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &'static str,
@@ -133,6 +137,7 @@ async fn parallel_execute(
         let swqos_type = swqos_type.clone();
         let tip_account = tip_account.clone();
         let rpc = rpc.clone();
+        let durable_nonce = durable_nonce.clone();
 
         let handle = tokio::spawn(async move {
             core_affinity::set_for_current(core_id);
@@ -156,8 +161,8 @@ async fn parallel_execute(
                 swqos_type != SwqosType::Default,
                 &tip_account,
                 tip_amount,
-                nonce_account,
-                current_nonce,
+                durable_nonce,
+                // current_nonce,
             )
             .await?;
 

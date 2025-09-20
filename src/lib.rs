@@ -6,6 +6,7 @@ pub mod swqos;
 pub mod trading;
 pub mod utils;
 use crate::common::TradeConfig;
+use crate::common::nonce_cache::DurableNonceInfo;
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
@@ -74,7 +75,7 @@ pub struct TradeBuyParams {
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
     pub slippage_basis_points: Option<u64>,
     /// Recent blockhash for transaction validity
-    pub recent_blockhash: Hash,
+    pub recent_blockhash: Option<Hash>,
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
     pub extension_params: Box<dyn ProtocolParams>,
     // Extended configuration
@@ -91,9 +92,11 @@ pub struct TradeBuyParams {
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
     /// Nonce account for transaction validity
-    pub nonce_account: Option<Pubkey>,
-    /// Recent nonce for transaction validity
-    pub current_nonce: Option<Hash>,
+    // pub nonce_account: Option<Pubkey>,
+    // /// Recent nonce for transaction validity
+    // pub current_nonce: Option<Hash>,
+    /// Durable nonce information
+    pub durable_nonce: Option<DurableNonceInfo>,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -112,7 +115,7 @@ pub struct TradeSellParams {
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
     pub slippage_basis_points: Option<u64>,
     /// Recent blockhash for transaction validity
-    pub recent_blockhash: Hash,
+    pub recent_blockhash: Option<Hash>,
     /// Whether to include tip for transaction priority
     pub with_tip: bool,
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
@@ -129,9 +132,11 @@ pub struct TradeSellParams {
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
     /// Nonce account for transaction validity
-    pub nonce_account: Option<Pubkey>,
-    /// Recent nonce for transaction validity
-    pub current_nonce: Option<Hash>,
+    // pub nonce_account: Option<Pubkey>,
+    // /// Recent nonce for transaction validity
+    // pub current_nonce: Option<Hash>,
+    /// Durable nonce information
+    pub durable_nonce: Option<DurableNonceInfo>,
 }
 
 impl SolanaTrade {
@@ -272,8 +277,7 @@ impl SolanaTrade {
             create_mint_ata: params.create_mint_ata,
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
-            nonce_account: params.nonce_account,
-            current_nonce: params.current_nonce,
+            durable_nonce: params.durable_nonce,
         };
 
         // Validate protocol params
@@ -344,8 +348,7 @@ impl SolanaTrade {
             middleware_manager: self.middleware_manager.clone(),
             create_wsol_ata: params.create_wsol_ata,
             close_wsol_ata: params.close_wsol_ata,
-            nonce_account: params.nonce_account,
-            current_nonce: params.current_nonce,
+            durable_nonce: params.durable_nonce,
         };
 
         // Validate protocol params

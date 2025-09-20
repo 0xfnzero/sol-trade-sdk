@@ -1,6 +1,7 @@
 use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::SolanaRpcClient;
+use crate::common::nonce_cache::DurableNonceInfo;
 use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
 use crate::swqos::SwqosClient;
@@ -25,7 +26,7 @@ pub struct BuyParams {
     pub sol_amount: u64,
     pub slippage_basis_points: Option<u64>,
     pub lookup_table_key: Option<Pubkey>,
-    pub recent_blockhash: Hash,
+    pub recent_blockhash: Option<Hash>,
     pub data_size_limit: u32,
     pub wait_transaction_confirmed: bool,
     pub protocol_params: Box<dyn ProtocolParams>,
@@ -35,8 +36,9 @@ pub struct BuyParams {
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
     pub create_mint_ata: bool,
-    pub nonce_account: Option<Pubkey>,
-    pub current_nonce: Option<Hash>,
+    // pub nonce_account: Option<Pubkey>,
+    // pub current_nonce: Option<Hash>,
+    pub durable_nonce: Option<DurableNonceInfo>,
 }
 
 /// Sell parameters
@@ -48,7 +50,7 @@ pub struct SellParams {
     pub token_amount: Option<u64>,
     pub slippage_basis_points: Option<u64>,
     pub lookup_table_key: Option<Pubkey>,
-    pub recent_blockhash: Hash,
+    pub recent_blockhash: Option<Hash>,
     pub wait_transaction_confirmed: bool,
     pub with_tip: bool,
     pub protocol_params: Box<dyn ProtocolParams>,
@@ -57,8 +59,9 @@ pub struct SellParams {
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
     pub create_wsol_ata: bool,
     pub close_wsol_ata: bool,
-    pub nonce_account: Option<Pubkey>,
-    pub current_nonce: Option<Hash>,
+    // pub nonce_account: Option<Pubkey>,
+    // pub current_nonce: Option<Hash>,
+    pub durable_nonce: Option<DurableNonceInfo>,
 }
 
 impl std::fmt::Debug for BuyParams {

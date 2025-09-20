@@ -16,7 +16,7 @@ use super::{
     compute_budget_manager::compute_budget_instructions,
     nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
 };
-use crate::{common::SolanaRpcClient, trading::MiddlewareManager};
+use crate::{common::{nonce_cache::DurableNonceInfo, SolanaRpcClient}, trading::MiddlewareManager};
 
 /// Build standard RPC transaction
 pub async fn build_transaction(
@@ -26,7 +26,7 @@ pub async fn build_transaction(
     unit_price: u64,
     business_instructions: Vec<Instruction>,
     lookup_table_key: Option<Pubkey>,
-    recent_blockhash: Hash,
+    recent_blockhash: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &str,
@@ -34,14 +34,15 @@ pub async fn build_transaction(
     with_tip: bool,
     tip_account: &Pubkey,
     tip_amount: f64,
-    nonce_account: Option<Pubkey>,
-    current_nonce: Option<Hash>,
+    durable_nonce: Option<DurableNonceInfo>,
+    // nonce_account: Option<Pubkey>,
+    // current_nonce: Option<Hash>,
 ) -> Result<VersionedTransaction, anyhow::Error> {
     let mut instructions = Vec::with_capacity(business_instructions.len() + 5);
 
     // Add nonce instruction
     if let Err(e) =
-        add_nonce_instruction(&mut instructions, payer.as_ref(), nonce_account, current_nonce)
+        add_nonce_instruction(&mut instructions, payer.as_ref(), durable_nonce.clone())
     {
         return Err(e);
     }
@@ -67,7 +68,7 @@ pub async fn build_transaction(
     instructions.extend(business_instructions);
 
     // Get blockhash for transaction
-    let blockhash = get_transaction_blockhash(recent_blockhash, nonce_account, current_nonce);
+    let blockhash = get_transaction_blockhash(recent_blockhash, durable_nonce.clone());
 
     // Get address lookup table accounts
     let address_lookup_table_accounts =
