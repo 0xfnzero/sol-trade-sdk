@@ -1,5 +1,5 @@
 use solana_hash::Hash;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 use solana_system_interface::instruction::advance_nonce_account;
 
 use crate::common::nonce_cache::DurableNonceInfo;

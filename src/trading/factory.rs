@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use std::sync::Arc;
 
 use crate::instruction::{
