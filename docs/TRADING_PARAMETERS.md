@@ -19,6 +19,7 @@ The `TradeSwapParams` struct contains all parameters required for executing swap
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `trade_type` | `TradeType` | ✅ | The type of trade to execute (Buy, Sell) |
 | `input_mint` | `Pubkey` | ✅ | The public key of the token to spend (input token) |
 | `output_mint` | `Pubkey` | ✅ | The public key of the token to receive (output token) |
 | `input_token_program` | `Pubkey` | ✅ | The token program ID for the input token |

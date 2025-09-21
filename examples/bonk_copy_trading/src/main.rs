@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 
+use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::bonk::parser::BONK_PROGRAM_ID;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
@@ -13,15 +14,11 @@ use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
 use sol_trade_sdk::solana_streamer_sdk::streaming::YellowstoneGrpc;
 use sol_trade_sdk::{
     common::AnyResult,
-    swqos::SwqosConfig,
+    swqos::{SwqosConfig, TradeType},
     trading::{core::params::BonkParams, factory::DexType},
     SolanaTrade,
 };
 use sol_trade_sdk::{common::TradeConfig, solana_streamer_sdk::match_event};
-use sol_trade_sdk::{
-    constants::WSOL_TOKEN_ACCOUNT,
-    solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter,
-};
 use solana_sdk::signer::Signer;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use spl_associated_token_account::get_associated_token_address;
@@ -135,6 +132,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeSwapParams {
         dex_type: DexType::Bonk,
+        trade_type: TradeType::Buy,
         input_mint: quote_mint_pubkey,
         output_mint: mint_pubkey,
         input_token_program: trade_info.quote_token_program,
@@ -168,6 +166,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSwapParams {
         dex_type: DexType::Bonk,
+        trade_type: TradeType::Sell,
         input_mint: mint_pubkey,
         output_mint: quote_mint_pubkey,
         input_token_program: trade_info.base_token_program,

@@ -4,7 +4,7 @@ use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::SolanaRpcClient;
 use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use crate::swqos::SwqosClient;
+use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
 use solana_hash::Hash;
@@ -23,6 +23,7 @@ use std::sync::Arc;
 pub struct SwapParams {
     pub rpc: Option<Arc<SolanaRpcClient>>,
     pub payer: Arc<Keypair>,
+    pub trade_type: TradeType,
     pub input_mint: Pubkey,
     pub input_token_program: Option<Pubkey>,
     pub output_mint: Pubkey,

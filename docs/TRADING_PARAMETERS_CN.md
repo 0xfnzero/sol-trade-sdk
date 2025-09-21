@@ -19,6 +19,7 @@
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
 | `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `trade_type` | `TradeType` | ✅ | 要执行的交易类型 (Buy, Sell) |
 | `input_mint` | `Pubkey` | ✅ | 要花费的代币公钥（输入代币） |
 | `output_mint` | `Pubkey` | ✅ | 要接收的代币公钥（输出代币） |
 | `input_token_program` | `Pubkey` | ✅ | 输入代币的代币程序 ID |

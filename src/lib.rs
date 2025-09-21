@@ -13,6 +13,7 @@ use crate::constants::USD1_TOKEN_ACCOUNT;
 use crate::constants::WSOL_TOKEN_ACCOUNT;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
+use crate::swqos::TradeType;
 use crate::trading::core::params::BonkParams;
 use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
@@ -70,6 +71,8 @@ pub struct TradeSwapParams {
     // Trading configuration
     /// The DEX protocol to use for the trade
     pub dex_type: DexType,
+    /// The type of trade to execute
+    pub trade_type: TradeType,
     /// Public key of the token to purchase
     pub input_mint: Pubkey,
     /// Public key of the token to sell
@@ -303,6 +306,7 @@ impl SolanaTrade {
         let buy_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
+            trade_type: params.trade_type,
             input_mint: params.input_mint,
             output_mint: params.output_mint,
             input_token_program: Some(params.input_token_program),
@@ -408,6 +412,7 @@ impl SolanaTrade {
         let buy_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
+            trade_type: TradeType::Buy,
             input_mint: input_mint,
             output_mint: params.mint,
             input_token_program: None,
@@ -489,6 +494,7 @@ impl SolanaTrade {
         let sell_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
+            trade_type: TradeType::Sell,
             input_mint: params.mint,
             output_mint: output_mint,
             input_token_program: None,
