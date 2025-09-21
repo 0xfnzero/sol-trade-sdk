@@ -37,15 +37,37 @@ impl GasFeeStrategy {
             if swqos_type.eq(&SwqosType::Default) {
                 continue;
             }
-            GasFeeStrategy::set(swqos_type, TradeType::Buy, cu_limit, cu_price, buy_tip);
-            GasFeeStrategy::set(swqos_type, TradeType::Sell, cu_limit, cu_price, sell_tip);
+            GasFeeStrategy::set(
+                swqos_type,
+                TradeType::Buy,
+                GasFeeStrategyType::Normal,
+                cu_limit,
+                cu_price,
+                buy_tip,
+            );
+            GasFeeStrategy::set(
+                swqos_type,
+                TradeType::Sell,
+                GasFeeStrategyType::Normal,
+                cu_limit,
+                cu_price,
+                sell_tip,
+            );
         }
-
-        GasFeeStrategy::set_normal_fee_strategy(
+        GasFeeStrategy::set(
             SwqosType::Default,
+            TradeType::Buy,
+            GasFeeStrategyType::Normal,
             cu_limit,
             cu_price,
             0.0,
+        );
+        GasFeeStrategy::set(
+            SwqosType::Default,
+            TradeType::Sell,
+            GasFeeStrategyType::Normal,
+            cu_limit,
+            cu_price,
             0.0,
         );
     }
@@ -63,11 +85,25 @@ impl GasFeeStrategy {
     ) {
         for swqos_type in swqos_types {
             GasFeeStrategy::del(*swqos_type, trade_type);
-            GasFeeStrategy::set(*swqos_type, trade_type, cu_limit, high_cu_price, low_tip);
-            GasFeeStrategy::set(*swqos_type, trade_type, cu_limit, low_cu_price, high_tip);
+            GasFeeStrategy::set(
+                *swqos_type,
+                trade_type,
+                GasFeeStrategyType::LowTipHighCuPrice,
+                cu_limit,
+                high_cu_price,
+                low_tip,
+            );
+            GasFeeStrategy::set(
+                *swqos_type,
+                trade_type,
+                GasFeeStrategyType::HighTipLowCuPrice,
+                cu_limit,
+                low_cu_price,
+                high_tip,
+            );
         }
     }
-    
+
     /// 为单个服务类型添加高低费率策略，会移除(SwqosType,TradeType)的默认策略。
     /// Add high-low fee strategy for a single service type, Will remove the default strategy of (SwqosType,TradeType)
     pub fn set_high_low_fee_strategy(
@@ -83,22 +119,52 @@ impl GasFeeStrategy {
             return;
         }
         GasFeeStrategy::del(swqos_type, trade_type);
-        GasFeeStrategy::set(swqos_type, trade_type, cu_limit, high_cu_price, low_tip);
-        GasFeeStrategy::set(swqos_type, trade_type, cu_limit, low_cu_price, high_tip);
+        GasFeeStrategy::set(
+            swqos_type,
+            trade_type,
+            GasFeeStrategyType::LowTipHighCuPrice,
+            cu_limit,
+            high_cu_price,
+            low_tip,
+        );
+        GasFeeStrategy::set(
+            swqos_type,
+            trade_type,
+            GasFeeStrategyType::HighTipLowCuPrice,
+            cu_limit,
+            low_cu_price,
+            high_tip,
+        );
     }
 
     /// 为多个服务类型添加标准费率策略，会移除(SwqosType,TradeType)的高低价策略。
     /// Add normal fee strategies for multiple service types, Will remove the high-low strategies of (SwqosType,TradeType)
     pub fn set_normal_fee_strategies(
         swqos_types: &[SwqosType],
-        trade_type: TradeType,
         cu_limit: u32,
         cu_price: u64,
-        tip: f64,
+        buy_tip: f64,
+        sell_tip: f64,
     ) {
         for swqos_type in swqos_types {
-            GasFeeStrategy::del(*swqos_type, trade_type);
-            GasFeeStrategy::set(*swqos_type, trade_type, cu_limit, cu_price, tip);
+            GasFeeStrategy::del(*swqos_type, TradeType::Buy);
+            GasFeeStrategy::del(*swqos_type, TradeType::Sell);
+            GasFeeStrategy::set(
+                *swqos_type,
+                TradeType::Buy,
+                GasFeeStrategyType::Normal,
+                cu_limit,
+                cu_price,
+                buy_tip,
+            );
+            GasFeeStrategy::set(
+                *swqos_type,
+                TradeType::Sell,
+                GasFeeStrategyType::Normal,
+                cu_limit,
+                cu_price,
+                sell_tip,
+            );
         }
     }
 
@@ -109,13 +175,30 @@ impl GasFeeStrategy {
         buy_tip: f64,
         sell_tip: f64,
     ) {
-        GasFeeStrategy::set(swqos_type, TradeType::Buy, cu_limit, cu_price, buy_tip);
-        GasFeeStrategy::set(swqos_type, TradeType::Sell, cu_limit, cu_price, sell_tip);
+        GasFeeStrategy::del(swqos_type, TradeType::Buy);
+        GasFeeStrategy::del(swqos_type, TradeType::Sell);
+        GasFeeStrategy::set(
+            swqos_type,
+            TradeType::Buy,
+            GasFeeStrategyType::Normal,
+            cu_limit,
+            cu_price,
+            buy_tip,
+        );
+        GasFeeStrategy::set(
+            swqos_type,
+            TradeType::Sell,
+            GasFeeStrategyType::Normal,
+            cu_limit,
+            cu_price,
+            sell_tip,
+        );
     }
 
-    fn set(
+    pub fn set(
         swqos_type: SwqosType,
         trade_type: TradeType,
+        strategy_type: GasFeeStrategyType,
         cu_limit: u32,
         cu_price: u64,
         tip: f64,
@@ -124,7 +207,7 @@ impl GasFeeStrategy {
         STRATEGIES.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
             new_map.insert(
-                (swqos_type, trade_type, GasFeeStrategyType::Normal),
+                (swqos_type, trade_type, strategy_type),
                 GasFeeStrategyValue { cu_limit, cu_price, tip },
             );
             Arc::new(new_map)
@@ -133,7 +216,7 @@ impl GasFeeStrategy {
 
     /// 移除指定(SwqosType,TradeType)的策略。
     /// Remove strategy for specified (SwqosType,TradeType)
-    fn del(swqos_type: SwqosType, trade_type: TradeType) {
+    pub fn del(swqos_type: SwqosType, trade_type: TradeType) {
         STRATEGIES.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
             new_map.remove(&(swqos_type, trade_type, GasFeeStrategyType::Normal));

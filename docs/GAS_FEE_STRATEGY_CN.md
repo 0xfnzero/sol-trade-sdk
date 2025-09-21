@@ -30,12 +30,12 @@ GasFeeStrategy::set_global_fee_strategy(
 
 ```rust
 // 为 SwqosType::Jito 在 Buy 时配置 normal 策略
-GasFeeStrategy::add_normal_fee_strategy(
+GasFeeStrategy::set_normal_fee_strategy(
     SwqosType::Jito,
-    TradeType::Buy,
     xxxxx, // cu_limit
     xxxx,  // cu_price
-    xxxxx  // tip
+    xxxxx, // buy_tip
+    xxxxx  // sell_tip
 );
 ```
 
@@ -43,7 +43,7 @@ GasFeeStrategy::add_normal_fee_strategy(
 
 ```rust
 // 为 SwqosType::Jito 在 Buy 时配置高低费率策略
-GasFeeStrategy::add_high_low_fee_strategy(
+GasFeeStrategy::set_high_low_fee_strategy(
     SwqosType::Jito,
     TradeType::Buy,
     xxxxx, // cu_limit
@@ -58,7 +58,7 @@ GasFeeStrategy::add_high_low_fee_strategy(
 
 ```rust
 // 移除某个策略
-GasFeeStrategy::remove_strategy(SwqosType::Jito, TradeType::Buy);
+GasFeeStrategy::del(SwqosType::Jito, TradeType::Buy);
 // 查看所有策略
 GasFeeStrategy::print_all_strategies();
 // 清空所有策略

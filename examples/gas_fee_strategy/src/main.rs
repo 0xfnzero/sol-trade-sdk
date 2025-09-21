@@ -20,19 +20,19 @@ async fn main() {
     println!("\n3. Clear all strategies");
     GasFeeStrategy::clear();
 
-    // Add normal fee strategy for SwqosType::Default on Buy
-    println!("\n4. Add normal fee strategy for SwqosType::Default on Buy");
-    GasFeeStrategy::add_normal_fee_strategy(
+    // Add normal fee strategy for SwqosType::Default
+    println!("\n4. Add normal fee strategy for SwqosType::Default");
+    GasFeeStrategy::set_normal_fee_strategy(
         SwqosType::Default,
-        TradeType::Buy,
         150000, // cu_limit
         500000, // cu_price
-        0.0,    // tip
+        0.0,    // buy_tip
+        0.0,    // sell_tip
     );
 
     // Add high-low fee strategy for SwqosType::Jito on Buy
     println!("\n5. Add high-low fee strategy for SwqosType::Jito on Buy");
-    GasFeeStrategy::add_high_low_fee_strategy(
+    GasFeeStrategy::set_high_low_fee_strategy(
         SwqosType::Jito,
         TradeType::Buy,
         150000,         // cu_limit
@@ -47,13 +47,13 @@ async fn main() {
     GasFeeStrategy::print_all_strategies();
 
     // Add normal fee strategy for SwqosType::Jito on Buy (will override previous high-low strategy)
-    println!("\n7. Add normal fee strategy for SwqosType::Jito on Buy (will override previous high-low strategy)");
-    GasFeeStrategy::add_normal_fee_strategy(
+    println!("\n7. Add normal fee strategy for SwqosType::Jito (will override previous high-low strategy)");
+    GasFeeStrategy::set_normal_fee_strategy(
         SwqosType::Jito,
-        TradeType::Buy,
         150000, // cu_limit
         500000, // cu_price
-        0.0001, // tip
+        0.0001, // buy_tip
+        0.0001, // sell_tip
     );
 
     // Print all strategies
@@ -62,7 +62,7 @@ async fn main() {
 
     // Remove strategy for SwqosType::Jito on Buy
     println!("\n9. Remove strategy for SwqosType::Jito on Buy");
-    GasFeeStrategy::remove_strategy(SwqosType::Jito, TradeType::Buy);
+    GasFeeStrategy::del(SwqosType::Jito, TradeType::Buy);
 
     // Print all strategies
     println!("\n10. Print all current strategies");
