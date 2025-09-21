@@ -8,14 +8,14 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::{
-    common::{GasFeeStrategy, SolanaRpcClient},
     common::nonce_cache::DurableNonceInfo,
+    common::{GasFeeStrategy, SolanaRpcClient},
     swqos::{SwqosClient, SwqosType, TradeType},
-    trading::{common::build_transaction, BuyParams, MiddlewareManager, SellParams},
+    trading::{common::build_transaction, MiddlewareManager, SwapParams},
 };
 
 pub async fn buy_parallel_execute(
-    params: BuyParams,
+    params: SwapParams,
     instructions: Vec<Instruction>,
     protocol_name: &'static str,
 ) -> Result<Signature> {
@@ -26,9 +26,7 @@ pub async fn buy_parallel_execute(
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
-        params.durable_nonce.clone(),
-        // params.nonce_account,
-        // params.current_nonce,
+        params.durable_nonce,
         params.data_size_limit,
         params.middleware_manager,
         protocol_name,
@@ -40,7 +38,7 @@ pub async fn buy_parallel_execute(
 }
 
 pub async fn sell_parallel_execute(
-    params: SellParams,
+    params: SwapParams,
     instructions: Vec<Instruction>,
     protocol_name: &'static str,
 ) -> Result<Signature> {
@@ -51,9 +49,7 @@ pub async fn sell_parallel_execute(
         instructions,
         params.lookup_table_key,
         params.recent_blockhash,
-        params.durable_nonce.clone(),
-        // params.nonce_account,
-        // params.current_nonce,
+        params.durable_nonce,
         0,
         params.middleware_manager,
         protocol_name,
@@ -73,8 +69,6 @@ async fn parallel_execute(
     lookup_table_key: Option<Pubkey>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
-    // nonce_account: Option<Pubkey>,
-    // current_nonce: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &'static str,

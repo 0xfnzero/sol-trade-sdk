@@ -7,7 +7,7 @@ use crate::{
     trading::{
         common::wsol_manager,
         core::{
-            params::{BuyParams, PumpSwapParams, SellParams},
+            params::{PumpSwapParams, SwapParams},
             traits::InstructionBuilder,
         },
     },
@@ -25,7 +25,7 @@ pub struct PumpSwapInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for PumpSwapInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -35,7 +35,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             .downcast_ref::<PumpSwapParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for PumpSwap"))?;
 
-        if params.sol_amount == 0 {
+        if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
 
@@ -46,8 +46,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
         let params_coin_creator_vault_authority = protocol_params.coin_creator_vault_authority;
-        let create_wsol_ata = params.create_wsol_ata;
-        let close_wsol_ata = params.close_wsol_ata;
+        let create_wsol_ata = params.create_input_mint_ata;
+        let close_wsol_ata = params.close_input_mint_ata;
         let base_token_program = protocol_params.base_token_program;
         let quote_token_program = protocol_params.quote_token_program;
         let pool_base_token_account = protocol_params.pool_base_token_account;
@@ -70,7 +70,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
 
         let (token_amount, sol_amount) = if quote_mint_is_wsol {
             let result = buy_quote_input_internal(
-                params.sol_amount,
+                params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
@@ -81,7 +81,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             (result.base, result.max_quote)
         } else {
             let result = sell_base_input_internal(
-                params.sol_amount,
+                params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
@@ -89,7 +89,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             )
             .unwrap();
             // min_quote_amount_out, base_amount_in
-            (result.min_quote, params.sol_amount)
+            (result.min_quote, params.input_amount.unwrap_or(0))
         };
 
         let user_base_token_account =
@@ -118,7 +118,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), sol_amount));
         }
 
-        if params.create_mint_ata {
+        if params.create_output_mint_ata {
             instructions.extend(
                 crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
                     &params.payer.pubkey(),
@@ -191,7 +191,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -210,8 +210,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
         let params_coin_creator_vault_authority = protocol_params.coin_creator_vault_authority;
-        let create_wsol_ata = params.create_wsol_ata;
-        let close_wsol_ata = params.close_wsol_ata;
+        let create_wsol_ata = params.create_output_mint_ata;
+        let close_wsol_ata = params.close_output_mint_ata;
         let base_token_program = protocol_params.base_token_program;
         let quote_token_program = protocol_params.quote_token_program;
 
@@ -220,7 +220,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         {
             return Err(anyhow!("Invalid base mint and quote mint"));
         }
-        if params.token_amount.is_none() {
+        if params.input_amount.is_none() {
             return Err(anyhow!("Token amount is not set"));
         }
 
@@ -235,7 +235,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
 
         let (token_amount, sol_amount) = if quote_mint_is_wsol {
             let result = sell_base_input_internal(
-                params.token_amount.unwrap(),
+                params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
@@ -243,10 +243,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             )
             .unwrap();
             // base_amount_in, min_quote_amount_out
-            (params.token_amount.unwrap(), result.min_quote)
+            (params.input_amount.unwrap(), result.min_quote)
         } else {
             let result = buy_quote_input_internal(
-                params.token_amount.unwrap(),
+                params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,

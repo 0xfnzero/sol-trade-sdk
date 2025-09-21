@@ -111,17 +111,8 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-
-    let payer = Keypair::from_bytes(
-        &std::fs::read_to_string("/Users/ysq/.config/solana/sdk_test.json")
-            .unwrap()
-            .trim_matches(|c| c == '[' || c == ']')
-            .split(',')
-            .map(|s| s.trim().parse::<u8>().unwrap())
-            .collect::<Vec<u8>>(),
-    )
-    .unwrap();
-    let rpc_url = "https://ultra-bold-sunset.solana-mainnet.quiknode.pro/1210ea22139565495810678ac0aa33243fea8406/".to_string();
+    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);

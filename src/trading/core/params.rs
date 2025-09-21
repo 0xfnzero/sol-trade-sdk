@@ -1,7 +1,7 @@
 use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
-use crate::common::SolanaRpcClient;
 use crate::common::nonce_cache::DurableNonceInfo;
+use crate::common::SolanaRpcClient;
 use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
 use crate::swqos::SwqosClient;
@@ -17,13 +17,17 @@ use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::typ
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent;
 use spl_associated_token_account::get_associated_token_address;
 use std::sync::Arc;
-/// Buy parameters
+
+/// Swap parameters
 #[derive(Clone)]
-pub struct BuyParams {
+pub struct SwapParams {
     pub rpc: Option<Arc<SolanaRpcClient>>,
     pub payer: Arc<Keypair>,
-    pub mint: Pubkey,
-    pub sol_amount: u64,
+    pub input_mint: Pubkey,
+    pub input_token_program: Option<Pubkey>,
+    pub output_mint: Pubkey,
+    pub output_token_program: Option<Pubkey>,
+    pub input_amount: Option<u64>,
     pub slippage_basis_points: Option<u64>,
     pub lookup_table_key: Option<Pubkey>,
     pub recent_blockhash: Option<Hash>,
@@ -33,46 +37,17 @@ pub struct BuyParams {
     pub open_seed_optimize: bool,
     pub swqos_clients: Vec<Arc<SwqosClient>>,
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
-    pub create_wsol_ata: bool,
-    pub close_wsol_ata: bool,
-    pub create_mint_ata: bool,
-    // pub nonce_account: Option<Pubkey>,
-    // pub current_nonce: Option<Hash>,
     pub durable_nonce: Option<DurableNonceInfo>,
-}
-
-/// Sell parameters
-#[derive(Clone)]
-pub struct SellParams {
-    pub rpc: Option<Arc<SolanaRpcClient>>,
-    pub payer: Arc<Keypair>,
-    pub mint: Pubkey,
-    pub token_amount: Option<u64>,
-    pub slippage_basis_points: Option<u64>,
-    pub lookup_table_key: Option<Pubkey>,
-    pub recent_blockhash: Option<Hash>,
-    pub wait_transaction_confirmed: bool,
     pub with_tip: bool,
-    pub protocol_params: Box<dyn ProtocolParams>,
-    pub open_seed_optimize: bool,
-    pub swqos_clients: Vec<Arc<SwqosClient>>,
-    pub middleware_manager: Option<Arc<MiddlewareManager>>,
-    pub create_wsol_ata: bool,
-    pub close_wsol_ata: bool,
-    // pub nonce_account: Option<Pubkey>,
-    // pub current_nonce: Option<Hash>,
-    pub durable_nonce: Option<DurableNonceInfo>,
+    pub create_input_mint_ata: bool,
+    pub close_input_mint_ata: bool,
+    pub create_output_mint_ata: bool,
+    pub close_output_mint_ata: bool,
 }
 
-impl std::fmt::Debug for BuyParams {
+impl std::fmt::Debug for SwapParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BuyParams: {:?}", self)
-    }
-}
-
-impl std::fmt::Debug for SellParams {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SellParams: {:?}", self)
+        write!(f, "SwapParams: {:?}", self)
     }
 }
 
@@ -332,6 +307,7 @@ pub struct BonkParams {
     pub platform_config: Pubkey,
     pub platform_associated_account: Pubkey,
     pub creator_associated_account: Pubkey,
+    pub global_config: Pubkey,
 }
 
 impl BonkParams {
@@ -340,12 +316,14 @@ impl BonkParams {
         platform_config: Pubkey,
         platform_associated_account: Pubkey,
         creator_associated_account: Pubkey,
+        global_config: Pubkey,
     ) -> Self {
         Self {
             mint_token_program,
             platform_config,
             platform_associated_account,
             creator_associated_account,
+            global_config,
             ..Default::default()
         }
     }
@@ -362,6 +340,7 @@ impl BonkParams {
             platform_config: trade_info.platform_config,
             platform_associated_account: trade_info.platform_associated_account,
             creator_associated_account: trade_info.creator_associated_account,
+            global_config: trade_info.global_config,
         }
     }
 
@@ -417,16 +396,22 @@ impl BonkParams {
             platform_config: trade_info.platform_config,
             platform_associated_account: trade_info.platform_associated_account,
             creator_associated_account: trade_info.creator_associated_account,
+            global_config: trade_info.global_config,
         }
     }
 
     pub async fn from_mint_by_rpc(
         rpc: &SolanaRpcClient,
         mint: &Pubkey,
+        usd1_pool: bool,
     ) -> Result<Self, anyhow::Error> {
         let pool_address = crate::instruction::utils::bonk::get_pool_pda(
             mint,
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            if usd1_pool {
+                &crate::constants::USD1_TOKEN_ACCOUNT
+            } else {
+                &crate::constants::WSOL_TOKEN_ACCOUNT
+            },
         )
         .unwrap();
         let pool_data =
@@ -452,6 +437,7 @@ impl BonkParams {
             platform_config: pool_data.platform_config,
             platform_associated_account,
             creator_associated_account,
+            global_config: pool_data.global_config,
         })
     }
 }

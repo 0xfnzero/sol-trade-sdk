@@ -694,7 +694,7 @@ async fn handle_buy_bonk(
         println!("   Slippage: {}%", slippage.unwrap());
     }
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
+    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey, false).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
@@ -1059,7 +1059,7 @@ async fn handle_sell_bonk(
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
+    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey, false).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let sell_params = TradeSellParams {

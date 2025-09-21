@@ -17,6 +17,7 @@ pub mod accounts {
 
     pub const AUTHORITY: Pubkey = pubkey!("WLHv2UAZm6z4KyaaELi5pjdbJh6RESMva1Rnn8pJVVh");
     pub const GLOBAL_CONFIG: Pubkey = pubkey!("6s1xP3hpbAfFoNtUNF8mfHsjr2Bd97JxFJRWLbL6aHuX");
+    pub const USD1_GLOBAL_CONFIG: Pubkey = pubkey!("EPiZbnrThjyLnoQ6QQzkxeFqyL5uyg9RzNHHAudUPxBz");
     pub const EVENT_AUTHORITY: Pubkey = pubkey!("2DPAtwB8L12vrMRExbLuyGnC7n2J5LNoZQSejeQGpwkr");
     pub const BONK: Pubkey = pubkey!("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj");
 
@@ -37,6 +38,14 @@ pub mod accounts {
             is_signer: false,
             is_writable: false,
         };
+
+    pub const USD1_GLOBAL_CONFIG_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: USD1_GLOBAL_CONFIG,
+            is_signer: false,
+            is_writable: false,
+        };
+
     pub const EVENT_AUTHORITY_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: EVENT_AUTHORITY,

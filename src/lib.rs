@@ -5,9 +5,11 @@ pub mod protos;
 pub mod swqos;
 pub mod trading;
 pub mod utils;
-use crate::common::TradeConfig;
 use crate::common::nonce_cache::DurableNonceInfo;
+use crate::common::TradeConfig;
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
+use crate::constants::SOL_TOKEN_ACCOUNT;
+use crate::constants::WSOL_TOKEN_ACCOUNT;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::trading::core::params::BonkParams;
@@ -17,9 +19,8 @@ use crate::trading::core::params::RaydiumAmmV4Params;
 use crate::trading::core::params::RaydiumCpmmParams;
 use crate::trading::core::traits::ProtocolParams;
 use crate::trading::factory::DexType;
-use crate::trading::BuyParams;
 use crate::trading::MiddlewareManager;
-use crate::trading::SellParams;
+use crate::trading::SwapParams;
 use crate::trading::TradeFactory;
 use common::SolanaRpcClient;
 use parking_lot::Mutex;
@@ -91,10 +92,6 @@ pub struct TradeBuyParams {
     pub create_mint_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
-    /// Nonce account for transaction validity
-    // pub nonce_account: Option<Pubkey>,
-    // /// Recent nonce for transaction validity
-    // pub current_nonce: Option<Hash>,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
 }
@@ -131,10 +128,6 @@ pub struct TradeSellParams {
     pub close_wsol_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
-    /// Nonce account for transaction validity
-    // pub nonce_account: Option<Pubkey>,
-    // /// Recent nonce for transaction validity
-    // pub current_nonce: Option<Hash>,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
 }
@@ -259,12 +252,19 @@ impl SolanaTrade {
         }
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
-
-        let buy_params = BuyParams {
+        let input_mint = if params.dex_type == DexType::PumpFun {
+            SOL_TOKEN_ACCOUNT
+        } else {
+            WSOL_TOKEN_ACCOUNT
+        };
+        let buy_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
-            mint: params.mint,
-            sol_amount: params.sol_amount,
+            input_mint: input_mint,
+            output_mint: params.mint,
+            input_token_program: None,
+            output_token_program: None,
+            input_amount: Some(params.sol_amount),
             slippage_basis_points: params.slippage_basis_points,
             lookup_table_key: params.lookup_table_key,
             recent_blockhash: params.recent_blockhash,
@@ -272,12 +272,14 @@ impl SolanaTrade {
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
             open_seed_optimize: params.open_seed_optimize,
-            create_wsol_ata: params.create_wsol_ata,
-            close_wsol_ata: params.close_wsol_ata,
-            create_mint_ata: params.create_mint_ata,
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
+            with_tip: true,
+            create_input_mint_ata: params.create_wsol_ata,
+            close_input_mint_ata: params.close_wsol_ata,
+            create_output_mint_ata: params.create_mint_ata,
+            close_output_mint_ata: false,
         };
 
         // Validate protocol params
@@ -299,7 +301,7 @@ impl SolanaTrade {
             return Err(anyhow::anyhow!("Invalid protocol params for Trade"));
         }
 
-        executor.buy_with_tip(buy_params).await
+        executor.swap(buy_params).await
     }
 
     /// Execute a sell order for a specified token
@@ -331,12 +333,19 @@ impl SolanaTrade {
         }
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
-
-        let sell_params = SellParams {
+        let output_mint = if params.dex_type == DexType::PumpFun {
+            SOL_TOKEN_ACCOUNT
+        } else {
+            WSOL_TOKEN_ACCOUNT
+        };
+        let sell_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
-            mint: params.mint,
-            token_amount: Some(params.token_amount),
+            input_mint: params.mint,
+            output_mint: output_mint,
+            input_token_program: None,
+            output_token_program: None,
+            input_amount: Some(params.token_amount),
             slippage_basis_points: params.slippage_basis_points,
             lookup_table_key: params.lookup_table_key,
             recent_blockhash: params.recent_blockhash,
@@ -346,9 +355,12 @@ impl SolanaTrade {
             open_seed_optimize: params.open_seed_optimize,
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
-            create_wsol_ata: params.create_wsol_ata,
-            close_wsol_ata: params.close_wsol_ata,
             durable_nonce: params.durable_nonce,
+            data_size_limit: 0,
+            create_input_mint_ata: false,
+            close_input_mint_ata: false,
+            create_output_mint_ata: params.create_wsol_ata,
+            close_output_mint_ata: params.close_wsol_ata,
         };
 
         // Validate protocol params
@@ -371,7 +383,7 @@ impl SolanaTrade {
         }
 
         // Execute sell based on tip preference
-        executor.sell_with_tip(sell_params).await
+        executor.swap(sell_params).await
     }
 
     /// Execute a sell order for a percentage of the specified token amount

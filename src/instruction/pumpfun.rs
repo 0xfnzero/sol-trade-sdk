@@ -1,7 +1,7 @@
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     trading::core::{
-        params::{BuyParams, PumpFunParams, SellParams},
+        params::{PumpFunParams, SwapParams},
         traits::InstructionBuilder,
     },
 };
@@ -25,7 +25,7 @@ pub struct PumpFunInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for PumpFunInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -35,7 +35,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             .downcast_ref::<PumpFunParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
 
-        if params.sol_amount == 0 {
+        if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
 
@@ -51,16 +51,16 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             bonding_curve.virtual_sol_reserves as u128,
             bonding_curve.real_token_reserves as u128,
             creator,
-            params.sol_amount,
+            params.input_amount.unwrap_or(0),
         );
 
         let max_sol_cost = calculate_with_slippage_buy(
-            params.sol_amount,
+            params.input_amount.unwrap_or(0),
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         );
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.mint).unwrap()
+            get_bonding_curve_pda(&params.output_mint).unwrap()
         } else {
             bonding_curve.account
         };
@@ -69,7 +69,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             if protocol_params.associated_bonding_curve == Pubkey::default() {
                 crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
                     &bonding_curve_addr,
-                    &params.mint,
+                    &params.output_mint,
                     &crate::constants::TOKEN_PROGRAM,
                 )
             } else {
@@ -79,7 +79,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let user_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                &params.mint,
+                &params.output_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -93,12 +93,12 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let mut instructions = Vec::with_capacity(2);
 
         // Create associated token account
-        if params.create_mint_ata {
+        if params.create_output_mint_ata {
             instructions.extend(
                 crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
-                    &params.mint,
+                    &params.output_mint,
                     &crate::constants::TOKEN_PROGRAM,
                     params.open_seed_optimize,
                 ),
@@ -113,7 +113,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let accounts: [AccountMeta; 16] = [
             global_constants::GLOBAL_ACCOUNT_META,
             global_constants::FEE_RECIPIENT_META,
-            AccountMeta::new_readonly(params.mint, false),
+            AccountMeta::new_readonly(params.output_mint, false),
             AccountMeta::new(bonding_curve_addr, false),
             AccountMeta::new(associated_bonding_curve, false),
             AccountMeta::new(user_token_account, false),
@@ -138,7 +138,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -148,7 +148,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             .downcast_ref::<PumpFunParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
 
-        let token_amount = if let Some(amount) = params.token_amount {
+        let token_amount = if let Some(amount) = params.input_amount {
             if amount == 0 {
                 return Err(anyhow!("Amount cannot be zero"));
             }
@@ -177,7 +177,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         );
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.mint).unwrap()
+            get_bonding_curve_pda(&params.input_mint).unwrap()
         } else {
             bonding_curve.account
         };
@@ -186,7 +186,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             if protocol_params.associated_bonding_curve == Pubkey::default() {
                 crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
                     &bonding_curve_addr,
-                    &params.mint,
+                    &params.input_mint,
                     &crate::constants::TOKEN_PROGRAM,
                 )
             } else {
@@ -196,7 +196,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let user_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                &params.mint,
+                &params.input_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -214,7 +214,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let accounts: [AccountMeta; 14] = [
             global_constants::GLOBAL_ACCOUNT_META,
             global_constants::FEE_RECIPIENT_META,
-            AccountMeta::new_readonly(params.mint, false),
+            AccountMeta::new_readonly(params.input_mint, false),
             AccountMeta::new(bonding_curve_addr, false),
             AccountMeta::new(associated_bonding_curve, false),
             AccountMeta::new(user_token_account, false),

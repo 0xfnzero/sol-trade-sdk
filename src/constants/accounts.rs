@@ -34,6 +34,14 @@ pub const WSOL_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
         is_writable: false,
     };
 
+pub const USD1_TOKEN_ACCOUNT: Pubkey = pubkey!("USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB");
+pub const USD1_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
+    solana_sdk::instruction::AccountMeta {
+        pubkey: USD1_TOKEN_ACCOUNT,
+        is_signer: false,
+        is_writable: false,
+    };
+
 pub const RENT: Pubkey = solana_sdk::sysvar::rent::id();
 pub const RENT_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta { pubkey: RENT, is_signer: false, is_writable: false };

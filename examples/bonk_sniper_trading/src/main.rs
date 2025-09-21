@@ -137,6 +137,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
             trade_info.platform_config,
             trade_info.platform_associated_account,
             trade_info.creator_associated_account,
+            trade_info.global_config,
         )),
         lookup_table_key: None,
         wait_transaction_confirmed: true,

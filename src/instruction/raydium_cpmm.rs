@@ -6,7 +6,7 @@ use crate::{
         SWAP_BASE_IN_DISCRIMINATOR,
     },
     trading::core::{
-        params::{BuyParams, RaydiumCpmmParams, SellParams},
+        params::{RaydiumCpmmParams, SwapParams},
         traits::InstructionBuilder,
     },
     utils::calc::raydium_cpmm::compute_swap_amount,
@@ -23,11 +23,11 @@ pub struct RaydiumCpmmInstructionBuilder;
 
 #[async_trait::async_trait]
 impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
-    async fn build_buy_instructions(&self, params: &BuyParams) -> Result<Vec<Instruction>> {
+    async fn build_buy_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
-        if params.sol_amount == 0 {
+        if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
         let protocol_params = params
@@ -57,7 +57,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             protocol_params.base_token_program
         };
 
-        let amount_in: u64 = params.sol_amount;
+        let amount_in: u64 = params.input_amount.unwrap_or(0);
         let result = compute_swap_amount(
             protocol_params.base_reserve,
             protocol_params.quote_reserve,
@@ -75,7 +75,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         );
         let mint_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.mint,
+            &params.output_mint,
             &mint_token_program,
             params.open_seed_optimize,
         );
@@ -87,7 +87,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             true,
         );
         let mint_vault_account =
-            get_vault_account(&pool_state, &params.mint, protocol_params, false);
+            get_vault_account(&pool_state, &params.output_mint, protocol_params, false);
 
         let observation_state_account = if protocol_params.observation_state == Pubkey::default() {
             get_observation_state_pda(&pool_state).unwrap()
@@ -100,17 +100,17 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(6);
 
-        if params.create_wsol_ata {
+        if params.create_input_mint_ata {
             instructions
                 .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in));
         }
 
-        if params.create_mint_ata {
+        if params.create_output_mint_ata {
             instructions.extend(
                 crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
-                    &params.mint,
+                    &params.output_mint,
                     &mint_token_program,
                     params.open_seed_optimize,
                 ),
@@ -130,7 +130,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             crate::constants::TOKEN_PROGRAM_META,          // Input Token Program (readonly)
             AccountMeta::new_readonly(mint_token_program, false), // Output Token Program (readonly)
             crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Input token mint (readonly)
-            AccountMeta::new_readonly(params.mint, false), // Output token mint (readonly)
+            AccountMeta::new_readonly(params.output_mint, false), // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
         // Create instruction data
@@ -145,7 +145,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_wsol_ata {
+        if params.close_input_mint_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
@@ -153,7 +153,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         Ok(instructions)
     }
 
-    async fn build_sell_instructions(&self, params: &SellParams) -> Result<Vec<Instruction>> {
+    async fn build_sell_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -163,7 +163,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             .downcast_ref::<RaydiumCpmmParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        if params.token_amount.is_none() || params.token_amount.unwrap_or(0) == 0 {
+        if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));
         }
 
@@ -181,7 +181,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.base_mint == params.mint;
+        let is_base_in = protocol_params.base_mint == params.input_mint;
         let mint_token_program = if is_base_in {
             protocol_params.base_token_program
         } else {
@@ -192,7 +192,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             protocol_params.base_reserve,
             protocol_params.quote_reserve,
             is_base_in,
-            params.token_amount.unwrap_or(0),
+            params.input_amount.unwrap_or(0),
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         )
         .min_amount_out;
@@ -205,7 +205,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         );
         let mint_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.mint,
+            &params.input_mint,
             &mint_token_program,
             params.open_seed_optimize,
         );
@@ -217,7 +217,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             true,
         );
         let mint_vault_account =
-            get_vault_account(&pool_state, &params.mint, protocol_params, false);
+            get_vault_account(&pool_state, &params.input_mint, protocol_params, false);
 
         let observation_state_account = if protocol_params.observation_state == Pubkey::default() {
             get_observation_state_pda(&pool_state).unwrap()
@@ -230,7 +230,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(3);
 
-        if params.create_wsol_ata {
+        if params.create_output_mint_ata {
             instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey()));
         }
 
@@ -246,14 +246,14 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             AccountMeta::new(wsol_vault_account, false),   // Output Vault Account
             AccountMeta::new_readonly(mint_token_program, false), // Input Token Program (readonly)
             crate::constants::TOKEN_PROGRAM_META,          // Output Token Program (readonly)
-            AccountMeta::new_readonly(params.mint, false), // Input token mint (readonly)
+            AccountMeta::new_readonly(params.input_mint, false), // Input token mint (readonly)
             crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
         // Create instruction data
         let mut data = [0u8; 24];
         data[..8].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
-        data[8..16].copy_from_slice(&params.token_amount.unwrap_or(0).to_le_bytes());
+        data[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
         data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
 
         instructions.push(Instruction::new_with_bytes(
@@ -262,7 +262,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_wsol_ata {
+        if params.close_output_mint_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
