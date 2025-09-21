@@ -21,7 +21,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to purchase |
 | `sol_amount` | `u64` | ✅ | Amount of SOL to spend (in lamports) |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Slippage tolerance in basis points (e.g., 100 = 1%, 500 = 5%) |
-| `recent_blockhash` | `Hash` | ✅ | Recent blockhash for transaction validity |
+| `recent_blockhash` | `Option<Hash>` | ❌ | Recent blockhash for transaction validity |
 | `extension_params` | `Box<dyn ProtocolParams>` | ✅ | Protocol-specific parameters (PumpFunParams, PumpSwapParams, etc.) |
 
 ### Advanced Configuration Parameters
@@ -34,8 +34,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
-| `nonce_account` | `Option<Pubkey>` | ❌ | nonce account |
-| `current_nonce` | `Option<u64>` | ❌ | nonce value |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 
 
 ## TradeSellParams
@@ -50,7 +49,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to sell |
 | `token_amount` | `u64` | ✅ | Amount of tokens to sell (in smallest token units) |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Slippage tolerance in basis points (e.g., 100 = 1%, 500 = 5%) |
-| `recent_blockhash` | `Hash` | ✅ | Recent blockhash for transaction validity |
+| `recent_blockhash` | `Option<Hash>` | ❌ | Recent blockhash for transaction validity |
 | `with_tip` | `bool` | ✅ | Whether to include tip in the transaction |
 | `extension_params` | `Box<dyn ProtocolParams>` | ✅ | Protocol-specific parameters (PumpFunParams, PumpSwapParams, etc.) |
 
@@ -63,8 +62,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `create_wsol_ata` | `bool` | ✅ | Whether to create wSOL Associated Token Account |
 | `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
-| `nonce_account` | `Option<Pubkey>` | ❌ | nonce account |
-| `current_nonce` | `Option<u64>` | ❌ | nonce value |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 
 
 ## Parameter Categories
@@ -102,9 +100,8 @@ These parameters enable advanced optimizations:
 
 ### 🔄 Optional Parameters
 
-When you need to use durable nonce, you need to fill in these two parameters:
-- **nonce_account**: nonce account
-- **current_nonce**: nonce value
+When you need to use durable nonce, you need to fill in this parameter:
+- **durable_nonce**: Durable nonce information containing nonce account and current nonce value
 
 ## Important Notes
 

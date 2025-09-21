@@ -125,9 +125,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let nonce_account_str = "use_your_nonce_account_here";
     NonceCache::get_instance().init(Some(nonce_account_str.to_string()));
     NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
-    let current_nonce = NonceCache::get_instance().get_nonce_info().current_nonce;
-    let nonce_account = NonceCache::get_instance().get_nonce_info().nonce_account;
-    println!("current_nonce: {}", current_nonce);
+    let durable_nonce = NonceCache::get_durable_nonce_info();
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -137,7 +135,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         mint: mint_pubkey,
         sol_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -145,8 +143,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         close_wsol_ata: false,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: nonce_account,
-        current_nonce: Some(current_nonce),
+        durable_nonce: Some(durable_nonce),
     };
     client.buy(buy_params).await?;
 

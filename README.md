@@ -147,7 +147,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   mint: mint_pubkey,
   sol_amount: buy_sol_amount,
   slippage_basis_points: slippage_basis_points,
-  recent_blockhash: recent_blockhash,
+  recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
   lookup_table_key: None,
   wait_transaction_confirmed: true,
@@ -225,7 +225,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - If no custom URL is provided (`None`), the system will use the default endpoint for the specified `SwqosRegion`
 - This allows for maximum flexibility while maintaining backward compatibility 
 
-When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `nonce_account` and `current_nonce` when trading.
+When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `durable_nonce` when trading.
 
 ---
 

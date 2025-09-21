@@ -140,7 +140,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         mint: mint_pubkey,
         sol_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -148,8 +148,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -169,7 +168,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         mint: mint_pubkey,
         token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -177,8 +176,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         close_wsol_ata: true,
         open_seed_optimize: false,
         with_tip: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.sell(sell_params).await?;
 

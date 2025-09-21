@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         mint: mint_pubkey,
         sol_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
@@ -37,8 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -56,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         mint: mint_pubkey,
         token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
@@ -66,8 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_wsol_ata: true,
         close_wsol_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.sell(sell_params).await?;
 

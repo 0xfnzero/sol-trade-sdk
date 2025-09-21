@@ -152,7 +152,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         mint: mint_pubkey,
         sol_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
         lookup_table_key: Some(lookup_table_key), // you still need to update the AddressLookupTableCache
         wait_transaction_confirmed: true,
@@ -160,8 +160,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         close_wsol_ata: false,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.buy(buy_params).await?;
 

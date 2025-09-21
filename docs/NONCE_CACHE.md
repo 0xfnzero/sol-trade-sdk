@@ -42,15 +42,12 @@ Get the latest nonce information from RPC:
 NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
 // Or manually manage nonce
 // NonceCache::get_instance().update_nonce_info_partial(nonce_account, current_nonce, used);
-let nonce_info = NonceCache::get_instance().get_nonce_info();
-let current_nonce = nonce_info.current_nonce;
-let nonce_account = nonce_info.nonce_account;
-println!("Current nonce: {}", current_nonce);
+let durable_nonce = NonceCache::get_durable_nonce_info();
 ```
 
 ### 3. Use Nonce in Transactions
 
-Set nonce parameters: nonce_account and current_nonce
+Set nonce parameters: durable_nonce
 
 ```rust
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -58,7 +55,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     mint: mint_pubkey,
     sol_amount: buy_sol_amount,
     slippage_basis_points: Some(100),
-    recent_blockhash: recent_blockhash,
+    recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
     lookup_table_key: None,
     wait_transaction_confirmed: true,
@@ -66,8 +63,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     close_wsol_ata: false,
     create_mint_ata: true,
     open_seed_optimize: false,
-    nonce_account: nonce_account, // Set nonce account
-    current_nonce: Some(current_nonce), // Set nonce value
+    durable_nonce: Some(durable_nonce), // Set durable nonce
 };
 
 // Execute transaction

@@ -21,7 +21,7 @@
 | `mint` | `Pubkey` | ✅ | 要购买的代币 mint 公钥 |
 | `sol_amount` | `u64` | ✅ | 要花费的 SOL 数量（以 lamports 为单位） |
 | `slippage_basis_points` | `Option<u64>` | ❌ | 滑点容忍度（基点单位，例如 100 = 1%, 500 = 5%） |
-| `recent_blockhash` | `Hash` | ✅ | 用于交易有效性的最新区块哈希 |
+| `recent_blockhash` | `Option<Hash>` | ❌ | 用于交易有效性的最新区块哈希 |
 | `extension_params` | `Box<dyn ProtocolParams>` | ✅ | 协议特定参数 (PumpFunParams, PumpSwapParams 等) |
 
 ### 高级配置参数
@@ -34,8 +34,7 @@
 | `close_wsol_ata` | `bool` | ✅ | 交易后是否关闭 wSOL ATA |
 | `create_mint_ata` | `bool` | ✅ | 是否创建代币 mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
-| `nonce_account` | `Option<Pubkey>` | ❌ | nonce 账户 |
-| `current_nonce` | `Option<u64>` | ❌ | nonce 值 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 
 
 ## TradeSellParams
@@ -50,7 +49,7 @@
 | `mint` | `Pubkey` | ✅ | 要出售的代币 mint 公钥 |
 | `token_amount` | `u64` | ✅ | 要出售的代币数量（最小代币单位） |
 | `slippage_basis_points` | `Option<u64>` | ❌ | 滑点容忍度（基点单位，例如 100 = 1%, 500 = 5%） |
-| `recent_blockhash` | `Hash` | ✅ | 用于交易有效性的最新区块哈希 |
+| `recent_blockhash` | `Option<Hash>` | ❌ | 用于交易有效性的最新区块哈希 |
 | `with_tip` | `bool` | ✅ | 交易中是否包含小费 |
 | `extension_params` | `Box<dyn ProtocolParams>` | ✅ | 协议特定参数 (PumpFunParams, PumpSwapParams 等) |
 
@@ -63,8 +62,7 @@
 | `create_wsol_ata` | `bool` | ✅ | 是否创建 wSOL 关联代币账户 |
 | `close_wsol_ata` | `bool` | ✅ | 交易后是否关闭 wSOL ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
-| `nonce_account` | `Option<Pubkey>` | ❌ | nonce 账户 |
-| `current_nonce` | `Option<u64>` | ❌ | nonce 值 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 
 
 ## 参数分类
@@ -102,9 +100,8 @@
 
 ### 🔄 非必填参数
 
-当你需要使用 durable nonce 时，需要填入这两个参数：
-- **nonce_account**: nonce 账户
-- **current_nonce**: nonce 值
+当你需要使用 durable nonce 时，需要填入这个参数：
+- **durable_nonce**: 持久 nonce 信息，包含 nonce 账户和当前 nonce 值
 
 ## 重要说明
 

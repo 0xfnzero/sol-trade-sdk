@@ -52,7 +52,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     mint: mint_pubkey,
     sol_amount: buy_sol_amount,
     slippage_basis_points: Some(100),
-    recent_blockhash: recent_blockhash,
+    recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
     lookup_table_key: Some(lookup_table_key), // Include lookup table
     wait_transaction_confirmed: true,

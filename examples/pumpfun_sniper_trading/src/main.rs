@@ -97,7 +97,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         mint: mint_pubkey,
         sol_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(PumpFunParams::from_dev_trade(&trade_info, None)),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -105,8 +105,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.buy(buy_params).await?;
 
@@ -126,7 +125,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         mint: mint_pubkey,
         token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(PumpFunParams::immediate_sell(trade_info.creator_vault, true)),
         lookup_table_key: None,
@@ -134,8 +133,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         create_wsol_ata: true,
         close_wsol_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.sell(sell_params).await?;
 

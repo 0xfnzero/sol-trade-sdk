@@ -608,7 +608,7 @@ async fn handle_buy_pumpfun(
         mint: mint_pubkey,
         sol_amount: sol_lamports,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -616,8 +616,7 @@ async fn handle_buy_pumpfun(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -657,7 +656,7 @@ async fn handle_buy_pumpswap(
         mint: mint_pubkey,
         sol_amount: sol_lamports,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -665,8 +664,7 @@ async fn handle_buy_pumpswap(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -705,7 +703,7 @@ async fn handle_buy_bonk(
         mint: mint_pubkey,
         sol_amount: sol_lamports,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -713,8 +711,7 @@ async fn handle_buy_bonk(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -757,7 +754,7 @@ async fn handle_buy_raydium_v4(
         mint: mint_pubkey,
         sol_amount: sol_lamports,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -765,8 +762,7 @@ async fn handle_buy_raydium_v4(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -809,7 +805,7 @@ async fn handle_buy_raydium_cpmm(
         mint: mint_pubkey,
         sol_amount: sol_lamports,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
@@ -817,8 +813,7 @@ async fn handle_buy_raydium_cpmm(
         close_wsol_ata: false,
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.buy(buy_params).await {
         Ok(signature) => {
@@ -971,7 +966,7 @@ async fn handle_sell_pumpfun(
         mint: mint_pubkey,
         token_amount: amount as u64,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
         lookup_table_key: None,
@@ -979,8 +974,7 @@ async fn handle_sell_pumpfun(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
 
     match client.sell(sell_params).await {
@@ -1023,7 +1017,7 @@ async fn handle_sell_pumpswap(
         mint: mint_pubkey,
         token_amount: amount as u64,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
         lookup_table_key: None,
@@ -1031,8 +1025,7 @@ async fn handle_sell_pumpswap(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1074,7 +1067,7 @@ async fn handle_sell_bonk(
         mint: mint_pubkey,
         token_amount: amount as u64,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
         lookup_table_key: None,
@@ -1082,8 +1075,7 @@ async fn handle_sell_bonk(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1128,7 +1120,7 @@ async fn handle_sell_raydium_v4(
         mint: mint_pubkey,
         token_amount: amount as u64,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
         lookup_table_key: None,
@@ -1136,8 +1128,7 @@ async fn handle_sell_raydium_v4(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {
@@ -1182,7 +1173,7 @@ async fn handle_sell_raydium_cpmm(
         mint: mint_pubkey,
         token_amount: amount as u64,
         slippage_basis_points: slippage,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
         lookup_table_key: None,
@@ -1190,8 +1181,7 @@ async fn handle_sell_raydium_cpmm(
         create_wsol_ata: true,
         close_wsol_ata: false,
         open_seed_optimize: use_seed,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     match client.sell(sell_params).await {
         Ok(signature) => {

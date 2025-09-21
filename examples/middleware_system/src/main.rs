@@ -89,7 +89,7 @@ async fn test_middleware() -> AnyResult<()> {
         mint: mint_pubkey,
         sol_amount: buy_sol_cost,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: recent_blockhash,
+        recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?,
         ),
@@ -99,8 +99,7 @@ async fn test_middleware() -> AnyResult<()> {
         close_wsol_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
-        nonce_account: None,
-        current_nonce: None,
+        durable_nonce: None,
     };
     client.buy(buy_params).await?;
     println!("tip: This transaction will not succeed because we're using a test account. You can modify the code to initialize the payer with your own private key");

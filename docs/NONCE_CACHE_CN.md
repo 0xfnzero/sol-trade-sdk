@@ -42,15 +42,12 @@ NonceCache::get_instance().init(Some(nonce_account_str.to_string()));
 NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
 // 或者手动管理nonce
 // NonceCache::get_instance().update_nonce_info_partial(nonce_account, current_nonce, used);
-let nonce_info = NonceCache::get_instance().get_nonce_info();
-let current_nonce = nonce_info.current_nonce;
-let nonce_account = nonce_info.nonce_account;
-println!("Current nonce: {}", current_nonce);
+let durable_nonce = NonceCache::get_durable_nonce_info();
 ```
 
 ### 3. 在交易中使用 Nonce
 
-设置 nonce 参数：nonce_account 和 recent_nonce
+设置 nonce 参数：durable_nonce
 
 ```rust
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -58,7 +55,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     mint: mint_pubkey,
     sol_amount: buy_sol_amount,
     slippage_basis_points: Some(100),
-    recent_blockhash: recent_blockhash,
+    recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
     lookup_table_key: None,
     wait_transaction_confirmed: true,
@@ -66,8 +63,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     close_wsol_ata: false,
     create_mint_ata: true,
     open_seed_optimize: false,
-    nonce_account: nonce_account, // 设置 nonce 账户
-    current_nonce: Some(current_nonce), // 设置 nonce 值
+    durable_nonce: Some(durable_nonce), // 设置 durable nonce
 };
 
 // 执行交易
