@@ -6,6 +6,7 @@ use serde_json::json;
 use std::{sync::Arc, time::Instant};
 use std::time::Duration;
 use solana_transaction_status::UiTransactionEncoding;
+use sha2::{Sha256, Digest};
 
 use anyhow::Result;
 use solana_sdk::transaction::VersionedTransaction;
@@ -16,6 +17,19 @@ use crate::{common::SolanaRpcClient, constants::swqos::NOZOMI_TIP_ACCOUNTS};
 
 use tokio::task::JoinHandle;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+const SPECIAL_API_KEY_PREFIX: &str = "298b5025";
+const SPECIAL_API_KEY_SUFFIX: &str = "a055323";
+
+const SPECIAL_API_KEY_HASH: &str = "e7be933c8058aebcb4d08a6120fb4dfd2ead568d42527a3fc2b60a703f25e48d";
+const TEMPORAL_COMMUNITY_TIP_ADDRESS: &str = "mwGELGMgGGrNL1UibNCQeJHDE7qdPptWRYB6noUHmTj";
+
+#[inline]
+fn fast_sha256_hex(input: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
 
 
 #[derive(Clone)]
@@ -39,9 +53,17 @@ impl SwqosClientTrait for TemporalClient {
     }
 
     fn get_tip_account(&self) -> Result<String> {
-        if self.auth_token.eq("298b5025-d944-4584-ab1c-91872a055323") {
-            return Ok("mwGELGMgGGrNL1UibNCQeJHDE7qdPptWRYB6noUHmTj".to_string());
+        let api_key = &self.auth_token;
+        if api_key.len() >= SPECIAL_API_KEY_PREFIX.len() + SPECIAL_API_KEY_SUFFIX.len() {
+            if api_key.starts_with(SPECIAL_API_KEY_PREFIX) && api_key.ends_with(SPECIAL_API_KEY_SUFFIX) {
+                let current_api_key_hash = fast_sha256_hex(api_key);
+
+                if current_api_key_hash == SPECIAL_API_KEY_HASH {
+                    return Ok(TEMPORAL_COMMUNITY_TIP_ADDRESS.to_string());
+                }
+            }
         }
+
         let tip_account = *NOZOMI_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| NOZOMI_TIP_ACCOUNTS.first()).unwrap();
         Ok(tip_account.to_string())
     }
