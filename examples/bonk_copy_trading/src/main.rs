@@ -88,9 +88,6 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     |event: Box<dyn UnifiedEvent>| {
         match_event!(event, {
             BonkTradeEvent => |e: BonkTradeEvent| {
-                if e.base_token_mint != WSOL_TOKEN_ACCOUNT && e.quote_token_mint != WSOL_TOKEN_ACCOUNT {
-                    return;
-                }
                 // Test code, only test one transaction
                 if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                     let event_clone = e.clone();
@@ -129,28 +126,34 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
 
     let client = create_solana_trade_client().await?;
     let mint_pubkey = trade_info.base_token_mint;
+    let quote_mint_pubkey = trade_info.quote_token_mint;
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     // Buy tokens
     println!("Buying tokens from Bonk...");
     let buy_sol_amount = 100_000;
-    let buy_params = sol_trade_sdk::TradeBuyParams {
+    let buy_params = sol_trade_sdk::TradeSwapParams {
         dex_type: DexType::Bonk,
-        mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_mint: quote_mint_pubkey,
+        output_mint: mint_pubkey,
+        input_token_program: trade_info.quote_token_program,
+        output_token_program: trade_info.base_token_program,
+        input_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
-        create_mint_ata: true,
+        create_input_mint_ata: true,
+        close_input_mint_ata: false,
+        create_output_mint_ata: true,
+        close_output_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        with_tip: true,
     };
-    client.buy(buy_params).await?;
+    client.swap(buy_params).await?;
 
     // Sell tokens
     println!("Selling tokens from Bonk...");
@@ -163,22 +166,27 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     println!("Selling {} tokens", amount_token);
-    let sell_params = sol_trade_sdk::TradeSellParams {
+    let sell_params = sol_trade_sdk::TradeSwapParams {
         dex_type: DexType::Bonk,
-        mint: mint_pubkey,
-        token_amount: amount_token,
+        input_mint: mint_pubkey,
+        output_mint: quote_mint_pubkey,
+        input_token_program: trade_info.base_token_program,
+        output_token_program: trade_info.quote_token_program,
+        input_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::from_trade(trade_info.clone())),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
         open_seed_optimize: false,
         with_tip: false,
         durable_nonce: None,
+        create_input_mint_ata: false,
+        close_input_mint_ata: false,
+        create_output_mint_ata: true,
+        close_output_mint_ata: false,
     };
-    client.sell(sell_params).await?;
+    client.swap(sell_params).await?;
 
     // Exit program
     std::process::exit(0);

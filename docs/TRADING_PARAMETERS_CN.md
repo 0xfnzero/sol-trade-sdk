@@ -4,10 +4,59 @@
 
 ## 📋 目录
 
+- [TradeSwapParams](#tradeswapparams)
 - [TradeBuyParams](#tradebuyparams)
 - [TradeSellParams](#tradesellparams)
 - [参数分类](#参数分类)
 - [重要说明](#重要说明)
+
+## TradeSwapParams
+
+`TradeSwapParams` 结构体包含在不同 DEX 协议上执行代币交换订单所需的所有参数。这是最灵活的交易方法，支持在任何支持的代币之间进行交换。
+
+### 基础交易参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `input_mint` | `Pubkey` | ✅ | 要花费的代币公钥（输入代币） |
+| `output_mint` | `Pubkey` | ✅ | 要接收的代币公钥（输出代币） |
+| `input_token_program` | `Pubkey` | ✅ | 输入代币的代币程序 ID |
+| `output_token_program` | `Pubkey` | ✅ | 输出代币的代币程序 ID |
+| `input_amount` | `u64` | ✅ | 要花费的输入代币数量（最小代币单位） |
+| `slippage_basis_points` | `Option<u64>` | ❌ | 滑点容忍度（基点单位，例如 100 = 1%, 500 = 5%） |
+| `recent_blockhash` | `Option<Hash>` | ❌ | 用于交易有效性的最新区块哈希 |
+| `extension_params` | `Box<dyn ProtocolParams>` | ✅ | 协议特定参数 (PumpFunParams, PumpSwapParams 等) |
+
+### 高级配置参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `lookup_table_key` | `Option<Pubkey>` | ❌ | 用于交易优化的地址查找表键 |
+| `wait_transaction_confirmed` | `bool` | ✅ | 是否等待交易确认 |
+| `create_input_mint_ata` | `bool` | ✅ | 是否创建输入代币关联代币账户 |
+| `close_input_mint_ata` | `bool` | ✅ | 交易后是否关闭输入代币 ATA |
+| `create_output_mint_ata` | `bool` | ✅ | 是否创建输出代币 ATA |
+| `close_output_mint_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
+| `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
+| `with_tip` | `bool` | ✅ | 是否包含小费以提高交易优先级 |
+
+### 支持的代币交易对
+
+SDK 目前支持以下基础代币与其他代币之间的交换交易：
+- **SOL**（Solana 原生代币）
+- **WSOL**（包装 SOL）
+- **USD1**（USD1 稳定币 - 目前仅在 Bonk 协议上支持）
+
+**重要提示**：交换对中至少有一个代币必须是支持的基础代币（SOL、WSOL 或 USD1）。
+
+### USD1 代币支持
+
+USD1 代币支持有以下限制：
+- **协议限制**：USD1 交易目前仅在 Bonk 协议上支持
+- **交易对要求**：USD1 可以与其他代币交换，但必须在 Bonk DEX 上进行
+- **代币地址**：`USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB`
 
 ## TradeBuyParams
 
