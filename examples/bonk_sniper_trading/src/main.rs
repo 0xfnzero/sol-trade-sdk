@@ -95,20 +95,28 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
     let slippage_basis_points = Some(300);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let token_type = if trade_info.quote_token_mint == sol_trade_sdk::constants::USD1_TOKEN_ACCOUNT
+    {
+        sol_trade_sdk::TradeTokenType::USD1
+    } else {
+        sol_trade_sdk::TradeTokenType::SOL
+    };
+
     // Buy tokens
     println!("Buying tokens from Bonk...");
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::Bonk,
+        input_token_type: token_type.clone(),
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::from_dev_trade(trade_info.clone())),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -128,8 +136,9 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
     println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::Bonk,
+        output_token_type: token_type,
         mint: mint_pubkey,
-        token_amount: amount_token,
+        input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(BonkParams::immediate_sell(
@@ -141,8 +150,8 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         )),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         with_tip: false,
         durable_nonce: None,

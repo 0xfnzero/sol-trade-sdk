@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.1.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "1.1.1"
+sol-trade-sdk = "1.2.0"
 ```
 
 ## 🛠️ Usage Examples
@@ -144,17 +144,19 @@ For detailed information about all trading parameters, see the [Trading Paramete
 ```rust
 let buy_params = sol_trade_sdk::TradeBuyParams {
   dex_type: DexType::PumpSwap,
+  input_token_type: TradeTokenType::WSOL,
   mint: mint_pubkey,
-  sol_amount: buy_sol_amount,
+  input_token_amount: buy_sol_amount,
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
   lookup_table_key: None,
   wait_transaction_confirmed: true,
-  create_wsol_ata: true,
-  close_wsol_ata: true,
+  create_input_token_ata: true,
+  close_input_token_ata: true,
   create_mint_ata: true,
   open_seed_optimize: false,
+  durable_nonce: None,
 };
 ```
 

@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
@@ -22,6 +21,9 @@ use sol_trade_sdk::{
     SolanaTrade,
 };
 use sol_trade_sdk::{common::TradeConfig, solana_streamer_sdk::match_event};
+use sol_trade_sdk::{
+    solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter, TradeTokenType,
+};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 
 // Global static flag to ensure transaction is executed only once
@@ -132,15 +134,16 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpFun,
+        input_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: false,
-        close_wsol_ata: false,
+        create_input_token_ata: false,
+        close_input_token_ata: false,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: Some(durable_nonce),

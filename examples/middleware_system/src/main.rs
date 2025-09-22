@@ -6,7 +6,7 @@ use sol_trade_sdk::{
         core::params::PumpSwapParams, factory::DexType, middleware::builtin::LoggingMiddleware,
         InstructionMiddleware, MiddlewareManager,
     },
-    SolanaTrade,
+    SolanaTrade, TradeTokenType,
 };
 use solana_sdk::{
     commitment_config::CommitmentConfig, instruction::Instruction, pubkey::Pubkey,
@@ -86,8 +86,9 @@ async fn test_middleware() -> AnyResult<()> {
 
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpSwap,
+        input_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_cost,
+        input_token_amount: buy_sol_cost,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
@@ -95,8 +96,8 @@ async fn test_middleware() -> AnyResult<()> {
         ),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,

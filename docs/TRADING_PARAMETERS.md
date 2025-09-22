@@ -4,60 +4,10 @@ This document provides a comprehensive reference for all trading parameters used
 
 ## 📋 Table of Contents
 
-- [TradeSwapParams](#tradeswapparams)
 - [TradeBuyParams](#tradebuyparams)
 - [TradeSellParams](#tradesellparams)
 - [Parameter Categories](#parameter-categories)
 - [Important Notes](#important-notes)
-
-## TradeSwapParams
-
-The `TradeSwapParams` struct contains all parameters required for executing swap orders across different DEX protocols. This is the most flexible trading method that supports swapping between any supported tokens.
-
-### Basic Trading Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
-| `trade_type` | `TradeType` | ✅ | The type of trade to execute (Buy, Sell) |
-| `input_mint` | `Pubkey` | ✅ | The public key of the token to spend (input token) |
-| `output_mint` | `Pubkey` | ✅ | The public key of the token to receive (output token) |
-| `input_token_program` | `Pubkey` | ✅ | The token program ID for the input token |
-| `output_token_program` | `Pubkey` | ✅ | The token program ID for the output token |
-| `input_amount` | `u64` | ✅ | Amount of input token to spend (in smallest token units) |
-| `slippage_basis_points` | `Option<u64>` | ❌ | Slippage tolerance in basis points (e.g., 100 = 1%, 500 = 5%) |
-| `recent_blockhash` | `Option<Hash>` | ❌ | Recent blockhash for transaction validity |
-| `extension_params` | `Box<dyn ProtocolParams>` | ✅ | Protocol-specific parameters (PumpFunParams, PumpSwapParams, etc.) |
-
-### Advanced Configuration Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
-| `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
-| `create_input_mint_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
-| `close_input_mint_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
-| `create_output_mint_ata` | `bool` | ✅ | Whether to create output token ATA |
-| `close_output_mint_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
-| `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
-| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
-| `with_tip` | `bool` | ✅ | Whether to include tip for transaction priority |
-
-### Supported Token Pairs
-
-The SDK currently supports swap trading between the following base tokens and other tokens:
-- **SOL** (Native Solana token)
-- **WSOL** (Wrapped SOL)
-- **USD1** (USD1 stablecoin - currently only supported on Bonk protocol)
-
-**Important**: At least one token in the swap pair must be a supported base token (SOL, WSOL, or USD1).
-
-### USD1 Token Support
-
-USD1 token support has the following limitations:
-- **Protocol Restriction**: USD1 trading is currently only supported on the Bonk protocol
-- **Pair Requirements**: USD1 can be swapped with other tokens, but the swap must occur on Bonk DEX
-- **Token Address**: `USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB`
 
 ## TradeBuyParams
 
@@ -68,8 +18,9 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `input_token_type` | `TradeTokenType` | ✅ | The type of input token to use (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to purchase |
-| `sol_amount` | `u64` | ✅ | Amount of SOL to spend (in lamports) |
+| `input_token_amount` | `u64` | ✅ | Amount of input token to spend (in smallest token units) |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Slippage tolerance in basis points (e.g., 100 = 1%, 500 = 5%) |
 | `recent_blockhash` | `Option<Hash>` | ❌ | Recent blockhash for transaction validity |
 | `extension_params` | `Box<dyn ProtocolParams>` | ✅ | Protocol-specific parameters (PumpFunParams, PumpSwapParams, etc.) |
@@ -80,8 +31,8 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 |-----------|------|----------|-------------|
 | `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
-| `create_wsol_ata` | `bool` | ✅ | Whether to create wSOL Associated Token Account |
-| `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
+| `create_input_token_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
+| `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
@@ -96,8 +47,9 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `output_token_type` | `TradeTokenType` | ✅ | The type of output token to receive (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to sell |
-| `token_amount` | `u64` | ✅ | Amount of tokens to sell (in smallest token units) |
+| `input_token_amount` | `u64` | ✅ | Amount of tokens to sell (in smallest token units) |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Slippage tolerance in basis points (e.g., 100 = 1%, 500 = 5%) |
 | `recent_blockhash` | `Option<Hash>` | ❌ | Recent blockhash for transaction validity |
 | `with_tip` | `bool` | ✅ | Whether to include tip in the transaction |
@@ -109,8 +61,8 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 |-----------|------|----------|-------------|
 | `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
-| `create_wsol_ata` | `bool` | ✅ | Whether to create wSOL Associated Token Account |
-| `close_wsol_ata` | `bool` | ✅ | Whether to close wSOL ATA after transaction |
+| `create_output_token_ata` | `bool` | ✅ | Whether to create output token Associated Token Account |
+| `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 
@@ -122,8 +74,9 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 These parameters are essential for defining the basic trading operation:
 
 - **dex_type**: Determines which protocol to use for trading
+- **input_token_type** (buy) / **output_token_type** (sell): Specifies the base token type (SOL, WSOL, USD1)
 - **mint**: Specifies the token to trade
-- **sol_amount** (buy) / **token_amount** (sell): Defines the trade size
+- **input_token_amount**: Defines the trade size (for both buy and sell operations)
 - **recent_blockhash**: Ensures transaction validity
 
 ### ⚙️ Transaction Control Parameters
@@ -137,9 +90,9 @@ These parameters control how the transaction is processed:
 
 These parameters control automatic account creation and management:
 
-- **create_wsol_ata**: Automatically wrap SOL to wSOL when needed
-- **close_wsol_ata**: Automatically unwrap wSOL to SOL after trading
-- **create_mint_ata**: Automatically create token accounts
+- **create_input_token_ata** (buy) / **create_output_token_ata** (sell): Automatically create token accounts for input/output tokens
+- **close_input_token_ata** (buy) / **close_output_token_ata** (sell): Automatically close token accounts after trading
+- **create_mint_ata**: Automatically create token accounts for the traded token
 
 ### 🚀 Optimization Parameters
 
@@ -147,6 +100,13 @@ These parameters enable advanced optimizations:
 
 - **lookup_table_key**: Use address lookup tables for reduced transaction size
 - **open_seed_optimize**: Use seed-based account creation for lower CU consumption
+
+### 🔄 Token Type Parameters
+
+The **TradeTokenType** enum supports the following base tokens:
+- **SOL**: Native Solana token (typically used with PumpFun)
+- **WSOL**: Wrapped SOL token (typically used with PumpSwap, Bonk, Raydium protocols)  
+- **USD1**: USD1 stablecoin (currently only supported on Bonk protocol)
 
 ### 🔄 Optional Parameters
 
@@ -162,9 +122,9 @@ When `open_seed_optimize: true`:
 - ⚠️ **Warning**: Official platform selling methods may fail
 - 📝 **Note**: Use `get_associated_token_address_with_program_id_fast_use_seed` to get ATA addresses
 
-### 💰 wSOL Account Management
+### 💰 Token Account Management
 
-The `create_wsol_ata` and `close_wsol_ata` parameters provide granular control:
+The account management parameters provide granular control:
 
 - **Independent Control**: Create and close operations can be controlled separately
 - **Batch Operations**: Create once, trade multiple times, then close

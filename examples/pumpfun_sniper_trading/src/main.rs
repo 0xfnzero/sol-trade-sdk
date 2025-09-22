@@ -4,6 +4,7 @@ use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventTy
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
 use sol_trade_sdk::solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
+use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
@@ -94,15 +95,16 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpFun,
+        input_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(PumpFunParams::from_dev_trade(&trade_info, None)),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -122,16 +124,17 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
     println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpFun,
+        output_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        token_amount: amount_token,
+        input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(PumpFunParams::immediate_sell(trade_info.creator_vault, true)),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
     };

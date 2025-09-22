@@ -4,7 +4,7 @@ use sol_trade_sdk::{
     },
     swqos::SwqosConfig,
     trading::{core::params::PumpSwapParams, factory::DexType},
-    SolanaTrade,
+    SolanaTrade, TradeTokenType,
 };
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
@@ -25,8 +25,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpSwap,
+        input_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
@@ -34,8 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
@@ -61,8 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let amount_token = balance.amount.parse::<u64>().unwrap();
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpSwap,
+        output_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        token_amount: amount_token,
+        input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
@@ -71,8 +73,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
     };

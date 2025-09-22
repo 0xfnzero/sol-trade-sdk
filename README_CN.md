@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.1.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "1.1.1"
+sol-trade-sdk = "1.2.0"
 ```
 
 ## 🛠️ 使用示例
@@ -145,17 +145,19 @@ GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 ```rust
 let buy_params = sol_trade_sdk::TradeBuyParams {
   dex_type: DexType::PumpSwap,
+  input_token_type: TradeTokenType::WSOL,
   mint: mint_pubkey,
-  sol_amount: buy_sol_amount,
+  input_token_amount: buy_sol_amount,
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
   lookup_table_key: None,
   wait_transaction_confirmed: true,
-  create_wsol_ata: true,
-  close_wsol_ata: true,
+  create_input_token_ata: true,
+  close_input_token_ata: true,
   create_mint_ata: true,
   open_seed_optimize: false,
+  durable_nonce: None,
 };
 ```
 

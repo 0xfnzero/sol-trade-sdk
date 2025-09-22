@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
 use sol_trade_sdk::solana_streamer_sdk::streaming::yellowstone_grpc::{
     AccountFilter, TransactionFilter,
 };
@@ -28,6 +27,10 @@ use sol_trade_sdk::{
     solana_streamer_sdk::streaming::event_parser::{
         common::filter::EventTypeFilter, protocols::pumpswap::PumpSwapBuyEvent,
     },
+};
+use sol_trade_sdk::{
+    solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent},
+    TradeTokenType,
 };
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
@@ -170,15 +173,16 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpSwap,
+        input_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params.clone()),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -200,16 +204,17 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let amount_token = balance.amount.parse::<u64>().unwrap();
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpSwap,
+        output_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        token_amount: amount_token,
+        input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(params.clone()),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
     };

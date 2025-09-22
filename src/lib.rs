@@ -33,6 +33,14 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signature::Signature};
 pub use solana_streamer_sdk;
 use std::sync::Arc;
 
+/// Type of the token to buy
+#[derive(Clone, PartialEq)]
+pub enum TradeTokenType {
+    SOL,
+    WSOL,
+    USD1,
+}
+
 /// Main trading client for Solana DeFi protocols
 ///
 /// `SolanaTrade` provides a unified interface for trading across multiple Solana DEXs
@@ -62,54 +70,6 @@ impl Clone for SolanaTrade {
     }
 }
 
-/// Parameters for executing swap orders across different DEX protocols
-///
-/// Contains all necessary configuration for swapping tokens, including
-/// protocol-specific settings, account management options, and transaction preferences.
-#[derive(Clone)]
-pub struct TradeSwapParams {
-    // Trading configuration
-    /// The DEX protocol to use for the trade
-    pub dex_type: DexType,
-    /// The type of trade to execute
-    pub trade_type: TradeType,
-    /// Public key of the token to purchase
-    pub input_mint: Pubkey,
-    /// Public key of the token to sell
-    pub output_mint: Pubkey,
-    /// Public key of the token program to use for the input token
-    pub input_token_program: Pubkey,
-    /// Public key of the token program to use for the output token
-    pub output_token_program: Pubkey,
-    /// Amount of input token to spend (in lamports)
-    pub input_amount: u64,
-    /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
-    pub slippage_basis_points: Option<u64>,
-    /// Recent blockhash for transaction validity
-    pub recent_blockhash: Option<Hash>,
-    /// Protocol-specific parameters (PumpFun, Raydium, etc.)
-    pub extension_params: Box<dyn ProtocolParams>,
-    // Extended configuration
-    /// Optional address lookup table for transaction size optimization
-    pub lookup_table_key: Option<Pubkey>,
-    /// Whether to wait for transaction confirmation before returning
-    pub wait_transaction_confirmed: bool,
-    /// Whether to create wrapped SOL associated token account
-    pub create_input_mint_ata: bool,
-    /// Whether to close wrapped SOL associated token account after trade
-    pub close_input_mint_ata: bool,
-    /// Whether to create token mint associated token account
-    pub create_output_mint_ata: bool,
-    /// Whether to close token mint associated token account after trade
-    pub close_output_mint_ata: bool,
-    /// Whether to enable seed-based optimization for account creation
-    pub open_seed_optimize: bool,
-    /// Durable nonce information
-    pub durable_nonce: Option<DurableNonceInfo>,
-    /// Whether to include tip for transaction priority
-    pub with_tip: bool,
-}
-
 /// Parameters for executing buy orders across different DEX protocols
 ///
 /// Contains all necessary configuration for purchasing tokens, including
@@ -119,10 +79,12 @@ pub struct TradeBuyParams {
     // Trading configuration
     /// The DEX protocol to use for the trade
     pub dex_type: DexType,
+    /// Type of the token to buy
+    pub input_token_type: TradeTokenType,
     /// Public key of the token to purchase
     pub mint: Pubkey,
-    /// Amount of SOL to spend (in lamports)
-    pub sol_amount: u64,
+    /// Amount of tokens to buy (in smallest token units)
+    pub input_token_amount: u64,
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
     pub slippage_basis_points: Option<u64>,
     /// Recent blockhash for transaction validity
@@ -134,10 +96,10 @@ pub struct TradeBuyParams {
     pub lookup_table_key: Option<Pubkey>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_transaction_confirmed: bool,
-    /// Whether to create wrapped SOL associated token account
-    pub create_wsol_ata: bool,
-    /// Whether to close wrapped SOL associated token account after trade
-    pub close_wsol_ata: bool,
+    /// Whether to create input token associated token account
+    pub create_input_token_ata: bool,
+    /// Whether to close input token associated token account after trade
+    pub close_input_token_ata: bool,
     /// Whether to create token mint associated token account
     pub create_mint_ata: bool,
     /// Whether to enable seed-based optimization for account creation
@@ -155,10 +117,12 @@ pub struct TradeSellParams {
     // Trading configuration
     /// The DEX protocol to use for the trade
     pub dex_type: DexType,
+    /// Type of the token to sell
+    pub output_token_type: TradeTokenType,
     /// Public key of the token to sell
     pub mint: Pubkey,
     /// Amount of tokens to sell (in smallest token units)
-    pub token_amount: u64,
+    pub input_token_amount: u64,
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
     pub slippage_basis_points: Option<u64>,
     /// Recent blockhash for transaction validity
@@ -172,10 +136,10 @@ pub struct TradeSellParams {
     pub lookup_table_key: Option<Pubkey>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_transaction_confirmed: bool,
-    /// Whether to create wrapped SOL associated token account
-    pub create_wsol_ata: bool,
-    /// Whether to close wrapped SOL associated token account after trade
-    pub close_wsol_ata: bool,
+    /// Whether to create output token associated token account
+    pub create_output_token_ata: bool,
+    /// Whether to close output token associated token account after trade
+    pub close_output_token_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
     /// Durable nonce information
@@ -274,108 +238,6 @@ impl SolanaTrade {
             .clone()
     }
 
-    /// Execute a swap order for a specified token
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - Swap trade parameters containing all necessary trading configuration
-    ///
-    /// # Returns
-    ///
-    /// Returns `Ok(Signature)` with the transaction signature if the swap order is successfully executed,
-    /// or an error if the transaction fails.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if:
-    /// - Invalid protocol parameters are provided for the specified DEX type
-    /// - The transaction fails to execute
-    /// - Network or RPC errors occur
-    /// - Insufficient token balance for the sale
-    /// - Token account doesn't exist or is not properly initialized
-    /// - Required accounts cannot be created or accessed
-    pub async fn swap(&self, params: TradeSwapParams) -> Result<Signature, anyhow::Error> {
-        if params.slippage_basis_points.is_none() {
-            println!(
-                "slippage_basis_points is none, use default slippage basis points: {}",
-                DEFAULT_SLIPPAGE
-            );
-        }
-        let executor = TradeFactory::create_executor(params.dex_type.clone());
-        let protocol_params = params.extension_params;
-        let buy_params = SwapParams {
-            rpc: Some(self.rpc.clone()),
-            payer: self.payer.clone(),
-            trade_type: params.trade_type,
-            input_mint: params.input_mint,
-            output_mint: params.output_mint,
-            input_token_program: Some(params.input_token_program),
-            output_token_program: Some(params.output_token_program),
-            input_amount: Some(params.input_amount),
-            slippage_basis_points: params.slippage_basis_points,
-            lookup_table_key: params.lookup_table_key,
-            recent_blockhash: params.recent_blockhash,
-            data_size_limit: 256 * 1024,
-            wait_transaction_confirmed: params.wait_transaction_confirmed,
-            protocol_params: protocol_params.clone(),
-            open_seed_optimize: params.open_seed_optimize,
-            swqos_clients: self.swqos_clients.clone(),
-            middleware_manager: self.middleware_manager.clone(),
-            durable_nonce: params.durable_nonce,
-            with_tip: params.with_tip,
-            create_input_mint_ata: params.create_input_mint_ata,
-            close_input_mint_ata: params.close_input_mint_ata,
-            create_output_mint_ata: params.create_output_mint_ata,
-            close_output_mint_ata: params.close_output_mint_ata,
-        };
-
-        // Validate protocol params
-        let is_valid_params = match params.dex_type {
-            DexType::PumpFun => protocol_params.as_any().downcast_ref::<PumpFunParams>().is_some(),
-            DexType::PumpSwap => {
-                protocol_params.as_any().downcast_ref::<PumpSwapParams>().is_some()
-            }
-            DexType::Bonk => protocol_params.as_any().downcast_ref::<BonkParams>().is_some(),
-            DexType::RaydiumCpmm => {
-                protocol_params.as_any().downcast_ref::<RaydiumCpmmParams>().is_some()
-            }
-            DexType::RaydiumAmmV4 => {
-                protocol_params.as_any().downcast_ref::<RaydiumAmmV4Params>().is_some()
-            }
-        };
-
-        if !is_valid_params {
-            return Err(anyhow::anyhow!("Invalid protocol params for Trade"));
-        }
-
-        let mut no_support_mint = false;
-
-        // 检查是否至少有一个代币是支持的基础代币（SOL、WSOL、USD1）
-        let has_supported_base_token = params.input_mint == SOL_TOKEN_ACCOUNT
-            || params.output_mint == SOL_TOKEN_ACCOUNT
-            || params.input_mint == WSOL_TOKEN_ACCOUNT
-            || params.output_mint == WSOL_TOKEN_ACCOUNT
-            || params.input_mint == USD1_TOKEN_ACCOUNT
-            || params.output_mint == USD1_TOKEN_ACCOUNT;
-
-        if !has_supported_base_token {
-            no_support_mint = true;
-        }
-
-        // USD1 代币暂支持在 Bonk 协议上交易
-        if (params.input_mint == USD1_TOKEN_ACCOUNT || params.output_mint == USD1_TOKEN_ACCOUNT)
-            && params.dex_type != DexType::Bonk
-        {
-            no_support_mint = true;
-        }
-
-        if no_support_mint {
-            return Err(anyhow::anyhow!("Currently only supports swap trading between (SOL、WSOL、USD1) and other tokens. USD1 swap trading is currently only supported on the Bonk protocol."));
-        }
-
-        executor.swap(buy_params).await
-    }
-
     /// Execute a buy order for a specified token
     ///
     /// # Arguments
@@ -402,22 +264,29 @@ impl SolanaTrade {
                 DEFAULT_SLIPPAGE
             );
         }
+        if params.input_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
+            return Err(anyhow::anyhow!(
+                " Current version only support USD1 trading on Bonk protocols"
+            ));
+        }
+        let input_token_mint = if params.input_token_type == TradeTokenType::SOL {
+            SOL_TOKEN_ACCOUNT
+        } else if params.input_token_type == TradeTokenType::WSOL {
+            WSOL_TOKEN_ACCOUNT
+        } else {
+            USD1_TOKEN_ACCOUNT
+        };
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
-        let input_mint = if params.dex_type == DexType::PumpFun {
-            SOL_TOKEN_ACCOUNT
-        } else {
-            WSOL_TOKEN_ACCOUNT
-        };
         let buy_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
             trade_type: TradeType::Buy,
-            input_mint: input_mint,
+            input_mint: input_token_mint,
             output_mint: params.mint,
             input_token_program: None,
             output_token_program: None,
-            input_amount: Some(params.sol_amount),
+            input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
             lookup_table_key: params.lookup_table_key,
             recent_blockhash: params.recent_blockhash,
@@ -429,8 +298,8 @@ impl SolanaTrade {
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
             with_tip: true,
-            create_input_mint_ata: params.create_wsol_ata,
-            close_input_mint_ata: params.close_wsol_ata,
+            create_input_mint_ata: params.create_input_token_ata,
+            close_input_mint_ata: params.close_input_token_ata,
             create_output_mint_ata: params.create_mint_ata,
             close_output_mint_ata: false,
         };
@@ -484,22 +353,29 @@ impl SolanaTrade {
                 DEFAULT_SLIPPAGE
             );
         }
+        if params.output_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
+            return Err(anyhow::anyhow!(
+                " Current version only support USD1 trading on Bonk protocols"
+            ));
+        }
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
-        let output_mint = if params.dex_type == DexType::PumpFun {
+        let output_token_mint = if params.output_token_type == TradeTokenType::SOL {
             SOL_TOKEN_ACCOUNT
-        } else {
+        } else if params.output_token_type == TradeTokenType::WSOL {
             WSOL_TOKEN_ACCOUNT
+        } else {
+            USD1_TOKEN_ACCOUNT
         };
         let sell_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
             trade_type: TradeType::Sell,
             input_mint: params.mint,
-            output_mint: output_mint,
+            output_mint: output_token_mint,
             input_token_program: None,
             output_token_program: None,
-            input_amount: Some(params.token_amount),
+            input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
             lookup_table_key: params.lookup_table_key,
             recent_blockhash: params.recent_blockhash,
@@ -513,8 +389,8 @@ impl SolanaTrade {
             data_size_limit: 0,
             create_input_mint_ata: false,
             close_input_mint_ata: false,
-            create_output_mint_ata: params.create_wsol_ata,
-            close_output_mint_ata: params.close_wsol_ata,
+            create_output_mint_ata: params.create_output_token_ata,
+            close_output_mint_ata: params.close_output_token_ata,
         };
 
         // Validate protocol params
@@ -576,7 +452,7 @@ impl SolanaTrade {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }
         let amount = amount_token * percent / 100;
-        params.token_amount = amount;
+        params.input_token_amount = amount;
         self.sell(params).await
     }
 

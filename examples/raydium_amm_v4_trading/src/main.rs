@@ -3,7 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::{common::TradeConfig, instruction::utils::raydium_amm_v4::{accounts, fetch_amm_info}, solana_streamer_sdk::{match_event, streaming::event_parser::protocols::raydium_amm_v4::RaydiumAmmV4SwapEvent}, trading::common::get_multi_token_balances};
+use sol_trade_sdk::{common::TradeConfig, instruction::utils::raydium_amm_v4::{accounts, fetch_amm_info}, solana_streamer_sdk::{match_event, streaming::event_parser::protocols::raydium_amm_v4::RaydiumAmmV4SwapEvent}, trading::common::get_multi_token_balances, TradeTokenType};
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
 use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::parser::RAYDIUM_AMM_V4_PROGRAM_ID;
@@ -138,15 +138,16 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
+        input_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        sol_amount: buy_sol_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -167,16 +168,17 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, trade_info.amm).await?;
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
+        output_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        token_amount: amount_token,
+        input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(params),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_wsol_ata: true,
-        close_wsol_ata: true,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
     };
