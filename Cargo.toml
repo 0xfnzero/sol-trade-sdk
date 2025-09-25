@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "1.2.1"
+version = "1.2.2"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",

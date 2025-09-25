@@ -62,7 +62,7 @@ async fn main() {
 
     // Remove strategy for SwqosType::Jito on Buy
     println!("\n9. Remove strategy for SwqosType::Jito on Buy");
-    GasFeeStrategy::del(SwqosType::Jito, TradeType::Buy);
+    GasFeeStrategy::del_all(SwqosType::Jito, TradeType::Buy);
 
     // Print all strategies
     println!("\n10. Print all current strategies");

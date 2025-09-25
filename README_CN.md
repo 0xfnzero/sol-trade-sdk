@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.2" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "1.2.1"
+sol-trade-sdk = "1.2.2"
 ```
 
 ## 🛠️ 使用示例
