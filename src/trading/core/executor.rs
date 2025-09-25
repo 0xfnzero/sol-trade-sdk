@@ -26,7 +26,7 @@ impl GenericTradeExecutor {
 
 #[async_trait::async_trait]
 impl TradeExecutor for GenericTradeExecutor {
-    async fn swap(&self, params: SwapParams) -> Result<Signature> {
+    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature)> {
         let start = Instant::now();
         // 暂时支持这三种。后续重构扩展builder 支持所有的 swap
         let is_buy = params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT

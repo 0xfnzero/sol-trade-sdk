@@ -620,9 +620,9 @@ async fn handle_buy_pumpfun(
         durable_nonce: None,
     };
     match client.buy(buy_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully bought tokens from PumpFun!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to buy tokens from PumpFun: {}", e);
@@ -669,9 +669,9 @@ async fn handle_buy_pumpswap(
         durable_nonce: None,
     };
     match client.buy(buy_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully bought tokens from PumpSwap!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to buy tokens from PumpSwap: {}", e);
@@ -717,9 +717,9 @@ async fn handle_buy_bonk(
         durable_nonce: None,
     };
     match client.buy(buy_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully bought tokens from Bonk!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to buy tokens from Bonk: {}", e);
@@ -769,9 +769,9 @@ async fn handle_buy_raydium_v4(
         durable_nonce: None,
     };
     match client.buy(buy_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully bought tokens from Raydium V4!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to buy tokens from Raydium V4: {}", e);
@@ -821,9 +821,9 @@ async fn handle_buy_raydium_cpmm(
         durable_nonce: None,
     };
     match client.buy(buy_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully bought tokens from Raydium CPMM!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to buy tokens from Raydium CPMM: {}", e);
@@ -984,9 +984,9 @@ async fn handle_sell_pumpfun(
     };
 
     match client.sell(sell_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully sold tokens from PumpFun!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to sell tokens from PumpFun: {}", e);
@@ -1035,7 +1035,7 @@ async fn handle_sell_pumpswap(
         durable_nonce: None,
     };
     match client.sell(sell_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully sold tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {}", signature);
         }
@@ -1086,9 +1086,9 @@ async fn handle_sell_bonk(
         durable_nonce: None,
     };
     match client.sell(sell_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully sold tokens from Bonk!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to sell tokens from Bonk: {}", e);
@@ -1140,9 +1140,9 @@ async fn handle_sell_raydium_v4(
         durable_nonce: None,
     };
     match client.sell(sell_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully sold tokens from Raydium V4!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to sell tokens from Raydium V4: {}", e);
@@ -1194,9 +1194,9 @@ async fn handle_sell_raydium_cpmm(
         durable_nonce: None,
     };
     match client.sell(sell_params).await {
-        Ok(signature) => {
+        Ok((_, signature)) => {
             println!("   ✅ Successfully sold tokens from Raydium CPMM!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);
         }
         Err(e) => {
             println!("   ❌ Failed to sell tokens from Raydium CPMM: {}", e);

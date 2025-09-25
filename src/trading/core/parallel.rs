@@ -18,7 +18,7 @@ pub async fn buy_parallel_execute(
     params: SwapParams,
     instructions: Vec<Instruction>,
     protocol_name: &'static str,
-) -> Result<Signature> {
+) -> Result<(bool, Signature)> {
     parallel_execute(
         params.swqos_clients,
         params.payer,
@@ -41,7 +41,7 @@ pub async fn sell_parallel_execute(
     params: SwapParams,
     instructions: Vec<Instruction>,
     protocol_name: &'static str,
-) -> Result<Signature> {
+) -> Result<(bool, Signature)> {
     parallel_execute(
         params.swqos_clients,
         params.payer,
@@ -75,7 +75,7 @@ async fn parallel_execute(
     is_buy: bool,
     wait_transaction_confirmed: bool,
     with_tip: bool,
-) -> Result<Signature> {
+) -> Result<(bool, Signature)> {
     if swqos_clients.is_empty() {
         return Err(anyhow!("swqos_clients is empty"));
     }
@@ -88,7 +88,8 @@ async fn parallel_execute(
         return Err(anyhow!("No Rpc Default Swqos configured."));
     }
     let cores = core_affinity::get_core_ids().unwrap();
-    let mut handles: Vec<JoinHandle<Result<Signature>>> = Vec::with_capacity(swqos_clients.len());
+    let mut handles: Vec<JoinHandle<Result<(bool, Signature, anyhow::Error)>>> =
+        Vec::with_capacity(swqos_clients.len());
 
     let instructions = Arc::new(instructions);
 
@@ -169,12 +170,21 @@ async fn parallel_execute(
 
             start = Instant::now();
 
-            swqos_client
+            let mut err = None;
+
+            let success = match swqos_client
                 .send_transaction(
                     if is_buy { TradeType::Buy } else { TradeType::Sell },
                     &transaction,
                 )
-                .await?;
+                .await
+            {
+                Ok(()) => true,
+                Err(e) => {
+                    err = Some(e);
+                    false
+                }
+            };
 
             println!(
                 "[{:?}] - [{:?}] - Submitting transaction instructions: {:?}",
@@ -183,11 +193,11 @@ async fn parallel_execute(
                 start.elapsed()
             );
 
-            transaction
-                .signatures
-                .first()
-                .ok_or_else(|| anyhow!("Transaction has no signatures"))
-                .cloned()
+            if let Some(signature) = transaction.signatures.first() {
+                return Ok((success, signature.clone(), err.unwrap()));
+            } else {
+                return Err(anyhow!("Transaction has no signatures"));
+            }
         });
 
         handles.push(handle);
@@ -211,7 +221,7 @@ async fn parallel_execute(
     if !wait_transaction_confirmed {
         if let Some(result) = rx.recv().await {
             match result {
-                Ok(Ok(sig)) => return Ok(sig),
+                Ok(Ok((success, sig, _))) => return Ok((success, sig)),
                 Ok(Err(e)) => errors.push(format!("Task error: {}", e)),
                 Err(e) => errors.push(format!("Join error: {}", e)),
             }
@@ -219,16 +229,22 @@ async fn parallel_execute(
         return Err(anyhow!("No transaction signature available"));
     }
 
+    let mut last_signature = None;
+
     while let Some(result) = rx.recv().await {
         match result {
-            Ok(Ok(sig)) => {
-                return Ok(sig);
+            Ok(Ok((success, sig, err))) => {
+                if success {
+                    return Ok((success, sig));
+                }
+                errors.push(format!("Task error: {}", err));
+                last_signature = Some(sig);
             }
             Ok(Err(e)) => errors.push(format!("Task error: {}", e)),
             Err(e) => errors.push(format!("Join error: {}", e)),
         }
     }
 
-    // If no success, return error
-    return Err(anyhow!("All transactions failed: {:?}", errors));
+    println!("All transactions failed: {:?}", errors);
+    return Ok((false, last_signature.unwrap()));
 }
