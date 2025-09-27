@@ -1,9 +1,10 @@
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use solana_system_interface::instruction::transfer;
-use spl_associated_token_account::get_associated_token_address;
-use spl_token::instruction::close_account;
 
-use crate::common::SolanaRpcClient;
+use crate::common::{
+    fast_fn::get_associated_token_address_with_program_id_fast, spl_token::close_account,
+    SolanaRpcClient,
+};
 use anyhow::anyhow;
 
 /// Get the balances of two tokens in the pool
@@ -35,7 +36,11 @@ pub async fn get_token_balance(
     payer: &Pubkey,
     mint: &Pubkey,
 ) -> Result<u64, anyhow::Error> {
-    let ata = get_associated_token_address(payer, mint);
+    let ata = crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+        payer,
+        mint,
+        &crate::constants::TOKEN_PROGRAM,
+    );
     let balance = rpc.get_token_account_balance(&ata).await?;
     let balance_u64 =
         balance.amount.parse::<u64>().map_err(|_| anyhow!("Failed to parse token balance"))?;
@@ -102,7 +107,11 @@ pub async fn close_token_account(
     mint: &Pubkey,
 ) -> Result<(), anyhow::Error> {
     // Get associated token account address
-    let ata = get_associated_token_address(&payer.pubkey(), mint);
+    let ata = get_associated_token_address_with_program_id_fast(
+        &payer.pubkey(),
+        mint,
+        &crate::constants::TOKEN_PROGRAM,
+    );
 
     // Check if account exists
     let account_exists = rpc.get_account(&ata).await.is_ok();

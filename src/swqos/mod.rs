@@ -12,7 +12,8 @@ pub mod astralane;
 
 use std::sync::Arc;
 
-use solana_sdk::{commitment_config::CommitmentConfig, transaction::VersionedTransaction};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::transaction::VersionedTransaction;
 use tokio::sync::RwLock;
 
 use anyhow::Result;

@@ -1,8 +1,14 @@
 use clap::Parser;
 use sol_trade_sdk::{
     common::{
-        fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult, TradeConfig,
+        fast_fn::get_associated_token_address_with_program_id_fast_use_seed,
+        spl_associated_token_account::{
+            create_associated_token_account_idempotent, get_associated_token_address,
+        },
+        spl_token::{self, close_account},
+        AnyResult, TradeConfig,
     },
+    constants::WSOL_TOKEN_ACCOUNT,
     swqos::SwqosConfig,
     trading::{
         core::params::{
@@ -12,10 +18,15 @@ use sol_trade_sdk::{
     },
     SolanaTrade, TradeBuyParams, TradeSellParams, TradeTokenType,
 };
+use solana_commitment_config::CommitmentConfig;
 use solana_sdk::{
-    commitment_config::CommitmentConfig, native_token::sol_str_to_lamports, pubkey::Pubkey,
-    signature::Keypair, signer::Signer,
+    message::{AccountMeta, Instruction},
+    native_token::sol_str_to_lamports,
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
 };
+use solana_system_interface::instruction::transfer;
 use std::sync::{Arc, LazyLock};
 use std::{
     io::{self, Write},
@@ -1238,7 +1249,7 @@ async fn handle_close_wsol() -> Result<(), Box<dyn std::error::Error>> {
     match initialize_real_client().await {
         Ok(client) => {
             // Check WSOL balance first
-            let wsol_mint = spl_token::native_mint::id();
+            let wsol_mint = WSOL_TOKEN_ACCOUNT;
             match client.get_payer_token_balance(&wsol_mint).await {
                 Ok(wsol_balance) => {
                     if wsol_balance == 0 {
@@ -1332,29 +1343,27 @@ async fn wrap_sol_real(
     let wsol_mint = "So11111111111111111111111111111111111111112".parse().unwrap();
     let instructions = vec![
         // Create associated token account for WSOL
-        spl_associated_token_account::instruction::create_associated_token_account_idempotent(
+        create_associated_token_account_idempotent(
             &client.get_payer_pubkey(),
             &client.get_payer_pubkey(),
             &wsol_mint,
             &spl_token::ID,
         ),
         // Transfer SOL to WSOL account
-        solana_sdk::system_instruction::transfer(
+        transfer(
             &client.get_payer_pubkey(),
-            &spl_associated_token_account::get_associated_token_address(
-                &client.get_payer_pubkey(),
-                &wsol_mint,
-            ),
+            &get_associated_token_address(&client.get_payer_pubkey(), &wsol_mint),
             amount_lamports,
         ),
         // Sync native (convert SOL to WSOL tokens)
-        spl_token::instruction::sync_native(
-            &spl_token::ID,
-            &spl_associated_token_account::get_associated_token_address(
-                &client.get_payer_pubkey(),
-                &wsol_mint,
-            ),
-        )?,
+        Instruction {
+            program_id: sol_trade_sdk::constants::TOKEN_PROGRAM,
+            accounts: vec![AccountMeta::new(
+                get_associated_token_address(&client.get_payer_pubkey(), &wsol_mint),
+                false,
+            )],
+            data: vec![17],
+        },
     ];
 
     // Build and send transaction
@@ -1375,10 +1384,7 @@ async fn close_wsol_real(client: &SolanaTrade) -> Result<(), Box<dyn std::error:
     use solana_sdk::transaction::Transaction;
 
     let wsol_mint = "So11111111111111111111111111111111111111112".parse().unwrap();
-    let wsol_account = spl_associated_token_account::get_associated_token_address(
-        &client.get_payer_pubkey(),
-        &wsol_mint,
-    );
+    let wsol_account = get_associated_token_address(&client.get_payer_pubkey(), &wsol_mint);
 
     // Check if WSOL account exists
     let account_info = client.rpc.get_account(&wsol_account).await;
@@ -1387,7 +1393,7 @@ async fn close_wsol_real(client: &SolanaTrade) -> Result<(), Box<dyn std::error:
     }
 
     // Close WSOL account instruction
-    let close_instruction = spl_token::instruction::close_account(
+    let close_instruction = close_account(
         &spl_token::ID,
         &wsol_account,
         &client.get_payer_pubkey(),

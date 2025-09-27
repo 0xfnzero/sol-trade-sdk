@@ -6,7 +6,8 @@ use sol_trade_sdk::{
     trading::{core::params::PumpSwapParams, factory::DexType},
     SolanaTrade, TradeTokenType,
 };
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
 use std::{str::FromStr, sync::Arc};
 
@@ -50,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let program_id = spl_token::ID;
+    let program_id = sol_trade_sdk::constants::TOKEN_PROGRAM;
     // ❗️❗️❗️❗️  Must use the 'use seed' method to get the ATA account, otherwise the transaction will fail
     let account = get_associated_token_address_with_program_id_fast_use_seed(
         &payer,

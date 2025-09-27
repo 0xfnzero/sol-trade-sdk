@@ -3,7 +3,8 @@ use sol_trade_sdk::{
     swqos::{SwqosConfig, SwqosRegion},
     SolanaTrade,
 };
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
 use std::sync::Arc;
 
 #[tokio::main]

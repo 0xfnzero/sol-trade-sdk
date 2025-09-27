@@ -1,9 +1,10 @@
 use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::nonce_cache::DurableNonceInfo;
+use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
 use crate::common::SolanaRpcClient;
-use crate::solana_streamer_sdk::streaming::event_parser::common::EventType;
-use crate::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
+use solana_streamer_sdk::streaming::event_parser::common::EventType;
+use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
 use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
@@ -15,7 +16,6 @@ use solana_streamer_sdk::streaming::event_parser::protocols::pumpswap::{
 };
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::types::AmmInfo;
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent;
-use spl_associated_token_account::get_associated_token_address;
 use std::sync::Arc;
 
 /// Swap parameters
@@ -121,7 +121,11 @@ impl PumpFunParams {
             complete: account.0.complete,
             creator: account.0.creator,
         };
-        let associated_bonding_curve = get_associated_token_address(&bonding_curve.account, mint);
+        let associated_bonding_curve = get_associated_token_address_with_program_id(
+            &bonding_curve.account,
+            mint,
+            &crate::constants::TOKEN_PROGRAM,
+        );
         let creator_vault =
             crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator);
         Ok(Self {
@@ -244,18 +248,16 @@ impl PumpSwapParams {
         let coin_creator_vault_authority =
             crate::instruction::utils::pumpswap::coin_creator_vault_authority(creator);
 
-        let base_token_program_ata =
-            spl_associated_token_account::get_associated_token_address_with_program_id(
-                &pool_address,
-                &pool_data.base_mint,
-                &crate::constants::TOKEN_PROGRAM,
-            );
-        let quote_token_program_ata =
-            spl_associated_token_account::get_associated_token_address_with_program_id(
-                &pool_address,
-                &pool_data.quote_mint,
-                &crate::constants::TOKEN_PROGRAM,
-            );
+        let base_token_program_ata = get_associated_token_address_with_program_id(
+            &pool_address,
+            &pool_data.base_mint,
+            &crate::constants::TOKEN_PROGRAM,
+        );
+        let quote_token_program_ata = get_associated_token_address_with_program_id(
+            &pool_address,
+            &pool_data.quote_mint,
+            &crate::constants::TOKEN_PROGRAM,
+        );
 
         Ok(Self {
             pool: pool_address.clone(),
@@ -303,7 +305,6 @@ pub struct BonkParams {
     pub base_vault: Pubkey,
     pub quote_vault: Pubkey,
     /// Token program ID
-    /// Specifies the program used by the token, usually spl_token::ID or spl_token_2022::ID
     pub mint_token_program: Pubkey,
     pub platform_config: Pubkey,
     pub platform_associated_account: Pubkey,
@@ -473,9 +474,9 @@ pub struct RaydiumCpmmParams {
     pub base_vault: Pubkey,
     /// Quote token vault address
     pub quote_vault: Pubkey,
-    /// Base token program ID (usually spl_token::ID or spl_token_2022::ID)
+    /// Base token program ID 
     pub base_token_program: Pubkey,
-    /// Quote token program ID (usually spl_token::ID or spl_token_2022::ID)
+    /// Quote token program ID
     pub quote_token_program: Pubkey,
     /// Observation state account
     pub observation_state: Pubkey,

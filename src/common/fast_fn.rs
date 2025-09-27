@@ -5,10 +5,9 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use spl_associated_token_account::{
-    get_associated_token_address_with_program_id, ID as ASSOCIATED_TOKEN_PROGRAM_ID,
-};
 use std::num::NonZeroUsize;
+
+use crate::common::{spl_associated_token_account::get_associated_token_address_with_program_id, spl_token::close_account};
 
 const MAX_PDA_CACHE_SIZE: usize = 10000;
 const MAX_ATA_CACHE_SIZE: usize = 10000;
@@ -104,7 +103,7 @@ pub fn _create_associated_token_account_idempotent_fast(
     if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && token_program.eq(&spl_token::ID)
+        && token_program.eq(&crate::constants::TOKEN_PROGRAM)
     {
         // Use cache to get instruction
         get_cached_instructions(cache_key, || {
@@ -120,7 +119,7 @@ pub fn _create_associated_token_account_idempotent_fast(
             // Create Associated Token Account instruction
             // Reference implementation of spl_associated_token_account::instruction::create_associated_token_account
             vec![Instruction {
-                program_id: ASSOCIATED_TOKEN_PROGRAM_ID,
+                program_id: crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID,
                 accounts: vec![
                     AccountMeta::new(*payer, true), // Payer (signer, writable)
                     AccountMeta::new(associated_token_address, false), // ATA address (writable, non-signer)
@@ -247,7 +246,7 @@ fn _get_associated_token_address_with_program_id_fast(
     let ata = if use_seed
         && !token_mint_address.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !token_mint_address.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && token_program_id.eq(&spl_token::ID)
+        && token_program_id.eq(&crate::constants::TOKEN_PROGRAM)
     {
         super::seed::get_associated_token_address_with_program_id_use_seed(
             wallet_address,
@@ -292,7 +291,7 @@ pub fn fast_init(payer: &Pubkey) {
             wsol_token_account,
         },
         || {
-            vec![spl_token::instruction::close_account(
+            vec![close_account(
                 &crate::constants::TOKEN_PROGRAM,
                 &wsol_token_account,
                 &payer,

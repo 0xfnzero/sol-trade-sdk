@@ -33,7 +33,7 @@ use crate::instruction::utils::pumpfun::global_constants::{
     TOKEN_TOTAL_SUPPLY,
 };
 use crate::instruction::utils::pumpfun::{get_bonding_curve_pda, get_creator_vault_pda};
-use crate::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
+use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 
 /// Represents the global configuration account for token pricing and fees
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

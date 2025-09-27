@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 sol-trade-sdk = { path = "../.." }
-solana-sdk = "2.3.0"
-spl-associated-token-account = "7.0.0"
+solana-streamer-sdk = "0.5.0"
+solana-sdk = "3.0.0"
+solana-address-lookup-table-interface = "3.0.0"
+solana-commitment-config = { version = "3.0.0", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.94"

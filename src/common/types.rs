@@ -1,5 +1,5 @@
 use crate::swqos::SwqosConfig;
-use solana_sdk::commitment_config::CommitmentConfig;
+use solana_commitment_config::CommitmentConfig;
 
 #[derive(Debug, Clone)]
 pub struct TradeConfig {

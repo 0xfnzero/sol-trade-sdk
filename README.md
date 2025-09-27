@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.3" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "2.0.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "1.2.3"
+sol-trade-sdk = "2.0.0"
 ```
 
 ## 🛠️ Usage Examples
@@ -179,7 +179,6 @@ Please ensure that the parameters your trading logic depends on are available in
 
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
-| Monitor token trading events | `cargo run --package event_subscription` | [examples/event_subscription](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/event_subscription/src/main.rs) |
 | Create and configure SolanaTrade instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
 | PumpFun token sniping trading | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
 | PumpFun token copy trading | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
@@ -272,7 +271,6 @@ src/
 ├── constants/        # Constant definitions
 ├── instruction/      # Instruction building
 │   └── utils/        # Instruction utilities
-├── protos/           # gRPC protocol definitions
 ├── swqos/            # MEV service clients
 ├── trading/          # Unified trading engine
 │   ├── common/       # Common trading tools

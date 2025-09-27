@@ -1,8 +1,8 @@
 use parking_lot::Mutex;
 use solana_hash::Hash;
+use solana_nonce::state::State;
+use solana_nonce::versions::Versions;
 use solana_sdk::account_utils::StateMut;
-use solana_sdk::nonce::state::Versions;
-use solana_sdk::nonce::State;
 use solana_sdk::pubkey::Pubkey;
 use solana_streamer_sdk::common::SolanaRpcClient;
 use std::str::FromStr;
@@ -59,8 +59,8 @@ impl NonceCache {
         self.update_nonce_info_partial(nonce_account, None, Some(false));
     }
 
-     /// Get a copy of NonceInfo
-     pub fn get_nonce_info(&self) -> NonceInfo {
+    /// Get a copy of NonceInfo
+    pub fn get_nonce_info(&self) -> NonceInfo {
         let nonce_info = self.nonce_info.lock();
         NonceInfo {
             nonce_account: nonce_info.nonce_account,
@@ -72,15 +72,13 @@ impl NonceCache {
     pub fn get_durable_nonce_info() -> DurableNonceInfo {
         let nonce_info = Self::get_instance().get_nonce_info();
         let nonce_account = nonce_info.nonce_account;
-        let current_nonce = if nonce_account.is_some() && nonce_info.current_nonce != Hash::default() {
-            Some(nonce_info.current_nonce)
-        } else {
-            None
-        };
-        DurableNonceInfo {
-            nonce_account,
-            current_nonce,
-        }
+        let current_nonce =
+            if nonce_account.is_some() && nonce_info.current_nonce != Hash::default() {
+                Some(nonce_info.current_nonce)
+            } else {
+                None
+            };
+        DurableNonceInfo { nonce_account, current_nonce }
     }
 
     /// Partially update NonceInfo, only update the passed fields

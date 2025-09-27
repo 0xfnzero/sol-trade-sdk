@@ -1,7 +1,8 @@
 use std::{sync::Arc, time::Instant};
 
 use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_sdk::{commitment_config::CommitmentLevel, transaction::VersionedTransaction};
+use solana_commitment_config::CommitmentLevel;
+use solana_sdk::transaction::VersionedTransaction;
 use solana_transaction_status::UiTransactionEncoding;
 
 use crate::swqos::SwqosClientTrait;

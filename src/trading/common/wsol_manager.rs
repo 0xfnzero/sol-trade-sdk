@@ -1,8 +1,9 @@
-use crate::common::fast_fn::create_associated_token_account_idempotent_fast;
+use crate::common::{
+    fast_fn::create_associated_token_account_idempotent_fast, spl_token::close_account,
+};
 use smallvec::SmallVec;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+use solana_sdk::{instruction::Instruction, message::AccountMeta, pubkey::Pubkey};
 use solana_system_interface::instruction::transfer;
-use spl_token::instruction::close_account;
 
 #[inline]
 pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]> {
@@ -22,8 +23,12 @@ pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]>
     ));
     insts.extend([
         transfer(&payer, &wsol_token_account, amount_in),
-        spl_token::instruction::sync_native(&crate::constants::TOKEN_PROGRAM, &wsol_token_account)
-            .unwrap(),
+        // sync_native
+        Instruction {
+            program_id: crate::constants::TOKEN_PROGRAM,
+            accounts: vec![AccountMeta::new(wsol_token_account, false)],
+            data: vec![17],
+        },
     ]);
 
     insts

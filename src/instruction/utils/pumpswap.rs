@@ -1,4 +1,9 @@
-use crate::{common::SolanaRpcClient, constants::TOKEN_PROGRAM};
+use crate::{
+    common::{
+        spl_associated_token_account::get_associated_token_address_with_program_id, SolanaRpcClient,
+    },
+    constants::TOKEN_PROGRAM,
+};
 use anyhow::anyhow;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::pubkey::Pubkey;
@@ -138,12 +143,11 @@ pub(crate) fn coin_creator_vault_authority(coin_creator: Pubkey) -> Pubkey {
 
 pub(crate) fn coin_creator_vault_ata(coin_creator: Pubkey, quote_mint: Pubkey) -> Pubkey {
     let creator_vault_authority = coin_creator_vault_authority(coin_creator);
-    let associated_token_creator_vault_authority =
-        spl_associated_token_account::get_associated_token_address_with_program_id(
-            &creator_vault_authority,
-            &quote_mint,
-            &TOKEN_PROGRAM,
-        );
+    let associated_token_creator_vault_authority = get_associated_token_address_with_program_id(
+        &creator_vault_authority,
+        &quote_mint,
+        &TOKEN_PROGRAM,
+    );
     associated_token_creator_vault_authority
 }
 

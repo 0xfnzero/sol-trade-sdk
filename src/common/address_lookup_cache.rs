@@ -1,8 +1,6 @@
 use dashmap::DashMap;
-use solana_sdk::{
-    address_lookup_table::state::AddressLookupTable, message::AddressLookupTableAccount,
-    pubkey::Pubkey,
-};
+use solana_address_lookup_table_interface::state::AddressLookupTable;
+use solana_sdk::{message::AddressLookupTableAccount, pubkey::Pubkey};
 use std::{
     error::Error,
     sync::{Arc, OnceLock},

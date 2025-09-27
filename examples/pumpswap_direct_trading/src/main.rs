@@ -1,12 +1,15 @@
 use sol_trade_sdk::{
-    common::{AnyResult, TradeConfig},
+    common::{
+        spl_associated_token_account::get_associated_token_address_with_program_id, AnyResult,
+        TradeConfig,
+    },
     swqos::SwqosConfig,
     trading::{core::params::PumpSwapParams, factory::DexType},
     SolanaTrade, TradeTokenType,
 };
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
-use spl_associated_token_account::get_associated_token_address_with_program_id;
 use std::{str::FromStr, sync::Arc};
 
 #[tokio::main]
@@ -47,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let program_id = spl_token_2022::ID;
+    let program_id = sol_trade_sdk::constants::TOKEN_PROGRAM_2022;
     let account = get_associated_token_address_with_program_id(&payer, &mint_pubkey, &program_id);
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();

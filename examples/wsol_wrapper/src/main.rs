@@ -1,5 +1,6 @@
 use sol_trade_sdk::{common::TradeConfig, swqos::SwqosConfig, SolanaTrade};
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
 use std::sync::Arc;
 
 #[tokio::main]

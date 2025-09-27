@@ -1,7 +1,7 @@
 use crate::common::{global::GlobalAccount, SolanaRpcClient};
-use crate::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
+use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -216,7 +216,13 @@ pub fn get_user_volume_accumulator_pda(user: &Pubkey) -> Option<Pubkey> {
 pub async fn fetch_bonding_curve_account(
     rpc: &SolanaRpcClient,
     mint: &Pubkey,
-) -> Result<(Arc<crate::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve>, Pubkey), anyhow::Error>{
+) -> Result<
+    (
+        Arc<solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve>,
+        Pubkey,
+    ),
+    anyhow::Error,
+> {
     let bonding_curve_pda: Pubkey =
         get_bonding_curve_pda(mint).ok_or(anyhow!("Bonding curve not found"))?;
 
@@ -225,8 +231,10 @@ pub async fn fetch_bonding_curve_account(
         return Err(anyhow!("Bonding curve not found"));
     }
 
-    let bonding_curve = solana_sdk::borsh1::try_from_slice_unchecked::<crate::solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve>(&account.data[8..])
-        .map_err(|e| anyhow::anyhow!("Failed to deserialize bonding curve account: {}", e))?;
+    let bonding_curve = solana_sdk::borsh1::try_from_slice_unchecked::<
+        solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve,
+    >(&account.data[8..])
+    .map_err(|e| anyhow::anyhow!("Failed to deserialize bonding curve account: {}", e))?;
 
     Ok((Arc::new(bonding_curve), bonding_curve_pda))
 }

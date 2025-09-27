@@ -1,6 +1,6 @@
 use solana_sdk::{pubkey, pubkey::Pubkey};
 
-pub const SYSTEM_PROGRAM: Pubkey = solana_sdk::system_program::ID;
+pub const SYSTEM_PROGRAM: Pubkey = pubkey!("11111111111111111111111111111111");
 pub const SYSTEM_PROGRAM_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta {
         pubkey: SYSTEM_PROGRAM,
@@ -8,7 +8,7 @@ pub const SYSTEM_PROGRAM_META: solana_sdk::instruction::AccountMeta =
         is_writable: false,
     };
 
-pub const TOKEN_PROGRAM: Pubkey = spl_token::ID;
+pub const TOKEN_PROGRAM: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 pub const TOKEN_PROGRAM_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta {
         pubkey: TOKEN_PROGRAM,
@@ -16,7 +16,7 @@ pub const TOKEN_PROGRAM_META: solana_sdk::instruction::AccountMeta =
         is_writable: false,
     };
 
-pub const TOKEN_PROGRAM_2022: Pubkey = spl_token_2022::ID;
+pub const TOKEN_PROGRAM_2022: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 pub const TOKEN_PROGRAM_2022_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta {
         pubkey: TOKEN_PROGRAM_2022,
@@ -45,3 +45,6 @@ pub const USD1_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
 pub const RENT: Pubkey = solana_sdk::sysvar::rent::id();
 pub const RENT_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta { pubkey: RENT, is_signer: false, is_writable: false };
+
+pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
+    pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");

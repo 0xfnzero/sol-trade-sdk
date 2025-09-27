@@ -8,10 +8,8 @@ use sol_trade_sdk::{
     },
     SolanaTrade, TradeTokenType,
 };
-use solana_sdk::{
-    commitment_config::CommitmentConfig, instruction::Instruction, pubkey::Pubkey,
-    signature::Keypair,
-};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair};
 use std::{str::FromStr, sync::Arc};
 
 #[tokio::main]

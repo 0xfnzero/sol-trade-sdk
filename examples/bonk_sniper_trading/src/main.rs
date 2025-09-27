@@ -1,18 +1,19 @@
+use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
 use sol_trade_sdk::common::TradeConfig;
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::common::EventType;
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use sol_trade_sdk::solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use sol_trade_sdk::solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
+use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
+use solana_streamer_sdk::streaming::event_parser::common::EventType;
+use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
+use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
+use solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
     trading::{core::params::BonkParams, factory::DexType},
     SolanaTrade,
 };
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
-use spl_associated_token_account::get_associated_token_address;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,

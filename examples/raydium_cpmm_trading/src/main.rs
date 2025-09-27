@@ -1,36 +1,26 @@
+use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
+use sol_trade_sdk::common::TradeConfig;
+use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+use sol_trade_sdk::trading::core::params::RaydiumCpmmParams;
+use sol_trade_sdk::trading::factory::DexType;
+use sol_trade_sdk::TradeTokenType;
+use sol_trade_sdk::{common::AnyResult, swqos::SwqosConfig, SolanaTrade};
+use solana_commitment_config::CommitmentConfig;
+use solana_sdk::signature::Keypair;
+use solana_sdk::signer::Signer;
+use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
+use solana_streamer_sdk::streaming::event_parser::common::EventType;
+use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::parser::RAYDIUM_CPMM_PROGRAM_ID;
+use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
+use solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter};
+use solana_streamer_sdk::streaming::YellowstoneGrpc;
+use solana_streamer_sdk::{
+    match_event, streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent,
+};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-
-use sol_trade_sdk::solana_streamer_sdk::{
-    match_event, streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent,
-};
-use sol_trade_sdk::{common::AnyResult, swqos::SwqosConfig, SolanaTrade};
-use sol_trade_sdk::{
-    common::TradeConfig,
-    solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter},
-};
-use sol_trade_sdk::{
-    constants::WSOL_TOKEN_ACCOUNT,
-    solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent},
-};
-use sol_trade_sdk::{
-    instruction::utils::raydium_cpmm::accounts,
-    solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::parser::RAYDIUM_CPMM_PROGRAM_ID,
-};
-use sol_trade_sdk::{
-    solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter,
-    trading::factory::DexType,
-};
-use sol_trade_sdk::{
-    solana_streamer_sdk::streaming::event_parser::common::EventType,
-    trading::core::params::RaydiumCpmmParams,
-};
-use sol_trade_sdk::{solana_streamer_sdk::streaming::YellowstoneGrpc, TradeTokenType};
-use solana_sdk::signer::Signer;
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair};
-use spl_associated_token_account::get_associated_token_address;
 
 // Global static flag to ensure transaction is executed only once
 static ALREADY_EXECUTED: AtomicBool = AtomicBool::new(false);

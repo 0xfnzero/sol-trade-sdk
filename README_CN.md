@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "1.2.3" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "2.0.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "1.2.3"
+sol-trade-sdk = "2.0.0"
 ```
 
 ## 🛠️ 使用示例
@@ -180,7 +180,6 @@ client.buy(buy_params).await?;
 
 | 描述 | 运行命令 | 源码路径 |
 |------|---------|----------|
-| 监听代币交易事件 | `cargo run --package event_subscription` | [examples/event_subscription](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/event_subscription/src/main.rs) |
 | 创建和配置 SolanaTrade 实例 | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
 | PumpFun 代币狙击交易 | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
 | PumpFun 代币跟单交易 | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
@@ -273,7 +272,6 @@ src/
 ├── constants/        # 常量定义
 ├── instruction/      # 指令构建
 │   └── utils/        # 指令工具函数
-├── protos/           # gRPC 协议定义
 ├── swqos/            # MEV 服务客户端
 ├── trading/          # 统一交易引擎
 │   ├── common/       # 通用交易工具

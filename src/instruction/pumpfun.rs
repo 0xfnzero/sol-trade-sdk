@@ -1,9 +1,8 @@
 use crate::{
-    constants::trade::trade::DEFAULT_SLIPPAGE,
-    trading::core::{
+    common::spl_token::close_account, constants::trade::trade::DEFAULT_SLIPPAGE, trading::core::{
         params::{PumpFunParams, SwapParams},
         traits::InstructionBuilder,
-    },
+    }
 };
 use crate::{
     instruction::utils::pumpfun::{
@@ -18,7 +17,6 @@ use crate::{
 use anyhow::{anyhow, Result};
 use solana_sdk::instruction::AccountMeta;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
-use spl_token::instruction::close_account;
 
 /// Instruction builder for PumpFun protocol
 pub struct PumpFunInstructionBuilder;

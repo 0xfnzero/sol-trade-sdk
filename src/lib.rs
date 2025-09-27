@@ -1,7 +1,6 @@
 pub mod common;
 pub mod constants;
 pub mod instruction;
-pub mod protos;
 pub mod swqos;
 pub mod trading;
 pub mod utils;
@@ -30,7 +29,6 @@ use rustls::crypto::{ring::default_provider, CryptoProvider};
 use solana_sdk::hash::Hash;
 use solana_sdk::signer::Signer;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signature::Signature};
-pub use solana_streamer_sdk;
 use std::sync::Arc;
 
 /// Type of the token to buy
