@@ -88,7 +88,7 @@ async fn parallel_execute(
         return Err(anyhow!("No Rpc Default Swqos configured."));
     }
     let cores = core_affinity::get_core_ids().unwrap();
-    let mut handles: Vec<JoinHandle<Result<(bool, Signature, anyhow::Error)>>> =
+    let mut handles: Vec<JoinHandle<Result<(bool, Signature, Option<anyhow::Error>)>>> =
         Vec::with_capacity(swqos_clients.len());
 
     let instructions = Arc::new(instructions);
@@ -194,7 +194,7 @@ async fn parallel_execute(
             );
 
             if let Some(signature) = transaction.signatures.first() {
-                return Ok((success, signature.clone(), err.unwrap()));
+                return Ok((success, signature.clone(), err));
             } else {
                 return Err(anyhow!("Transaction has no signatures"));
             }
@@ -237,7 +237,9 @@ async fn parallel_execute(
                 if success {
                     return Ok((success, sig));
                 }
-                errors.push(format!("Task error: {}", err));
+                if let Some(err) = err {
+                    errors.push(format!("Task error: {}", err));
+                }
                 last_signature = Some(sig);
             }
             Ok(Err(e)) => errors.push(format!("Task error: {}", e)),
