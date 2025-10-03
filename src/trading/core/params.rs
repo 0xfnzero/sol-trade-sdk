@@ -3,19 +3,11 @@ use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
 use crate::common::SolanaRpcClient;
-use solana_streamer_sdk::streaming::event_parser::common::EventType;
-use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
 use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
 use solana_hash::Hash;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
-use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
-use solana_streamer_sdk::streaming::event_parser::protocols::pumpswap::{
-    PumpSwapBuyEvent, PumpSwapSellEvent,
-};
-use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::types::AmmInfo;
-use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent;
 use std::sync::Arc;
 
 /// Swap parameters
@@ -74,32 +66,55 @@ impl PumpFunParams {
     }
 
     pub fn from_dev_trade(
-        event: &PumpFunTradeEvent,
+        mint: Pubkey,
+        token_amount: u64,
+        max_sol_cost: u64,
+        creator: Pubkey,
+        bonding_curve: Pubkey,
+        associated_bonding_curve: Pubkey,
+        creator_vault: Pubkey,
         close_token_account_when_sell: Option<bool>,
     ) -> Self {
-        let bonding_curve = BondingCurveAccount::from_dev_trade(
-            &event.mint,
-            event.token_amount,
-            event.max_sol_cost,
-            event.creator,
+        let bonding_curve_account = BondingCurveAccount::from_dev_trade(
+            bonding_curve,
+            &mint,
+            token_amount,
+            max_sol_cost,
+            creator,
         );
         Self {
-            bonding_curve: Arc::new(bonding_curve),
-            associated_bonding_curve: event.associated_bonding_curve,
-            creator_vault: event.creator_vault,
+            bonding_curve: Arc::new(bonding_curve_account),
+            associated_bonding_curve: associated_bonding_curve,
+            creator_vault: creator_vault,
             close_token_account_when_sell: close_token_account_when_sell,
         }
     }
 
     pub fn from_trade(
-        event: &PumpFunTradeEvent,
+        bonding_curve: Pubkey,
+        associated_bonding_curve: Pubkey,
+        mint: Pubkey,
+        creator: Pubkey,
+        creator_vault: Pubkey,
+        virtual_token_reserves: u64,
+        virtual_sol_reserves: u64,
+        real_token_reserves: u64,
+        real_sol_reserves: u64,
         close_token_account_when_sell: Option<bool>,
     ) -> Self {
-        let bonding_curve = BondingCurveAccount::from_trade(event);
+        let bonding_curve = BondingCurveAccount::from_trade(
+            bonding_curve,
+            mint,
+            creator,
+            virtual_token_reserves,
+            virtual_sol_reserves,
+            real_token_reserves,
+            real_sol_reserves,
+        );
         Self {
             bonding_curve: Arc::new(bonding_curve),
-            associated_bonding_curve: event.associated_bonding_curve,
-            creator_vault: event.creator_vault,
+            associated_bonding_curve: associated_bonding_curve,
+            creator_vault: creator_vault,
             close_token_account_when_sell: close_token_account_when_sell,
         }
     }
@@ -184,35 +199,31 @@ pub struct PumpSwapParams {
 }
 
 impl PumpSwapParams {
-    pub fn from_buy_trade(event: &PumpSwapBuyEvent) -> Self {
+    pub fn new(
+        pool: Pubkey,
+        base_mint: Pubkey,
+        quote_mint: Pubkey,
+        pool_base_token_account: Pubkey,
+        pool_quote_token_account: Pubkey,
+        pool_base_token_reserves: u64,
+        pool_quote_token_reserves: u64,
+        coin_creator_vault_ata: Pubkey,
+        coin_creator_vault_authority: Pubkey,
+        base_token_program: Pubkey,
+        quote_token_program: Pubkey,
+    ) -> Self {
         Self {
-            pool: event.pool,
-            base_mint: event.base_mint,
-            quote_mint: event.quote_mint,
-            pool_base_token_account: event.pool_base_token_account,
-            pool_quote_token_account: event.pool_quote_token_account,
-            pool_base_token_reserves: event.pool_base_token_reserves,
-            pool_quote_token_reserves: event.pool_quote_token_reserves,
-            coin_creator_vault_ata: event.coin_creator_vault_ata,
-            coin_creator_vault_authority: event.coin_creator_vault_authority,
-            base_token_program: event.base_token_program,
-            quote_token_program: event.quote_token_program,
-        }
-    }
-
-    pub fn from_sell_trade(event: &PumpSwapSellEvent) -> Self {
-        Self {
-            pool: event.pool,
-            base_mint: event.base_mint,
-            quote_mint: event.quote_mint,
-            pool_base_token_account: event.pool_base_token_account,
-            pool_quote_token_account: event.pool_quote_token_account,
-            pool_base_token_reserves: event.pool_base_token_reserves,
-            pool_quote_token_reserves: event.pool_quote_token_reserves,
-            coin_creator_vault_ata: event.coin_creator_vault_ata,
-            coin_creator_vault_authority: event.coin_creator_vault_authority,
-            base_token_program: event.base_token_program,
-            quote_token_program: event.quote_token_program,
+            pool,
+            base_mint,
+            quote_mint,
+            pool_base_token_account,
+            pool_quote_token_account,
+            pool_base_token_reserves,
+            pool_quote_token_reserves,
+            coin_creator_vault_ata,
+            coin_creator_vault_authority,
+            base_token_program,
+            quote_token_program,
         }
     }
 
@@ -329,31 +340,56 @@ impl BonkParams {
             ..Default::default()
         }
     }
-    pub fn from_trade(trade_info: BonkTradeEvent) -> Self {
+    pub fn from_trade(
+        virtual_base: u64,
+        virtual_quote: u64,
+        real_base_after: u64,
+        real_quote_after: u64,
+        pool_state: Pubkey,
+        base_vault: Pubkey,
+        quote_vault: Pubkey,
+        base_token_program: Pubkey,
+        platform_config: Pubkey,
+        platform_associated_account: Pubkey,
+        creator_associated_account: Pubkey,
+        global_config: Pubkey,
+    ) -> Self {
         Self {
-            virtual_base: trade_info.virtual_base as u128,
-            virtual_quote: trade_info.virtual_quote as u128,
-            real_base: trade_info.real_base_after as u128,
-            real_quote: trade_info.real_quote_after as u128,
-            pool_state: trade_info.pool_state,
-            base_vault: trade_info.base_vault,
-            quote_vault: trade_info.quote_vault,
-            mint_token_program: trade_info.base_token_program,
-            platform_config: trade_info.platform_config,
-            platform_associated_account: trade_info.platform_associated_account,
-            creator_associated_account: trade_info.creator_associated_account,
-            global_config: trade_info.global_config,
+            virtual_base: virtual_base as u128,
+            virtual_quote: virtual_quote as u128,
+            real_base: real_base_after as u128,
+            real_quote: real_quote_after as u128,
+            pool_state: pool_state,
+            base_vault: base_vault,
+            quote_vault: quote_vault,
+            mint_token_program: base_token_program,
+            platform_config: platform_config,
+            platform_associated_account: platform_associated_account,
+            creator_associated_account: creator_associated_account,
+            global_config: global_config,
         }
     }
 
-    pub fn from_dev_trade(trade_info: BonkTradeEvent) -> Self {
+    pub fn from_dev_trade(
+        is_exact_in: bool,
+        amount_in: u64,
+        amount_out: u64,
+        pool_state: Pubkey,
+        base_vault: Pubkey,
+        quote_vault: Pubkey,
+        base_token_program: Pubkey,
+        platform_config: Pubkey,
+        platform_associated_account: Pubkey,
+        creator_associated_account: Pubkey,
+        global_config: Pubkey,
+    ) -> Self {
         const DEFAULT_VIRTUAL_BASE: u128 = 1073025605596382;
         const DEFAULT_VIRTUAL_QUOTE: u128 = 30000852951;
-        let amount_in = if trade_info.metadata.event_type == EventType::BonkBuyExactIn {
-            trade_info.amount_in
+        let _amount_in = if is_exact_in {
+            amount_in
         } else {
             crate::instruction::utils::bonk::get_amount_in(
-                trade_info.amount_out,
+                amount_out,
                 crate::instruction::utils::bonk::accounts::PROTOCOL_FEE_RATE,
                 crate::instruction::utils::bonk::accounts::PLATFORM_FEE_RATE,
                 crate::instruction::utils::bonk::accounts::SHARE_FEE_RATE,
@@ -370,9 +406,9 @@ impl BonkParams {
             crate::instruction::utils::bonk::accounts::PLATFORM_FEE_RATE,
             crate::instruction::utils::bonk::accounts::SHARE_FEE_RATE,
         ) as u128;
-        let amount_out = if trade_info.metadata.event_type == EventType::BonkBuyExactIn {
+        let _amount_out = if is_exact_in {
             crate::instruction::utils::bonk::get_amount_out(
-                trade_info.amount_in,
+                amount_in,
                 crate::instruction::utils::bonk::accounts::PROTOCOL_FEE_RATE,
                 crate::instruction::utils::bonk::accounts::PLATFORM_FEE_RATE,
                 crate::instruction::utils::bonk::accounts::SHARE_FEE_RATE,
@@ -383,22 +419,22 @@ impl BonkParams {
                 0,
             ) as u128
         } else {
-            trade_info.amount_out as u128
+            amount_out as u128
         };
-        let real_base = amount_out;
+        let real_base = _amount_out;
         Self {
             virtual_base: DEFAULT_VIRTUAL_BASE,
             virtual_quote: DEFAULT_VIRTUAL_QUOTE,
             real_base: real_base,
             real_quote: real_quote,
-            pool_state: trade_info.pool_state,
-            base_vault: trade_info.base_vault,
-            quote_vault: trade_info.quote_vault,
-            mint_token_program: trade_info.base_token_program,
-            platform_config: trade_info.platform_config,
-            platform_associated_account: trade_info.platform_associated_account,
-            creator_associated_account: trade_info.creator_associated_account,
-            global_config: trade_info.global_config,
+            pool_state: pool_state,
+            base_vault: base_vault,
+            quote_vault: quote_vault,
+            mint_token_program: base_token_program,
+            platform_config: platform_config,
+            platform_associated_account: platform_associated_account,
+            creator_associated_account: creator_associated_account,
+            global_config: global_config,
         }
     }
 
@@ -474,7 +510,7 @@ pub struct RaydiumCpmmParams {
     pub base_vault: Pubkey,
     /// Quote token vault address
     pub quote_vault: Pubkey,
-    /// Base token program ID 
+    /// Base token program ID
     pub base_token_program: Pubkey,
     /// Quote token program ID
     pub quote_token_program: Pubkey,
@@ -484,22 +520,30 @@ pub struct RaydiumCpmmParams {
 
 impl RaydiumCpmmParams {
     pub fn from_trade(
-        trade_info: RaydiumCpmmSwapEvent,
+        pool_state: Pubkey,
+        amm_config: Pubkey,
+        input_token_mint: Pubkey,
+        output_token_mint: Pubkey,
+        input_vault: Pubkey,
+        output_vault: Pubkey,
+        input_token_program: Pubkey,
+        output_token_program: Pubkey,
+        observation_state: Pubkey,
         base_reserve: u64,
         quote_reserve: u64,
     ) -> Self {
         Self {
-            pool_state: trade_info.pool_state,
-            amm_config: trade_info.amm_config,
-            base_mint: trade_info.input_token_mint,
-            quote_mint: trade_info.output_token_mint,
+            pool_state: pool_state,
+            amm_config: amm_config,
+            base_mint: input_token_mint,
+            quote_mint: output_token_mint,
             base_reserve: base_reserve,
             quote_reserve: quote_reserve,
-            base_vault: trade_info.input_vault,
-            quote_vault: trade_info.output_vault,
-            base_token_program: trade_info.input_token_program,
-            quote_token_program: trade_info.output_token_program,
-            observation_state: trade_info.observation_state,
+            base_vault: input_vault,
+            quote_vault: output_vault,
+            base_token_program: input_token_program,
+            quote_token_program: output_token_program,
+            observation_state: observation_state,
         }
     }
 
@@ -564,21 +608,16 @@ pub struct RaydiumAmmV4Params {
 }
 
 impl RaydiumAmmV4Params {
-    pub fn from_amm_info_and_reserves(
+    pub fn new(
         amm: Pubkey,
-        amm_info: AmmInfo,
+        coin_mint: Pubkey,
+        pc_mint: Pubkey,
+        token_coin: Pubkey,
+        token_pc: Pubkey,
         coin_reserve: u64,
         pc_reserve: u64,
     ) -> Self {
-        Self {
-            amm,
-            coin_mint: amm_info.coin_mint,
-            pc_mint: amm_info.pc_mint,
-            token_coin: amm_info.token_coin,
-            token_pc: amm_info.token_pc,
-            coin_reserve,
-            pc_reserve,
-        }
+        Self { amm, coin_mint, pc_mint, token_coin, token_pc, coin_reserve, pc_reserve }
     }
     pub async fn from_amm_address_by_rpc(
         rpc: &SolanaRpcClient,

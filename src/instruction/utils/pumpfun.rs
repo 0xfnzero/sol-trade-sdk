@@ -1,7 +1,6 @@
-use crate::common::{global::GlobalAccount, SolanaRpcClient};
+use crate::common::{bonding_curve::BondingCurveAccount, global::GlobalAccount, SolanaRpcClient};
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
-use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
@@ -216,13 +215,7 @@ pub fn get_user_volume_accumulator_pda(user: &Pubkey) -> Option<Pubkey> {
 pub async fn fetch_bonding_curve_account(
     rpc: &SolanaRpcClient,
     mint: &Pubkey,
-) -> Result<
-    (
-        Arc<solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve>,
-        Pubkey,
-    ),
-    anyhow::Error,
-> {
+) -> Result<(Arc<BondingCurveAccount>, Pubkey), anyhow::Error> {
     let bonding_curve_pda: Pubkey =
         get_bonding_curve_pda(mint).ok_or(anyhow!("Bonding curve not found"))?;
 
@@ -231,26 +224,29 @@ pub async fn fetch_bonding_curve_account(
         return Err(anyhow!("Bonding curve not found"));
     }
 
-    let bonding_curve = solana_sdk::borsh1::try_from_slice_unchecked::<
-        solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::types::BondingCurve,
-    >(&account.data[8..])
-    .map_err(|e| anyhow::anyhow!("Failed to deserialize bonding curve account: {}", e))?;
+    let bonding_curve =
+        solana_sdk::borsh1::try_from_slice_unchecked::<BondingCurveAccount>(&account.data[8..])
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize bonding curve account: {}", e))?;
 
     Ok((Arc::new(bonding_curve), bonding_curve_pda))
 }
 
 #[inline]
-pub fn get_buy_price(amount: u64, trade_info: &PumpFunTradeEvent) -> u64 {
+pub fn get_buy_price(
+    amount: u64,
+    virtual_sol_reserves: u64,
+    virtual_token_reserves: u64,
+    real_token_reserves: u64,
+) -> u64 {
     if amount == 0 {
         return 0;
     }
 
-    let n: u128 =
-        (trade_info.virtual_sol_reserves as u128) * (trade_info.virtual_token_reserves as u128);
-    let i: u128 = (trade_info.virtual_sol_reserves as u128) + (amount as u128);
+    let n: u128 = (virtual_sol_reserves as u128) * (virtual_token_reserves as u128);
+    let i: u128 = (virtual_sol_reserves as u128) + (amount as u128);
     let r: u128 = n / i + 1;
-    let s: u128 = (trade_info.virtual_token_reserves as u128) - r;
+    let s: u128 = (virtual_token_reserves as u128) - r;
     let s_u64 = s as u64;
 
-    s_u64.min(trade_info.real_token_reserves)
+    s_u64.min(real_token_reserves)
 }

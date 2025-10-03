@@ -1,9 +1,9 @@
-use crate::common::SolanaRpcClient;
+use crate::{
+    common::SolanaRpcClient,
+    instruction::utils::bonk_types::{pool_state_decode, PoolState},
+};
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
-use solana_streamer_sdk::streaming::event_parser::protocols::bonk::{
-    pool_state_decode, types::PoolState,
-};
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {

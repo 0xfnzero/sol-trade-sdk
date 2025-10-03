@@ -131,7 +131,19 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
 }
 
 async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> AnyResult<()> {
-    let params = PumpSwapParams::from_buy_trade(&trade_info);
+    let params = PumpSwapParams::new(
+        trade_info.pool,
+        trade_info.base_mint,
+        trade_info.quote_mint,
+        trade_info.pool_base_token_account,
+        trade_info.pool_quote_token_account,
+        trade_info.pool_base_token_reserves,
+        trade_info.pool_quote_token_reserves,
+        trade_info.coin_creator_vault_ata,
+        trade_info.coin_creator_vault_authority,
+        trade_info.base_token_program,
+        trade_info.quote_token_program,
+    );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
         trade_info.quote_mint
     } else {
@@ -142,7 +154,19 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
 }
 
 async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> AnyResult<()> {
-    let params = PumpSwapParams::from_sell_trade(&trade_info);
+    let params = PumpSwapParams::new(
+        trade_info.pool,
+        trade_info.base_mint,
+        trade_info.quote_mint,
+        trade_info.pool_base_token_account,
+        trade_info.pool_quote_token_account,
+        trade_info.pool_base_token_reserves,
+        trade_info.pool_quote_token_reserves,
+        trade_info.coin_creator_vault_ata,
+        trade_info.coin_creator_vault_authority,
+        trade_info.base_token_program,
+        trade_info.quote_token_program,
+    );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
         trade_info.quote_mint
     } else {

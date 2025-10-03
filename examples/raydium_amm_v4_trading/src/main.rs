@@ -130,9 +130,12 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     } else {
         amm_info.pc_mint
     };
-    let params = RaydiumAmmV4Params::from_amm_info_and_reserves(
+    let params = RaydiumAmmV4Params::new(
         trade_info.amm,
-        amm_info,
+        amm_info.coin_mint,
+        amm_info.pc_mint,
+        amm_info.token_coin,
+        amm_info.token_pc,
         coin_reserve,
         pc_reserve,
     );

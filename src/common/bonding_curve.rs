@@ -25,6 +25,7 @@
 //! - `get_final_market_cap_sol`: Calculates the final market cap in SOL after all tokens are sold
 //! - `get_buy_out_price`: Calculates the price to buy out all remaining tokens
 
+use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
@@ -33,14 +34,15 @@ use crate::instruction::utils::pumpfun::global_constants::{
     TOKEN_TOTAL_SUPPLY,
 };
 use crate::instruction::utils::pumpfun::{get_bonding_curve_pda, get_creator_vault_pda};
-use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
 
 /// Represents the global configuration account for token pricing and fees
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, BorshDeserialize)]
 pub struct BondingCurveAccount {
     /// Unique identifier for the bonding curve
+    #[borsh(skip)]
     pub discriminator: u64,
     /// Account address
+    #[borsh(skip)]
     pub account: Pubkey,
     /// Virtual token reserves used for price calculations
     pub virtual_token_reserves: u64,
@@ -60,15 +62,16 @@ pub struct BondingCurveAccount {
 
 impl BondingCurveAccount {
     pub fn from_dev_trade(
+        bonding_curve: Pubkey,
         mint: &Pubkey,
         dev_token_amount: u64,
         dev_sol_amount: u64,
         creator: Pubkey,
     ) -> Self {
-        let account = if mint != &Pubkey::default() {
-            get_bonding_curve_pda(mint).unwrap()
+        let account = if bonding_curve != Pubkey::default() {
+            bonding_curve
         } else {
-            Pubkey::default()
+            get_bonding_curve_pda(&mint).unwrap()
         };
         Self {
             discriminator: 0,
@@ -83,22 +86,30 @@ impl BondingCurveAccount {
         }
     }
 
-    pub fn from_trade(event: &PumpFunTradeEvent) -> Self {
-        let account = if event.bonding_curve != Pubkey::default() {
-            event.bonding_curve
+    pub fn from_trade(
+        bonding_curve: Pubkey,
+        mint: Pubkey,
+        creator: Pubkey,
+        virtual_token_reserves: u64,
+        virtual_sol_reserves: u64,
+        real_token_reserves: u64,
+        real_sol_reserves: u64,
+    ) -> Self {
+        let account = if bonding_curve != Pubkey::default() {
+            bonding_curve
         } else {
-            get_bonding_curve_pda(&event.mint).unwrap()
+            get_bonding_curve_pda(&mint).unwrap()
         };
         Self {
             discriminator: 0,
             account: account,
-            virtual_token_reserves: event.virtual_token_reserves,
-            virtual_sol_reserves: event.virtual_sol_reserves,
-            real_token_reserves: event.real_token_reserves,
-            real_sol_reserves: event.real_sol_reserves,
+            virtual_token_reserves: virtual_token_reserves,
+            virtual_sol_reserves: virtual_sol_reserves,
+            real_token_reserves: real_token_reserves,
+            real_sol_reserves: real_sol_reserves,
             token_total_supply: TOKEN_TOTAL_SUPPLY,
             complete: false,
-            creator: event.creator,
+            creator: creator,
         }
     }
 

@@ -1,10 +1,5 @@
 use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
 use sol_trade_sdk::common::TradeConfig;
-use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
-use solana_streamer_sdk::streaming::event_parser::common::EventType;
-use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
@@ -14,6 +9,11 @@ use sol_trade_sdk::{
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
+use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
+use solana_streamer_sdk::streaming::event_parser::common::EventType;
+use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
+use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
+use solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -113,7 +113,19 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(BonkParams::from_dev_trade(trade_info.clone())),
+        extension_params: Box::new(BonkParams::from_dev_trade(
+            trade_info.exact_in,
+            trade_info.amount_in,
+            trade_info.amount_out,
+            trade_info.pool_state,
+            trade_info.base_vault,
+            trade_info.quote_vault,
+            trade_info.base_token_program,
+            trade_info.platform_config,
+            trade_info.platform_associated_account,
+            trade_info.creator_associated_account,
+            trade_info.global_config,
+        )),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,

@@ -1,10 +1,9 @@
+use crate::{
+    common::SolanaRpcClient,
+    instruction::utils::raydium_amm_v4_types::{amm_info_decode, AmmInfo},
+};
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
-use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::types::{
-    amm_info_decode, AmmInfo,
-};
-
-use crate::common::SolanaRpcClient;
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {

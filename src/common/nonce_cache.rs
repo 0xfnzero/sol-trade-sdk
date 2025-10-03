@@ -4,10 +4,10 @@ use solana_nonce::state::State;
 use solana_nonce::versions::Versions;
 use solana_sdk::account_utils::StateMut;
 use solana_sdk::pubkey::Pubkey;
-use solana_streamer_sdk::common::SolanaRpcClient;
 use std::str::FromStr;
 use std::sync::{Arc, OnceLock};
 use tracing::error;
+use crate::common::SolanaRpcClient;
 
 /// NonceInfo structure to store nonce-related information
 pub struct NonceInfo {

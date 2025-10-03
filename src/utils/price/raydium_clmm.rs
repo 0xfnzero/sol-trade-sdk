@@ -1,5 +1,3 @@
-use solana_streamer_sdk::streaming::event_parser::protocols::raydium_clmm::types::PoolState;
-
 /// Calculate the price of token0 in token1
 ///
 /// # Arguments
@@ -35,34 +33,4 @@ pub fn price_token1_in_token0(
     decimals_token1: u8,
 ) -> f64 {
     1.0 / price_token0_in_token1(sqrt_price_x64, decimals_token0, decimals_token1)
-}
-
-/// Calculate the price of token0 in token1 based on pool state
-///
-/// # Arguments
-/// * `pool_state` - The pool state
-///
-/// # Returns
-/// The price of token0 in token1
-pub fn price_token0_in_token1_with_pool_state(pool_state: &PoolState) -> f64 {
-    price_token0_in_token1(
-        pool_state.sqrt_price_x64,
-        pool_state.mint_decimals0,
-        pool_state.mint_decimals1,
-    )
-}
-
-/// Calculate the price of token1 in token0 based on pool state
-///
-/// # Arguments
-/// * `pool_state` - The pool state
-///
-/// # Returns
-/// The price of token1 in token0
-pub fn price_token1_in_token0_with_pool_state(pool_state: &PoolState) -> f64 {
-    price_token1_in_token0(
-        pool_state.sqrt_price_x64,
-        pool_state.mint_decimals0,
-        pool_state.mint_decimals1,
-    )
 }
