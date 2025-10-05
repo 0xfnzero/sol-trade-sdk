@@ -43,7 +43,10 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             amount_in,
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         );
-        let minimum_amount_out = swap_result.min_amount_out;
+        let minimum_amount_out = match params.fixed_output_amount {
+            Some(fixed) => fixed,
+            None => swap_result.min_amount_out,
+        };
 
         let user_source_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
@@ -147,7 +150,10 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             params.input_amount.unwrap_or(0),
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         );
-        let minimum_amount_out = swap_result.min_amount_out;
+        let minimum_amount_out = match params.fixed_output_amount {
+            Some(fixed) => fixed,
+            None => swap_result.min_amount_out,
+        };
 
         let user_source_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(

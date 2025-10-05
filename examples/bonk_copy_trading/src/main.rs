@@ -163,6 +163,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.buy(buy_params).await?;
 
@@ -205,6 +206,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         durable_nonce: None,
         create_output_token_ata: false,
         close_output_token_ata: false,
+        fixed_output_token_amount: None,
     };
     client.sell(sell_params).await?;
 

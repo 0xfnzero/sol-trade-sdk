@@ -69,14 +69,17 @@ impl InstructionBuilder for BonkInstructionBuilder {
         // ========================================
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let share_fee_rate: u64 = 0;
-        let minimum_amount_out: u64 = get_buy_token_amount_from_sol_amount(
-            amount_in,
-            protocol_params.virtual_base,
-            protocol_params.virtual_quote,
-            protocol_params.real_base,
-            protocol_params.real_quote,
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE) as u128,
-        );
+        let minimum_amount_out: u64 = match params.fixed_output_amount {
+            Some(fixed_amount) => fixed_amount,
+            None => get_buy_token_amount_from_sol_amount(
+                amount_in,
+                protocol_params.virtual_base,
+                protocol_params.virtual_quote,
+                protocol_params.real_base,
+                protocol_params.real_quote,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE) as u128,
+            ),
+        };
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
@@ -226,14 +229,17 @@ impl InstructionBuilder for BonkInstructionBuilder {
         // Trade calculation and account address preparation
         // ========================================
         let share_fee_rate: u64 = 0;
-        let minimum_amount_out: u64 = get_sell_sol_amount_from_token_amount(
-            amount,
-            protocol_params.virtual_base,
-            protocol_params.virtual_quote,
-            protocol_params.real_base,
-            protocol_params.real_quote,
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE) as u128,
-        );
+        let minimum_amount_out: u64 = match params.fixed_output_amount {
+            Some(fixed_amount) => fixed_amount,
+            None => get_sell_sol_amount_from_token_amount(
+                amount,
+                protocol_params.virtual_base,
+                protocol_params.virtual_quote,
+                protocol_params.real_base,
+                protocol_params.real_quote,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE) as u128,
+            ),
+        };
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(

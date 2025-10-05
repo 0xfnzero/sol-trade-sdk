@@ -1,8 +1,10 @@
 use crate::{
-    common::spl_token::close_account, constants::trade::trade::DEFAULT_SLIPPAGE, trading::core::{
+    common::spl_token::close_account,
+    constants::trade::trade::DEFAULT_SLIPPAGE,
+    trading::core::{
         params::{PumpFunParams, SwapParams},
         traits::InstructionBuilder,
-    }
+    },
 };
 use crate::{
     instruction::utils::pumpfun::{
@@ -44,13 +46,16 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let buy_token_amount = get_buy_token_amount_from_sol_amount(
-            bonding_curve.virtual_token_reserves as u128,
-            bonding_curve.virtual_sol_reserves as u128,
-            bonding_curve.real_token_reserves as u128,
-            creator,
-            params.input_amount.unwrap_or(0),
-        );
+        let buy_token_amount = match params.fixed_output_amount {
+            Some(amount) => amount,
+            None => get_buy_token_amount_from_sol_amount(
+                bonding_curve.virtual_token_reserves as u128,
+                bonding_curve.virtual_sol_reserves as u128,
+                bonding_curve.real_token_reserves as u128,
+                creator,
+                params.input_amount.unwrap_or(0),
+            ),
+        };
 
         let max_sol_cost = calculate_with_slippage_buy(
             params.input_amount.unwrap_or(0),
@@ -169,10 +174,13 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             token_amount,
         );
 
-        let min_sol_output = calculate_with_slippage_sell(
-            sol_amount,
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-        );
+        let min_sol_output = match params.fixed_output_amount {
+            Some(fixed) => fixed,
+            None => calculate_with_slippage_sell(
+                sol_amount,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+            ),
+        };
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
             get_bonding_curve_pda(&params.input_mint).unwrap()

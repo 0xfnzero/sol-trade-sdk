@@ -14,6 +14,7 @@ use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
 use crate::trading::core::params::BonkParams;
+use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
 use crate::trading::core::params::RaydiumAmmV4Params;
@@ -104,6 +105,8 @@ pub struct TradeBuyParams {
     pub open_seed_optimize: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
+    /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
+    pub fixed_output_token_amount: Option<u64>,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -142,6 +145,8 @@ pub struct TradeSellParams {
     pub open_seed_optimize: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
+    /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
+    pub fixed_output_token_amount: Option<u64>,
 }
 
 impl SolanaTrade {
@@ -300,6 +305,7 @@ impl SolanaTrade {
             close_input_mint_ata: params.close_input_token_ata,
             create_output_mint_ata: params.create_mint_ata,
             close_output_mint_ata: false,
+            fixed_output_amount: params.fixed_output_token_amount,
         };
 
         // Validate protocol params
@@ -314,6 +320,9 @@ impl SolanaTrade {
             }
             DexType::RaydiumAmmV4 => {
                 protocol_params.as_any().downcast_ref::<RaydiumAmmV4Params>().is_some()
+            }
+            DexType::MeteoraDammV2 => {
+                protocol_params.as_any().downcast_ref::<MeteoraDammV2Params>().is_some()
             }
         };
 
@@ -389,6 +398,7 @@ impl SolanaTrade {
             close_input_mint_ata: false,
             create_output_mint_ata: params.create_output_token_ata,
             close_output_mint_ata: params.close_output_token_ata,
+            fixed_output_amount: params.fixed_output_token_amount,
         };
 
         // Validate protocol params
@@ -403,6 +413,9 @@ impl SolanaTrade {
             }
             DexType::RaydiumAmmV4 => {
                 protocol_params.as_any().downcast_ref::<RaydiumAmmV4Params>().is_some()
+            }
+            DexType::MeteoraDammV2 => {
+                protocol_params.as_any().downcast_ref::<MeteoraDammV2Params>().is_some()
             }
         };
 

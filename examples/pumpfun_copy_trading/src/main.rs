@@ -151,6 +151,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.buy(buy_params).await?;
 
@@ -191,6 +192,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         close_output_token_ata: false,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.sell(sell_params).await?;
 

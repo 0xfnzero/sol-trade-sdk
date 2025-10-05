@@ -1,9 +1,10 @@
 use sol_trade_sdk::{
     common::{
-        fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult, TradeConfig,
+        spl_associated_token_account::get_associated_token_address_with_program_id, AnyResult,
+        TradeConfig,
     },
     swqos::SwqosConfig,
-    trading::{core::params::PumpSwapParams, factory::DexType},
+    trading::{core::params::MeteoraDammV2Params, factory::DexType},
     SolanaTrade, TradeTokenType,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -13,57 +14,50 @@ use std::{str::FromStr, sync::Arc};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Testing PumpSwap trading...");
+    println!("Testing Metaora Damm V2 trading...");
 
     let client = create_solana_trade_client().await?;
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
-    let pool = Pubkey::from_str("9qKxzRejsV6Bp2zkefXWCbGvg61c3hHei7ShXJ4FythA").unwrap();
-    let mint_pubkey = Pubkey::from_str("2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv").unwrap();
+    let pool = Pubkey::from_str("35EFyWd9cH8pdHxVgXHF68L1oZxSWd1FfJASSNTUtoTC").unwrap();
+    let mint_pubkey = Pubkey::from_str("FhTRoy63ZiLcjLEVCMCTLc5Cu5ozrzouNg6cDp1ASZMC").unwrap();
 
     // Buy tokens
-    println!("Buying tokens from PumpSwap...");
+    println!("Buying tokens from Metaora Damm V2...");
     let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
-        dex_type: DexType::PumpSwap,
+        dex_type: DexType::MeteoraDammV2,
         input_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
+            MeteoraDammV2Params::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: true,
         create_mint_ata: true,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
+        open_seed_optimize: false,
         durable_nonce: None,
-        fixed_output_token_amount: None,
+        fixed_output_token_amount: Some(1),
     };
     client.buy(buy_params).await?;
 
-    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-
     // Sell tokens
-    println!("Selling tokens from PumpSwap...");
+    println!("Selling tokens from Metaora Damm V2...");
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
     let program_id = sol_trade_sdk::constants::TOKEN_PROGRAM;
-    // ❗️❗️❗️❗️  Must use the 'use seed' method to get the ATA account, otherwise the transaction will fail
-    let account = get_associated_token_address_with_program_id_fast_use_seed(
-        &payer,
-        &mint_pubkey,
-        &program_id,
-        true,
-    );
+    let account = get_associated_token_address_with_program_id(&payer, &mint_pubkey, &program_id);
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();
+    println!("Token balance: {}", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
-        dex_type: DexType::PumpSwap,
+        dex_type: DexType::MeteoraDammV2,
         output_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
         input_token_amount: amount_token,
@@ -71,15 +65,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
+            MeteoraDammV2Params::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: true,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
+        open_seed_optimize: false,
         durable_nonce: None,
-        fixed_output_token_amount: None,
+        fixed_output_token_amount: Some(1),
     };
     client.sell(sell_params).await?;
 

@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-    <strong>将 PumpFun、PumpSwap、Bonk 和 Raydium 交易功能集成到您的应用程序中，提供强大的工具和统一的接口。</strong>
+    <strong>将 PumpFun、PumpSwap、Bonk、Raydium 和 Meteora 交易功能集成到您的应用程序中，提供强大的工具和统一的接口。</strong>
 </p>
 
 <p align="center">
@@ -66,7 +66,7 @@
 3. **Bonk 交易**: 支持 Bonk 的交易操作
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 5. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
-6. **事件订阅**: SDK 集成了 solana-streamer SDK，支持引用该 SDK 订阅 PumpFun、PumpSwap、Bonk、Raydium CPMM 和 Raydium AMM V4 程序的交易事件，该 SDK 的说明可以查阅：[solana-streamer SDK](https://github.com/0xfnzero/solana-streamer)。
+6. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
 7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane 等服务
 8. **并发交易**: 同时使用多个 MEV 服务发送交易，最快的成功，其他失败
 9. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.1" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "3.0.0"
+sol-trade-sdk = "3.0.1"
 ```
 
 ## 🛠️ 使用示例
@@ -186,6 +186,7 @@ client.buy(buy_params).await?;
 | PumpSwap 交易操作 | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |
 | Raydium CPMM 交易操作 | `cargo run --package raydium_cpmm_trading` | [examples/raydium_cpmm_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_cpmm_trading/src/main.rs) |
 | Raydium AMM V4 交易操作 | `cargo run --package raydium_amm_v4_trading` | [examples/raydium_amm_v4_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_amm_v4_trading/src/main.rs) |
+| Meteora DAMM V2 交易操作 | `cargo run --package meteora_damm_v2_direct_trading` | [examples/meteora_damm_v2_direct_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/meteora_damm_v2_direct_trading/src/main.rs) |
 | Bonk 代币狙击交易 | `cargo run --package bonk_sniper_trading` | [examples/bonk_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_sniper_trading/src/main.rs) |
 | Bonk 代币跟单交易 | `cargo run --package bonk_copy_trading` | [examples/bonk_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_copy_trading/src/main.rs) |
 | 自定义指令中间件示例 | `cargo run --package middleware_system` | [examples/middleware_system](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/middleware_system/src/main.rs) |

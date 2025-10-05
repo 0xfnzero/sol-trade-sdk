@@ -17,7 +17,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4, MeteoraDammV2) |
 | `input_token_type` | `TradeTokenType` | ✅ | The type of input token to use (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to purchase |
 | `input_token_amount` | `u64` | ✅ | Amount of input token to spend (in smallest token units) |
@@ -36,6 +36,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 
 
 ## TradeSellParams
@@ -46,7 +47,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `dex_type` | `DexType` | ✅ | The trading protocol to use (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4, MeteoraDammV2) |
 | `output_token_type` | `TradeTokenType` | ✅ | The type of output token to receive (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | The public key of the token mint to sell |
 | `input_token_amount` | `u64` | ✅ | Amount of tokens to sell (in smallest token units) |
@@ -65,6 +66,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 
 
 ## Parameter Categories
@@ -152,5 +154,6 @@ Each DEX protocol requires specific `extension_params`:
 - **Bonk**: `BonkParams`
 - **Raydium CPMM**: `RaydiumCpmmParams`
 - **Raydium AMM V4**: `RaydiumAmmV4Params`
+- **Meteora DAMM V2**: `MeteoraDammV2Params`
 
 Refer to the respective protocol documentation for detailed parameter specifications.

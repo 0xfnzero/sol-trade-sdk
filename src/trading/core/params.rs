@@ -3,6 +3,7 @@ use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
 use crate::common::SolanaRpcClient;
+use crate::constants::TOKEN_PROGRAM;
 use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
@@ -36,6 +37,7 @@ pub struct SwapParams {
     pub close_input_mint_ata: bool,
     pub create_output_mint_ata: bool,
     pub close_output_mint_ata: bool,
+    pub fixed_output_amount: Option<u64>,
 }
 
 impl std::fmt::Debug for SwapParams {
@@ -639,6 +641,68 @@ impl RaydiumAmmV4Params {
 }
 
 impl ProtocolParams for RaydiumAmmV4Params {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn ProtocolParams> {
+        Box::new(self.clone())
+    }
+}
+
+/// MeteoraDammV2 protocol specific parameters
+/// Configuration parameters specific to Meteora Damm V2 trading protocol
+#[derive(Clone)]
+pub struct MeteoraDammV2Params {
+    pub pool: Pubkey,
+    pub token_a_vault: Pubkey,
+    pub token_b_vault: Pubkey,
+    pub token_a_mint: Pubkey,
+    pub token_b_mint: Pubkey,
+    pub token_a_program: Pubkey,
+    pub token_b_program: Pubkey,
+}
+
+impl MeteoraDammV2Params {
+    pub fn new(
+        pool: Pubkey,
+        token_a_vault: Pubkey,
+        token_b_vault: Pubkey,
+        token_a_mint: Pubkey,
+        token_b_mint: Pubkey,
+        token_a_program: Pubkey,
+        token_b_program: Pubkey,
+    ) -> Self {
+        Self {
+            pool,
+            token_a_vault,
+            token_b_vault,
+            token_a_mint,
+            token_b_mint,
+            token_a_program,
+            token_b_program,
+        }
+    }
+
+    pub async fn from_pool_address_by_rpc(
+        rpc: &SolanaRpcClient,
+        pool_address: &Pubkey,
+    ) -> Result<Self, anyhow::Error> {
+        let pool_data =
+            crate::instruction::utils::meteora_damm_v2::fetch_pool(rpc, pool_address).await?;
+        Ok(Self {
+            pool: pool_address.clone(),
+            token_a_vault: pool_data.token_a_vault,
+            token_b_vault: pool_data.token_b_vault,
+            token_a_mint: pool_data.token_a_mint,
+            token_b_mint: pool_data.token_b_mint,
+            token_a_program: TOKEN_PROGRAM,
+            token_b_program: TOKEN_PROGRAM,
+        })
+    }
+}
+
+impl ProtocolParams for MeteoraDammV2Params {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

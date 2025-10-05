@@ -629,6 +629,7 @@ async fn handle_buy_pumpfun(
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -678,6 +679,7 @@ async fn handle_buy_pumpswap(
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -726,6 +728,7 @@ async fn handle_buy_bonk(
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -778,6 +781,7 @@ async fn handle_buy_raydium_v4(
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -830,6 +834,7 @@ async fn handle_buy_raydium_cpmm(
         create_mint_ata: create_mint_ata,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -992,6 +997,7 @@ async fn handle_sell_pumpfun(
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
 
     match client.sell(sell_params).await {
@@ -1044,6 +1050,7 @@ async fn handle_sell_pumpswap(
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1095,6 +1102,7 @@ async fn handle_sell_bonk(
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1149,6 +1157,7 @@ async fn handle_sell_raydium_v4(
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1203,6 +1212,7 @@ async fn handle_sell_raydium_cpmm(
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {

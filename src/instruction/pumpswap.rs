@@ -68,7 +68,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (token_amount, sol_amount) = if quote_mint_is_wsol {
+        let (mut token_amount, sol_amount) = if quote_mint_is_wsol {
             let result = buy_quote_input_internal(
                 params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -91,6 +91,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             // min_quote_amount_out, base_amount_in
             (result.min_quote, params.input_amount.unwrap_or(0))
         };
+
+        if params.fixed_output_amount.is_some() {
+            token_amount = params.fixed_output_amount.unwrap();
+        }
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
@@ -233,7 +237,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (token_amount, sol_amount) = if quote_mint_is_wsol {
+        let (token_amount, mut sol_amount) = if quote_mint_is_wsol {
             let result = sell_base_input_internal(
                 params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -256,6 +260,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             // max_quote_amount_in, base_amount_out
             (result.max_quote, result.base)
         };
+
+        if params.fixed_output_amount.is_some() {
+            sol_amount = params.fixed_output_amount.unwrap();
+        }
 
         let fee_recipient_ata = fee_recipient_ata(accounts::FEE_RECIPIENT, quote_mint);
         let user_base_token_account =

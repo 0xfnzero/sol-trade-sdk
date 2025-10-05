@@ -133,6 +133,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.buy(buy_params).await?;
 
@@ -168,6 +169,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         open_seed_optimize: false,
         with_tip: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.sell(sell_params).await?;
 

@@ -42,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.buy(buy_params).await?;
 
@@ -71,6 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.sell(sell_params).await?;
 

@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-    <strong>Integrate PumpFun, PumpSwap, Bonk, and Raydium trading functionality into your applications with powerful tools and unified interfaces.</strong>
+    <strong>Integrate PumpFun, PumpSwap, Bonk, Raydium, and Meteora trading functionality into your applications with powerful tools and unified interfaces.</strong>
 </p>
 
 <p align="center">
@@ -66,7 +66,7 @@
 3. **Bonk Trading**: Support for Bonk trading operations
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
 5. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
-6. **Event Subscription**: SDK integrates solana-streamer SDK, supports subscribing to PumpFun, PumpSwap, Bonk, Raydium CPMM, and Raydium AMM V4 program trading events, the description of this SDK can be found in [solana-streamer SDK](https://github.com/0xfnzero/solana-streamer).
+6. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
 7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane and other services
 8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
 9. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.1" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "3.0.0"
+sol-trade-sdk = "3.0.1"
 ```
 
 ## 🛠️ Usage Examples
@@ -185,6 +185,7 @@ Please ensure that the parameters your trading logic depends on are available in
 | PumpSwap trading operations | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |
 | Raydium CPMM trading operations | `cargo run --package raydium_cpmm_trading` | [examples/raydium_cpmm_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_cpmm_trading/src/main.rs) |
 | Raydium AMM V4 trading operations | `cargo run --package raydium_amm_v4_trading` | [examples/raydium_amm_v4_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_amm_v4_trading/src/main.rs) |
+| Meteora DAMM V2 trading operations | `cargo run --package meteora_damm_v2_direct_trading` | [examples/meteora_damm_v2_direct_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/meteora_damm_v2_direct_trading/src/main.rs) |
 | Bonk token sniping trading | `cargo run --package bonk_sniper_trading` | [examples/bonk_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_sniper_trading/src/main.rs) |
 | Bonk token copy trading | `cargo run --package bonk_copy_trading` | [examples/bonk_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_copy_trading/src/main.rs) |
 | Custom instruction middleware example | `cargo run --package middleware_system` | [examples/middleware_system](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/middleware_system/src/main.rs) |

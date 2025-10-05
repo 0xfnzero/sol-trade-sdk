@@ -17,7 +17,7 @@
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4, MeteoraDammV2) |
 | `input_token_type` | `TradeTokenType` | ✅ | 要使用的输入代币类型 (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | 要购买的代币 mint 公钥 |
 | `input_token_amount` | `u64` | ✅ | 要花费的输入代币数量（最小代币单位） |
@@ -36,6 +36,7 @@
 | `create_mint_ata` | `bool` | ✅ | 是否创建代币 mint ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 
 
 ## TradeSellParams
@@ -46,7 +47,7 @@
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4) |
+| `dex_type` | `DexType` | ✅ | 要使用的交易协议 (PumpFun, PumpSwap, Bonk, RaydiumCpmm, RaydiumAmmV4, MeteoraDammV2) |
 | `output_token_type` | `TradeTokenType` | ✅ | 要接收的输出代币类型 (SOL, WSOL, USD1) |
 | `mint` | `Pubkey` | ✅ | 要出售的代币 mint 公钥 |
 | `input_token_amount` | `u64` | ✅ | 要出售的代币数量（最小代币单位） |
@@ -65,6 +66,7 @@
 | `close_output_token_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 
 
 ## 参数分类
@@ -152,5 +154,6 @@
 - **Bonk**: `BonkParams`
 - **Raydium CPMM**: `RaydiumCpmmParams`
 - **Raydium AMM V4**: `RaydiumAmmV4Params`
+- **Meteora DAMM V2**: `MeteoraDammV2Params`
 
 请参阅相应的协议文档了解详细的参数规格。

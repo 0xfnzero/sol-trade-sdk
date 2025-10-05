@@ -99,6 +99,7 @@ async fn test_middleware() -> AnyResult<()> {
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
+        fixed_output_token_amount: None,
     };
     client.buy(buy_params).await?;
     println!("tip: This transaction will not succeed because we're using a test account. You can modify the code to initialize the payer with your own private key");

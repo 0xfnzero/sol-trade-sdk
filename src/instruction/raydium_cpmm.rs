@@ -65,7 +65,10 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             amount_in,
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         );
-        let minimum_amount_out = result.min_amount_out;
+        let minimum_amount_out = match params.fixed_output_amount {
+            Some(fixed) => fixed,
+            None => result.min_amount_out,
+        };
 
         let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
@@ -188,14 +191,19 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             protocol_params.quote_token_program
         };
 
-        let minimum_amount_out: u64 = compute_swap_amount(
-            protocol_params.base_reserve,
-            protocol_params.quote_reserve,
-            is_base_in,
-            params.input_amount.unwrap_or(0),
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-        )
-        .min_amount_out;
+        let minimum_amount_out: u64 = match params.fixed_output_amount {
+            Some(fixed) => fixed,
+            None => {
+                compute_swap_amount(
+                    protocol_params.base_reserve,
+                    protocol_params.quote_reserve,
+                    is_base_in,
+                    params.input_amount.unwrap_or(0),
+                    params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+                )
+                .min_amount_out
+            }
+        };
 
         let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
