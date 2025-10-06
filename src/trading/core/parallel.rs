@@ -6,6 +6,7 @@ use solana_sdk::{
 use std::{str::FromStr, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
+use log::{info, debug};
 
 use crate::{
     common::nonce_cache::DurableNonceInfo,
@@ -161,7 +162,7 @@ async fn parallel_execute(
             )
             .await?;
 
-            println!(
+            debug!(
                 "[{:?}] - [{:?}] - Building transaction instructions: {:?}",
                 swqos_type,
                 gas_fee_strategy_config.1,
@@ -186,7 +187,7 @@ async fn parallel_execute(
                 }
             };
 
-            println!(
+            debug!(
                 "[{:?}] - [{:?}] - Submitting transaction instructions: {:?}",
                 swqos_type,
                 gas_fee_strategy_config.1,
@@ -247,6 +248,6 @@ async fn parallel_execute(
         }
     }
 
-    println!("All transactions failed: {:?}", errors);
+    info!("All transactions failed: {:?}", errors);
     return Ok((false, last_signature.unwrap()));
 }

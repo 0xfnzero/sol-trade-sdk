@@ -1,7 +1,6 @@
 use solana_hash::Hash;
 use solana_sdk::{
     instruction::Instruction,
-    message::{v0, VersionedMessage},
     native_token::sol_str_to_lamports,
     pubkey::Pubkey,
     signature::Keypair,
@@ -16,7 +15,10 @@ use super::{
     compute_budget_manager::compute_budget_instructions,
     nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
 };
-use crate::{common::{nonce_cache::DurableNonceInfo, SolanaRpcClient}, trading::MiddlewareManager};
+use crate::{
+    common::{nonce_cache::DurableNonceInfo, SolanaRpcClient},
+    trading::{MiddlewareManager, core::transaction_pool::{acquire_builder, release_builder}},
+};
 
 /// Build standard RPC transaction
 pub async fn build_transaction(
@@ -106,14 +108,28 @@ async fn build_versioned_transaction(
             )?,
         None => instructions,
     };
-    let v0_message: v0::Message = v0::Message::try_compile(
+
+    // 使用预分配的交易构建器以降低延迟
+    let mut builder = acquire_builder();
+    let lookup_table_key = if !address_lookup_table_accounts.is_empty() {
+        address_lookup_table_accounts.first().map(|a| a.key)
+    } else {
+        None
+    };
+
+    let versioned_msg = builder.build_zero_alloc(
         &payer.pubkey(),
         &full_instructions,
-        &address_lookup_table_accounts,
+        lookup_table_key,
         blockhash,
-    )?;
-    let versioned_msg = VersionedMessage::V0(v0_message);
+    );
+
     let msg_bytes = versioned_msg.serialize();
     let signature = payer.try_sign_message(&msg_bytes).expect("sign failed");
-    Ok(VersionedTransaction { signatures: vec![signature], message: versioned_msg })
+    let tx = VersionedTransaction { signatures: vec![signature], message: versioned_msg };
+
+    // 归还构建器到池
+    release_builder(builder);
+
+    Ok(tx)
 }

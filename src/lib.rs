@@ -1,6 +1,7 @@
 pub mod common;
 pub mod constants;
 pub mod instruction;
+pub mod perf;
 pub mod swqos;
 pub mod trading;
 pub mod utils;
