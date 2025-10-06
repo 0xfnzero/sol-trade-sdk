@@ -486,20 +486,20 @@ impl RealtimeSystemOptimizer {
                 if scheduling_latency > 100_000 { // >100μs
                     warn!("⚠️ High scheduling latency detected: {}μs", scheduling_latency / 1000);
                 }
-                
-                // 每分钟输出一次详细状态
-                static mut COUNTER: u32 = 0;
-                unsafe {
-                    COUNTER += 1;
-                    if COUNTER % 12 == 0 { // 5秒 * 12 = 1分钟
-                        info!("📊 Real-time Status:");
-                        info!("   ⏰ RT Scheduling: {}", if rt_enabled { "✅" } else { "❌" });
-                        info!("   🔒 Memory Locked: {}", if mem_locked { "✅" } else { "❌" });
-                        info!("   🎯 CPU Affinity: {}", if cpu_affinity { "✅" } else { "❌" });
-                        info!("   📈 Scheduling Latency: {}ns (max: {}ns)", 
-                              scheduling_latency, 
-                              stats.max_scheduling_latency_ns.load(Ordering::Relaxed));
-                    }
+
+                // ✅ 线程安全：使用原子计数器
+                use std::sync::atomic::AtomicU32;
+                static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+                let count = COUNTER.fetch_add(1, Ordering::Relaxed);
+                if count % 12 == 0 { // 5秒 * 12 = 1分钟
+                    info!("📊 Real-time Status:");
+                    info!("   ⏰ RT Scheduling: {}", if rt_enabled { "✅" } else { "❌" });
+                    info!("   🔒 Memory Locked: {}", if mem_locked { "✅" } else { "❌" });
+                    info!("   🎯 CPU Affinity: {}", if cpu_affinity { "✅" } else { "❌" });
+                    info!("   📈 Scheduling Latency: {}ns (max: {}ns)",
+                          scheduling_latency,
+                          stats.max_scheduling_latency_ns.load(Ordering::Relaxed));
                 }
             }
         });

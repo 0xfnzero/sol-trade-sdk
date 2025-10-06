@@ -41,11 +41,16 @@ impl ResultCollector {
     }
 
     fn submit(&self, result: TaskResult) {
-        if result.success {
-            self.success_flag.store(true, Ordering::Release);
-        }
+        // 🚀 优化：ArrayQueue 内部已保证同步，无需额外 fence
+        let is_success = result.success;
+
         let _ = self.results.push(result);
-        self.completed_count.fetch_add(1, Ordering::AcqRel);
+
+        if is_success {
+            self.success_flag.store(true, Ordering::Release);  // Release 确保 push 可见
+        }
+
+        self.completed_count.fetch_add(1, Ordering::Release);
     }
 
     async fn wait_for_success(&self) -> Option<(bool, Signature)> {
@@ -53,6 +58,7 @@ impl ResultCollector {
         let timeout = std::time::Duration::from_secs(30);
 
         loop {
+            // 🚀 Acquire 确保看到 push 的内容
             if self.success_flag.load(Ordering::Acquire) {
                 while let Some(result) = self.results.pop() {
                     if result.success {
