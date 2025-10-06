@@ -1,6 +1,7 @@
 pub mod address_lookup_cache;
 pub mod bonding_curve;
 pub mod fast_fn;
+pub mod fast_timing;
 pub mod gas_fee_strategy;
 pub mod global;
 pub mod nonce_cache;

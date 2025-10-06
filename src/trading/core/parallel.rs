@@ -88,7 +88,9 @@ async fn parallel_execute(
     {
         return Err(anyhow!("No Rpc Default Swqos configured."));
     }
+    // 🚀 获取 CPU 核心并优化亲和性分配
     let cores = core_affinity::get_core_ids().unwrap();
+    let _num_cores = cores.len();
     let mut handles: Vec<JoinHandle<Result<(bool, Signature, Option<anyhow::Error>)>>> =
         Vec::with_capacity(swqos_clients.len());
 

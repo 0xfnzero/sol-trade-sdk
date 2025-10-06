@@ -39,6 +39,30 @@ impl PreallocatedTxBuilder {
     }
 
     /// 🚀 零分配构建交易
+    ///
+    /// # 交易版本自动选择
+    ///
+    /// - **有地址查找表** (`lookup_table = Some`): 使用 `VersionedMessage::V0`
+    ///   - 支持地址查找表压缩
+    ///   - 减少交易大小
+    ///   - 需要 RPC 支持 V0
+    ///
+    /// - **无地址查找表** (`lookup_table = None`): 使用 `VersionedMessage::Legacy`
+    ///   - 兼容所有 RPC 节点
+    ///   - 无需地址查找表支持
+    ///   - 适用于简单交易
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// // 无查找表 -> Legacy 消息
+    /// let msg = builder.build_zero_alloc(&payer, &ixs, None, blockhash);
+    /// assert!(matches!(msg, VersionedMessage::Legacy(_)));
+    ///
+    /// // 有查找表 -> V0 消息
+    /// let msg = builder.build_zero_alloc(&payer, &ixs, Some(table_key), blockhash);
+    /// assert!(matches!(msg, VersionedMessage::V0(_)));
+    /// ```
     #[inline(always)]
     pub fn build_zero_alloc(
         &mut self,
@@ -51,7 +75,7 @@ impl PreallocatedTxBuilder {
         self.reset();
         self.instructions.extend_from_slice(instructions);
 
-        // 如果有查找表，使用 V0 消息
+        // ✅ 如果有查找表，使用 V0 消息
         if let Some(table_key) = lookup_table {
             self.lookup_tables.push(v0::MessageAddressTableLookup {
                 account_key: table_key,
@@ -73,7 +97,7 @@ impl PreallocatedTxBuilder {
 
             VersionedMessage::V0(message)
         } else {
-            // 没有查找表，使用 legacy 消息
+            // ✅ 没有查找表，使用 Legacy 消息（兼容所有 RPC）
             let message = Message::new_with_blockhash(
                 &self.instructions,
                 Some(payer),
@@ -169,5 +193,48 @@ mod tests {
 
         let final_count = get_pool_stats().0;
         assert_eq!(final_count, initial_count);
+    }
+
+    #[test]
+    fn test_message_version_selection() {
+        use solana_sdk::signature::Keypair;
+        use solana_sdk::system_instruction;
+
+        let payer = Keypair::new();
+        let recipient = Keypair::new();
+        let blockhash = Hash::default();
+
+        let instructions = vec![
+            system_instruction::transfer(&payer.pubkey(), &recipient.pubkey(), 1000)
+        ];
+
+        let mut builder = PreallocatedTxBuilder::new();
+
+        // 测试1: 无查找表 -> 应该返回 Legacy 消息
+        let msg_no_lookup = builder.build_zero_alloc(
+            &payer.pubkey(),
+            &instructions,
+            None,  // ← 无查找表
+            blockhash,
+        );
+
+        assert!(
+            matches!(msg_no_lookup, VersionedMessage::Legacy(_)),
+            "Without lookup table, should use Legacy message"
+        );
+
+        // 测试2: 有查找表 -> 应该返回 V0 消息
+        let lookup_table_key = Pubkey::new_unique();
+        let msg_with_lookup = builder.build_zero_alloc(
+            &payer.pubkey(),
+            &instructions,
+            Some(lookup_table_key),  // ← 有查找表
+            blockhash,
+        );
+
+        assert!(
+            matches!(msg_with_lookup, VersionedMessage::V0(_)),
+            "With lookup table, should use V0 message"
+        );
     }
 }
