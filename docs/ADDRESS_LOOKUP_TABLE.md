@@ -15,36 +15,11 @@ Address Lookup Tables are a Solana feature that allows you to store frequently u
 
 ## 🛠️ Implementation
 
-### 1. Setting up Address Lookup Table Cache
-
-The SDK provides a global cache to manage address lookup tables:
-
-```rust
-use sol_trade_sdk::common::address_lookup_cache::AddressLookupTableCache;
-use solana_sdk::pubkey::Pubkey;
-use std::str::FromStr;
-
-/// Setup lookup table cache
-async fn setup_lookup_table_cache(
-    client: Arc<SolanaRpcClient>,
-    lookup_table_address: Pubkey,
-) -> AnyResult<()> {
-    AddressLookupTableCache::get_instance()
-        .set_address_lookup_table(client, &lookup_table_address)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to set address lookup table: {}", e))?;
-    Ok(())
-}
-```
-
-### 2. Using Lookup Tables in Trade Parameters
-
 Include lookup tables in your trade parameters:
 
 ```rust
-// Initialize lookup table
-let lookup_table_key = Pubkey::from_str("your_lookup_table_address_here").unwrap();
-setup_lookup_table_cache(client.rpc.clone(), lookup_table_key).await?;
+let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
+let address_lookup_table_account = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
 
 // Include lookup table in trade parameters
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -54,7 +29,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     slippage_basis_points: Some(100),
     recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
-    lookup_table_key: Some(lookup_table_key), // Include lookup table
+    address_lookup_table_account: address_lookup_table_account, // Include lookup table
     wait_transaction_confirmed: true,
     create_wsol_ata: false,
     close_wsol_ata: false,
@@ -78,7 +53,6 @@ client.buy(buy_params).await?;
 ## ⚠️ Important Notes
 
 1. **Lookup Table Address**: Must provide a valid address lookup table address
-2. **Cache Management**: SDK automatically manages lookup table cache
 3. **RPC Compatibility**: Ensure your RPC provider supports lookup tables
 4. **Network Specific**: Lookup tables are network-specific (mainnet/devnet/testnet)
 5. **Testing**: Always test on devnet before using on mainnet

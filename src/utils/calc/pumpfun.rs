@@ -17,6 +17,7 @@ use crate::{
 ///
 /// # Returns
 /// The amount of tokens that will be received (in token's smallest unit)
+#[inline]
 pub fn get_buy_token_amount_from_sol_amount(
     virtual_token_reserves: u128,
     virtual_sol_reserves: u128,
@@ -74,6 +75,7 @@ pub fn get_buy_token_amount_from_sol_amount(
 ///
 /// # Returns
 /// The amount of SOL that will be received after fees (in lamports)
+#[inline]
 pub fn get_sell_sol_amount_from_token_amount(
     virtual_token_reserves: u128,
     virtual_sol_reserves: u128,

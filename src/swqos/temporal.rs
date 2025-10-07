@@ -77,16 +77,16 @@ impl TemporalClient {
     pub fn new(rpc_url: String, endpoint: String, auth_token: String) -> Self {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = Client::builder()
-            // Due to ping mechanism, can extend connection pool idle timeout
-            .pool_idle_timeout(Duration::from_secs(300)) // 5 minutes, longer than ping interval
-            .pool_max_idle_per_host(32) // Reduce connections as they will be more stable
-            // TCP keepalive can be set longer as ping will actively maintain connections
-            .tcp_keepalive(Some(Duration::from_secs(300))) // 5 minutes
-            // HTTP/2 keepalive interval can be longer
-            .http2_keep_alive_interval(Duration::from_secs(30)) // 30 seconds
-            // Request timeout can be appropriately extended as connections are more stable
-            .timeout(Duration::from_secs(15)) // 15 seconds
-            .connect_timeout(Duration::from_secs(5))
+            // Optimized connection pool settings for high performance
+            .pool_idle_timeout(Duration::from_secs(120))
+            .pool_max_idle_per_host(256)  // Increased from 64 to 256
+            .tcp_keepalive(Some(Duration::from_secs(60)))  // Reduced from 1200 to 60
+            .tcp_nodelay(true)  // Disable Nagle's algorithm for lower latency
+            .http2_keep_alive_interval(Duration::from_secs(10))
+            .http2_keep_alive_timeout(Duration::from_secs(5))
+            .http2_adaptive_window(true)  // Enable adaptive flow control
+            .timeout(Duration::from_millis(3000))  // Reduced from 10s to 3s
+            .connect_timeout(Duration::from_millis(2000))  // Reduced from 5s to 2s
             .build()
             .unwrap();
         

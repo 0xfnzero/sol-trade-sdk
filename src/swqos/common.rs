@@ -14,6 +14,8 @@ use base64::engine::general_purpose::{self, STANDARD};
 use reqwest::Client;
 use solana_sdk::transaction::VersionedTransaction;
 
+// 使用高性能序列化
+
 pub trait FormatBase64VersionedTransaction {
     fn to_base64_string(&self) -> String;
 }

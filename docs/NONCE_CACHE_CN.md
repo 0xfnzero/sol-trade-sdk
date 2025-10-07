@@ -1,10 +1,10 @@
-# Nonce 缓存指南
+# Nonce 使用指南
 
-本指南介绍如何在 Sol Trade SDK 中使用 Nonce 缓存来实现交易重放保护和优化交易处理。
+本指南介绍如何在 Sol Trade SDK 中使用 Durable Nonce 来实现交易重放保护和优化交易处理。
 
-## 📋 什么是 Nonce 缓存？
+## 📋 什么是 Durable Nonce？
 
-Nonce 缓存是一个全局单例模式的缓存系统，用于管理 Solana 网络中的 durable nonce 账户。Durable nonce 是 Solana 的一项功能，允许您创建在较长时间内有效的交易，而不受最近区块哈希的 150 个区块限制。
+Durable Nonce 是 Solana 的一项功能，允许您创建在较长时间内有效的交易，而不受最近区块哈希的 150 个区块限制。
 
 ## 🚀 核心优势
 
@@ -21,31 +21,23 @@ Nonce 缓存是一个全局单例模式的缓存系统，用于管理 Solana 网
 需要先创建你 payer 账号使用的 nonce 账户。
 参考资料： https://solana.com/zh/developers/guides/advanced/introduction-to-durable-nonces
 
-### 1. 初始化 Nonce 缓存
+### 1. 获取 Nonce 信息
 
-首先需要设置 nonce 账户并初始化缓存：
+从 RPC 直接获取 nonce 信息：
 
 ```rust
-use sol_trade_sdk::common::nonce_cache::NonceCache;
+use sol_trade_sdk::common::nonce_cache::fetch_nonce_info;
+use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 
 // 设置 nonce 账户
-let nonce_account_str = "your_nonce_account_address_here";
-NonceCache::get_instance().init(Some(nonce_account_str.to_string()));
+let nonce_account = Pubkey::from_str("your_nonce_account_address_here")?;
+
+// 获取 nonce 信息
+let durable_nonce = fetch_nonce_info(&client.rpc, nonce_account).await;
 ```
 
-### 2. 获取 Nonce 信息
-
-从 RPC 获取最新的 nonce 信息：
-
-```rust
-// 获取并更新 nonce 信息
-NonceCache::get_instance().fetch_nonce_info_use_rpc(&client.rpc).await?;
-// 或者手动管理nonce
-// NonceCache::get_instance().update_nonce_info_partial(nonce_account, current_nonce, used);
-let durable_nonce = NonceCache::get_durable_nonce_info();
-```
-
-### 3. 在交易中使用 Nonce
+### 2. 在交易中使用 Nonce
 
 设置 nonce 参数：durable_nonce
 
@@ -57,26 +49,25 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     slippage_basis_points: Some(100),
     recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
-    lookup_table_key: None,
+    address_lookup_table_account: None,
     wait_transaction_confirmed: true,
     create_wsol_ata: false,
     close_wsol_ata: false,
     create_mint_ata: true,
     open_seed_optimize: false,
-    durable_nonce: Some(durable_nonce), // 设置 durable nonce
+    durable_nonce: durable_nonce, // 设置 durable nonce
 };
 
 // 执行交易
 client.buy(buy_params).await?;
 ```
 
-## 🔄 Nonce 生命周期
+## 🔄 Nonce 使用流程
 
-1. **初始化**: 设置 nonce 账户地址
-2. **获取**: 从 RPC 获取最新 nonce 值
-3. **使用**: 在交易中设置 nonce 参数
-4. **刷新**: 下次使用前重新获取新的 nonce 值
+1. **获取**: 从 RPC 获取最新 nonce 值
+2. **使用**: 在交易中设置 nonce 参数
+3. **刷新**: 下次使用前重新调用 `fetch_nonce_info` 获取新的 nonce 值
 
 ## 🔗 相关文档
 
-- [示例：Nonce 缓存](../examples/nonce_cache/)
+- [示例：Durable Nonce](../examples/nonce_cache/)

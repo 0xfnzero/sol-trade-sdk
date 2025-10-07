@@ -1,10 +1,12 @@
 pub mod common;
 pub mod constants;
 pub mod instruction;
+pub mod perf;
 pub mod swqos;
 pub mod trading;
 pub mod utils;
 use crate::common::nonce_cache::DurableNonceInfo;
+use crate::common::GasFeeStrategy;
 use crate::common::TradeConfig;
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
@@ -28,6 +30,7 @@ use common::SolanaRpcClient;
 use parking_lot::Mutex;
 use rustls::crypto::{ring::default_provider, CryptoProvider};
 use solana_sdk::hash::Hash;
+use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::signer::Signer;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signature::Signature};
 use std::sync::Arc;
@@ -92,7 +95,7 @@ pub struct TradeBuyParams {
     pub extension_params: Box<dyn ProtocolParams>,
     // Extended configuration
     /// Optional address lookup table for transaction size optimization
-    pub lookup_table_key: Option<Pubkey>,
+    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_transaction_confirmed: bool,
     /// Whether to create input token associated token account
@@ -107,6 +110,8 @@ pub struct TradeBuyParams {
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
     pub fixed_output_token_amount: Option<u64>,
+    /// Gas fee strategy
+    pub gas_fee_strategy: GasFeeStrategy,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -134,7 +139,7 @@ pub struct TradeSellParams {
     pub extension_params: Box<dyn ProtocolParams>,
     // Extended configuration
     /// Optional address lookup table for transaction size optimization
-    pub lookup_table_key: Option<Pubkey>,
+    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_transaction_confirmed: bool,
     /// Whether to create output token associated token account
@@ -147,6 +152,8 @@ pub struct TradeSellParams {
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
     pub fixed_output_token_amount: Option<u64>,
+    /// Gas fee strategy
+    pub gas_fee_strategy: GasFeeStrategy,
 }
 
 impl SolanaTrade {
@@ -291,7 +298,7 @@ impl SolanaTrade {
             output_token_program: None,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
-            lookup_table_key: params.lookup_table_key,
+            address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
             data_size_limit: 256 * 1024,
             wait_transaction_confirmed: params.wait_transaction_confirmed,
@@ -306,6 +313,7 @@ impl SolanaTrade {
             create_output_mint_ata: params.create_mint_ata,
             close_output_mint_ata: false,
             fixed_output_amount: params.fixed_output_token_amount,
+            gas_fee_strategy: params.gas_fee_strategy,
         };
 
         // Validate protocol params
@@ -384,7 +392,7 @@ impl SolanaTrade {
             output_token_program: None,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
-            lookup_table_key: params.lookup_table_key,
+            address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
@@ -399,6 +407,7 @@ impl SolanaTrade {
             create_output_mint_ata: params.create_output_token_ata,
             close_output_mint_ata: params.close_output_token_ata,
             fixed_output_amount: params.fixed_output_token_amount,
+            gas_fee_strategy: params.gas_fee_strategy,
         };
 
         // Validate protocol params

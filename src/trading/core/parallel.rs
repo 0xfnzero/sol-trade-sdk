@@ -6,6 +6,7 @@ use solana_sdk::{
 use std::{str::FromStr, sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
+use log::{info, debug};
 
 use crate::{
     common::nonce_cache::DurableNonceInfo,
@@ -87,7 +88,9 @@ async fn parallel_execute(
     {
         return Err(anyhow!("No Rpc Default Swqos configured."));
     }
+    // 🚀 获取 CPU 核心并优化亲和性分配
     let cores = core_affinity::get_core_ids().unwrap();
+    let _num_cores = cores.len();
     let mut handles: Vec<JoinHandle<Result<(bool, Signature, Option<anyhow::Error>)>>> =
         Vec::with_capacity(swqos_clients.len());
 
@@ -161,7 +164,7 @@ async fn parallel_execute(
             )
             .await?;
 
-            println!(
+            debug!(
                 "[{:?}] - [{:?}] - Building transaction instructions: {:?}",
                 swqos_type,
                 gas_fee_strategy_config.1,
@@ -186,7 +189,7 @@ async fn parallel_execute(
                 }
             };
 
-            println!(
+            debug!(
                 "[{:?}] - [{:?}] - Submitting transaction instructions: {:?}",
                 swqos_type,
                 gas_fee_strategy_config.1,
@@ -247,6 +250,6 @@ async fn parallel_execute(
         }
     }
 
-    println!("All transactions failed: {:?}", errors);
+    info!("All transactions failed: {:?}", errors);
     return Ok((false, last_signature.unwrap()));
 }

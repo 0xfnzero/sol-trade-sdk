@@ -29,7 +29,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Address lookup table for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_input_token_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
 | `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
@@ -37,6 +37,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 
 
 ## TradeSellParams
@@ -60,12 +61,13 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
+| `address_lookup_table_account` | `Option<Pubkey>` | ❌ | Address lookup table for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_output_token_ata` | `bool` | ✅ | Whether to create output token Associated Token Account |
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 
 
@@ -100,7 +102,7 @@ These parameters control automatic account creation and management:
 
 These parameters enable advanced optimizations:
 
-- **lookup_table_key**: Use address lookup tables for reduced transaction size
+- **address_lookup_table_account**: Use address lookup tables for reduced transaction size
 - **open_seed_optimize**: Use seed-based account creation for lower CU consumption
 
 ### 🔄 Token Type Parameters
@@ -134,8 +136,7 @@ The account management parameters provide granular control:
 
 ### 🔍 Address Lookup Tables
 
-Before using `lookup_table_key`:
-- Initialize `AddressLookupTableCache` to manage cached lookup tables
+Before using `address_lookup_table_account`:
 - Lookup tables reduce transaction size and improve success rates
 - Particularly beneficial for complex transactions with many account references
 

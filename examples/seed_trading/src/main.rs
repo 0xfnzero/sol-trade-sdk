@@ -21,6 +21,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = Pubkey::from_str("9qKxzRejsV6Bp2zkefXWCbGvg61c3hHei7ShXJ4FythA").unwrap();
     let mint_pubkey = Pubkey::from_str("2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv").unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     // Buy tokens
     println!("Buying tokens from PumpSwap...");
     let buy_sol_amount = 100_000;
@@ -34,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: true,
@@ -42,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy.clone(),
     };
     client.buy(buy_params).await?;
 
@@ -73,13 +77,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: true,
         open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     client.sell(sell_params).await?;
 
@@ -97,8 +102,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

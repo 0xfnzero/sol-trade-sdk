@@ -29,7 +29,7 @@
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | 用于交易优化的地址查找表键 |
+| `address_lookup_table_account` | `Option<Pubkey>` | ❌ | 用于交易优化的地址查找表 |
 | `wait_transaction_confirmed` | `bool` | ✅ | 是否等待交易确认 |
 | `create_input_token_ata` | `bool` | ✅ | 是否创建输入代币关联代币账户 |
 | `close_input_token_ata` | `bool` | ✅ | 交易后是否关闭输入代币 ATA |
@@ -37,6 +37,7 @@
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 
 
 ## TradeSellParams
@@ -60,12 +61,13 @@
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | 用于交易优化的地址查找表键 |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 用于交易优化的地址查找表 |
 | `wait_transaction_confirmed` | `bool` | ✅ | 是否等待交易确认 |
 | `create_output_token_ata` | `bool` | ✅ | 是否创建输出代币关联代币账户 |
 | `close_output_token_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 
 
@@ -100,7 +102,7 @@
 
 这些参数启用高级优化：
 
-- **lookup_table_key**: 使用地址查找表减少交易大小
+- **address_lookup_table_account**: 使用地址查找表减少交易大小
 - **open_seed_optimize**: 使用基于 seed 的账户创建以降低 CU 消耗
 
 ### 🔄 代币类型参数
@@ -134,8 +136,7 @@
 
 ### 🔍 地址查找表
 
-使用 `lookup_table_key` 之前：
-- 初始化 `AddressLookupTableCache` 来管理缓存的查找表
+使用 `address_lookup_table_account` 之前：
 - 查找表减少交易大小并提高成功率
 - 对于有许多账户引用的复杂交易特别有益
 

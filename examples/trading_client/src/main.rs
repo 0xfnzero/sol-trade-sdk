@@ -36,8 +36,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     ];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade_client = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("SolanaTrade client created successfully!");
     Ok(solana_trade_client)
 }
