@@ -228,7 +228,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - 如果没有提供自定义 URL（`None`），系统将使用指定 `SwqosRegion` 的默认端点
 - 这提供了最大的灵活性，同时保持向后兼容性
 
-当使用多个MEV服务时，需要使用`Durable Nonce`。你需要初始化`NonceCache`类（或者自行写一个管理nonce的类），获取最新的`nonce`值，并在交易的时候将`durable_nonce`填入交易参数。
+当使用多个MEV服务时，需要使用`Durable Nonce`。你需要使用`fetch_nonce_info`函数获取最新的`nonce`值，并在交易的时候将`durable_nonce`填入交易参数。
 
 ---
 
@@ -247,9 +247,9 @@ let middleware_manager = MiddlewareManager::new()
 
 地址查找表 (ALT) 允许您通过将经常使用的地址存储在紧凑的表格格式中来优化交易大小并降低费用。详细信息请参阅 [地址查找表指南](docs/ADDRESS_LOOKUP_TABLE_CN.md)。
 
-### 🔍 Nonce 缓存
+### 🔍 Durable Nonce
 
-使用 Nonce 缓存来实现交易重放保护和优化交易处理。详细信息请参阅 [Nonce 缓存指南](docs/NONCE_CACHE_CN.md)。
+使用 Durable Nonce 来实现交易重放保护和优化交易处理。详细信息请参阅 [Nonce 使用指南](docs/NONCE_CACHE_CN.md)。
 
 ## 🛡️ MEV 保护服务
 

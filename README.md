@@ -227,7 +227,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - If no custom URL is provided (`None`), the system will use the default endpoint for the specified `SwqosRegion`
 - This allows for maximum flexibility while maintaining backward compatibility 
 
-When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `durable_nonce` when trading.
+When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
 
 ---
 
@@ -246,9 +246,9 @@ let middleware_manager = MiddlewareManager::new()
 
 Address Lookup Tables (ALT) allow you to optimize transaction size and reduce fees by storing frequently used addresses in a compact table format. For detailed information, see the [Address Lookup Tables Guide](docs/ADDRESS_LOOKUP_TABLE.md).
 
-### 🔍 Nonce Cache
+### 🔍 Durable Nonce
 
-Use Nonce Cache to implement transaction replay protection and optimize transaction processing. For detailed information, see the [Nonce Cache Guide](docs/NONCE_CACHE.md).
+Use Durable Nonce to implement transaction replay protection and optimize transaction processing. For detailed information, see the [Durable Nonce Guide](docs/NONCE_CACHE.md).
 
 ## 🛡️ MEV Protection Services
 
