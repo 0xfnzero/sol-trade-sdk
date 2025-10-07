@@ -1,5 +1,4 @@
-use sol_trade_sdk::common::address_lookup_cache::AddressLookupTableCache;
-use sol_trade_sdk::common::SolanaRpcClient;
+use sol_trade_sdk::common::address_lookup::fetch_address_lookup_table_account;
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -97,18 +96,6 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     }
 }
 
-/// Setup lookup table cache
-async fn setup_lookup_table_cache(
-    client: Arc<SolanaRpcClient>,
-    lookup_table_address: Pubkey,
-) -> AnyResult<()> {
-    AddressLookupTableCache::get_instance()
-        .set_address_lookup_table(client, &lookup_table_address)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to set address lookup table: {}", e))?;
-    Ok(())
-}
-
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
@@ -136,8 +123,8 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
-    // Setup lookup table cache
-    setup_lookup_table_cache(client.rpc.clone(), lookup_table_key).await?;
+    let address_lookup_table_account =
+        fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -161,7 +148,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
             trade_info.real_sol_reserves,
             None,
         )),
-        lookup_table_key: Some(lookup_table_key), // you still need to update the AddressLookupTableCache
+        address_lookup_table_account: address_lookup_table_account,
         wait_transaction_confirmed: true,
         create_input_token_ata: false,
         close_input_token_ata: false,

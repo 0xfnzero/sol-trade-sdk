@@ -9,10 +9,7 @@
 use crossbeam_queue::ArrayQueue;
 use once_cell::sync::Lazy;
 use solana_sdk::{
-    instruction::Instruction,
-    message::{v0, VersionedMessage, Message},
-    pubkey::Pubkey,
-    hash::Hash,
+    hash::Hash, instruction::Instruction, message::{v0, AddressLookupTableAccount, Message, VersionedMessage}, pubkey::Pubkey
 };
 use std::sync::Arc;
 /// 预分配的交易构建器
@@ -68,7 +65,7 @@ impl PreallocatedTxBuilder {
         &mut self,
         payer: &Pubkey,
         instructions: &[Instruction],
-        lookup_table: Option<Pubkey>,
+        address_lookup_table_account: Option<AddressLookupTableAccount>,
         recent_blockhash: Hash,
     ) -> VersionedMessage {
         // 重用已分配的 vector
@@ -76,24 +73,32 @@ impl PreallocatedTxBuilder {
         self.instructions.extend_from_slice(instructions);
 
         // ✅ 如果有查找表，使用 V0 消息
-        if let Some(table_key) = lookup_table {
-            self.lookup_tables.push(v0::MessageAddressTableLookup {
-                account_key: table_key,
-                writable_indexes: vec![],
-                readonly_indexes: vec![],
-            });
+        if let Some(address_lookup_table_account) = address_lookup_table_account {
+            // self.lookup_tables.push(v0::MessageAddressTableLookup {
+            //     account_key: table_key,
+            //     writable_indexes: vec![],
+            //     readonly_indexes: vec![],
+            // });
 
-            // 使用 Message::new 创建 legacy 消息，然后提取编译后的指令
-            let legacy_msg = Message::new(&self.instructions, Some(payer));
+            // // 使用 Message::new 创建 legacy 消息，然后提取编译后的指令
+            // let legacy_msg = Message::new(&self.instructions, Some(payer));
 
-            // 构建 V0 消息
-            let message = v0::Message {
-                header: legacy_msg.header,
-                account_keys: legacy_msg.account_keys,
+            // // 构建 V0 消息
+            // let message = v0::Message {
+            //     header: legacy_msg.header,
+            //     account_keys: legacy_msg.account_keys,
+            //     recent_blockhash,
+            //     instructions: legacy_msg.instructions,
+            //     address_table_lookups: self.lookup_tables.clone(),
+            // };
+
+             let message = v0::Message::try_compile(
+                payer,
+                &self.instructions,
+                &[address_lookup_table_account],
                 recent_blockhash,
-                instructions: legacy_msg.instructions,
-                address_table_lookups: self.lookup_tables.clone(),
-            };
+            ).expect("v0 message compile failed");
+
 
             VersionedMessage::V0(message)
         } else {

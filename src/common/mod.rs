@@ -1,4 +1,3 @@
-pub mod address_lookup_cache;
 pub mod bonding_curve;
 pub mod fast_fn;
 pub mod fast_timing;
@@ -11,6 +10,7 @@ pub mod spl_token;
 pub mod spl_token_2022;
 pub mod subscription_handle;
 pub mod types;
+pub mod address_lookup;
 
 pub use gas_fee_strategy::*;
 pub use types::*;

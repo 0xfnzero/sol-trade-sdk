@@ -1,17 +1,11 @@
 use solana_hash::Hash;
 use solana_sdk::{
-    instruction::Instruction,
-    native_token::sol_str_to_lamports,
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
-    transaction::VersionedTransaction,
+    instruction::Instruction, message::AddressLookupTableAccount, native_token::sol_str_to_lamports, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::VersionedTransaction
 };
 use solana_system_interface::instruction::transfer;
 use std::sync::Arc;
 
 use super::{
-    address_lookup_manager::get_address_lookup_table_accounts,
     compute_budget_manager::compute_budget_instructions,
     nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
 };
@@ -27,7 +21,7 @@ pub async fn build_transaction(
     unit_limit: u32,
     unit_price: u64,
     business_instructions: Vec<Instruction>,
-    lookup_table_key: Option<Pubkey>,
+    address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
     data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
@@ -72,15 +66,11 @@ pub async fn build_transaction(
     // Get blockhash for transaction
     let blockhash = get_transaction_blockhash(recent_blockhash, durable_nonce.clone());
 
-    // Get address lookup table accounts
-    let address_lookup_table_accounts =
-        get_address_lookup_table_accounts(rpc, lookup_table_key).await;
-
     // Build transaction
     build_versioned_transaction(
         payer,
         instructions,
-        address_lookup_table_accounts,
+        address_lookup_table_account,
         blockhash,
         middleware_manager,
         protocol_name,
@@ -93,7 +83,7 @@ pub async fn build_transaction(
 async fn build_versioned_transaction(
     payer: Arc<Keypair>,
     instructions: Vec<Instruction>,
-    address_lookup_table_accounts: Vec<solana_sdk::message::AddressLookupTableAccount>,
+    address_lookup_table_account: Option<AddressLookupTableAccount>,
     blockhash: Hash,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &str,
@@ -111,16 +101,11 @@ async fn build_versioned_transaction(
 
     // 使用预分配的交易构建器以降低延迟
     let mut builder = acquire_builder();
-    let lookup_table_key = if !address_lookup_table_accounts.is_empty() {
-        address_lookup_table_accounts.first().map(|a| a.key)
-    } else {
-        None
-    };
 
     let versioned_msg = builder.build_zero_alloc(
         &payer.pubkey(),
         &full_instructions,
-        lookup_table_key,
+        address_lookup_table_account,
         blockhash,
     );
 

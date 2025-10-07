@@ -8,6 +8,7 @@ use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
 use solana_hash::Hash;
+use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ pub struct SwapParams {
     pub output_token_program: Option<Pubkey>,
     pub input_amount: Option<u64>,
     pub slippage_basis_points: Option<u64>,
-    pub lookup_table_key: Option<Pubkey>,
+    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     pub recent_blockhash: Option<Hash>,
     pub data_size_limit: u32,
     pub wait_transaction_confirmed: bool,

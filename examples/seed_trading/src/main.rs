@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: true,
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: true,

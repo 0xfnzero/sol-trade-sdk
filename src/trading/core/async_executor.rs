@@ -3,6 +3,7 @@
 use anyhow::{anyhow, Result};
 use crossbeam_queue::ArrayQueue;
 use solana_hash::Hash;
+use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signature::Signature,
 };
@@ -96,7 +97,7 @@ pub async fn execute_parallel(
     payer: Arc<Keypair>,
     rpc: Option<Arc<SolanaRpcClient>>,
     instructions: Vec<Instruction>,
-    lookup_table_key: Option<Pubkey>,
+    address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
     data_size_limit: u32,
@@ -168,6 +169,7 @@ pub async fn execute_parallel(
         let unit_price = gas_fee_strategy_config.2.cu_price;
         let rpc = rpc.clone();
         let durable_nonce = durable_nonce.clone();
+        let address_lookup_table_account = address_lookup_table_account.clone();
 
         tokio::spawn(async move {
             let _task_start = Instant::now();
@@ -182,7 +184,7 @@ pub async fn execute_parallel(
                 unit_limit,
                 unit_price,
                 instructions.as_ref().clone(),
-                lookup_table_key,
+                address_lookup_table_account,
                 recent_blockhash,
                 data_size_limit,
                 middleware_manager,

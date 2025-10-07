@@ -87,7 +87,7 @@ impl TradeExecutor for GenericTradeExecutor {
             params.payer,
             params.rpc,
             final_instructions,
-            params.lookup_table_key,
+            params.address_lookup_table_account,
             params.recent_blockhash,
             params.durable_nonce,
             if is_buy { params.data_size_limit } else { 0 },

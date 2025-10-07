@@ -29,7 +29,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Address lookup table for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_input_token_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
 | `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
@@ -60,7 +60,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `lookup_table_key` | `Option<Pubkey>` | ❌ | Address lookup table key for transaction optimization |
+| `address_lookup_table_account` | `Option<Pubkey>` | ❌ | Address lookup table for transaction optimization |
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_output_token_ata` | `bool` | ✅ | Whether to create output token Associated Token Account |
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
@@ -100,7 +100,7 @@ These parameters control automatic account creation and management:
 
 These parameters enable advanced optimizations:
 
-- **lookup_table_key**: Use address lookup tables for reduced transaction size
+- **address_lookup_table_account**: Use address lookup tables for reduced transaction size
 - **open_seed_optimize**: Use seed-based account creation for lower CU consumption
 
 ### 🔄 Token Type Parameters
@@ -134,8 +134,7 @@ The account management parameters provide granular control:
 
 ### 🔍 Address Lookup Tables
 
-Before using `lookup_table_key`:
-- Initialize `AddressLookupTableCache` to manage cached lookup tables
+Before using `address_lookup_table_account`:
 - Lookup tables reduce transaction size and improve success rates
 - Particularly beneficial for complex transactions with many account references
 

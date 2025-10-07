@@ -151,7 +151,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
-  lookup_table_key: None,
+  address_lookup_table_account: None,
   wait_transaction_confirmed: true,
   create_input_token_ata: true,
   close_input_token_ata: true,

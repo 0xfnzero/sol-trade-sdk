@@ -92,7 +92,7 @@ async fn test_middleware() -> AnyResult<()> {
         extension_params: Box::new(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?,
         ),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: true,

@@ -188,7 +188,7 @@ async fn main() -> AnyResult<()> {
         slippage_basis_points: Some(slippage),
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: false,  // 不等待确认，测试最快提交速度
         create_input_token_ata: true,
         close_input_token_ata: true,
