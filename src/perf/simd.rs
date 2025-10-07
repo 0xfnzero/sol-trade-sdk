@@ -6,6 +6,7 @@
 //! - 向量化数学运算
 //! - 并行数据处理
 
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 /// SIMD 内存操作
@@ -13,6 +14,7 @@ pub struct SIMDMemory;
 
 impl SIMDMemory {
     /// 使用 SIMD 加速内存拷贝（256位 AVX2）
+    #[cfg(target_arch = "x86_64")]
     #[inline(always)]
     pub unsafe fn copy_avx2(dst: *mut u8, src: *const u8, len: usize) {
         let mut offset = 0;
@@ -31,7 +33,15 @@ impl SIMDMemory {
         }
     }
 
+    /// 使用通用方法拷贝内存（非x86_64架构）
+    #[cfg(not(target_arch = "x86_64"))]
+    #[inline(always)]
+    pub unsafe fn copy_avx2(dst: *mut u8, src: *const u8, len: usize) {
+        std::ptr::copy_nonoverlapping(src, dst, len);
+    }
+
     /// 使用 SIMD 加速内存比较
+    #[cfg(target_arch = "x86_64")]
     #[inline(always)]
     pub unsafe fn compare_avx2(a: *const u8, b: *const u8, len: usize) -> bool {
         let mut offset = 0;
@@ -60,7 +70,15 @@ impl SIMDMemory {
         true
     }
 
+    /// 使用通用方法比较内存（非x86_64架构）
+    #[cfg(not(target_arch = "x86_64"))]
+    #[inline(always)]
+    pub unsafe fn compare_avx2(a: *const u8, b: *const u8, len: usize) -> bool {
+        std::slice::from_raw_parts(a, len) == std::slice::from_raw_parts(b, len)
+    }
+
     /// 使用 SIMD 清零内存
+    #[cfg(target_arch = "x86_64")]
     #[inline(always)]
     pub unsafe fn zero_avx2(ptr: *mut u8, len: usize) {
         let zero = _mm256_setzero_si256();
@@ -78,13 +96,21 @@ impl SIMDMemory {
             offset += 1;
         }
     }
+
+    /// 使用通用方法清零内存（非x86_64架构）
+    #[cfg(not(target_arch = "x86_64"))]
+    #[inline(always)]
+    pub unsafe fn zero_avx2(ptr: *mut u8, len: usize) {
+        std::ptr::write_bytes(ptr, 0, len);
+    }
 }
 
 /// SIMD 数学运算
 pub struct SIMDMath;
 
 impl SIMDMath {
-    /// 批量 u64 加法
+    /// 批量 u64 加法 - x86_64 版本
+    #[cfg(target_arch = "x86_64")]
     #[inline(always)]
     pub unsafe fn add_u64_batch(a: &[u64], b: &[u64], result: &mut [u64]) {
         assert_eq!(a.len(), b.len());
@@ -106,6 +132,18 @@ impl SIMDMath {
         while i < len {
             result[i] = a[i].wrapping_add(b[i]);
             i += 1;
+        }
+    }
+
+    /// 批量 u64 加法 - 通用版本（非x86_64架构）
+    #[cfg(not(target_arch = "x86_64"))]
+    #[inline(always)]
+    pub fn add_u64_batch(a: &[u64], b: &[u64], result: &mut [u64]) {
+        assert_eq!(a.len(), b.len());
+        assert_eq!(a.len(), result.len());
+
+        for i in 0..a.len() {
+            result[i] = a[i].wrapping_add(b[i]);
         }
     }
 
@@ -269,9 +307,13 @@ mod tests {
         let b = vec![5u64, 6, 7, 8];
         let mut result = vec![0u64; 4];
 
+        #[cfg(target_arch = "x86_64")]
         unsafe {
             SIMDMath::add_u64_batch(&a, &b, &mut result);
         }
+
+        #[cfg(not(target_arch = "x86_64"))]
+        SIMDMath::add_u64_batch(&a, &b, &mut result);
 
         assert_eq!(result, vec![6, 8, 10, 12]);
     }

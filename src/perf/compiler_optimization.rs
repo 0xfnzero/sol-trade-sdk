@@ -262,21 +262,26 @@ impl CompilerOptimizer {
 impl OptimizationFlags {
     /// 超高性能配置
     pub fn ultra_performance() -> Self {
+        #[cfg(target_arch = "x86_64")]
+        let target_features = vec![
+            "+sse4.2".to_string(),
+            "+avx".to_string(),
+            "+avx2".to_string(),
+            "+fma".to_string(),
+            "+bmi1".to_string(),
+            "+bmi2".to_string(),
+            "+lzcnt".to_string(),
+            "+popcnt".to_string(),
+        ];
+
+        #[cfg(not(target_arch = "x86_64"))]
+        let target_features = vec![];
         Self {
             opt_level: OptLevel::Aggressive,
             enable_lto: true,
             enable_pgo: false, // PGO需要多阶段构建
             target_cpu: "native".to_string(), // 使用本机CPU特性
-            target_features: vec![
-                "+sse4.2".to_string(),
-                "+avx".to_string(), 
-                "+avx2".to_string(),
-                "+fma".to_string(),
-                "+bmi1".to_string(),
-                "+bmi2".to_string(),
-                "+lzcnt".to_string(),
-                "+popcnt".to_string(),
-            ],
+            target_features,
             code_model: CodeModel::Small,
             debug_info: false,
             incremental: false, // 发布版本禁用增量编译
@@ -454,7 +459,8 @@ impl CompileTimeOptimizedEventProcessor {
 pub struct SIMDCompileTimeOptimizer;
 
 impl SIMDCompileTimeOptimizer {
-    /// 编译时SIMD向量化
+    /// 编译时SIMD向量化 - x86_64 AVX2 版本
+    #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     pub unsafe fn vectorized_sum_compile_time(data: &[u64]) -> u64 {
         use std::arch::x86_64::*;
@@ -481,6 +487,12 @@ impl SIMDCompileTimeOptimizer {
         let remaining: u64 = data[chunks * 4..].iter().sum();
         
         partial_sum + remaining
+    }
+
+    /// 编译时SIMD向量化 - 通用回退版本（非x86_64架构）
+    #[cfg(not(target_arch = "x86_64"))]
+    pub fn vectorized_sum_compile_time(data: &[u64]) -> u64 {
+        data.iter().sum()
     }
 }
 
@@ -524,7 +536,6 @@ rustflags = [
     "-C", "panic=abort",
     "-C", "codegen-units=1",
     "-C", "target-cpu=native",
-    "-C", "target-feature=+sse4.2,+avx,+avx2,+fma,+bmi1,+bmi2,+lzcnt,+popcnt",
     "-C", "embed-bitcode=no",
     "-C", "debuginfo=0",
     "-C", "overflow-checks=no",
@@ -553,6 +564,17 @@ rustflags = [
     "-C", "link-arg=-fuse-ld=lld",
     "-C", "link-arg=-Wl,--gc-sections",
     "-C", "link-arg=-Wl,--icf=all",
+    "-C", "target-feature=+sse4.2,+avx,+avx2,+fma,+bmi1,+bmi2,+lzcnt,+popcnt",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "target-feature=+sse4.2,+avx,+avx2,+fma,+bmi1,+bmi2,+lzcnt,+popcnt",
+]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "target-feature=+sse4.2,+avx,+avx2,+fma,+bmi1,+bmi2,+lzcnt,+popcnt",
 ]
 "#.to_string()
 }
@@ -606,9 +628,17 @@ mod tests {
     
     #[test]
     fn test_simd_compile_time_optimization() {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         if is_x86_feature_detected!("avx2") {
             let data = vec![1u64, 2, 3, 4, 5, 6, 7, 8];
             let sum = unsafe { SIMDCompileTimeOptimizer::vectorized_sum_compile_time(&data) };
+            assert_eq!(sum, 36); // 1+2+3+4+5+6+7+8 = 36
+        }
+
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+            let data = vec![1u64, 2, 3, 4, 5, 6, 7, 8];
+            let sum = SIMDCompileTimeOptimizer::vectorized_sum_compile_time(&data);
             assert_eq!(sum, 36); // 1+2+3+4+5+6+7+8 = 36
         }
     }

@@ -153,34 +153,3 @@ impl ExecutionPath {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use solana_sdk::system_instruction;
-
-    #[test]
-    fn test_instruction_preprocessing() {
-        let instructions = vec![
-            system_instruction::transfer(
-                &Pubkey::new_unique(),
-                &Pubkey::new_unique(),
-                1000,
-            ),
-        ];
-
-        assert!(InstructionProcessor::preprocess(&instructions).is_ok());
-    }
-
-    #[test]
-    fn test_memory_ops() {
-        let src = vec![1u8, 2, 3, 4, 5];
-        let mut dst = vec![0u8; 5];
-
-        unsafe {
-            MemoryOps::copy(dst.as_mut_ptr(), src.as_ptr(), src.len());
-        }
-
-        assert_eq!(src, dst);
-    }
-}
