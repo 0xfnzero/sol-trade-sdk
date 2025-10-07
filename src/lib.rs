@@ -6,6 +6,7 @@ pub mod swqos;
 pub mod trading;
 pub mod utils;
 use crate::common::nonce_cache::DurableNonceInfo;
+use crate::common::GasFeeStrategy;
 use crate::common::TradeConfig;
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
@@ -109,6 +110,8 @@ pub struct TradeBuyParams {
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
     pub fixed_output_token_amount: Option<u64>,
+    /// Gas fee strategy
+    pub gas_fee_strategy: GasFeeStrategy,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -149,6 +152,8 @@ pub struct TradeSellParams {
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
     pub fixed_output_token_amount: Option<u64>,
+    /// Gas fee strategy
+    pub gas_fee_strategy: GasFeeStrategy,
 }
 
 impl SolanaTrade {
@@ -308,6 +313,7 @@ impl SolanaTrade {
             create_output_mint_ata: params.create_mint_ata,
             close_output_mint_ata: false,
             fixed_output_amount: params.fixed_output_token_amount,
+            gas_fee_strategy: params.gas_fee_strategy,
         };
 
         // Validate protocol params
@@ -401,6 +407,7 @@ impl SolanaTrade {
             create_output_mint_ata: params.create_output_token_ata,
             close_output_mint_ata: params.close_output_token_ata,
             fixed_output_amount: params.fixed_output_token_amount,
+            gas_fee_strategy: params.gas_fee_strategy,
         };
 
         // Validate protocol params

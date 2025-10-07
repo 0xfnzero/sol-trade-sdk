@@ -37,6 +37,7 @@
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 
 
 ## TradeSellParams
@@ -66,6 +67,7 @@
 | `close_output_token_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
 | `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 
 

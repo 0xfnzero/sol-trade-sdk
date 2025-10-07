@@ -2,7 +2,7 @@ use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
-use crate::common::SolanaRpcClient;
+use crate::common::{GasFeeStrategy, SolanaRpcClient};
 use crate::constants::TOKEN_PROGRAM;
 use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
@@ -39,6 +39,7 @@ pub struct SwapParams {
     pub create_output_mint_ata: bool,
     pub close_output_mint_ata: bool,
     pub fixed_output_amount: Option<u64>,
+    pub gas_fee_strategy: GasFeeStrategy,
 }
 
 impl std::fmt::Debug for SwapParams {

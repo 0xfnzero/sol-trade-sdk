@@ -7,8 +7,8 @@ use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signature::Signature,
 };
-use std::{str::FromStr, sync::Arc, time::Instant};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::{str::FromStr, sync::Arc, time::Instant};
 
 use crate::{
     common::nonce_cache::DurableNonceInfo,
@@ -48,7 +48,7 @@ impl ResultCollector {
         let _ = self.results.push(result);
 
         if is_success {
-            self.success_flag.store(true, Ordering::Release);  // Release 确保 push 可见
+            self.success_flag.store(true, Ordering::Release); // Release 确保 push 可见
         }
 
         self.completed_count.fetch_add(1, Ordering::Release);
@@ -106,6 +106,7 @@ pub async fn execute_parallel(
     is_buy: bool,
     wait_transaction_confirmed: bool,
     with_tip: bool,
+    gas_fee_strategy: GasFeeStrategy,
 ) -> Result<(bool, Signature)> {
     let _exec_start = Instant::now();
 
@@ -133,7 +134,7 @@ pub async fn execute_parallel(
             with_tip || matches!(swqos_client.get_swqos_type(), SwqosType::Default)
         })
         .flat_map(|(i, swqos_client)| {
-            let gas_fee_strategy_configs = GasFeeStrategy::get_strategies(if is_buy {
+            let gas_fee_strategy_configs = gas_fee_strategy.get_strategies(if is_buy {
                 TradeType::Buy
             } else {
                 TradeType::Sell
@@ -229,11 +230,7 @@ pub async fn execute_parallel(
             // Transaction sent
 
             if let Some(signature) = transaction.signatures.first() {
-                collector.submit(TaskResult {
-                    success,
-                    signature: *signature,
-                    _error: None,
-                });
+                collector.submit(TaskResult { success, signature: *signature, _error: None });
             }
         });
     }

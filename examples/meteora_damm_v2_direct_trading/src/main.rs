@@ -22,6 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = Pubkey::from_str("35EFyWd9cH8pdHxVgXHF68L1oZxSWd1FfJASSNTUtoTC").unwrap();
     let mint_pubkey = Pubkey::from_str("FhTRoy63ZiLcjLEVCMCTLc5Cu5ozrzouNg6cDp1ASZMC").unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     // Buy tokens
     println!("Buying tokens from Metaora Damm V2...");
     let buy_sol_amount = 100_000;
@@ -43,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
+        gas_fee_strategy: gas_fee_strategy.clone()
     };
     client.buy(buy_params).await?;
 
@@ -74,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
+        gas_fee_strategy: gas_fee_strategy,
     };
     client.sell(sell_params).await?;
 
@@ -91,8 +96,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

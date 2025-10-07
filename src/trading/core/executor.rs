@@ -96,6 +96,7 @@ impl TradeExecutor for GenericTradeExecutor {
             is_buy,
             params.wait_transaction_confirmed,
             if is_buy { true } else { params.with_tip },
+            params.gas_fee_strategy,
         )
         .await;
         let send_elapsed = send_start.elapsed();

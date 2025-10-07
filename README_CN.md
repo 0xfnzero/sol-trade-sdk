@@ -133,9 +133,12 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 #### 2. 配置 Gas Fee 策略
 
 有关 Gas Fee 策略的详细信息，请参阅 [Gas Fee 策略参考手册](docs/GAS_FEE_STRATEGY_CN.md)。
+
 ```rust
+// 创建 GasFeeStrategy 实例
+let gas_fee_strategy = GasFeeStrategy::new();
 // 设置全局策略
-GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 ```
 
 #### 3. 构建交易参数

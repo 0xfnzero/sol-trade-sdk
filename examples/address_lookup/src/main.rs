@@ -1,5 +1,5 @@
 use sol_trade_sdk::common::address_lookup::fetch_address_lookup_table_account;
-use sol_trade_sdk::common::TradeConfig;
+use sol_trade_sdk::common::{gas_fee_strategy, GasFeeStrategy, TradeConfig};
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
@@ -106,8 +106,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }
@@ -125,6 +123,9 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
     let address_lookup_table_account =
         fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
+
+    let gas_fee_strategy = GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -156,6 +157,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     client.buy(buy_params).await?;
 

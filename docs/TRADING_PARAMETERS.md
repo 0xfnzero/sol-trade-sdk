@@ -37,6 +37,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 
 
 ## TradeSellParams
@@ -66,6 +67,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
 | `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 
 
