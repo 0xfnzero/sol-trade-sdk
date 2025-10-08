@@ -31,10 +31,18 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             .downcast_ref::<RaydiumAmmV4Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
+        // Whitelist: only allow WSOL/USDC as quote (pc) mint
+        if protocol_params.pc_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+            && protocol_params.pc_mint != crate::constants::USDC_TOKEN_ACCOUNT
+        {
+            return Err(anyhow!("Unsupported quote mint for Raydium AMM v4"));
+        }
+
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.coin_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        // Determine direction based on actual input mint
+        let is_base_in = protocol_params.coin_mint == params.input_mint;
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let swap_result = compute_swap_amount(
             protocol_params.coin_reserve,
@@ -51,7 +59,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         let user_source_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                &crate::constants::WSOL_TOKEN_ACCOUNT,
+                &params.input_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -68,7 +76,8 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(6);
 
-        if params.create_input_mint_ata {
+        if params.create_input_mint_ata && params.input_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             instructions
                 .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in));
         }
@@ -117,7 +126,8 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_input_mint_ata {
+        if params.close_input_mint_ata && params.input_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
@@ -135,6 +145,13 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             .downcast_ref::<RaydiumAmmV4Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
+        // Whitelist: only allow WSOL/USDC as quote (pc) mint
+        if protocol_params.pc_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+            && protocol_params.pc_mint != crate::constants::USDC_TOKEN_ACCOUNT
+        {
+            return Err(anyhow!("Unsupported quote mint for Raydium AMM v4"));
+        }
+
         if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));
         }
@@ -142,7 +159,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.pc_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_base_in = protocol_params.coin_mint == params.input_mint;
         let swap_result = compute_swap_amount(
             protocol_params.coin_reserve,
             protocol_params.pc_reserve,
@@ -165,7 +182,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         let user_destination_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                &crate::constants::WSOL_TOKEN_ACCOUNT,
+                &params.output_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -175,7 +192,9 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(3);
 
-        if params.create_output_mint_ata {
+        if params.create_output_mint_ata
+            && params.output_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey()));
         }
 
@@ -211,7 +230,9 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_output_mint_ata {
+        if params.close_output_mint_ata
+            && params.output_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
 

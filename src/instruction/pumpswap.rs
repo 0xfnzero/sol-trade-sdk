@@ -53,10 +53,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
 
-        if base_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+        // Only support WSOL or USDC as quote mint for now
+        if quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT
         {
-            return Err(anyhow!("Invalid base mint and quote mint"));
+            return Err(anyhow!("Unsupported quote mint for PumpSwap"));
         }
 
         // ========================================
@@ -219,10 +220,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_token_program = protocol_params.base_token_program;
         let quote_token_program = protocol_params.quote_token_program;
 
-        if base_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+        // Only support WSOL or USDC as quote mint for now
+        if quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT
         {
-            return Err(anyhow!("Invalid base mint and quote mint"));
+            return Err(anyhow!("Unsupported quote mint for PumpSwap"));
         }
         if params.input_amount.is_none() {
             return Err(anyhow!("Token amount is not set"));

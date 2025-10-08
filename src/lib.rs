@@ -10,6 +10,7 @@ use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
 use crate::constants::USD1_TOKEN_ACCOUNT;
 use crate::constants::WSOL_TOKEN_ACCOUNT;
+use crate::constants::USDC_TOKEN_ACCOUNT;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
@@ -38,6 +39,7 @@ pub enum TradeTokenType {
     SOL,
     WSOL,
     USD1,
+    USDC,
 }
 
 /// Main trading client for Solana DeFi protocols
@@ -276,6 +278,8 @@ impl SolanaTrade {
             SOL_TOKEN_ACCOUNT
         } else if params.input_token_type == TradeTokenType::WSOL {
             WSOL_TOKEN_ACCOUNT
+        } else if params.input_token_type == TradeTokenType::USDC {
+            USDC_TOKEN_ACCOUNT
         } else {
             USD1_TOKEN_ACCOUNT
         };
@@ -371,6 +375,8 @@ impl SolanaTrade {
             SOL_TOKEN_ACCOUNT
         } else if params.output_token_type == TradeTokenType::WSOL {
             WSOL_TOKEN_ACCOUNT
+        } else if params.output_token_type == TradeTokenType::USDC {
+            USDC_TOKEN_ACCOUNT
         } else {
             USD1_TOKEN_ACCOUNT
         };

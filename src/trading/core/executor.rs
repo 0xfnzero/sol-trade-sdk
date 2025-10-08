@@ -28,11 +28,8 @@ impl GenericTradeExecutor {
 impl TradeExecutor for GenericTradeExecutor {
     async fn swap(&self, params: SwapParams) -> Result<(bool, Signature)> {
         let start = Instant::now();
-        // 暂时支持这三种。后续重构扩展builder 支持所有的 swap
-        let is_buy = params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT
-            || params.input_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || (params.input_mint == crate::constants::USD1_TOKEN_ACCOUNT
-                && params.output_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
+        // Use trade_type directly to determine direction
+        let is_buy = matches!(params.trade_type, crate::swqos::TradeType::Buy);
         // Build instructions directly from params to avoid unnecessary cloning
         let instructions = if is_buy {
             self.instruction_builder.build_buy_instructions(&params).await?
