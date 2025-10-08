@@ -101,7 +101,7 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("5tnuyXTkvUmpHptH7ib8uTEfszdmAY1sqaxeMrQeMZiwFJHnmCig6yFcjtEp9dFHqhoXBCqhQusgxHapbZ5M4hV5");
+    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
@@ -125,15 +125,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let amm_info = fetch_amm_info(&client.rpc, trade_info.amm).await?;
     let (coin_reserve, pc_reserve) =
         get_multi_token_balances(&client.rpc, &amm_info.token_coin, &amm_info.token_pc).await?;
-    // Only handle WSOL/USDC quote pools to align with SDK whitelist
-    let is_usdc_quote = amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
-    let is_wsol_quote = amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
-    if !is_usdc_quote && !is_wsol_quote {
-        return Ok(());
-    }
-    let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
-        || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
-    {
+    let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
         amm_info.coin_mint
     } else {
         amm_info.pc_mint
@@ -149,20 +141,19 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     );
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");
-    // Use 0.0001 SOL (100_000 lamports) for WSOL quote, or 0.3 USDC (300_000 base units) for USDC quote
-    let buy_input_amount: u64 = if is_usdc_quote { 300_000 } else { 100_000 };
+    let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
-        input_token_type: if is_usdc_quote { TradeTokenType::USDC } else { TradeTokenType::SOL },
+        input_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
-        input_token_amount: buy_input_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_input_token_ata: !is_usdc_quote,
-        close_input_token_ata: !is_usdc_quote,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -184,7 +175,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, trade_info.amm).await?;
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
-        output_token_type: if is_usdc_quote { TradeTokenType::USDC } else { TradeTokenType::SOL },
+        output_token_type: TradeTokenType::WSOL,
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
@@ -193,8 +184,8 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         extension_params: Box::new(params),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_output_token_ata: !is_usdc_quote,
-        close_output_token_ata: !is_usdc_quote,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,

@@ -29,20 +29,10 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .downcast_ref::<MeteoraDammV2Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        // Whitelist: only allow WSOL/USDC as quote side
-        if protocol_params.token_a_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.token_b_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.token_a_mint != crate::constants::USDC_TOKEN_ACCOUNT
-            && protocol_params.token_b_mint != crate::constants::USDC_TOKEN_ACCOUNT
-        {
-            return Err(anyhow!("Unsupported quote mint for Meteora DAMM v2"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        // Determine side A/B by comparing with actual input mint
-        let is_a_in = protocol_params.token_a_mint == params.input_mint;
+        let is_a_in = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let minimum_amount_out: u64 = match params.fixed_output_amount {
             Some(fixed) => fixed,
@@ -77,9 +67,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(6);
 
-        if params.create_input_mint_ata
-            && params.input_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-        {
+        if params.create_input_mint_ata {
             instructions
                 .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in));
         }
@@ -125,9 +113,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_input_mint_ata
-            && params.input_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-        {
+        if params.close_input_mint_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
@@ -145,15 +131,6 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .downcast_ref::<MeteoraDammV2Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        // Whitelist: only allow WSOL/USDC as quote side
-        if protocol_params.token_a_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.token_b_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.token_a_mint != crate::constants::USDC_TOKEN_ACCOUNT
-            && protocol_params.token_b_mint != crate::constants::USDC_TOKEN_ACCOUNT
-        {
-            return Err(anyhow!("Unsupported quote mint for Meteora DAMM v2"));
-        }
-
         if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));
         }
@@ -161,7 +138,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_a_mint == params.input_mint;
+        let is_a_in = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
         let minimum_amount_out: u64 = match params.fixed_output_amount {
             Some(fixed) => fixed,
             None => return Err(anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap")),
@@ -195,9 +172,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(3);
 
-        if params.create_output_mint_ata
-            && params.output_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-        {
+        if params.create_output_mint_ata {
             instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey()));
         }
 
@@ -230,9 +205,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             accounts.to_vec(),
         ));
 
-        if params.close_output_mint_ata
-            && params.output_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-        {
+        if params.close_output_mint_ata {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
 

@@ -83,13 +83,10 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     |event: Box<dyn UnifiedEvent>| {
         match_event!(event, {
             PumpSwapBuyEvent => |e: PumpSwapBuyEvent| {
-                if e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
-                    || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
-                {
+                if e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
                     // Test code, only test one transaction
                     if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                         let event_clone = e.clone();
-                        println!("PumpSwapBuyEvent: {:?}", event_clone);
                         tokio::spawn(async move {
                             if let Err(err) = pumpswap_trade_with_grpc_buy_event(event_clone).await {
                                 eprintln!("Error in trade: {:?}", err);
@@ -100,13 +97,10 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
                 }
             },
             PumpSwapSellEvent => |e: PumpSwapSellEvent| {
-                if e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
-                    || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
-                {
+                if e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
                     // Test code, only test one transaction
                     if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                         let event_clone = e.clone();
-                        println!("PumpSwapSellEvent: {:?}", event_clone);
                         tokio::spawn(async move {
                             if let Err(err) = pumpswap_trade_with_grpc_sell_event(event_clone).await {
                                 eprintln!("Error in trade: {:?}", err);
@@ -124,7 +118,7 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("5tnuyXTkvUmpHptH7ib8uTEfszdmAY1sqaxeMrQeMZiwFJHnmCig6yFcjtEp9dFHqhoXBCqhQusgxHapbZ5M4hV5");
+    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
@@ -150,9 +144,11 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
         trade_info.base_token_program,
         trade_info.quote_token_program,
     );
-    // Target the base token; quote is WSOL/USDC per filter
-    let mint = trade_info.base_mint;
-    println!("mint: {:?}", mint);
+    let mint = if trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
+        trade_info.quote_mint
+    } else {
+        trade_info.base_mint
+    };
     pumpswap_trade_with_grpc(mint, params).await?;
     Ok(())
 }
@@ -171,9 +167,11 @@ async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> A
         trade_info.base_token_program,
         trade_info.quote_token_program,
     );
-    // Target the base token; quote is WSOL/USDC per filter
-    let mint = trade_info.base_mint;
-    println!("mint: {:?}", mint);
+    let mint = if trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
+        trade_info.quote_mint
+    } else {
+        trade_info.base_mint
+    };
     pumpswap_trade_with_grpc(mint, params).await?;
     Ok(())
 }
@@ -184,24 +182,22 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let client = create_solana_trade_client().await?;
     let slippage_basis_points = Some(500);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
-    let is_usdc_quote = params.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
 
     // Buy tokens
     println!("Buying tokens from PumpSwap...");
-    // Use 0.0001 SOL (100_000 lamports) for WSOL quote, or 0.3 USDC (300_000 base units) for USDC quote
-    let buy_input_amount: u64 = if is_usdc_quote { 300_000 } else { 100_000 };
+    let buy_sol_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpSwap,
-        input_token_type: if is_usdc_quote { TradeTokenType::USDC } else { TradeTokenType::SOL },
+        input_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
-        input_token_amount: buy_input_amount,
+        input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params.clone()),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_input_token_ata: !is_usdc_quote,
-        close_input_token_ata: !is_usdc_quote,
+        create_input_token_ata: true,
+        close_input_token_ata: true,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -224,7 +220,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let amount_token = balance.amount.parse::<u64>().unwrap();
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpSwap,
-        output_token_type: if is_usdc_quote { TradeTokenType::USDC } else { TradeTokenType::SOL },
+        output_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
@@ -233,8 +229,8 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         extension_params: Box::new(params.clone()),
         lookup_table_key: None,
         wait_transaction_confirmed: true,
-        create_output_token_ata: !is_usdc_quote,
-        close_output_token_ata: !is_usdc_quote,
+        create_output_token_ata: true,
+        close_output_token_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,

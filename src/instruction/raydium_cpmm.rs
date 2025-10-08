@@ -36,13 +36,6 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             .downcast_ref::<RaydiumCpmmParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        // Whitelist: only allow WSOL/USDC as quote mint
-        if protocol_params.quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.quote_mint != crate::constants::USDC_TOKEN_ACCOUNT
-        {
-            return Err(anyhow!("Unsupported quote mint for Raydium CPMM"));
-        }
-
         let pool_state = if protocol_params.pool_state == Pubkey::default() {
             get_pool_pda(
                 &protocol_params.amm_config,
@@ -57,7 +50,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.base_mint == params.input_mint;
+        let is_base_in = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
         let mint_token_program = if is_base_in {
             protocol_params.quote_token_program
         } else {
@@ -79,7 +72,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.input_mint,
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
             &crate::constants::TOKEN_PROGRAM,
             params.open_seed_optimize,
         );
@@ -90,8 +83,12 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             params.open_seed_optimize,
         );
 
-        let wsol_vault_account =
-            get_vault_account(&pool_state, &params.input_mint, protocol_params, true);
+        let wsol_vault_account = get_vault_account(
+            &pool_state,
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            protocol_params,
+            true,
+        );
         let mint_vault_account =
             get_vault_account(&pool_state, &params.output_mint, protocol_params, false);
 
@@ -135,7 +132,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             AccountMeta::new(mint_vault_account, false),   // Output Vault Account
             crate::constants::TOKEN_PROGRAM_META,          // Input Token Program (readonly)
             AccountMeta::new_readonly(mint_token_program, false), // Output Token Program (readonly)
-            AccountMeta::new_readonly(params.input_mint, false), // Input token mint (readonly)
+            crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Input token mint (readonly)
             AccountMeta::new_readonly(params.output_mint, false), // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
@@ -168,13 +165,6 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             .as_any()
             .downcast_ref::<RaydiumCpmmParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
-
-        // Whitelist: only allow WSOL/USDC as quote mint
-        if protocol_params.quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.quote_mint != crate::constants::USDC_TOKEN_ACCOUNT
-        {
-            return Err(anyhow!("Unsupported quote mint for Raydium CPMM"));
-        }
 
         if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));
@@ -217,7 +207,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.output_mint,
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
             &crate::constants::TOKEN_PROGRAM,
             params.open_seed_optimize,
         );
@@ -228,8 +218,12 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             params.open_seed_optimize,
         );
 
-        let wsol_vault_account =
-            get_vault_account(&pool_state, &params.output_mint, protocol_params, true);
+        let wsol_vault_account = get_vault_account(
+            &pool_state,
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            protocol_params,
+            true,
+        );
         let mint_vault_account =
             get_vault_account(&pool_state, &params.input_mint, protocol_params, false);
 
@@ -261,7 +255,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             AccountMeta::new_readonly(mint_token_program, false), // Input Token Program (readonly)
             crate::constants::TOKEN_PROGRAM_META,          // Output Token Program (readonly)
             AccountMeta::new_readonly(params.input_mint, false), // Input token mint (readonly)
-            AccountMeta::new_readonly(params.output_mint, false), // Output token mint (readonly)
+            crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
         // Create instruction data
