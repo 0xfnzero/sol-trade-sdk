@@ -17,7 +17,7 @@ use crate::{
 /// Build standard RPC transaction
 pub async fn build_transaction(
     payer: Arc<Keypair>,
-    rpc: Option<Arc<SolanaRpcClient>>,
+    _rpc: Option<Arc<SolanaRpcClient>>,
     unit_limit: u32,
     unit_price: u64,
     business_instructions: Vec<Instruction>,

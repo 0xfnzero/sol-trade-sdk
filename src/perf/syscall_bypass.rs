@@ -318,7 +318,7 @@ impl IOOptimizer {
         #[cfg(unix)]
         {
             use std::fs::OpenOptions;
-            // use std::os::unix::fs::OpenOptionsExt;
+            use std::os::unix::fs::OpenOptionsExt;
             use std::os::fd::AsRawFd;
             
             #[cfg(target_os = "linux")]
