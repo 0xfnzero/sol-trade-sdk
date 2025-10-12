@@ -150,6 +150,10 @@ pub async fn execute_parallel(
         return Err(anyhow!("No available gas fee strategy configs"));
     }
 
+    if task_configs.len() > 1 && durable_nonce.is_none() {
+        return Err(anyhow!("Multiple swqos transactions require durable_nonce to be set.",));
+    }
+
     // Task preparation completed
 
     let collector = Arc::new(ResultCollector::new(task_configs.len()));
