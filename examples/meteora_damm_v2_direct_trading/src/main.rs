@@ -19,20 +19,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = create_solana_trade_client().await?;
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
-    let pool = Pubkey::from_str("35EFyWd9cH8pdHxVgXHF68L1oZxSWd1FfJASSNTUtoTC").unwrap();
-    let mint_pubkey = Pubkey::from_str("FhTRoy63ZiLcjLEVCMCTLc5Cu5ozrzouNg6cDp1ASZMC").unwrap();
+    let pool = Pubkey::from_str("7dVri3qjYD3uobSZL3Zth8vSCgU6r6R2nvFsh7uVfDte").unwrap();
+    let mint_pubkey = Pubkey::from_str("PRVT6TB7uss3FrUd2D9xs2zqDBsa3GbMJMwCQsgmeta").unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 
     // Buy tokens
     println!("Buying tokens from Metaora Damm V2...");
-    let buy_sol_amount = 100_000;
+    let input_token_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::MeteoraDammV2,
-        input_token_type: TradeTokenType::WSOL,
+        input_token_type: TradeTokenType::USDC, // or USDC
         mint: mint_pubkey,
-        input_token_amount: buy_sol_amount,
+        input_token_amount: input_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(
@@ -40,8 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
-        create_input_token_ata: true,
-        close_input_token_ata: true,
+        create_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
+        close_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Token balance: {}", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::MeteoraDammV2,
-        output_token_type: TradeTokenType::WSOL,
+        output_token_type: TradeTokenType::USDC,
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
@@ -73,8 +73,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
-        create_output_token_ata: true,
-        close_output_token_ata: true,
+        create_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
+        close_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
@@ -82,15 +82,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     client.sell(sell_params).await?;
 
-    tokio::signal::ctrl_c().await?;
-    Ok(())
+    // Exit program
+    std::process::exit(0);
 }
 
 /// Create SolanaTrade client
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = Keypair::from_base58_string("your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];

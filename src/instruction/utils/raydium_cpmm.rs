@@ -119,47 +119,25 @@ pub async fn calculate_price(
     Ok(price)
 }
 
-/// Helper function to get vault account address
+/// Helper function to get token vault account address
 ///
 /// # Parameters
 /// - `pool_state`: Pool state account address
 /// - `token_mint`: Token mint address
 /// - `protocol_params`: Protocol parameters
-/// - `is_wsol`: Whether it's a wSOL token
 ///
 /// # Returns
-/// Returns the corresponding vault account address
+/// Returns the corresponding token vault account address
 pub fn get_vault_account(
     pool_state: &Pubkey,
     token_mint: &Pubkey,
     protocol_params: &RaydiumCpmmParams,
-    is_wsol: bool,
 ) -> Pubkey {
-    if is_wsol {
-        // If it's wSOL, check if it's the base mint
-        if protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.base_vault != Pubkey::default()
-        {
-            protocol_params.base_vault
-        } else if protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            && protocol_params.quote_vault != Pubkey::default()
-        {
-            protocol_params.quote_vault
-        } else {
-            get_vault_pda(pool_state, &crate::constants::WSOL_TOKEN_ACCOUNT).unwrap()
-        }
+    if protocol_params.base_mint == *token_mint && protocol_params.base_vault != Pubkey::default() {
+        protocol_params.base_vault
+    } else if protocol_params.quote_mint == *token_mint && protocol_params.quote_vault != Pubkey::default() {
+        protocol_params.quote_vault
     } else {
-        // For other tokens, check if it's the base or quote mint
-        if *token_mint == protocol_params.base_mint
-            && protocol_params.base_vault != Pubkey::default()
-        {
-            protocol_params.base_vault
-        } else if *token_mint == protocol_params.quote_mint
-            && protocol_params.quote_vault != Pubkey::default()
-        {
-            protocol_params.quote_vault
-        } else {
-            get_vault_pda(pool_state, token_mint).unwrap()
-        }
+        get_vault_pda(pool_state, token_mint).unwrap()
     }
 }

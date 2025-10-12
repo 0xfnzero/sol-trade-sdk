@@ -30,6 +30,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
+
         let protocol_params = params
             .protocol_params
             .as_any()
@@ -47,10 +48,21 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             protocol_params.pool_state
         };
 
+        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+
+        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+
+        if !is_wsol && !is_usdc {
+            return Err(anyhow!("Pool must contain WSOL or USDC"));
+        }
+
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_base_in = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT 
+            || protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let mint_token_program = if is_base_in {
             protocol_params.quote_token_program
         } else {
@@ -70,27 +82,25 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             None => result.min_amount_out,
         };
 
-        let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
             &crate::constants::TOKEN_PROGRAM,
             params.open_seed_optimize,
         );
-        let mint_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.output_mint,
             &mint_token_program,
             params.open_seed_optimize,
         );
 
-        let wsol_vault_account = get_vault_account(
+        let input_vault_account = get_vault_account(
             &pool_state,
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
             protocol_params,
-            true,
         );
-        let mint_vault_account =
-            get_vault_account(&pool_state, &params.output_mint, protocol_params, false);
+        let output_vault_account = get_vault_account(&pool_state, &params.output_mint, protocol_params);
 
         let observation_state_account = if protocol_params.observation_state == Pubkey::default() {
             get_observation_state_pda(&pool_state).unwrap()
@@ -126,13 +136,13 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             accounts::AUTHORITY_META,                      // Authority (readonly)
             AccountMeta::new(protocol_params.amm_config, false), // Amm Config (readonly)
             AccountMeta::new(pool_state, false),           // Pool State
-            AccountMeta::new(wsol_token_account, false),   // Input Token Account
-            AccountMeta::new(mint_token_account, false),   // Output Token Account
-            AccountMeta::new(wsol_vault_account, false),   // Input Vault Account
-            AccountMeta::new(mint_vault_account, false),   // Output Vault Account
+            AccountMeta::new(input_token_account, false),   // Input Token Account
+            AccountMeta::new(output_token_account, false),   // Output Token Account
+            AccountMeta::new(input_vault_account, false),   // Input Vault Account
+            AccountMeta::new(output_vault_account, false),   // Output Vault Account
             crate::constants::TOKEN_PROGRAM_META,          // Input Token Program (readonly)
             AccountMeta::new_readonly(mint_token_program, false), // Output Token Program (readonly)
-            crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Input token mint (readonly)
+            if is_wsol { crate::constants::WSOL_TOKEN_ACCOUNT_META } else { crate::constants::USDC_TOKEN_ACCOUNT_META },     // Input token mint (readonly)
             AccountMeta::new_readonly(params.output_mint, false), // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
@@ -181,11 +191,22 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             protocol_params.pool_state
         };
 
+        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+
+        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+            
+        if !is_wsol && !is_usdc {
+            return Err(anyhow!("Pool must contain WSOL or USDC"));
+        }
+
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.base_mint == params.input_mint;
-        let mint_token_program = if is_base_in {
+        let is_quote_out = protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let mint_token_program = if is_quote_out {
             protocol_params.base_token_program
         } else {
             protocol_params.quote_token_program
@@ -197,7 +218,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
                 compute_swap_amount(
                     protocol_params.base_reserve,
                     protocol_params.quote_reserve,
-                    is_base_in,
+                    is_quote_out,
                     params.input_amount.unwrap_or(0),
                     params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 )
@@ -205,27 +226,25 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             }
         };
 
-        let wsol_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
             &crate::constants::TOKEN_PROGRAM,
             params.open_seed_optimize,
         );
-        let mint_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.input_mint,
             &mint_token_program,
             params.open_seed_optimize,
         );
 
-        let wsol_vault_account = get_vault_account(
+        let output_vault_account = get_vault_account(
             &pool_state,
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
             protocol_params,
-            true,
         );
-        let mint_vault_account =
-            get_vault_account(&pool_state, &params.input_mint, protocol_params, false);
+        let input_vault_account = get_vault_account(&pool_state, &params.input_mint, protocol_params);
 
         let observation_state_account = if protocol_params.observation_state == Pubkey::default() {
             get_observation_state_pda(&pool_state).unwrap()
@@ -248,14 +267,14 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
             accounts::AUTHORITY_META,                      // Authority (readonly)
             AccountMeta::new(protocol_params.amm_config, false), // Amm Config (readonly)
             AccountMeta::new(pool_state, false),           // Pool State
-            AccountMeta::new(mint_token_account, false),   // Input Token Account
-            AccountMeta::new(wsol_token_account, false),   // Output Token Account
-            AccountMeta::new(mint_vault_account, false),   // Input Vault Account
-            AccountMeta::new(wsol_vault_account, false),   // Output Vault Account
+            AccountMeta::new(input_token_account, false),   // Input Token Account
+            AccountMeta::new(output_token_account, false),   // Output Token Account
+            AccountMeta::new(input_vault_account, false),   // Input Vault Account
+            AccountMeta::new(output_vault_account, false),   // Output Vault Account
             AccountMeta::new_readonly(mint_token_program, false), // Input Token Program (readonly)
             crate::constants::TOKEN_PROGRAM_META,          // Output Token Program (readonly)
             AccountMeta::new_readonly(params.input_mint, false), // Input token mint (readonly)
-            crate::constants::WSOL_TOKEN_ACCOUNT_META,     // Output token mint (readonly)
+            if is_wsol { crate::constants::WSOL_TOKEN_ACCOUNT_META } else { crate::constants::USDC_TOKEN_ACCOUNT_META },     // Output token mint (readonly)
             AccountMeta::new(observation_state_account, false), // Observation State Account
         ];
         // Create instruction data

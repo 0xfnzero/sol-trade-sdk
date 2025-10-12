@@ -29,10 +29,16 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .downcast_ref::<MeteoraDammV2Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
+        let is_wsol = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_usdc = protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        if !is_wsol && !is_usdc {
+            return Err(anyhow!("Pool must contain WSOL or USDC"));
+        }
+
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_a_in = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let minimum_amount_out: u64 = match params.fixed_output_amount {
             Some(fixed) => fixed,
@@ -135,10 +141,16 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             return Err(anyhow!("Token amount is not set"));
         }
 
+        let is_wsol = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_usdc = protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        if !is_wsol && !is_usdc {
+            return Err(anyhow!("Pool must contain WSOL or USDC"));
+        }
+
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_a_in = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let minimum_amount_out: u64 = match params.fixed_output_amount {
             Some(fixed) => fixed,
             None => return Err(anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap")),
