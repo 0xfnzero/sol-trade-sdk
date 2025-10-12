@@ -42,6 +42,16 @@ pub const USD1_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
         is_writable: false,
     };
 
+// USDC (mainnet) mint and meta
+pub const USDC_TOKEN_ACCOUNT: Pubkey =
+    pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+pub const USDC_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
+    solana_sdk::instruction::AccountMeta {
+        pubkey: USDC_TOKEN_ACCOUNT,
+        is_signer: false,
+        is_writable: false,
+    };
+
 pub const RENT: Pubkey = solana_sdk::sysvar::rent::id();
 pub const RENT_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta { pubkey: RENT, is_signer: false, is_writable: false };
