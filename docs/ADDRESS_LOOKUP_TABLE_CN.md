@@ -15,36 +15,11 @@
 
 ## 🛠️ 实现方法
 
-### 1. 设置地址查找表缓存
-
-SDK 提供了一个全局缓存来管理地址查找表：
-
-```rust
-use sol_trade_sdk::common::address_lookup_cache::AddressLookupTableCache;
-use solana_sdk::pubkey::Pubkey;
-use std::str::FromStr;
-
-/// 设置查找表缓存
-async fn setup_lookup_table_cache(
-    client: Arc<SolanaRpcClient>,
-    lookup_table_address: Pubkey,
-) -> AnyResult<()> {
-    AddressLookupTableCache::get_instance()
-        .set_address_lookup_table(client, &lookup_table_address)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to set address lookup table: {}", e))?;
-    Ok(())
-}
-```
-
-### 2. 在交易参数中使用查找表
-
 在您的交易参数中包含查找表：
 
 ```rust
-// 初始化查找表
-let lookup_table_key = Pubkey::from_str("your_lookup_table_address_here").unwrap();
-setup_lookup_table_cache(client.rpc.clone(), lookup_table_key).await?;
+let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
+let address_lookup_table_account = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
 
 // 在交易参数中包含查找表
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -54,7 +29,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     slippage_basis_points: Some(100),
     recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
-    lookup_table_key: Some(lookup_table_key), // 包含查找表
+    address_lookup_table_account: address_lookup_table_account, // 包含查找表
     wait_transaction_confirmed: true,
     create_wsol_ata: false,
     close_wsol_ata: false,
@@ -78,7 +53,6 @@ client.buy(buy_params).await?;
 ## ⚠️ 重要注意事项
 
 1. **查找表地址**: 必须提供有效的地址查找表地址
-2. **缓存管理**: SDK 自动管理查找表缓存
 3. **RPC 兼容性**: 确保您的 RPC 提供商支持查找表
 4. **网络**: 查找表是特定于网络的（主网/开发网/测试网）
 5. **测试**: 在主网使用前请务必在开发网测试

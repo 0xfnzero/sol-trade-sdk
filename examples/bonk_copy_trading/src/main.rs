@@ -3,7 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
+use sol_trade_sdk::common::{spl_associated_token_account::get_associated_token_address, GasFeeStrategy};
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -110,8 +110,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }
@@ -125,6 +123,9 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
     let mint_pubkey = trade_info.base_token_mint;
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+
+    let gas_fee_strategy = GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 
     // Buy tokens
     println!("Buying tokens from Bonk...");
@@ -156,7 +157,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
             trade_info.creator_associated_account,
             trade_info.global_config,
         )),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
@@ -164,6 +165,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy.clone(),
     };
     client.buy(buy_params).await?;
 
@@ -199,7 +201,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
             trade_info.creator_associated_account,
             trade_info.global_config,
         )),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         open_seed_optimize: false,
         with_tip: false,
@@ -207,6 +209,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         create_output_token_ata: false,
         close_output_token_ata: false,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     client.sell(sell_params).await?;
 

@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "3.0.1"
+version = "3.1.0"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -103,3 +103,33 @@ parking_lot = "0.12"
 arc-swap = "1.7"
 sha2 = "0.10"
 tonic-prost = "0.14.2"
+
+# Performance optimization dependencies
+crossbeam-queue = "0.3"
+crossbeam-utils = "0.8"
+memmap2 = "0.9"
+num_cpus = "1.16"
+libc = "0.2"
+
+# 🚀 编译器优化配置
+[profile.release]
+opt-level = 3              # 最高优化级别
+lto = "fat"                # 胖LTO获得最佳优化
+codegen-units = 1          # 单个代码生成单元
+panic = "abort"            # 恐慌即中止
+overflow-checks = false    # 禁用溢出检查
+debug = false              # 禁用调试信息
+debug-assertions = false   # 禁用调试断言
+rpath = false
+strip = true               # 去除符号表
+
+[profile.dev]
+opt-level = 1              # 开发时适度优化
+overflow-checks = true     # 开发时启用溢出检查
+
+# 🚀 性能关键依赖的特殊优化
+[profile.release.package.solana-sdk]
+opt-level = 3
+
+[profile.release.package.bincode]
+opt-level = 3

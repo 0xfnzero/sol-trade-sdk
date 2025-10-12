@@ -1,17 +1,21 @@
-use clru::CLruCache;
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use std::num::NonZeroUsize;
 
 use crate::common::{spl_associated_token_account::get_associated_token_address_with_program_id, spl_token::close_account};
+use crate::perf::compiler_optimization::CompileTimeOptimizedEventProcessor;
 
-const MAX_PDA_CACHE_SIZE: usize = 10000;
-const MAX_ATA_CACHE_SIZE: usize = 10000;
-const MAX_INSTRUCTION_CACHE_SIZE: usize = 10000;
+/// 🚀 编译时优化的哈希处理器
+static COMPILE_TIME_HASH: CompileTimeOptimizedEventProcessor =
+    CompileTimeOptimizedEventProcessor::new();
+
+// Increased cache sizes for better performance
+const MAX_PDA_CACHE_SIZE: usize = 100_000;
+const MAX_ATA_CACHE_SIZE: usize = 100_000;
+const MAX_INSTRUCTION_CACHE_SIZE: usize = 100_000;
 
 // --------------------- Instruction Cache ---------------------
 
@@ -30,35 +34,32 @@ pub enum InstructionCacheKey {
     CloseWsolAccount { payer: Pubkey, wsol_token_account: Pubkey },
 }
 
-/// Global instruction cache for storing common instructions
-static INSTRUCTION_CACHE: Lazy<RwLock<CLruCache<InstructionCacheKey, Vec<Instruction>>>> =
-    Lazy::new(|| {
-        RwLock::new(CLruCache::new(NonZeroUsize::new(MAX_INSTRUCTION_CACHE_SIZE).unwrap()))
-    });
+/// Global lock-free instruction cache for storing common instructions
+static INSTRUCTION_CACHE: Lazy<DashMap<InstructionCacheKey, Vec<Instruction>>> =
+    Lazy::new(|| DashMap::with_capacity(MAX_INSTRUCTION_CACHE_SIZE));
 
-/// Get cached instruction, compute and cache if not exists
+/// Get cached instruction, compute and cache if not exists (lock-free)
 pub fn get_cached_instructions<F>(cache_key: InstructionCacheKey, compute_fn: F) -> Vec<Instruction>
 where
     F: FnOnce() -> Vec<Instruction>,
 {
-    // Try to get from cache (using read lock)
-    {
-        let cache = INSTRUCTION_CACHE.read();
-        if let Some(cached_instruction) = cache.peek(&cache_key) {
-            return cached_instruction.clone();
+    // 使用编译时优化的哈希进行快速路由
+    let _hash = match &cache_key {
+        InstructionCacheKey::CreateAssociatedTokenAccount { payer, .. } => {
+            let bytes = payer.to_bytes();
+            COMPILE_TIME_HASH.hash_lookup_optimized(bytes[0])
         }
-    }
+        InstructionCacheKey::CloseWsolAccount { payer, .. } => {
+            let bytes = payer.to_bytes();
+            COMPILE_TIME_HASH.hash_lookup_optimized(bytes[0])
+        }
+    };
 
-    // Cache miss, compute new instruction
-    let instruction = compute_fn();
-
-    // Store computation result in cache (using write lock)
-    {
-        let mut cache = INSTRUCTION_CACHE.write();
-        cache.put(cache_key, instruction.clone());
-    }
-
-    instruction
+    // Lock-free cache lookup with entry API
+    INSTRUCTION_CACHE
+        .entry(cache_key)
+        .or_insert_with(compute_fn)
+        .clone()
 }
 
 // --------------------- Associated Token Account ---------------------
@@ -147,30 +148,25 @@ pub enum PdaCacheKey {
     PumpSwapUserVolume(Pubkey),
 }
 
-/// Global PDA cache for storing computation results
-static PDA_CACHE: Lazy<RwLock<CLruCache<PdaCacheKey, Pubkey>>> =
-    Lazy::new(|| RwLock::new(CLruCache::new(NonZeroUsize::new(MAX_PDA_CACHE_SIZE).unwrap())));
+/// Global lock-free PDA cache for storing computation results
+static PDA_CACHE: Lazy<DashMap<PdaCacheKey, Pubkey>> =
+    Lazy::new(|| DashMap::with_capacity(MAX_PDA_CACHE_SIZE));
 
-/// Get cached PDA, compute and cache if not exists
+/// Get cached PDA, compute and cache if not exists (lock-free)
 pub fn get_cached_pda<F>(cache_key: PdaCacheKey, compute_fn: F) -> Option<Pubkey>
 where
     F: FnOnce() -> Option<Pubkey>,
 {
-    // Try to get from cache (using read lock)
-    {
-        let cache = PDA_CACHE.read();
-        if let Some(cached_pda) = cache.peek(&cache_key) {
-            return Some(*cached_pda);
-        }
+    // Fast path: check if already in cache
+    if let Some(pda) = PDA_CACHE.get(&cache_key) {
+        return Some(*pda);
     }
 
-    // Cache miss, compute new PDA
+    // Slow path: compute and cache
     let pda_result = compute_fn();
 
-    // If computation succeeds, store result in cache (using write lock)
     if let Some(pda) = pda_result {
-        let mut cache = PDA_CACHE.write();
-        cache.put(cache_key, pda);
+        PDA_CACHE.insert(cache_key, pda);
     }
 
     pda_result
@@ -187,9 +183,9 @@ struct AtaCacheKey {
     use_seed: bool,
 }
 
-/// Global ATA cache for storing Associated Token Address computation results
-static ATA_CACHE: Lazy<RwLock<CLruCache<AtaCacheKey, Pubkey>>> =
-    Lazy::new(|| RwLock::new(CLruCache::new(NonZeroUsize::new(MAX_ATA_CACHE_SIZE).unwrap())));
+/// Global lock-free ATA cache for storing Associated Token Address computation results
+static ATA_CACHE: Lazy<DashMap<AtaCacheKey, Pubkey>> =
+    Lazy::new(|| DashMap::with_capacity(MAX_ATA_CACHE_SIZE));
 
 pub fn get_associated_token_address_with_program_id_fast_use_seed(
     wallet_address: &Pubkey,
@@ -232,15 +228,12 @@ fn _get_associated_token_address_with_program_id_fast(
         use_seed,
     };
 
-    // Try to get from cache (using read lock)
-    {
-        let cache = ATA_CACHE.read();
-        if let Some(cached_ata) = cache.peek(&cache_key) {
-            return *cached_ata;
-        }
+    // Fast path: check if already in cache (lock-free)
+    if let Some(cached_ata) = ATA_CACHE.get(&cache_key) {
+        return *cached_ata;
     }
 
-    // Cache miss, compute new ATA
+    // Slow path: compute new ATA
     // Only use seed if the token mint address is not wSOL or SOL
     // token 2022 测试不成功（TODO）
     let ata = if use_seed
@@ -262,11 +255,8 @@ fn _get_associated_token_address_with_program_id_fast(
         )
     };
 
-    // Store computation result in cache (using write lock)
-    {
-        let mut cache = ATA_CACHE.write();
-        cache.put(cache_key, ata);
-    }
+    // Store computation result in cache (lock-free)
+    ATA_CACHE.insert(cache_key, ata);
 
     ata
 }

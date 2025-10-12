@@ -131,8 +131,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }
@@ -192,6 +190,9 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let slippage_basis_points = Some(500);
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let is_sol = params.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || params.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
 
@@ -206,7 +207,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(params.clone()),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: is_sol,
         close_input_token_ata: is_sol,
@@ -214,6 +215,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy.clone(),
     };
     client.buy(buy_params).await?;
 
@@ -239,13 +241,14 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(params.clone()),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: is_sol,
         close_output_token_ata: is_sol,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     client.sell(sell_params).await?;
 

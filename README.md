@@ -36,7 +36,7 @@
     <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
     <a href="https://fnzero.dev/">Website</a> |
     <a href="https://t.me/fnzero_group">Telegram</a> |
-    <a href="https://discord.gg/ckf5UHxz">Discord</a>
+    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
 ## 📋 Table of Contents
@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.1.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "3.0.1"
+sol-trade-sdk = "3.1.0"
 ```
 
 ## 🛠️ Usage Examples
@@ -133,8 +133,12 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 #### 2. Configure Gas Fee Strategy
 
 For detailed information about Gas Fee Strategy, see the [Gas Fee Strategy Reference](docs/GAS_FEE_STRATEGY.md).
+
 ```rust
-GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+// Create GasFeeStrategy instance
+let gas_fee_strategy = GasFeeStrategy::new();
+// Set global strategy
+gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 ```
 
 #### 3. Build Trading Parameters
@@ -150,7 +154,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
-  lookup_table_key: None,
+  address_lookup_table_account: None,
   wait_transaction_confirmed: true,
   create_input_token_ata: true,
   close_input_token_ata: true,
@@ -227,7 +231,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - If no custom URL is provided (`None`), the system will use the default endpoint for the specified `SwqosRegion`
 - This allows for maximum flexibility while maintaining backward compatibility 
 
-When using multiple MEV services, you need to use `Durable Nonce`. You need to initialize a `NonceCache` class (or write your own nonce management class), get the latest `nonce` value, and use it as the `durable_nonce` when trading.
+When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
 
 ---
 
@@ -246,9 +250,9 @@ let middleware_manager = MiddlewareManager::new()
 
 Address Lookup Tables (ALT) allow you to optimize transaction size and reduce fees by storing frequently used addresses in a compact table format. For detailed information, see the [Address Lookup Tables Guide](docs/ADDRESS_LOOKUP_TABLE.md).
 
-### 🔍 Nonce Cache
+### 🔍 Durable Nonce
 
-Use Nonce Cache to implement transaction replay protection and optimize transaction processing. For detailed information, see the [Nonce Cache Guide](docs/NONCE_CACHE.md).
+Use Durable Nonce to implement transaction replay protection and optimize transaction processing. For detailed information, see the [Durable Nonce Guide](docs/NONCE_CACHE.md).
 
 ## 🛡️ MEV Protection Services
 

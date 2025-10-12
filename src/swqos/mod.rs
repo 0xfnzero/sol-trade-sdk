@@ -1,4 +1,5 @@
 pub mod common;
+pub mod serialization;
 pub mod solana_rpc;
 pub mod jito;
 pub mod nextblock;

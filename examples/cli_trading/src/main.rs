@@ -614,6 +614,9 @@ async fn handle_buy_pumpfun(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpFun,
         input_token_type: TradeTokenType::SOL,
@@ -622,7 +625,7 @@ async fn handle_buy_pumpfun(
         slippage_basis_points: slippage,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: false,
         close_input_token_ata: false,
@@ -630,6 +633,7 @@ async fn handle_buy_pumpfun(
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -664,6 +668,9 @@ async fn handle_buy_pumpswap(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpSwap,
         input_token_type: TradeTokenType::WSOL,
@@ -672,7 +679,7 @@ async fn handle_buy_pumpswap(
         slippage_basis_points: slippage,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
@@ -680,6 +687,7 @@ async fn handle_buy_pumpswap(
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -713,6 +721,9 @@ async fn handle_buy_bonk(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let buy_params = TradeBuyParams {
         dex_type: DexType::Bonk,
         input_token_type: TradeTokenType::WSOL,
@@ -721,7 +732,7 @@ async fn handle_buy_bonk(
         slippage_basis_points: slippage,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
@@ -729,6 +740,7 @@ async fn handle_buy_bonk(
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -766,6 +778,9 @@ async fn handle_buy_raydium_v4(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
         input_token_type: TradeTokenType::WSOL,
@@ -774,7 +789,7 @@ async fn handle_buy_raydium_v4(
         slippage_basis_points: slippage,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
@@ -782,6 +797,7 @@ async fn handle_buy_raydium_v4(
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -819,6 +835,9 @@ async fn handle_buy_raydium_cpmm(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumCpmm,
         input_token_type: TradeTokenType::WSOL,
@@ -827,7 +846,7 @@ async fn handle_buy_raydium_cpmm(
         slippage_basis_points: slippage,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
@@ -835,6 +854,7 @@ async fn handle_buy_raydium_cpmm(
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -982,6 +1002,9 @@ async fn handle_sell_pumpfun(
     let param = PumpFunParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpFun,
         output_token_type: TradeTokenType::SOL,
@@ -991,13 +1014,14 @@ async fn handle_sell_pumpfun(
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
 
     match client.sell(sell_params).await {
@@ -1035,6 +1059,9 @@ async fn handle_sell_pumpswap(
     let param = PumpSwapParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpSwap,
         output_token_type: TradeTokenType::WSOL,
@@ -1044,13 +1071,14 @@ async fn handle_sell_pumpswap(
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1087,6 +1115,9 @@ async fn handle_sell_bonk(
     let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey, false).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let sell_params = TradeSellParams {
         dex_type: DexType::Bonk,
         output_token_type: TradeTokenType::WSOL,
@@ -1096,13 +1127,14 @@ async fn handle_sell_bonk(
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1142,6 +1174,9 @@ async fn handle_sell_raydium_v4(
     let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, amm_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
         output_token_type: TradeTokenType::WSOL,
@@ -1151,13 +1186,14 @@ async fn handle_sell_raydium_v4(
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1197,6 +1233,9 @@ async fn handle_sell_raydium_cpmm(
     let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &pool_pubkey).await?;
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumCpmm,
         output_token_type: TradeTokenType::WSOL,
@@ -1206,13 +1245,14 @@ async fn handle_sell_raydium_cpmm(
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: Box::new(param),
-        lookup_table_key: None,
+        address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
+        gas_fee_strategy: gas_fee_strategy,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1325,8 +1365,6 @@ async fn initialize_real_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(payer, trade_config).await;
-    // set global strategy
-    sol_trade_sdk::common::GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
 }

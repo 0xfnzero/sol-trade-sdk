@@ -36,7 +36,7 @@
     <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
     <a href="https://fnzero.dev/">Website</a> |
     <a href="https://t.me/fnzero_group">Telegram</a> |
-    <a href="https://discord.gg/ckf5UHxz">Discord</a>
+    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
 ## 📋 目录
@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.0.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.1.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "3.0.1"
+sol-trade-sdk = "3.1.0"
 ```
 
 ## 🛠️ 使用示例
@@ -133,9 +133,12 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 #### 2. 配置 Gas Fee 策略
 
 有关 Gas Fee 策略的详细信息，请参阅 [Gas Fee 策略参考手册](docs/GAS_FEE_STRATEGY_CN.md)。
+
 ```rust
+// 创建 GasFeeStrategy 实例
+let gas_fee_strategy = GasFeeStrategy::new();
 // 设置全局策略
-GasFeeStrategy::set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
 ```
 
 #### 3. 构建交易参数
@@ -151,7 +154,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
   extension_params: Box::new(params.clone()),
-  lookup_table_key: None,
+  address_lookup_table_account: None,
   wait_transaction_confirmed: true,
   create_input_token_ata: true,
   close_input_token_ata: true,
@@ -228,7 +231,7 @@ let nextblock_config = SwqosConfig::NextBlock(
 - 如果没有提供自定义 URL（`None`），系统将使用指定 `SwqosRegion` 的默认端点
 - 这提供了最大的灵活性，同时保持向后兼容性
 
-当使用多个MEV服务时，需要使用`Durable Nonce`。你需要初始化`NonceCache`类（或者自行写一个管理nonce的类），获取最新的`nonce`值，并在交易的时候将`durable_nonce`填入交易参数。
+当使用多个MEV服务时，需要使用`Durable Nonce`。你需要使用`fetch_nonce_info`函数获取最新的`nonce`值，并在交易的时候将`durable_nonce`填入交易参数。
 
 ---
 
@@ -247,9 +250,9 @@ let middleware_manager = MiddlewareManager::new()
 
 地址查找表 (ALT) 允许您通过将经常使用的地址存储在紧凑的表格格式中来优化交易大小并降低费用。详细信息请参阅 [地址查找表指南](docs/ADDRESS_LOOKUP_TABLE_CN.md)。
 
-### 🔍 Nonce 缓存
+### 🔍 Durable Nonce
 
-使用 Nonce 缓存来实现交易重放保护和优化交易处理。详细信息请参阅 [Nonce 缓存指南](docs/NONCE_CACHE_CN.md)。
+使用 Durable Nonce 来实现交易重放保护和优化交易处理。详细信息请参阅 [Nonce 使用指南](docs/NONCE_CACHE_CN.md)。
 
 ## 🛡️ MEV 保护服务
 
