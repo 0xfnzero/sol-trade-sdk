@@ -318,16 +318,18 @@ impl IOOptimizer {
         #[cfg(unix)]
         {
             use std::fs::OpenOptions;
-            // use std::os::unix::fs::OpenOptionsExt;
             use std::os::fd::AsRawFd;
-            
+
             #[cfg(target_os = "linux")]
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .custom_flags(libc::O_DIRECT) // 直接I/O，绕过页面缓存
-                .open(file_path)?;
+            let file = {
+                use std::os::unix::fs::OpenOptionsExt;
+                OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .custom_flags(libc::O_DIRECT) // 直接I/O，绕过页面缓存
+                    .open(file_path)?
+            };
             
             #[cfg(not(target_os = "linux"))]
             let file = OpenOptions::new()
