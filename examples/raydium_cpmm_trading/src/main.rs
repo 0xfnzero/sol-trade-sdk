@@ -1,6 +1,6 @@
 use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
-use sol_trade_sdk::common::{gas_fee_strategy, TradeConfig};
-use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+use sol_trade_sdk::common::TradeConfig;
+use sol_trade_sdk::constants::{WSOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT};
 use sol_trade_sdk::trading::core::params::RaydiumCpmmParams;
 use sol_trade_sdk::trading::factory::DexType;
 use sol_trade_sdk::TradeTokenType;
@@ -79,7 +79,9 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
     |event: Box<dyn UnifiedEvent>| {
         match_event!(event, {
             RaydiumCpmmSwapEvent => |e: RaydiumCpmmSwapEvent| {
-                if e.input_token_mint != WSOL_TOKEN_ACCOUNT && e.output_token_mint != WSOL_TOKEN_ACCOUNT {
+                let is_wsol = e.input_token_mint == WSOL_TOKEN_ACCOUNT || e.output_token_mint == WSOL_TOKEN_ACCOUNT;
+                let is_usdc = e.input_token_mint == USDC_TOKEN_ACCOUNT || e.output_token_mint == USDC_TOKEN_ACCOUNT;
+                if !is_wsol && !is_usdc {
                     return;
                 }
                 // Test code, only test one transaction
@@ -101,7 +103,7 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = Keypair::from_base58_string("your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
@@ -118,6 +120,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
 
     let client = create_solana_trade_client().await?;
     let mint_pubkey = if trade_info.input_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+        || trade_info.input_token_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
     {
         trade_info.output_token_mint
     } else {
@@ -131,21 +134,25 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
 
     let buy_params =
         RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &trade_info.pool_state).await?;
+    
+    let is_wsol = trade_info.input_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+        || trade_info.output_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+
     // Buy tokens
     println!("Buying tokens from Raydium_cpmm...");
-    let buy_sol_amount = 100_000;
+    let input_token_amount = 100_000;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::RaydiumCpmm,
-        input_token_type: TradeTokenType::WSOL,
+        input_token_type: if is_wsol { TradeTokenType::SOL } else { TradeTokenType::USDC },
         mint: mint_pubkey,
-        input_token_amount: buy_sol_amount,
+        input_token_amount: input_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: Box::new(buy_params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
-        create_input_token_ata: true,
-        close_input_token_ata: true,
+        create_input_token_ata: is_wsol,
+        close_input_token_ata: is_wsol,
         create_mint_ata: true,
         open_seed_optimize: false,
         durable_nonce: None,
@@ -170,7 +177,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
     println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::RaydiumCpmm,
-        output_token_type: TradeTokenType::WSOL,
+        output_token_type: if is_wsol { TradeTokenType::SOL } else { TradeTokenType::USDC },
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
@@ -179,8 +186,8 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         extension_params: Box::new(sell_params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
-        create_output_token_ata: true,
-        close_output_token_ata: true,
+        create_output_token_ata: is_wsol,
+        close_output_token_ata: is_wsol,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,

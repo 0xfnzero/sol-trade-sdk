@@ -131,7 +131,8 @@ impl ExecutionPath {
         // 分支预测: 大概率是买入
         let is_buy = input_mint == &crate::constants::SOL_TOKEN_ACCOUNT
             || input_mint == &crate::constants::WSOL_TOKEN_ACCOUNT
-            || input_mint == &crate::constants::USD1_TOKEN_ACCOUNT;
+            || input_mint == &crate::constants::USD1_TOKEN_ACCOUNT
+            || input_mint == &crate::constants::USDC_TOKEN_ACCOUNT;
 
         if BranchOptimizer::likely(is_buy) {
             return true;
