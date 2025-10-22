@@ -150,7 +150,7 @@ pub async fn execute_parallel(
         return Err(anyhow!("No available gas fee strategy configs"));
     }
 
-    if task_configs.len() > 1 && durable_nonce.is_none() {
+    if is_buy && task_configs.len() > 1 && durable_nonce.is_none() {
         return Err(anyhow!("Multiple swqos transactions require durable_nonce to be set.",));
     }
 
