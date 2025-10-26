@@ -356,6 +356,23 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         if close_wsol_ata {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
+        if params.close_input_mint_ata {
+            instructions.push(crate::common::spl_token::close_account(
+                if quote_is_wsol_or_usdc {
+                    &base_token_program
+                } else {
+                    &quote_token_program
+                },
+                if quote_is_wsol_or_usdc {
+                    &user_base_token_account
+                } else {
+                    &user_quote_token_account
+                },
+                &params.payer.pubkey(),
+                &params.payer.pubkey(),
+                &[&params.payer.pubkey()],
+            )?);
+        }
         Ok(instructions)
     }
 }

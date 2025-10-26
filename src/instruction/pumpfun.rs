@@ -241,7 +241,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         ));
 
         // Optional: Close token account
-        if protocol_params.close_token_account_when_sell.unwrap_or(false) {
+        if protocol_params.close_token_account_when_sell.unwrap_or(false) || params.close_input_mint_ata {
             instructions.push(close_account(
                 &crate::constants::TOKEN_PROGRAM,
                 &user_token_account,

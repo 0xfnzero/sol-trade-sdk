@@ -236,6 +236,15 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         if params.close_output_mint_ata {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
+        if params.close_input_mint_ata {
+            instructions.push(crate::common::spl_token::close_account(
+                &crate::constants::TOKEN_PROGRAM,
+                &user_source_token_account,
+                &params.payer.pubkey(),
+                &params.payer.pubkey(),
+                &[&params.payer.pubkey()],
+            )?);
+        }
 
         Ok(instructions)
     }

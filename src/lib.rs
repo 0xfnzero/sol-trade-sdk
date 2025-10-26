@@ -148,6 +148,8 @@ pub struct TradeSellParams {
     pub create_output_token_ata: bool,
     /// Whether to close output token associated token account after trade
     pub close_output_token_ata: bool,
+    /// Whether to close mint token associated token account after trade
+    pub close_mint_token_ata: bool,
     /// Whether to enable seed-based optimization for account creation
     pub open_seed_optimize: bool,
     /// Durable nonce information
@@ -409,7 +411,7 @@ impl SolanaTrade {
             durable_nonce: params.durable_nonce,
             data_size_limit: 0,
             create_input_mint_ata: false,
-            close_input_mint_ata: false,
+            close_input_mint_ata: params.close_mint_token_ata,
             create_output_mint_ata: params.create_output_token_ata,
             close_output_mint_ata: params.close_output_token_ata,
             fixed_output_amount: params.fixed_output_token_amount,
