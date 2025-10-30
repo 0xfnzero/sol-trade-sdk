@@ -634,6 +634,7 @@ async fn handle_buy_pumpfun(
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -688,6 +689,7 @@ async fn handle_buy_pumpswap(
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -741,6 +743,7 @@ async fn handle_buy_bonk(
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -798,6 +801,7 @@ async fn handle_buy_raydium_v4(
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -855,6 +859,7 @@ async fn handle_buy_raydium_cpmm(
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.buy(buy_params).await {
         Ok((_, signature)) => {
@@ -1018,10 +1023,12 @@ async fn handle_sell_pumpfun(
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
 
     match client.sell(sell_params).await {
@@ -1075,10 +1082,12 @@ async fn handle_sell_pumpswap(
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1131,10 +1140,12 @@ async fn handle_sell_bonk(
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1190,10 +1201,12 @@ async fn handle_sell_raydium_v4(
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {
@@ -1249,10 +1262,12 @@ async fn handle_sell_raydium_cpmm(
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     match client.sell(sell_params).await {
         Ok((_, signature)) => {

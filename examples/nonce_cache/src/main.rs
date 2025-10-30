@@ -158,6 +158,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         durable_nonce: durable_nonce,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     client.buy(buy_params).await?;
 

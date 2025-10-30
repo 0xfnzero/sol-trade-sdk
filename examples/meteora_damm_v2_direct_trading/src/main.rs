@@ -46,7 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
-        gas_fee_strategy: gas_fee_strategy.clone()
+        gas_fee_strategy: gas_fee_strategy.clone(),
+        simulate: false,
     };
     client.buy(buy_params).await?;
 
@@ -75,10 +76,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         wait_transaction_confirmed: true,
         create_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         close_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
+        close_mint_token_ata: false,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     client.sell(sell_params).await?;
 

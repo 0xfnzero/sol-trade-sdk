@@ -216,6 +216,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
+        simulate: false,
     };
     client.buy(buy_params).await?;
 
@@ -245,10 +246,12 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         wait_transaction_confirmed: true,
         create_output_token_ata: is_sol,
         close_output_token_ata: is_sol,
+        close_mint_token_ata: false,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     client.sell(sell_params).await?;
 

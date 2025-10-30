@@ -136,6 +136,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
+        simulate: false,
     };
     client.buy(buy_params).await?;
 
@@ -168,11 +169,13 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: true,
+        close_mint_token_ata: false,
         open_seed_optimize: false,
         with_tip: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     client.sell(sell_params).await?;
 

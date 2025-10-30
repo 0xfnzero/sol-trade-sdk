@@ -154,6 +154,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
+        simulate: false,
     };
     client.buy(buy_params).await?;
 
@@ -192,10 +193,12 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         wait_transaction_confirmed: true,
         create_output_token_ata: false,
         close_output_token_ata: false,
+        close_mint_token_ata: false,
         open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
+        simulate: false,
     };
     client.sell(sell_params).await?;
 

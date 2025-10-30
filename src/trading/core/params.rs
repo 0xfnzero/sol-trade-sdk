@@ -40,6 +40,7 @@ pub struct SwapParams {
     pub close_output_mint_ata: bool,
     pub fixed_output_amount: Option<u64>,
     pub gas_fee_strategy: GasFeeStrategy,
+    pub simulate: bool,
 }
 
 impl std::fmt::Debug for SwapParams {

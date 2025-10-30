@@ -38,6 +38,7 @@
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
+| `simulate` | `bool` | ✅ | 是否模拟交易而不实际执行。当为 true 时，将通过 RPC 模拟交易以验证并显示详细日志、计算单元消耗和潜在错误，而不会实际提交到区块链 |
 
 
 ## TradeSellParams
@@ -69,6 +70,7 @@
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
+| `simulate` | `bool` | ✅ | 是否模拟交易而不实际执行。当为 true 时，将通过 RPC 模拟交易以验证并显示详细日志、计算单元消耗和潜在错误，而不会实际提交到区块链 |
 
 
 ## 参数分类
@@ -158,3 +160,20 @@
 - **Meteora DAMM V2**: `MeteoraDammV2Params`
 
 请参阅相应的协议文档了解详细的参数规格。
+
+### 🔍 交易模拟
+
+当 `simulate: true` 时：
+- **不提交区块链**: 交易不会实际提交到区块链
+- **验证功能**: 验证交易构建和执行，而不会消耗实际代币
+- **详细输出**: 显示全面的信息，包括：
+  - 带有详细执行步骤的交易日志
+  - 计算单元消耗（用于优化 CU 预算）
+  - 潜在错误和失败原因
+  - 用于调试的内部指令
+- **使用场景**:
+  - 在真实执行前测试交易逻辑
+  - 调试失败的交易
+  - 估算计算单元消耗
+  - 验证交易参数
+- 📝 **注意**: 模拟使用 RPC 的 `simulateTransaction` 方法，采用 processed 承诺级别

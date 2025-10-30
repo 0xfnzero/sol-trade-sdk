@@ -38,6 +38,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
+| `simulate` | `bool` | ✅ | Whether to simulate the transaction instead of executing it. When true, the transaction will be simulated via RPC to validate and show detailed logs, compute units consumed, and potential errors without actually submitting to the blockchain |
 
 
 ## TradeSellParams
@@ -69,6 +70,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
+| `simulate` | `bool` | ✅ | Whether to simulate the transaction instead of executing it. When true, the transaction will be simulated via RPC to validate and show detailed logs, compute units consumed, and potential errors without actually submitting to the blockchain |
 
 
 ## Parameter Categories
@@ -158,3 +160,20 @@ Each DEX protocol requires specific `extension_params`:
 - **Meteora DAMM V2**: `MeteoraDammV2Params`
 
 Refer to the respective protocol documentation for detailed parameter specifications.
+
+### 🔍 Transaction Simulation
+
+When `simulate: true`:
+- **No Blockchain Submission**: The transaction is not actually submitted to the blockchain
+- **Validation**: Validates transaction construction and execution without consuming actual tokens
+- **Detailed Output**: Shows comprehensive information including:
+  - Transaction logs with detailed execution steps
+  - Compute units consumed (useful for optimizing CU budget)
+  - Potential errors and failure reasons
+  - Inner instructions for debugging
+- **Use Cases**:
+  - Testing transaction logic before real execution
+  - Debugging failed transactions
+  - Estimating compute unit consumption
+  - Validating transaction parameters
+- 📝 **Note**: Simulation uses RPC's `simulateTransaction` method with processed commitment level
