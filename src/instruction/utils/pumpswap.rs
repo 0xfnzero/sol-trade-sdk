@@ -51,7 +51,7 @@ pub mod accounts {
 
     pub const AMM_PROGRAM: Pubkey = pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
 
-    pub const LP_FEE_BASIS_POINTS: u64 = 20;
+    pub const LP_FEE_BASIS_POINTS: u64 = 25;
     pub const PROTOCOL_FEE_BASIS_POINTS: u64 = 5;
     pub const COIN_CREATOR_FEE_BASIS_POINTS: u64 = 5;
 
