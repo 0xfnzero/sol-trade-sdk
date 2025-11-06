@@ -140,7 +140,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create buy instruction
         let mut accounts = Vec::with_capacity(23);
         accounts.extend([
-            AccountMeta::new_readonly(pool, false), // pool_id (readonly)
+            AccountMeta::new(pool, false), // pool_id
             AccountMeta::new(params.payer.pubkey(), true), // user (signer)
             accounts::GLOBAL_ACCOUNT_META,          // global (readonly)
             AccountMeta::new_readonly(base_mint, false), // base_mint (readonly)
@@ -300,7 +300,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create sell instruction
         let mut accounts = Vec::with_capacity(23);
         accounts.extend([
-            AccountMeta::new_readonly(pool, false), // pool_id (readonly)
+            AccountMeta::new(pool, false), // pool_id
             AccountMeta::new(params.payer.pubkey(), true), // user (signer)
             accounts::GLOBAL_ACCOUNT_META,          // global (readonly)
             AccountMeta::new_readonly(base_mint, false), // mint (readonly)
