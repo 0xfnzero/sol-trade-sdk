@@ -13,28 +13,6 @@ license = "MIT"
 keywords = ["solana", "memecoins", "pumpfun", "pumpswap", "raydium"]
 readme = "README.md"
 
-
-[workspace]
-members = [
-    "examples/trading_client",
-    "examples/middleware_system",
-    "examples/pumpfun_copy_trading",
-    "examples/pumpfun_sniper_trading",
-    "examples/pumpswap_trading",
-    "examples/bonk_sniper_trading",
-    "examples/bonk_copy_trading",
-    "examples/raydium_cpmm_trading",
-    "examples/raydium_amm_v4_trading",
-    "examples/address_lookup",
-    "examples/nonce_cache",
-    "examples/pumpswap_direct_trading",
-    "examples/wsol_wrapper",
-    "examples/seed_trading",
-    "examples/cli_trading",
-    "examples/gas_fee_strategy",
-    "examples/meteora_damm_v2_direct_trading",
-]
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -108,26 +86,3 @@ crossbeam-utils = "0.8"
 memmap2 = "0.9"
 num_cpus = "1.16"
 libc = "0.2"
-
-# 🚀 编译器优化配置
-[profile.release]
-opt-level = 3              # 最高优化级别
-lto = "fat"                # 胖LTO获得最佳优化
-codegen-units = 1          # 单个代码生成单元
-panic = "abort"            # 恐慌即中止
-overflow-checks = false    # 禁用溢出检查
-debug = false              # 禁用调试信息
-debug-assertions = false   # 禁用调试断言
-rpath = false
-strip = true               # 去除符号表
-
-[profile.dev]
-opt-level = 1              # 开发时适度优化
-overflow-checks = true     # 开发时启用溢出检查
-
-# 🚀 性能关键依赖的特殊优化
-[profile.release.package.solana-sdk]
-opt-level = 3
-
-[profile.release.package.bincode]
-opt-level = 3
