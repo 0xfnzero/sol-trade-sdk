@@ -1,9 +1,9 @@
 use crate::{
     common::SolanaRpcClient,
-    instruction::utils::meteora_damm_v2_types::{pool_decode, Pool},
 };
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
+use solana_streamer::streaming::event_parser::protocols::meteora_damm_v2::types::{pool_decode, Pool};
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {

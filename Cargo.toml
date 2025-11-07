@@ -17,6 +17,7 @@ readme = "README.md"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+solana-streamer = { path = "../solana-streamer" }
 solana-sdk = "3.0.0"
 solana-client = "3.0.8"
 solana-program = "3.0.0"

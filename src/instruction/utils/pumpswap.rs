@@ -3,11 +3,11 @@ use crate::{
         spl_associated_token_account::get_associated_token_address_with_program_id, SolanaRpcClient,
     },
     constants::TOKEN_PROGRAM,
-    instruction::utils::pumpswap_types::{pool_decode, Pool},
 };
 use anyhow::anyhow;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::pubkey::Pubkey;
+use solana_streamer::streaming::event_parser::protocols::pumpswap::types::{pool_decode, Pool};
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {

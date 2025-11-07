@@ -1,10 +1,10 @@
 use crate::{
     common::SolanaRpcClient,
-    instruction::utils::raydium_cpmm_types::{pool_state_decode, PoolState},
     trading::core::params::RaydiumCpmmParams,
 };
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
+use solana_streamer::streaming::event_parser::protocols::raydium_cpmm::types::{pool_state_decode, PoolState};
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {
