@@ -619,4 +619,42 @@ impl SolanaTrade {
         let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())
     }
+
+    /// Creates a wSOL associated token account (ATA) without wrapping any SOL
+    ///
+    /// This function only creates the wSOL associated token account for the payer
+    /// without transferring any SOL into it. This is useful when you want to set up
+    /// the account infrastructure in advance without committing funds yet.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Transaction signature if successful
+    /// * `Err(anyhow::Error)` - If the transaction fails to execute
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - wSOL ATA account already exists (idempotent, will succeed silently)
+    /// - Transaction fails to execute or confirm
+    /// - Network or RPC errors occur
+    /// - Insufficient SOL for transaction fees
+    pub async fn create_wsol_ata(&self) -> Result<String, anyhow::Error> {
+        use crate::trading::common::wsol_manager::create_wsol_ata;
+        use solana_sdk::transaction::Transaction;
+
+        let recent_blockhash = self.rpc.get_latest_blockhash().await?;
+        let instructions = create_wsol_ata(&self.payer.pubkey());
+
+        // If instructions are empty, ATA already exists
+        if instructions.is_empty() {
+            return Err(anyhow::anyhow!(
+                "wSOL ATA already exists or no instructions needed"
+            ));
+        }
+
+        let mut transaction =
+            Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        transaction.sign(&[&*self.payer], recent_blockhash);
+        let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
+        Ok(signature.to_string())
+    }
 }
