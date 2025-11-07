@@ -98,7 +98,6 @@ async fn test_middleware() -> AnyResult<()> {
         create_input_token_ata: true,
         close_input_token_ata: true,
         create_mint_ata: true,
-        open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,

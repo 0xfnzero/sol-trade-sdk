@@ -42,7 +42,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_input_token_ata: true,
         close_input_token_ata: true,
         create_mint_ata: true,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
@@ -83,7 +82,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_output_token_ata: true,
         close_output_token_ata: true,
         close_mint_token_ata: false,
-        open_seed_optimize: true, // ❗️❗️❗️❗️ open seed optimize
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,

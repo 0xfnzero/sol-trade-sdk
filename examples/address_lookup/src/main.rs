@@ -154,7 +154,6 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: true,
-        open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,

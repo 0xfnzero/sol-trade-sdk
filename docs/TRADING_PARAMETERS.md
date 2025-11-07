@@ -34,7 +34,6 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `create_input_token_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
 | `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
-| `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
@@ -66,7 +65,6 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `wait_transaction_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_output_token_ata` | `bool` | ✅ | Whether to create output token Associated Token Account |
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
-| `open_seed_optimize` | `bool` | ✅ | Whether to use seed optimization for reduced CU consumption |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
@@ -105,7 +103,6 @@ These parameters control automatic account creation and management:
 These parameters enable advanced optimizations:
 
 - **address_lookup_table_account**: Use address lookup tables for reduced transaction size
-- **open_seed_optimize**: Use seed-based account creation for lower CU consumption
 
 ### 🔄 Token Type Parameters
 
@@ -123,7 +120,18 @@ When you need to use durable nonce, you need to fill in this parameter:
 
 ### 🌱 Seed Optimization
 
-When `open_seed_optimize: true`:
+Seed optimization is now configured globally in `TradeConfig` when creating the `SolanaTrade` instance:
+
+```rust
+// Enable seed optimization globally (default: true)
+let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
+    .with_wsol_ata_config(
+        true,  // create_wsol_ata_on_startup: Check and create WSOL ATA on startup (default: true)
+        true   // use_seed_optimize: Enable seed optimization for all ATA operations (default: true)
+    );
+```
+
+When seed optimization is enabled:
 - ⚠️ **Warning**: Tokens purchased with seed optimization must be sold through this SDK
 - ⚠️ **Warning**: Official platform selling methods may fail
 - 📝 **Note**: Use `get_associated_token_address_with_program_id_fast_use_seed` to get ATA addresses

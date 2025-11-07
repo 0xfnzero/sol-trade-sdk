@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.1.7" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.2.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "3.1.7"
+sol-trade-sdk = "3.2.0"
 ```
 
 ## 🛠️ Usage Examples
@@ -126,6 +126,14 @@ let swqos_configs: Vec<SwqosConfig> = vec![
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+
+// Optional: Customize WSOL ATA and Seed optimization settings
+// let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
+//     .with_wsol_ata_config(
+//         true,  // create_wsol_ata_on_startup: Check and create WSOL ATA on startup (default: true)
+//         true   // use_seed_optimize: Enable seed optimization globally for all ATA operations (default: true)
+//     );
+
 // Create SolanaTrade client
 let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 ```
@@ -159,8 +167,8 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   create_input_token_ata: true,
   close_input_token_ata: true,
   create_mint_ata: true,
-  open_seed_optimize: false,
   durable_nonce: None,
+  // Note: seed optimization is now configured globally in TradeConfig
 };
 ```
 
