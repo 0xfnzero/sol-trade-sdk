@@ -41,14 +41,20 @@ pub fn compute_budget_instructions(
     // Cache miss, generate new instructions
     let mut insts = SmallVec::<[Instruction; 3]>::new();
 
-    if is_buy {
+    // Only add data_size_limit instruction if > 0 and is_buy
+    if is_buy && data_size_limit > 0 {
         insts.push(ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(data_size_limit));
     }
 
-    insts.extend([
-        ComputeBudgetInstruction::set_compute_unit_price(unit_price),
-        ComputeBudgetInstruction::set_compute_unit_limit(unit_limit),
-    ]);
+    // Only add compute unit price instruction if > 0
+    if unit_price > 0 {
+        insts.push(ComputeBudgetInstruction::set_compute_unit_price(unit_price));
+    }
+
+    // Only add compute unit limit instruction if > 0
+    if unit_limit > 0 {
+        insts.push(ComputeBudgetInstruction::set_compute_unit_limit(unit_limit));
+    }
 
     // Store result in cache
     let insts_clone = insts.clone();
