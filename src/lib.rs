@@ -380,7 +380,10 @@ impl SolanaTrade {
             slippage_basis_points: params.slippage_basis_points,
             address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
-            data_size_limit: 256 * 1024,
+            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Buy)
+                .get(0)
+                .map(|(_, _, v)| v.data_size_limit)
+                .unwrap_or(256 * 1024),
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
             open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
@@ -484,7 +487,10 @@ impl SolanaTrade {
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
-            data_size_limit: 0,
+            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Sell)
+                .get(0)
+                .map(|(_, _, v)| v.data_size_limit)
+                .unwrap_or(0),
             create_input_mint_ata: false,
             close_input_mint_ata: params.close_mint_token_ata,
             create_output_mint_ata: params.create_output_token_ata,
