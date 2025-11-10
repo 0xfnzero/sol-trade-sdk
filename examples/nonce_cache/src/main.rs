@@ -125,7 +125,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let durable_nonce = fetch_nonce_info(&client.rpc, nonce_account_str).await;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
