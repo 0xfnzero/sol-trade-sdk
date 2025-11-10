@@ -58,6 +58,8 @@ pub struct BondingCurveAccount {
     pub complete: bool,
     /// Creator of the bonding curve
     pub creator: Pubkey,
+    /// Whether this is a mayhem mode token (Token2022)
+    pub is_mayhem_mode: bool,
 }
 
 impl BondingCurveAccount {
@@ -67,6 +69,7 @@ impl BondingCurveAccount {
         dev_token_amount: u64,
         dev_sol_amount: u64,
         creator: Pubkey,
+        is_mayhem_mode: bool,
     ) -> Self {
         let account = if bonding_curve != Pubkey::default() {
             bonding_curve
@@ -83,6 +86,7 @@ impl BondingCurveAccount {
             token_total_supply: TOKEN_TOTAL_SUPPLY,
             complete: false,
             creator: creator,
+            is_mayhem_mode: is_mayhem_mode,
         }
     }
 
@@ -94,6 +98,7 @@ impl BondingCurveAccount {
         virtual_sol_reserves: u64,
         real_token_reserves: u64,
         real_sol_reserves: u64,
+        is_mayhem_mode: bool,
     ) -> Self {
         let account = if bonding_curve != Pubkey::default() {
             bonding_curve
@@ -110,6 +115,7 @@ impl BondingCurveAccount {
             token_total_supply: TOKEN_TOTAL_SUPPLY,
             complete: false,
             creator: creator,
+            is_mayhem_mode: is_mayhem_mode,
         }
     }
 

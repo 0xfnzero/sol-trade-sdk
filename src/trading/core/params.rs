@@ -4,6 +4,8 @@ use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
 use crate::common::{GasFeeStrategy, SolanaRpcClient};
 use crate::constants::TOKEN_PROGRAM;
+use crate::instruction::utils::pumpfun::global_constants::MAYHEM_FEE_RECIPIENT;
+use crate::instruction::utils::pumpswap::accounts::MAYHEM_FEE_RECIPIENT as MAYHEM_FEE_RECIPIENT_SWAP;
 use crate::swqos::{SwqosClient, TradeType};
 use crate::trading::common::get_multi_token_balances;
 use crate::trading::MiddlewareManager;
@@ -79,13 +81,16 @@ impl PumpFunParams {
         associated_bonding_curve: Pubkey,
         creator_vault: Pubkey,
         close_token_account_when_sell: Option<bool>,
+        fee_recipient: Pubkey,
     ) -> Self {
+        let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve_account = BondingCurveAccount::from_dev_trade(
             bonding_curve,
             &mint,
             token_amount,
             max_sol_cost,
             creator,
+            is_mayhem_mode,
         );
         Self {
             bonding_curve: Arc::new(bonding_curve_account),
@@ -106,7 +111,9 @@ impl PumpFunParams {
         real_token_reserves: u64,
         real_sol_reserves: u64,
         close_token_account_when_sell: Option<bool>,
+        fee_recipient: Pubkey,
     ) -> Self {
+        let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve = BondingCurveAccount::from_trade(
             bonding_curve,
             mint,
@@ -115,6 +122,7 @@ impl PumpFunParams {
             virtual_sol_reserves,
             real_token_reserves,
             real_sol_reserves,
+            is_mayhem_mode,
         );
         Self {
             bonding_curve: Arc::new(bonding_curve),
@@ -140,6 +148,7 @@ impl PumpFunParams {
             token_total_supply: account.0.token_total_supply,
             complete: account.0.complete,
             creator: account.0.creator,
+            is_mayhem_mode: account.0.is_mayhem_mode,
         };
         let associated_bonding_curve = get_associated_token_address_with_program_id(
             &bonding_curve.account,
@@ -201,6 +210,8 @@ pub struct PumpSwapParams {
     pub base_token_program: Pubkey,
     /// Quote token program ID
     pub quote_token_program: Pubkey,
+    /// Whether the pool is in mayhem mode
+    pub is_mayhem_mode: bool,
 }
 
 impl PumpSwapParams {
@@ -216,7 +227,9 @@ impl PumpSwapParams {
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
         quote_token_program: Pubkey,
+        fee_recipient: Pubkey,
     ) -> Self {
+        let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT_SWAP;
         Self {
             pool,
             base_mint,
@@ -229,6 +242,7 @@ impl PumpSwapParams {
             coin_creator_vault_authority,
             base_token_program,
             quote_token_program,
+            is_mayhem_mode,
         }
     }
 
@@ -295,6 +309,7 @@ impl PumpSwapParams {
             } else {
                 crate::constants::TOKEN_PROGRAM_2022
             },
+            is_mayhem_mode: pool_data.is_mayhem_mode,
         })
     }
 }

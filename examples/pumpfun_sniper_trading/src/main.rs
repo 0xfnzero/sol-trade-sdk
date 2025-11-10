@@ -110,6 +110,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
             trade_info.associated_bonding_curve,
             trade_info.creator_vault,
             None,
+            trade_info.fee_recipient,
         )),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,

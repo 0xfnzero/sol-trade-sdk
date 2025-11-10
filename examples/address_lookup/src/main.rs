@@ -148,6 +148,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
             trade_info.real_token_reserves,
             trade_info.real_sol_reserves,
             None,
+            trade_info.fee_recipient,
         )),
         address_lookup_table_account: address_lookup_table_account,
         wait_transaction_confirmed: true,

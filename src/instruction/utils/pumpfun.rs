@@ -1,8 +1,7 @@
-use crate::common::{bonding_curve::BondingCurveAccount, global::GlobalAccount, SolanaRpcClient};
+use crate::common::{bonding_curve::BondingCurveAccount, SolanaRpcClient};
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use std::sync::Arc;
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {
@@ -52,6 +51,15 @@ pub mod global_constants {
     /// Public key for the fee recipient
     pub const FEE_RECIPIENT: Pubkey = pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
     pub const FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: FEE_RECIPIENT,
+            is_signer: false,
+            is_writable: true,
+        };
+
+    pub const MAYHEM_FEE_RECIPIENT: Pubkey =
+        pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS");
+    pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: FEE_RECIPIENT,
             is_signer: false,
@@ -150,10 +158,6 @@ pub struct Symbol;
 
 impl Symbol {
     pub const SOLANA: &'static str = "solana";
-}
-
-lazy_static::lazy_static! {
-    static ref ACCOUNT_CACHE: RwLock<HashMap<Pubkey, Arc<GlobalAccount>>> = RwLock::new(HashMap::new());
 }
 
 #[inline]
