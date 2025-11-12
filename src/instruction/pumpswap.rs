@@ -53,10 +53,14 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
 
-        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
-        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
+        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
+            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+                && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
+        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
+            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT
+                && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
         if !is_wsol && !is_usdc {
             return Err(anyhow!("Pool must contain WSOL or USDC"));
         }
@@ -64,7 +68,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT 
+        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
             || quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let mut creator = Pubkey::default();
         if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
@@ -113,7 +117,17 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 &quote_token_program,
                 params.open_seed_optimize,
             );
-        let fee_recipient_ata = fee_recipient_ata(accounts::FEE_RECIPIENT, quote_mint);
+
+        // Determine fee recipient based on mayhem mode
+        let is_mayhem_mode = protocol_params.is_mayhem_mode;
+        let fee_recipient =
+            if is_mayhem_mode { accounts::MAYHEM_FEE_RECIPIENT } else { accounts::FEE_RECIPIENT };
+        let fee_recipient_meta = if is_mayhem_mode {
+            accounts::MAYHEM_FEE_RECIPIENT_META
+        } else {
+            accounts::FEE_RECIPIENT_META
+        };
+        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
 
         // ========================================
         // Build instructions
@@ -140,18 +154,18 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create buy instruction
         let mut accounts = Vec::with_capacity(23);
         accounts.extend([
-            AccountMeta::new(pool, false), // pool_id
-            AccountMeta::new(params.payer.pubkey(), true), // user (signer)
-            accounts::GLOBAL_ACCOUNT_META,          // global (readonly)
-            AccountMeta::new_readonly(base_mint, false), // base_mint (readonly)
-            AccountMeta::new_readonly(quote_mint, false), // quote_mint (readonly)
-            AccountMeta::new(user_base_token_account, false), // user_base_token_account
-            AccountMeta::new(user_quote_token_account, false), // user_quote_token_account
-            AccountMeta::new(pool_base_token_account, false), // pool_base_token_account
-            AccountMeta::new(pool_quote_token_account, false), // pool_quote_token_account
-            accounts::FEE_RECIPIENT_META,           // fee_recipient (readonly)
-            AccountMeta::new(fee_recipient_ata, false), // fee_recipient_ata
-            AccountMeta::new_readonly(base_token_program, false), // TOKEN_PROGRAM_ID (readonly)
+            AccountMeta::new(pool, false),                          // pool_id
+            AccountMeta::new(params.payer.pubkey(), true),          // user (signer)
+            accounts::GLOBAL_ACCOUNT_META,                          // global (readonly)
+            AccountMeta::new_readonly(base_mint, false),            // base_mint (readonly)
+            AccountMeta::new_readonly(quote_mint, false),           // quote_mint (readonly)
+            AccountMeta::new(user_base_token_account, false),       // user_base_token_account
+            AccountMeta::new(user_quote_token_account, false),      // user_quote_token_account
+            AccountMeta::new(pool_base_token_account, false),       // pool_base_token_account
+            AccountMeta::new(pool_quote_token_account, false),      // pool_quote_token_account
+            fee_recipient_meta,                                     // fee_recipient (readonly)
+            AccountMeta::new(fee_recipient_ata, false),             // fee_recipient_ata
+            AccountMeta::new_readonly(base_token_program, false),   // TOKEN_PROGRAM_ID (readonly)
             AccountMeta::new_readonly(quote_token_program, false), // TOKEN_PROGRAM_ID (readonly, duplicated as in JS)
             crate::constants::SYSTEM_PROGRAM_META,                 // System Program (readonly)
             accounts::ASSOCIATED_TOKEN_PROGRAM_META, // ASSOCIATED_TOKEN_PROGRAM_ID (readonly)
@@ -222,10 +236,14 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_token_program = protocol_params.base_token_program;
         let quote_token_program = protocol_params.quote_token_program;
 
-        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
-        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
+        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
+            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+                && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
+        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
+            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT
+                && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
         if !is_wsol && !is_usdc {
             return Err(anyhow!("Pool must contain WSOL or USDC"));
         }
@@ -237,7 +255,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT 
+        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
             || quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let mut creator = Pubkey::default();
         if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
@@ -272,7 +290,17 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             sol_amount = params.fixed_output_amount.unwrap();
         }
 
-        let fee_recipient_ata = fee_recipient_ata(accounts::FEE_RECIPIENT, quote_mint);
+        // Determine fee recipient based on mayhem mode
+        let is_mayhem_mode = protocol_params.is_mayhem_mode;
+        let fee_recipient =
+            if is_mayhem_mode { accounts::MAYHEM_FEE_RECIPIENT } else { accounts::FEE_RECIPIENT };
+        let fee_recipient_meta = if is_mayhem_mode {
+            accounts::MAYHEM_FEE_RECIPIENT_META
+        } else {
+            accounts::FEE_RECIPIENT_META
+        };
+        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
+
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
@@ -300,18 +328,18 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create sell instruction
         let mut accounts = Vec::with_capacity(23);
         accounts.extend([
-            AccountMeta::new(pool, false), // pool_id
-            AccountMeta::new(params.payer.pubkey(), true), // user (signer)
-            accounts::GLOBAL_ACCOUNT_META,          // global (readonly)
-            AccountMeta::new_readonly(base_mint, false), // mint (readonly)
-            AccountMeta::new_readonly(quote_mint, false), // WSOL_TOKEN_ACCOUNT (readonly)
-            AccountMeta::new(user_base_token_account, false), // user_base_token_account
-            AccountMeta::new(user_quote_token_account, false), // user_quote_token_account
-            AccountMeta::new(pool_base_token_account, false), // pool_base_token_account
-            AccountMeta::new(pool_quote_token_account, false), // pool_quote_token_account
-            accounts::FEE_RECIPIENT_META,           // fee_recipient (readonly)
-            AccountMeta::new(fee_recipient_ata, false), // fee_recipient_ata
-            AccountMeta::new_readonly(base_token_program, false), // TOKEN_PROGRAM_ID (readonly)
+            AccountMeta::new(pool, false),                          // pool_id
+            AccountMeta::new(params.payer.pubkey(), true),          // user (signer)
+            accounts::GLOBAL_ACCOUNT_META,                          // global (readonly)
+            AccountMeta::new_readonly(base_mint, false),            // mint (readonly)
+            AccountMeta::new_readonly(quote_mint, false),           // WSOL_TOKEN_ACCOUNT (readonly)
+            AccountMeta::new(user_base_token_account, false),       // user_base_token_account
+            AccountMeta::new(user_quote_token_account, false),      // user_quote_token_account
+            AccountMeta::new(pool_base_token_account, false),       // pool_base_token_account
+            AccountMeta::new(pool_quote_token_account, false),      // pool_quote_token_account
+            fee_recipient_meta,                                     // fee_recipient (readonly)
+            AccountMeta::new(fee_recipient_ata, false),             // fee_recipient_ata
+            AccountMeta::new_readonly(base_token_program, false),   // TOKEN_PROGRAM_ID (readonly)
             AccountMeta::new_readonly(quote_token_program, false), // TOKEN_PROGRAM_ID (readonly, duplicated as in JS)
             crate::constants::SYSTEM_PROGRAM_META,                 // System Program (readonly)
             accounts::ASSOCIATED_TOKEN_PROGRAM_META, // ASSOCIATED_TOKEN_PROGRAM_ID (readonly)
@@ -358,11 +386,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(
-                if quote_is_wsol_or_usdc {
-                    &base_token_program
-                } else {
-                    &quote_token_program
-                },
+                if quote_is_wsol_or_usdc { &base_token_program } else { &quote_token_program },
                 if quote_is_wsol_or_usdc {
                     &user_base_token_account
                 } else {

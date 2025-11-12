@@ -140,7 +140,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     );
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");

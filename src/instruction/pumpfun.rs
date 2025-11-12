@@ -68,12 +68,25 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             bonding_curve.account
         };
 
+        // Determine token program based on mayhem mode
+        let is_mayhem_mode = bonding_curve.is_mayhem_mode;
+        let token_program = if is_mayhem_mode {
+            crate::constants::TOKEN_PROGRAM_2022
+        } else {
+            crate::constants::TOKEN_PROGRAM
+        };
+        let token_program_meta = if is_mayhem_mode {
+            crate::constants::TOKEN_PROGRAM_2022_META
+        } else {
+            crate::constants::TOKEN_PROGRAM_META
+        };
+
         let associated_bonding_curve =
             if protocol_params.associated_bonding_curve == Pubkey::default() {
                 crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
                     &bonding_curve_addr,
                     &params.output_mint,
-                    &crate::constants::TOKEN_PROGRAM,
+                    &token_program,
                 )
             } else {
                 protocol_params.associated_bonding_curve
@@ -83,7 +96,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.output_mint,
-                &crate::constants::TOKEN_PROGRAM,
+                &token_program,
                 params.open_seed_optimize,
             );
 
@@ -102,7 +115,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
                     &params.output_mint,
-                    &crate::constants::TOKEN_PROGRAM,
+                    &token_program,
                     params.open_seed_optimize,
                 ),
             );
@@ -113,16 +126,23 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         buy_data[8..16].copy_from_slice(&buy_token_amount.to_le_bytes());
         buy_data[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
 
+        // Determine fee recipient based on mayhem mode
+        let fee_recipient_meta = if is_mayhem_mode {
+            global_constants::MAYHEM_FEE_RECIPIENT_META
+        } else {
+            global_constants::FEE_RECIPIENT_META
+        };
+
         let accounts: [AccountMeta; 16] = [
             global_constants::GLOBAL_ACCOUNT_META,
-            global_constants::FEE_RECIPIENT_META,
+            fee_recipient_meta,
             AccountMeta::new_readonly(params.output_mint, false),
             AccountMeta::new(bonding_curve_addr, false),
             AccountMeta::new(associated_bonding_curve, false),
             AccountMeta::new(user_token_account, false),
             AccountMeta::new(params.payer.pubkey(), true),
             crate::constants::SYSTEM_PROGRAM_META,
-            crate::constants::TOKEN_PROGRAM_META,
+            token_program_meta,
             AccountMeta::new(creator_vault_pda, false),
             accounts::EVENT_AUTHORITY_META,
             accounts::PUMPFUN_META,
@@ -188,12 +208,25 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             bonding_curve.account
         };
 
+        // Determine token program based on mayhem mode
+        let is_mayhem_mode = bonding_curve.is_mayhem_mode;
+        let token_program = if is_mayhem_mode {
+            crate::constants::TOKEN_PROGRAM_2022
+        } else {
+            crate::constants::TOKEN_PROGRAM
+        };
+        let token_program_meta = if is_mayhem_mode {
+            crate::constants::TOKEN_PROGRAM_2022_META
+        } else {
+            crate::constants::TOKEN_PROGRAM_META
+        };
+
         let associated_bonding_curve =
             if protocol_params.associated_bonding_curve == Pubkey::default() {
                 crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
                     &bonding_curve_addr,
                     &params.input_mint,
-                    &crate::constants::TOKEN_PROGRAM,
+                    &token_program,
                 )
             } else {
                 protocol_params.associated_bonding_curve
@@ -203,7 +236,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.input_mint,
-                &crate::constants::TOKEN_PROGRAM,
+                &token_program,
                 params.open_seed_optimize,
             );
 
@@ -217,9 +250,16 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         sell_data[8..16].copy_from_slice(&token_amount.to_le_bytes());
         sell_data[16..24].copy_from_slice(&min_sol_output.to_le_bytes());
 
+        // Determine fee recipient based on mayhem mode
+        let fee_recipient_meta = if is_mayhem_mode {
+            global_constants::MAYHEM_FEE_RECIPIENT_META
+        } else {
+            global_constants::FEE_RECIPIENT_META
+        };
+
         let accounts: [AccountMeta; 14] = [
             global_constants::GLOBAL_ACCOUNT_META,
-            global_constants::FEE_RECIPIENT_META,
+            fee_recipient_meta,
             AccountMeta::new_readonly(params.input_mint, false),
             AccountMeta::new(bonding_curve_addr, false),
             AccountMeta::new(associated_bonding_curve, false),
@@ -227,7 +267,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             AccountMeta::new(params.payer.pubkey(), true),
             crate::constants::SYSTEM_PROGRAM_META,
             AccountMeta::new(creator_vault_pda, false),
-            crate::constants::TOKEN_PROGRAM_META,
+            token_program_meta,
             accounts::EVENT_AUTHORITY_META,
             accounts::PUMPFUN_META,
             accounts::FEE_CONFIG_META,
@@ -241,9 +281,11 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         ));
 
         // Optional: Close token account
-        if protocol_params.close_token_account_when_sell.unwrap_or(false) || params.close_input_mint_ata {
+        if protocol_params.close_token_account_when_sell.unwrap_or(false)
+            || params.close_input_mint_ata
+        {
             instructions.push(close_account(
-                &crate::constants::TOKEN_PROGRAM,
+                &token_program,
                 &user_token_account,
                 &params.payer.pubkey(),
                 &params.payer.pubkey(),

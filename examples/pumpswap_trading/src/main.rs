@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         PUMPSWAP_PROGRAM_ID.to_string(), // Listen to PumpSwap program ID
     ];
     let account_exclude = vec![];
-    
+
     let account_required = vec![];
 
     // Listen to transaction data
@@ -148,9 +148,11 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
         trade_info.quote_token_program,
+        trade_info.protocol_fee_recipient,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
-            || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
+        || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+    {
         trade_info.quote_mint
     } else {
         trade_info.base_mint
@@ -172,9 +174,11 @@ async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> A
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
         trade_info.quote_token_program,
+        trade_info.protocol_fee_recipient,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
-            || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT {
+        || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+    {
         trade_info.quote_mint
     } else {
         trade_info.base_mint
@@ -191,7 +195,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let is_sol = params.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || params.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;

@@ -81,7 +81,7 @@ async fn test_middleware() -> AnyResult<()> {
     let pool_address = Pubkey::from_str("539m4mVWt6iduB6W8rDGPMarzNCMesuqY5eUTiiYHAgR")?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpSwap,
