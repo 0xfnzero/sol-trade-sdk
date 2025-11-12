@@ -125,7 +125,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
 
     let gas_fee_strategy = GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -148,13 +148,13 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
             trade_info.real_token_reserves,
             trade_info.real_sol_reserves,
             None,
+            trade_info.fee_recipient,
         )),
         address_lookup_table_account: address_lookup_table_account,
         wait_transaction_confirmed: true,
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: true,
-        open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,

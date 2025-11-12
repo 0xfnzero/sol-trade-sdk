@@ -74,24 +74,6 @@ impl PreallocatedTxBuilder {
 
         // ✅ 如果有查找表，使用 V0 消息
         if let Some(address_lookup_table_account) = address_lookup_table_account {
-            // self.lookup_tables.push(v0::MessageAddressTableLookup {
-            //     account_key: table_key,
-            //     writable_indexes: vec![],
-            //     readonly_indexes: vec![],
-            // });
-
-            // // 使用 Message::new 创建 legacy 消息，然后提取编译后的指令
-            // let legacy_msg = Message::new(&self.instructions, Some(payer));
-
-            // // 构建 V0 消息
-            // let message = v0::Message {
-            //     header: legacy_msg.header,
-            //     account_keys: legacy_msg.account_keys,
-            //     recent_blockhash,
-            //     instructions: legacy_msg.instructions,
-            //     address_table_lookups: self.lookup_tables.clone(),
-            // };
-
              let message = v0::Message::try_compile(
                 payer,
                 &self.instructions,

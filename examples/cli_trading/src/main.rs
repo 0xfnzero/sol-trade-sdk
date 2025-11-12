@@ -615,7 +615,7 @@ async fn handle_buy_pumpfun(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpFun,
@@ -630,7 +630,6 @@ async fn handle_buy_pumpfun(
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -670,7 +669,7 @@ async fn handle_buy_pumpswap(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpSwap,
@@ -685,7 +684,6 @@ async fn handle_buy_pumpswap(
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -724,7 +722,7 @@ async fn handle_buy_bonk(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::Bonk,
@@ -739,7 +737,6 @@ async fn handle_buy_bonk(
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -782,7 +779,7 @@ async fn handle_buy_raydium_v4(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
@@ -797,7 +794,6 @@ async fn handle_buy_raydium_v4(
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -840,7 +836,7 @@ async fn handle_buy_raydium_cpmm(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumCpmm,
@@ -855,7 +851,6 @@ async fn handle_buy_raydium_cpmm(
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -1008,7 +1003,7 @@ async fn handle_sell_pumpfun(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpFun,
@@ -1024,7 +1019,6 @@ async fn handle_sell_pumpfun(
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -1067,7 +1061,7 @@ async fn handle_sell_pumpswap(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpSwap,
@@ -1083,7 +1077,6 @@ async fn handle_sell_pumpswap(
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -1125,7 +1118,7 @@ async fn handle_sell_bonk(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::Bonk,
@@ -1141,7 +1134,6 @@ async fn handle_sell_bonk(
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -1186,7 +1178,7 @@ async fn handle_sell_raydium_v4(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
@@ -1202,7 +1194,6 @@ async fn handle_sell_raydium_v4(
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
@@ -1247,7 +1238,7 @@ async fn handle_sell_raydium_cpmm(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumCpmm,
@@ -1263,7 +1254,6 @@ async fn handle_sell_raydium_cpmm(
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
-        open_seed_optimize: use_seed,
         durable_nonce: None,
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,

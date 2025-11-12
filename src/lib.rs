@@ -59,6 +59,9 @@ pub struct SolanaTrade {
     pub swqos_clients: Vec<Arc<SwqosClient>>,
     /// Optional middleware manager for custom transaction processing
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
+    /// Whether to use seed optimization for all ATA operations (default: true)
+    /// Applies to all token account creations across buy and sell operations
+    pub use_seed_optimize: bool,
 }
 
 static INSTANCE: Mutex<Option<Arc<SolanaTrade>>> = Mutex::new(None);
@@ -70,6 +73,7 @@ impl Clone for SolanaTrade {
             rpc: self.rpc.clone(),
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
+            use_seed_optimize: self.use_seed_optimize,
         }
     }
 }
@@ -106,8 +110,6 @@ pub struct TradeBuyParams {
     pub close_input_token_ata: bool,
     /// Whether to create token mint associated token account
     pub create_mint_ata: bool,
-    /// Whether to enable seed-based optimization for account creation
-    pub open_seed_optimize: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
@@ -152,8 +154,6 @@ pub struct TradeSellParams {
     pub close_output_token_ata: bool,
     /// Whether to close mint token associated token account after trade
     pub close_mint_token_ata: bool,
-    /// Whether to enable seed-based optimization for account creation
-    pub open_seed_optimize: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
@@ -204,7 +204,77 @@ impl SolanaTrade {
         common::seed::update_rents(&rpc).await.unwrap();
         common::seed::start_rent_updater(rpc.clone());
 
-        let instance = Self { payer, rpc, swqos_clients, middleware_manager: None };
+        // 🔧 初始化WSOL ATA：如果配置为启动时创建，则检查并创建
+        if trade_config.create_wsol_ata_on_startup {
+            // 根据seed配置计算WSOL ATA地址
+            let wsol_ata =
+                crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+                    &payer.pubkey(),
+                    &WSOL_TOKEN_ACCOUNT,
+                    &crate::constants::TOKEN_PROGRAM,
+                );
+
+            // 查询账户是否存在
+            match rpc.get_account(&wsol_ata).await {
+                Ok(_) => {
+                    // WSOL ATA已存在
+                    println!("✅ WSOL ATA已存在: {}", wsol_ata);
+                }
+                Err(_) => {
+                    // WSOL ATA不存在，创建它
+                    println!("🔨 创建WSOL ATA: {}", wsol_ata);
+                    // 使用seed优化创建WSOL ATA
+                    let create_ata_ixs =
+                        crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
+
+                    if !create_ata_ixs.is_empty() {
+                        // 构建并发送交易
+                        use solana_sdk::transaction::Transaction;
+                        let recent_blockhash = rpc.get_latest_blockhash().await.unwrap();
+                        let tx = Transaction::new_signed_with_payer(
+                            &create_ata_ixs,
+                            Some(&payer.pubkey()),
+                            &[payer.as_ref()],
+                            recent_blockhash,
+                        );
+
+                        match rpc.send_and_confirm_transaction(&tx).await {
+                            Ok(signature) => {
+                                println!("✅ WSOL ATA创建成功: {}", signature);
+                            }
+                            Err(e) => {
+                                // 创建失败，检查是否是因为已存在
+                                match rpc.get_account(&wsol_ata).await {
+                                    Ok(_) => {
+                                        println!(
+                                            "✅ WSOL ATA已存在（交易失败但账户存在）: {}",
+                                            wsol_ata
+                                        );
+                                    }
+                                    Err(_) => {
+                                        // 账户不存在且创建失败 - 这是严重错误，应该让启动失败
+                                        panic!(
+                                            "❌ WSOL ATA创建失败且账户不存在: {}. 错误: {}",
+                                            wsol_ata, e
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        println!("ℹ️ WSOL ATA已存在（无需创建）");
+                    }
+                }
+            }
+        }
+
+        let instance = Self {
+            payer,
+            rpc,
+            swqos_clients,
+            middleware_manager: None,
+            use_seed_optimize: trade_config.use_seed_optimize,
+        };
 
         let mut current = INSTANCE.lock();
         *current = Some(Arc::new(instance.clone()));
@@ -310,10 +380,13 @@ impl SolanaTrade {
             slippage_basis_points: params.slippage_basis_points,
             address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
-            data_size_limit: 256 * 1024,
+            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Buy)
+                .get(0)
+                .map(|(_, _, v)| v.data_size_limit)
+                .unwrap_or(256 * 1024),
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
-            open_seed_optimize: params.open_seed_optimize,
+            open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
@@ -410,11 +483,14 @@ impl SolanaTrade {
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
             with_tip: params.with_tip,
-            open_seed_optimize: params.open_seed_optimize,
+            open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
-            data_size_limit: 0,
+            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Sell)
+                .get(0)
+                .map(|(_, _, v)| v.data_size_limit)
+                .unwrap_or(0),
             create_input_mint_ata: false,
             close_input_mint_ata: params.close_mint_token_ata,
             create_output_mint_ata: params.create_output_token_ata,
@@ -543,6 +619,44 @@ impl SolanaTrade {
         use solana_sdk::transaction::Transaction;
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
         let instructions = close_wsol(&self.payer.pubkey());
+        let mut transaction =
+            Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        transaction.sign(&[&*self.payer], recent_blockhash);
+        let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
+        Ok(signature.to_string())
+    }
+
+    /// Creates a wSOL associated token account (ATA) without wrapping any SOL
+    ///
+    /// This function only creates the wSOL associated token account for the payer
+    /// without transferring any SOL into it. This is useful when you want to set up
+    /// the account infrastructure in advance without committing funds yet.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Transaction signature if successful
+    /// * `Err(anyhow::Error)` - If the transaction fails to execute
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - wSOL ATA account already exists (idempotent, will succeed silently)
+    /// - Transaction fails to execute or confirm
+    /// - Network or RPC errors occur
+    /// - Insufficient SOL for transaction fees
+    pub async fn create_wsol_ata(&self) -> Result<String, anyhow::Error> {
+        use crate::trading::common::wsol_manager::create_wsol_ata;
+        use solana_sdk::transaction::Transaction;
+
+        let recent_blockhash = self.rpc.get_latest_blockhash().await?;
+        let instructions = create_wsol_ata(&self.payer.pubkey());
+
+        // If instructions are empty, ATA already exists
+        if instructions.is_empty() {
+            return Err(anyhow::anyhow!(
+                "wSOL ATA already exists or no instructions needed"
+            ));
+        }
+
         let mut transaction =
             Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);

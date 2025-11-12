@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.1.7" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.3.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "3.1.7"
+sol-trade-sdk = "3.3.0"
 ```
 
 ## 🛠️ 使用示例
@@ -126,6 +126,14 @@ let swqos_configs: Vec<SwqosConfig> = vec![
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+
+// 可选：自定义 WSOL ATA 和 Seed 优化设置
+// let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
+//     .with_wsol_ata_config(
+//         true,  // create_wsol_ata_on_startup: 启动时检查并创建 WSOL ATA（默认: true）
+//         true   // use_seed_optimize: 全局启用所有 ATA 操作的 seed 优化（默认: true）
+//     );
+
 // 创建 SolanaTrade 客户端
 let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 ```
@@ -138,7 +146,7 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 // 创建 GasFeeStrategy 实例
 let gas_fee_strategy = GasFeeStrategy::new();
 // 设置全局策略
-gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 ```
 
 #### 3. 构建交易参数
@@ -159,8 +167,8 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   create_input_token_ata: true,
   close_input_token_ata: true,
   create_mint_ata: true,
-  open_seed_optimize: false,
   durable_nonce: None,
+  // 注意：seed 优化现在在 TradeConfig 中全局配置
 };
 ```
 

@@ -65,6 +65,10 @@ pub mod accounts {
     pub const DEFAULT_COIN_CREATOR_VAULT_AUTHORITY: Pubkey =
         pubkey!("8N3GDaZ2iwN65oxVatKTLPNooAVUJTbfiVJ1ahyqwjSk");
 
+    /// Mayhem fee recipient (for mayhem mode coins)
+    pub const MAYHEM_FEE_RECIPIENT: Pubkey =
+        pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS");
+
     // META
 
     pub const GLOBAL_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
@@ -77,6 +81,13 @@ pub mod accounts {
     pub const FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: FEE_RECIPIENT,
+            is_signer: false,
+            is_writable: false,
+        };
+
+    pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: MAYHEM_FEE_RECIPIENT,
             is_signer: false,
             is_writable: false,
         };

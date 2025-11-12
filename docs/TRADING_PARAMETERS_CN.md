@@ -34,7 +34,6 @@
 | `create_input_token_ata` | `bool` | ✅ | 是否创建输入代币关联代币账户 |
 | `close_input_token_ata` | `bool` | ✅ | 交易后是否关闭输入代币 ATA |
 | `create_mint_ata` | `bool` | ✅ | 是否创建代币 mint ATA |
-| `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
@@ -66,7 +65,6 @@
 | `wait_transaction_confirmed` | `bool` | ✅ | 是否等待交易确认 |
 | `create_output_token_ata` | `bool` | ✅ | 是否创建输出代币关联代币账户 |
 | `close_output_token_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
-| `open_seed_optimize` | `bool` | ✅ | 是否使用 seed 优化以减少 CU 消耗 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | 持久 nonce 信息，包含 nonce 账户和当前 nonce 值 |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee 策略实例，用于控制交易费用和优先级 |
 | `fixed_output_token_amount` | `Option<u64>` | ❌ | 可选的固定输出代币数量。如果设置，此值将直接分配给输出数量而不是通过计算得出（Meteora DAMM V2 必需） |
@@ -105,7 +103,6 @@
 这些参数启用高级优化：
 
 - **address_lookup_table_account**: 使用地址查找表减少交易大小
-- **open_seed_optimize**: 使用基于 seed 的账户创建以降低 CU 消耗
 
 ### 🔄 代币类型参数
 
@@ -123,7 +120,18 @@
 
 ### 🌱 Seed 优化
 
-当 `open_seed_optimize: true` 时：
+Seed 优化现在在创建 `SolanaTrade` 实例时通过 `TradeConfig` 全局配置：
+
+```rust
+// 全局启用 seed 优化（默认: true）
+let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
+    .with_wsol_ata_config(
+        true,  // create_wsol_ata_on_startup: 启动时检查并创建 WSOL ATA（默认: true）
+        true   // use_seed_optimize: 为所有 ATA 操作启用 seed 优化（默认: true）
+    );
+```
+
+当 seed 优化启用时：
 - ⚠️ **警告**: 使用 seed 优化购买的代币必须通过此 SDK 出售
 - ⚠️ **警告**: 官方平台的出售方法可能会失败
 - 📝 **注意**: 使用 `get_associated_token_address_with_program_id_fast_use_seed` 获取 ATA 地址

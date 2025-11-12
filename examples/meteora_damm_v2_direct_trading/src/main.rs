@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mint_pubkey = Pubkey::from_str("PRVT6TB7uss3FrUd2D9xs2zqDBsa3GbMJMwCQsgmeta").unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001);
+    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Buy tokens
     println!("Buying tokens from Metaora Damm V2...");
@@ -43,7 +43,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
         close_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
         create_mint_ata: true,
-        open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
         gas_fee_strategy: gas_fee_strategy.clone(),
@@ -77,7 +76,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         create_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         close_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         close_mint_token_ata: false,
-        open_seed_optimize: false,
         durable_nonce: None,
         fixed_output_token_amount: Some(1),
         gas_fee_strategy: gas_fee_strategy,
