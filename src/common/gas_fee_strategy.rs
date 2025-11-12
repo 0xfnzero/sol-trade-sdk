@@ -39,8 +39,10 @@ impl GasFeeStrategy {
     /// Set global fee strategy
     pub fn set_global_fee_strategy(
         &self,
-        cu_limit: u32,
-        cu_price: u64,
+        buy_cu_limit: u32,
+        sell_cu_limit: u32,
+        buy_cu_price: u64,
+        sell_cu_price: u64,
         buy_tip: f64,
         sell_tip: f64,
         buy_data_size_limit: u32,
@@ -54,8 +56,8 @@ impl GasFeeStrategy {
                 swqos_type,
                 TradeType::Buy,
                 GasFeeStrategyType::Normal,
-                cu_limit,
-                cu_price,
+                buy_cu_limit,
+                buy_cu_price,
                 buy_tip,
                 buy_data_size_limit,
             );
@@ -63,8 +65,8 @@ impl GasFeeStrategy {
                 swqos_type,
                 TradeType::Sell,
                 GasFeeStrategyType::Normal,
-                cu_limit,
-                cu_price,
+                sell_cu_limit,
+                sell_cu_price,
                 sell_tip,
                 sell_data_size_limit,
             );
@@ -73,8 +75,8 @@ impl GasFeeStrategy {
             SwqosType::Default,
             TradeType::Buy,
             GasFeeStrategyType::Normal,
-            cu_limit,
-            cu_price,
+            buy_cu_limit,
+            buy_cu_price,
             0.0,
             buy_data_size_limit,
         );
@@ -82,8 +84,8 @@ impl GasFeeStrategy {
             SwqosType::Default,
             TradeType::Sell,
             GasFeeStrategyType::Normal,
-            cu_limit,
-            cu_price,
+            sell_cu_limit,
+            sell_cu_price,
             0.0,
             sell_data_size_limit,
         );
