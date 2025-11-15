@@ -31,11 +31,11 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             .downcast_ref::<RaydiumAmmV4Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        let is_wsol = protocol_params.coin_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.pc_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
 
-        let is_usdc = protocol_params.coin_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.pc_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
 
         if !is_wsol && !is_usdc {
             return Err(anyhow!("Pool must contain WSOL or USDC"));
@@ -44,12 +44,12 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.coin_mint == crate::constants::WSOL_TOKEN_ACCOUNT 
-            || protocol_params.coin_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_base_in = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let swap_result = compute_swap_amount(
-            protocol_params.coin_reserve,
-            protocol_params.pc_reserve,
+            protocol_params.base_reserve,
+            protocol_params.quote_reserve,
             is_base_in,
             amount_in,
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -102,8 +102,8 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             AccountMeta::new(protocol_params.amm, false), // Amm
             accounts::AUTHORITY_META,             // Authority (readonly)
             AccountMeta::new(protocol_params.amm, false), // Amm Open Orders
-            AccountMeta::new(protocol_params.token_coin, false), // Pool Coin Token Account
-            AccountMeta::new(protocol_params.token_pc, false), // Pool Pc Token Account
+            AccountMeta::new(protocol_params.base_vault, false), // Pool Coin Token Account
+            AccountMeta::new(protocol_params.quote_vault, false), // Pool Pc Token Account
             AccountMeta::new(protocol_params.amm, false), // Serum Program
             AccountMeta::new(protocol_params.amm, false), // Serum Market
             AccountMeta::new(protocol_params.amm, false), // Serum Bids
@@ -150,11 +150,11 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             return Err(anyhow!("Token amount is not set"));
         }
 
-        let is_wsol = protocol_params.coin_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.pc_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
 
-        let is_usdc = protocol_params.coin_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.pc_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
 
         if !is_wsol && !is_usdc {
             return Err(anyhow!("Pool must contain WSOL or USDC"));
@@ -163,11 +163,11 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.pc_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.pc_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_base_in = protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let swap_result = compute_swap_amount(
-            protocol_params.coin_reserve,
-            protocol_params.pc_reserve,
+            protocol_params.base_reserve,
+            protocol_params.quote_reserve,
             is_base_in,
             params.input_amount.unwrap_or(0),
             params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -207,8 +207,8 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             AccountMeta::new(protocol_params.amm, false), // Amm
             accounts::AUTHORITY_META,             // Authority (readonly)
             AccountMeta::new(protocol_params.amm, false), // Amm Open Orders
-            AccountMeta::new(protocol_params.token_coin, false), // Pool Coin Token Account
-            AccountMeta::new(protocol_params.token_pc, false), // Pool Pc Token Account
+            AccountMeta::new(protocol_params.base_vault, false), // Pool Coin Token Account
+            AccountMeta::new(protocol_params.quote_vault, false), // Pool Pc Token Account
             AccountMeta::new(protocol_params.amm, false), // Serum Program
             AccountMeta::new(protocol_params.amm, false), // Serum Market
             AccountMeta::new(protocol_params.amm, false), // Serum Bids
