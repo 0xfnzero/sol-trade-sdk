@@ -21,7 +21,7 @@ use crate::{
 struct TaskResult {
     success: bool,
     signature: Signature,
-    _error: Option<anyhow::Error>,
+    error: Option<anyhow::Error>,
 }
 
 struct ResultCollector {
@@ -54,7 +54,7 @@ impl ResultCollector {
         self.completed_count.fetch_add(1, Ordering::Release);
     }
 
-    async fn wait_for_success(&self) -> Option<(bool, Signature)> {
+    async fn wait_for_success(&self) -> Option<(bool, Signature, Option<anyhow::Error>)> {
         let start = Instant::now();
         let timeout = std::time::Duration::from_secs(30);
 
@@ -63,7 +63,7 @@ impl ResultCollector {
             if self.success_flag.load(Ordering::Acquire) {
                 while let Some(result) = self.results.pop() {
                     if result.success {
-                        return Some((true, result.signature));
+                        return Some((true, result.signature, None));
                     }
                 }
             }
@@ -71,7 +71,7 @@ impl ResultCollector {
             let completed = self.completed_count.load(Ordering::Acquire);
             if completed >= self.total_tasks {
                 while let Some(result) = self.results.pop() {
-                    return Some((result.success, result.signature));
+                    return Some((result.success, result.signature, result.error));
                 }
                 return None;
             }
@@ -83,9 +83,9 @@ impl ResultCollector {
         }
     }
 
-    fn get_first(&self) -> Option<(bool, Signature)> {
+    fn get_first(&self) -> Option<(bool, Signature, Option<anyhow::Error>,)> {
         if let Some(result) = self.results.pop() {
-            Some((result.success, result.signature))
+            Some((result.success, result.signature, result.error))
         } else {
             None
         }
@@ -107,7 +107,7 @@ pub async fn execute_parallel(
     wait_transaction_confirmed: bool,
     with_tip: bool,
     gas_fee_strategy: GasFeeStrategy,
-) -> Result<(bool, Signature)> {
+) -> Result<(bool, Signature, Option<anyhow::Error>)> {
     let _exec_start = Instant::now();
 
     if swqos_clients.is_empty() {
@@ -208,7 +208,7 @@ pub async fn execute_parallel(
                     collector.submit(TaskResult {
                         success: false,
                         signature: Signature::default(),
-                        _error: Some(e),
+                        error: Some(e),
                     });
                     return;
                 }
@@ -217,6 +217,7 @@ pub async fn execute_parallel(
             // Transaction built
 
             let _send_start = Instant::now();
+            let mut err = None;
             let success = match swqos_client
                 .send_transaction(
                     if is_buy { TradeType::Buy } else { TradeType::Sell },
@@ -225,7 +226,8 @@ pub async fn execute_parallel(
                 .await
             {
                 Ok(()) => true,
-                Err(_e) => {
+                Err(e) => {
+                    err = Some(e);
                     // Send transaction failed
                     false
                 }
@@ -234,7 +236,7 @@ pub async fn execute_parallel(
             // Transaction sent
 
             if let Some(signature) = transaction.signatures.first() {
-                collector.submit(TaskResult { success, signature: *signature, _error: None });
+                collector.submit(TaskResult { success, signature: *signature, error: err });
             }
         });
     }

@@ -5,7 +5,7 @@ use solana_sdk::{instruction::Instruction, signature::Signature};
 /// 交易执行器trait - 定义了所有交易协议都需要实现的核心方法
 #[async_trait::async_trait]
 pub trait TradeExecutor: Send + Sync {
-    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature)>;
+    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature, Option<anyhow::Error>)>;
     /// 获取协议名称
     fn protocol_name(&self) -> &'static str;
 }

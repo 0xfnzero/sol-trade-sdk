@@ -87,14 +87,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.3.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.3.1" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "3.3.0"
+sol-trade-sdk = "3.3.1"
 ```
 
 ## 🛠️ 使用示例
@@ -146,7 +146,7 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
 // 创建 GasFeeStrategy 实例
 let gas_fee_strategy = GasFeeStrategy::new();
 // 设置全局策略
-gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 ```
 
 #### 3. 构建交易参数

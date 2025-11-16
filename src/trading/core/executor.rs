@@ -44,7 +44,7 @@ impl GenericTradeExecutor {
 
 #[async_trait::async_trait]
 impl TradeExecutor for GenericTradeExecutor {
-    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature)> {
+    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature, Option<anyhow::Error>)> {
         let total_start = Instant::now();
 
         // 判断买卖方向
@@ -201,7 +201,7 @@ async fn simulate_transaction(
     is_buy: bool,
     with_tip: bool,
     gas_fee_strategy: GasFeeStrategy,
-) -> Result<(bool, Signature)> {
+) -> Result<(bool, Signature, Option<anyhow::Error>)> {
     use crate::trading::common::build_transaction;
     use solana_client::rpc_config::RpcSimulateTransactionConfig;
     use solana_commitment_config::CommitmentLevel;
@@ -288,7 +288,7 @@ async fn simulate_transaction(
         }
 
         println!("=========================================\n");
-        return Ok((false, signature));
+        return Ok((false, signature, Some(anyhow::anyhow!("{:?}", err))));
     }
 
     // Simulation succeeded
@@ -308,5 +308,5 @@ async fn simulate_transaction(
 
     println!("============================================\n");
 
-    Ok((true, signature))
+    Ok((true, signature, None))
 }

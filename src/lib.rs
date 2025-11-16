@@ -345,7 +345,7 @@ impl SolanaTrade {
     /// - Network or RPC errors occur
     /// - Insufficient SOL balance for the purchase
     /// - Required accounts cannot be created or accessed
-    pub async fn buy(&self, params: TradeBuyParams) -> Result<(bool, Signature), anyhow::Error> {
+    pub async fn buy(&self, params: TradeBuyParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -445,7 +445,7 @@ impl SolanaTrade {
     /// - Insufficient token balance for the sale
     /// - Token account doesn't exist or is not properly initialized
     /// - Required accounts cannot be created or accessed
-    pub async fn sell(&self, params: TradeSellParams) -> Result<(bool, Signature), anyhow::Error> {
+    pub async fn sell(&self, params: TradeSellParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -557,7 +557,7 @@ impl SolanaTrade {
         mut params: TradeSellParams,
         amount_token: u64,
         percent: u64,
-    ) -> Result<(bool, Signature), anyhow::Error> {
+    ) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if percent == 0 || percent > 100 {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }

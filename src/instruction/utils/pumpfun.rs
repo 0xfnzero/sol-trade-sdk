@@ -61,7 +61,7 @@ pub mod global_constants {
         pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS");
     pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
-            pubkey: FEE_RECIPIENT,
+            pubkey: MAYHEM_FEE_RECIPIENT,
             is_signer: false,
             is_writable: true,
         };
