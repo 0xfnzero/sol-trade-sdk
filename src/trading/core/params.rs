@@ -471,7 +471,7 @@ impl BonkParams {
                 &crate::constants::WSOL_TOKEN_ACCOUNT
             },
         )
-        .unwrap();
+            .unwrap();
         let pool_data =
             crate::instruction::utils::bonk::fetch_pool_state(rpc, &pool_address).await?;
         let token_account = rpc.get_account(&pool_data.base_mint).await?;
@@ -580,7 +580,7 @@ impl RaydiumCpmmParams {
                 &pool.token0_mint,
                 &pool.token1_mint,
             )
-            .await?;
+                .await?;
         Ok(Self {
             pool_state: pool_address.clone(),
             amm_config: pool.amm_config,
@@ -721,6 +721,55 @@ impl MeteoraDammV2Params {
 }
 
 impl ProtocolParams for MeteoraDammV2Params {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn ProtocolParams> {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct MeteoraDlmmParams {
+    pub lb_pair: Pubkey,
+    pub reserve_x: Pubkey,
+    pub reserve_y: Pubkey,
+    pub token_x_mint: Pubkey,
+    pub token_y_mint: Pubkey,
+    pub oracle: Pubkey,
+    pub token_x_program: Pubkey,
+    pub token_y_program: Pubkey,
+    pub bin_array: Vec<Pubkey>,
+}
+
+impl MeteoraDlmmParams {
+    pub fn new(
+        lb_pair: Pubkey,
+        reserve_x: Pubkey,
+        reserve_y: Pubkey,
+        token_x_mint: Pubkey,
+        token_y_mint: Pubkey,
+        oracle: Pubkey,
+        token_x_program: Pubkey,
+        token_y_program: Pubkey,
+        bin_array: Vec<Pubkey>,
+    ) -> Self {
+        Self {
+            lb_pair,
+            reserve_x,
+            reserve_y,
+            token_x_mint,
+            token_y_mint,
+            oracle,
+            token_x_program,
+            token_y_program,
+            bin_array,
+        }
+    }
+}
+
+impl ProtocolParams for MeteoraDlmmParams {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

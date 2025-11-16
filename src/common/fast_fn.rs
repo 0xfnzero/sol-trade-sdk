@@ -146,6 +146,7 @@ pub enum PdaCacheKey {
     BonkPool(Pubkey, Pubkey),
     BonkVault(Pubkey, Pubkey),
     PumpSwapUserVolume(Pubkey),
+    MeteoraDlmmBinArrayBitmapExtension(Pubkey),
 }
 
 /// Global lock-free PDA cache for storing computation results
