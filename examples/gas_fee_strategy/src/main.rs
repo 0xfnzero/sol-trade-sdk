@@ -12,7 +12,7 @@ async fn main() {
 
     // Set global strategy
     println!("1. Set global strategy");
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Print all strategies
     println!("\n2. Print all strategies");
