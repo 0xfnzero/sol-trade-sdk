@@ -2,7 +2,17 @@ use anyhow::{ensure, Context, Result};
 use num_integer::Integer;
 use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
 use crate::instruction::utils::meteora_dlmm::constants::MAX_BIN_PER_ARRAY;
+use crate::instruction::utils::meteora_dlmm::extensions::Bin;
 use crate::instruction::utils::meteora_dlmm::pda::derive_bin_array_pda;
+
+pub struct BinArray {
+    pub index: i64,
+    /// Version of binArray
+    pub version: u8,
+    _padding: [u8; 7],
+    pub lb_pair: [u8; 32], // pubkey 通常是 32 字节
+    pub bins: [Bin; 70],
+}
 
 pub trait BinArrayExtension {
     fn is_bin_id_within_range(&self, bin_id: i32) -> Result<bool>;

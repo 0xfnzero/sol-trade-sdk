@@ -1,6 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use ruint::aliases::U512;
+use solana_sdk::pubkey::Pubkey;
 use crate::instruction::utils::meteora_dlmm::constants::{BIN_ARRAY_BITMAP_SIZE, EXTENSION_BINARRAY_BITMAP_SIZE};
+
+pub struct BinArrayBitmapExtension{
+    pub lb_pair: Pubkey,
+    /// Packed initialized bin array state for start_bin_index is positive
+    pub positive_bin_array_bitmap: [[u64; 8]; 12],
+    /// Packed initialized bin array state for start_bin_index is negative
+    pub negative_bin_array_bitmap: [[u64; 8]; 12],
+}
 
 pub trait BinArrayBitmapExtExtension {
     fn bitmap_range() -> (i32, i32);

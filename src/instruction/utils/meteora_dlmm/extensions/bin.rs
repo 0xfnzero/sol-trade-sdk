@@ -5,6 +5,27 @@ use crate::instruction::utils::meteora_dlmm::extensions::LbPairExtension;
 use crate::instruction::utils::meteora_dlmm::math::{get_price_from_id, safe_mul_div_cast, safe_mul_shr_cast, safe_shl_div_cast, Rounding, SCALE_OFFSET};
 use crate::instruction::utils::meteora_dlmm::typedefs::SwapResult;
 
+pub struct Bin {
+    /// Amount of token X in the bin. This already excluded protocol fees.
+    pub amount_x: u64,
+    /// Amount of token Y in the bin. This already excluded protocol fees.
+    pub amount_y: u64,
+    /// Bin price
+    pub price: u128,
+    /// Liquidities of the bin. This is the same as LP mint supply. q-number
+    pub liquidity_supply: u128,
+    /// reward_a_per_token_stored
+    pub reward_per_token_stored: [u128; 2],
+    /// Swap fee amount of token X per liquidity deposited.
+    pub fee_amount_x_per_token_stored: u128,
+    /// Swap fee amount of token Y per liquidity deposited.
+    pub fee_amount_y_per_token_stored: u128,
+    /// Total token X swap into the bin. Only used for tracking purpose.
+    pub amount_x_in: u128,
+    /// Total token Y swap into he bin. Only used for tracking purpose.
+    pub amount_y_in: u128,
+}
+
 pub trait BinExtension {
     fn get_or_store_bin_price(&mut self, id: i32, bin_step: u16) -> Result<u128>;
     fn is_empty(&self, is_x: bool) -> bool;
