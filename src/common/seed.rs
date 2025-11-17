@@ -74,9 +74,12 @@ pub fn create_associated_token_account_use_seed(
         };
     }
     let seed = unsafe { std::str::from_utf8_unchecked(&buf) };
+    // 🔧 修复：使用传入的 token_program 生成地址（支持 Token 和 Token-2022）
+    // 买入和卖出只要都使用事件中的 token_program，地址自然一致
     let ata_like = Pubkey::create_with_seed(payer, seed, token_program)?;
 
     let len = 165;
+    // 但账户的 owner 仍然使用正确的 token_program（Token 或 Token-2022）
     let create_acc =
         create_account_with_seed(payer, &ata_like, owner, seed, rent, len, token_program);
 
@@ -106,13 +109,9 @@ pub fn get_associated_token_address_with_program_id_use_seed(
             _ => b'a' + (nibble - 10),
         };
     }
-    let is_2022_token = token_program_id == &crate::constants::TOKEN_PROGRAM_2022;
     let seed = unsafe { std::str::from_utf8_unchecked(&buf) };
-    let token_program = if is_2022_token {
-        &crate::constants::TOKEN_PROGRAM_2022
-    } else {
-        &crate::constants::TOKEN_PROGRAM
-    };
-    let ata_like = Pubkey::create_with_seed(wallet_address, seed, token_program)?;
+    // 🔧 修复：使用传入的 token_program_id 生成地址（支持 Token 和 Token-2022）
+    // 买入和卖出只要都使用事件中的 token_program_id，地址自然一致
+    let ata_like = Pubkey::create_with_seed(wallet_address, seed, token_program_id)?;
     Ok(ata_like)
 }

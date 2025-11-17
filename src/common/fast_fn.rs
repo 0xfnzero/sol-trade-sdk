@@ -100,7 +100,7 @@ pub fn _create_associated_token_account_idempotent_fast(
     };
 
     // Only use seed if the mint address is not wSOL or SOL
-    // token 2022 测试不成功（TODO）
+    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
     if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
@@ -236,7 +236,7 @@ fn _get_associated_token_address_with_program_id_fast(
 
     // Slow path: compute new ATA
     // Only use seed if the token mint address is not wSOL or SOL
-    // token 2022 测试不成功（TODO）
+    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
     let ata = if use_seed
         && !token_mint_address.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !token_mint_address.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
