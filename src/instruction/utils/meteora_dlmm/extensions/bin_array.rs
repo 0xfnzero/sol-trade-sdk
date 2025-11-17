@@ -5,6 +5,7 @@ use crate::instruction::utils::meteora_dlmm::constants::MAX_BIN_PER_ARRAY;
 use crate::instruction::utils::meteora_dlmm::extensions::Bin;
 use crate::instruction::utils::meteora_dlmm::pda::derive_bin_array_pda;
 
+#[derive(Clone)]
 pub struct BinArray {
     pub index: i64,
     /// Version of binArray

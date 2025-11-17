@@ -5,6 +5,7 @@ use crate::instruction::utils::meteora_dlmm::extensions::LbPairExtension;
 use crate::instruction::utils::meteora_dlmm::math::{get_price_from_id, safe_mul_div_cast, safe_mul_shr_cast, safe_shl_div_cast, Rounding, SCALE_OFFSET};
 use crate::instruction::utils::meteora_dlmm::typedefs::SwapResult;
 
+#[derive(Clone)]
 pub struct Bin {
     /// Amount of token X in the bin. This already excluded protocol fees.
     pub amount_x: u64,

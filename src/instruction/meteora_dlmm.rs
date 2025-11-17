@@ -29,8 +29,7 @@ impl InstructionBuilder for MeteoraDlmmInstructionBuilder {
         // Trade calculation and account address preparation
         // ========================================
         let amount_in: u64 = params.input_amount.unwrap_or(0);
-        // todo
-        let minimum_amount_out: u64 = 0;
+        let minimum_amount_out: u64 = params.fixed_output_amount.unwrap_or(0);
 
         let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
