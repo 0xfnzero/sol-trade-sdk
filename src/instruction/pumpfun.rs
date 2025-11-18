@@ -1,6 +1,6 @@
 use crate::{
     common::spl_token::close_account,
-    constants::trade::trade::DEFAULT_SLIPPAGE,
+    constants::{trade::trade::DEFAULT_SLIPPAGE, TOKEN_PROGRAM_2022},
     trading::core::{
         params::{PumpFunParams, SwapParams},
         traits::InstructionBuilder,
@@ -70,12 +70,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
 
         // Determine token program based on mayhem mode
         let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-        let token_program = if is_mayhem_mode {
-            crate::constants::TOKEN_PROGRAM_2022
-        } else {
-            crate::constants::TOKEN_PROGRAM
-        };
-        let token_program_meta = if is_mayhem_mode {
+        let token_program = protocol_params.token_program;
+        let token_program_meta = if protocol_params.token_program == TOKEN_PROGRAM_2022 {
             crate::constants::TOKEN_PROGRAM_2022_META
         } else {
             crate::constants::TOKEN_PROGRAM_META
@@ -210,12 +206,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
 
         // Determine token program based on mayhem mode
         let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-        let token_program = if is_mayhem_mode {
-            crate::constants::TOKEN_PROGRAM_2022
-        } else {
-            crate::constants::TOKEN_PROGRAM
-        };
-        let token_program_meta = if is_mayhem_mode {
+        let token_program = protocol_params.token_program;
+        let token_program_meta = if protocol_params.token_program == TOKEN_PROGRAM_2022 {
             crate::constants::TOKEN_PROGRAM_2022_META
         } else {
             crate::constants::TOKEN_PROGRAM_META
