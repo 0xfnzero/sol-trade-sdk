@@ -778,3 +778,52 @@ impl ProtocolParams for MeteoraDlmmParams {
         Box::new(self.clone())
     }
 }
+
+#[derive(Clone)]
+pub struct OrcaParams {
+    pub pool: Pubkey,
+    pub vault_a: Pubkey,
+    pub vault_b: Pubkey,
+    pub tick_array0: Pubkey,
+    pub tick_array1: Pubkey,
+    pub tick_array2: Pubkey,
+    pub oracle: Pubkey,
+    pub amount_specified_is_input: bool,
+    pub a_to_b: bool,
+}
+
+impl OrcaParams {
+    pub fn new(
+        pool: Pubkey,
+        vault_a: Pubkey,
+        vault_b: Pubkey,
+        tick_array0: Pubkey,
+        tick_array1: Pubkey,
+        tick_array2: Pubkey,
+        oracle: Pubkey,
+        amount_specified_is_input: bool,
+        a_to_b: bool,
+    ) -> Self {
+        Self {
+            pool,
+            vault_a,
+            vault_b,
+            tick_array0,
+            tick_array1,
+            tick_array2,
+            oracle,
+            amount_specified_is_input,
+            a_to_b,
+        }
+    }
+}
+
+impl ProtocolParams for OrcaParams {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn ProtocolParams> {
+        Box::new(self.clone())
+    }
+}
