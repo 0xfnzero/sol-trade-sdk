@@ -243,6 +243,10 @@ async fn simulate_transaction(
     )
     .await?;
 
+    // 打印原始交易数据
+    let bytes = transaction.message.serialize();
+    println!("[Raw Transaction] {}", base64::encode(&bytes));
+
     // Simulate the transaction
     use solana_commitment_config::CommitmentConfig;
     let simulate_result = rpc

@@ -24,7 +24,7 @@ pub mod accounts {
         };
 }
 
-pub const SWAP_DISCRIMINATOR: &[u8] = &[248, 198, 158, 145, 225, 117, 135, 20];
+pub const SWAP_DISCRIMINATOR: &[u8] = &[248, 198, 158, 145, 225, 117, 135, 200];
 
 pub fn get_bin_array_bitmap_extension_pda(lb_pair: &Pubkey) -> Option<Pubkey> {
     get_cached_pda(

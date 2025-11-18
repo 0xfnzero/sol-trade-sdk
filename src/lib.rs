@@ -16,7 +16,7 @@ use crate::constants::USDC_TOKEN_ACCOUNT;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
-use crate::trading::core::params::BonkParams;
+use crate::trading::core::params::{BonkParams, MeteoraDlmmParams};
 use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
@@ -416,6 +416,9 @@ impl SolanaTrade {
             DexType::MeteoraDammV2 => {
                 protocol_params.as_any().downcast_ref::<MeteoraDammV2Params>().is_some()
             }
+            DexType::MeteoraDlmm => {
+                protocol_params.as_any().downcast_ref::<MeteoraDlmmParams>().is_some()
+            }
         };
 
         if !is_valid_params {
@@ -515,6 +518,9 @@ impl SolanaTrade {
             }
             DexType::MeteoraDammV2 => {
                 protocol_params.as_any().downcast_ref::<MeteoraDammV2Params>().is_some()
+            }
+            DexType::MeteoraDlmm => {
+                protocol_params.as_any().downcast_ref::<MeteoraDlmmParams>().is_some()
             }
         };
 
