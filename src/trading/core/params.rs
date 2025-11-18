@@ -782,6 +782,8 @@ impl ProtocolParams for MeteoraDlmmParams {
 #[derive(Clone)]
 pub struct OrcaParams {
     pub pool: Pubkey,
+    pub token_mint_a: Pubkey,
+    pub token_mint_b: Pubkey,
     pub vault_a: Pubkey,
     pub vault_b: Pubkey,
     pub tick_array0: Pubkey,
@@ -795,6 +797,8 @@ pub struct OrcaParams {
 impl OrcaParams {
     pub fn new(
         pool: Pubkey,
+        token_mint_a: Pubkey,
+        token_mint_b: Pubkey,
         vault_a: Pubkey,
         vault_b: Pubkey,
         tick_array0: Pubkey,
@@ -806,6 +810,8 @@ impl OrcaParams {
     ) -> Self {
         Self {
             pool,
+            token_mint_a,
+            token_mint_b,
             vault_a,
             vault_b,
             tick_array0,

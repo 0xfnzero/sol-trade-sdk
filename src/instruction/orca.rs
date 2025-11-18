@@ -122,15 +122,15 @@ impl InstructionBuilder for OrcaInstructionBuilder {
         let amount_in: u64 = params.input_amount.unwrap_or(0);
         let minimum_amount_out: u64 = params.fixed_output_amount.unwrap_or(0);
 
-        let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let token_owner_account_a = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.input_mint,
+            &protocol_params.token_mint_a,
             &params.input_token_program.unwrap_or(TOKEN_PROGRAM),
             params.open_seed_optimize,
         );
-        let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
+        let token_owner_account_b = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
-            &params.output_mint,
+            &protocol_params.token_mint_b,
             &params.output_token_program.unwrap_or(TOKEN_PROGRAM),
             params.open_seed_optimize,
         );
@@ -162,9 +162,9 @@ impl InstructionBuilder for OrcaInstructionBuilder {
             AccountMeta::new_readonly(TOKEN_PROGRAM, false),
             AccountMeta::new(params.payer.pubkey(), true),
             AccountMeta::new(protocol_params.pool, false),
-            AccountMeta::new(input_token_account, false),
+            AccountMeta::new(token_owner_account_a, false),
             AccountMeta::new(protocol_params.vault_a, false),
-            AccountMeta::new(output_token_account, false),
+            AccountMeta::new(token_owner_account_b, false),
             AccountMeta::new(protocol_params.vault_b, false),
             AccountMeta::new(protocol_params.tick_array0, false),
             AccountMeta::new(protocol_params.tick_array1, false),
