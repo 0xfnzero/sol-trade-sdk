@@ -80,6 +80,8 @@ parking_lot = "0.12"
 arc-swap = "1.7"
 sha2 = "0.10"
 tonic-prost = "0.14.2"
+uint = "0.10.0"
+anchor-lang = "0.32.1"
 
 # Performance optimization dependencies
 crossbeam-queue = "0.3"
