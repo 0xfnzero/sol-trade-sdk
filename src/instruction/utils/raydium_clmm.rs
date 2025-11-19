@@ -19,7 +19,7 @@ pub fn get_tick_array_bitmap_extension_pda(pool: &Pubkey) -> Option<Pubkey> {
     )
 }
 
-pub fn load_cur_and_next_five_tick_array(
+pub fn get_tick_arrays(
     pool_key: &Pubkey,
     pool_state: &PoolState,
     tickarray_bitmap_extension_key: &Pubkey,
