@@ -150,6 +150,7 @@ pub enum PdaCacheKey {
     OrcaOracle(Pubkey),
     RaydiumClmmTickArrayBitmapExtension(Pubkey),
     RaydiumClmmTickArray(Pubkey, i32),  // 获取交易时需要的额外key
+    MeteoraDlmmBinArray(Pubkey, i64),  // 获取交易时需要的额外key
 }
 
 /// Global lock-free PDA cache for storing computation results

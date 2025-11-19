@@ -2,6 +2,7 @@ use super::seeds::*;
 use crate::*;
 use std::{cmp::max, cmp::min};
 use solana_streamer::streaming::event_parser::protocols::meteora_dlmm::parser::METEORA_DLMM_PROGRAM_ID;
+use crate::common::fast_fn::{get_cached_pda, PdaCacheKey};
 
 pub fn derive_lb_pair_with_preset_parameter_key(
     preset_parameter: Pubkey,
@@ -108,6 +109,18 @@ pub fn derive_bin_array_pda(lb_pair: Pubkey, bin_array_index: i64) -> (Pubkey, u
     Pubkey::find_program_address(
         &[BIN_ARRAY, lb_pair.as_ref(), &bin_array_index.to_le_bytes()],
         &METEORA_DLMM_PROGRAM_ID,
+    )
+}
+
+pub fn derive_bin_array_pda_from_cache(pool: &Pubkey, bin_array_index: i64) -> Option<Pubkey> {
+    get_cached_pda(
+        PdaCacheKey::MeteoraDlmmBinArray(*pool, bin_array_index),
+        || {
+            let seeds: &[&[u8]; 3] = &[BIN_ARRAY, pool.as_ref(), &bin_array_index.to_le_bytes()];
+            let program_id = &METEORA_DLMM_PROGRAM_ID;
+            let pda: Option<(Pubkey, u8)> = Pubkey::try_find_program_address(seeds, program_id);
+            pda.map(|pubkey| pubkey.0)
+        },
     )
 }
 

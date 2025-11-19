@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use anyhow::{ensure, Context};
 use solana_streamer::streaming::event_parser::protocols::meteora_dlmm::types::LbPair;
 use crate::instruction::utils::meteora_dlmm::extensions::{ActivationType, Bin, BinArray, BinArrayBitmapExtExtension, BinArrayBitmapExtension, BinArrayExtension, BinExtension, LbPairExtension, PairStatus, PairType};
-use crate::instruction::utils::meteora_dlmm::pda::derive_bin_array_pda;
+use crate::instruction::utils::meteora_dlmm::pda::{derive_bin_array_pda, derive_bin_array_pda_from_cache};
 use crate::instruction::utils::meteora_dlmm::typedefs::SwapResult;
 use anyhow::Result;
 
@@ -314,7 +314,7 @@ pub fn get_bin_array_pubkeys_for_swap(
 
     let bin_array_pubkeys = bin_array_idx
         .into_iter()
-        .map(|idx| derive_bin_array_pda(lb_pair_pubkey, idx.into()).0)
+        .filter_map(|idx| derive_bin_array_pda_from_cache(&lb_pair_pubkey, idx.into()))
         .collect();
 
     Ok(bin_array_pubkeys)
