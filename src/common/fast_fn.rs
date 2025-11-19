@@ -148,6 +148,7 @@ pub enum PdaCacheKey {
     PumpSwapUserVolume(Pubkey),
     MeteoraDlmmBinArrayBitmapExtension(Pubkey),
     OrcaOracle(Pubkey),
+    RaydiumClmmTickArrayBitmapExtension(Pubkey),
 }
 
 /// Global lock-free PDA cache for storing computation results
