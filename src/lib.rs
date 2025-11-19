@@ -16,7 +16,7 @@ use crate::constants::USDC_TOKEN_ACCOUNT;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
-use crate::trading::core::params::{BonkParams, MeteoraDlmmParams, OrcaParams};
+use crate::trading::core::params::{BonkParams, MeteoraDlmmParams, OrcaParams, RaydiumClmmParams};
 use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
@@ -118,6 +118,8 @@ pub struct TradeBuyParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// Whether to simulate the transaction instead of executing it
     pub simulate: bool,
+    pub input_token_program: Option<Pubkey>,
+    pub output_token_program: Option<Pubkey>,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -162,6 +164,8 @@ pub struct TradeSellParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// Whether to simulate the transaction instead of executing it
     pub simulate: bool,
+    pub input_token_program: Option<Pubkey>,
+    pub output_token_program: Option<Pubkey>,
 }
 
 impl SolanaTrade {
@@ -374,8 +378,8 @@ impl SolanaTrade {
             trade_type: TradeType::Buy,
             input_mint: input_token_mint,
             output_mint: params.mint,
-            input_token_program: None,
-            output_token_program: None,
+            input_token_program: params.input_token_program,
+            output_token_program: params.output_token_program,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
             address_lookup_table_account: params.address_lookup_table_account,
@@ -421,6 +425,9 @@ impl SolanaTrade {
             }
             DexType::Orca => {
                 protocol_params.as_any().downcast_ref::<OrcaParams>().is_some()
+            }
+            DexType::RaydiumClmm => {
+                protocol_params.as_any().downcast_ref::<RaydiumClmmParams>().is_some()
             }
         };
 
@@ -480,8 +487,8 @@ impl SolanaTrade {
             trade_type: TradeType::Sell,
             input_mint: params.mint,
             output_mint: output_token_mint,
-            input_token_program: None,
-            output_token_program: None,
+            input_token_program: params.input_token_program,
+            output_token_program: params.output_token_program,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
             address_lookup_table_account: params.address_lookup_table_account,
@@ -527,6 +534,9 @@ impl SolanaTrade {
             }
             DexType::Orca => {
                 protocol_params.as_any().downcast_ref::<OrcaParams>().is_some()
+            }
+            DexType::RaydiumClmm => {
+                protocol_params.as_any().downcast_ref::<RaydiumClmmParams>().is_some()
             }
         };
 

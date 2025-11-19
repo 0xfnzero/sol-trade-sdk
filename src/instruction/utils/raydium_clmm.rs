@@ -1,5 +1,4 @@
 use solana_sdk::pubkey::Pubkey;
-use solana_streamer::streaming::event_parser::protocols::meteora_dlmm::parser::METEORA_DLMM_PROGRAM_ID;
 use solana_streamer::streaming::event_parser::protocols::raydium_clmm::parser::RAYDIUM_CLMM_PROGRAM_ID;
 use solana_streamer::streaming::event_parser::protocols::raydium_clmm::states::pool::{PoolState, POOL_TICK_ARRAY_BITMAP_SEED};
 use solana_streamer::streaming::event_parser::protocols::raydium_clmm::states::tick_array::TICK_ARRAY_SEED;
@@ -23,13 +22,18 @@ pub fn get_tick_array_bitmap_extension_pda(pool: &Pubkey) -> Option<Pubkey> {
 pub fn load_cur_and_next_five_tick_array(
     pool_key: &Pubkey,
     pool_state: &PoolState,
+    tickarray_bitmap_extension_key: &Pubkey,
     tickarray_bitmap_extension: &TickArrayBitmapExtension,
     zero_for_one: bool,
 ) -> Vec<Pubkey> {
+    let mut tick_array_keys = Vec::new();
+
+    // 需要先把tickarray_bitmap_extension_key加入
+    tick_array_keys.push(*tickarray_bitmap_extension_key);
+
     let (_, mut current_valid_tick_array_start_index) = pool_state
         .get_first_initialized_tick_array(&mut Some(*tickarray_bitmap_extension), zero_for_one)
         .unwrap();
-    let mut tick_array_keys = Vec::new();
     tick_array_keys.push(
         Pubkey::find_program_address(
             &[

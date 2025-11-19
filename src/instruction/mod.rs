@@ -7,3 +7,4 @@ pub mod meteora_damm_v2;
 pub mod utils;
 pub mod meteora_dlmm;
 pub mod orca;
+pub mod raydium_clmm;

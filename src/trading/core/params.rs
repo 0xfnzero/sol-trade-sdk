@@ -833,3 +833,52 @@ impl ProtocolParams for OrcaParams {
         Box::new(self.clone())
     }
 }
+
+#[derive(Clone)]
+pub struct RaydiumClmmParams {
+    pub amm_config: Pubkey,
+    pub pool: Pubkey,
+    pub input_token_vault: Pubkey,
+    pub output_token_vault: Pubkey,
+    pub observation_key: Pubkey,
+    pub tick_arrays: Vec<Pubkey>,
+    pub other_amount_threshold: u64,
+    pub sqrt_price_limit_x64: u128,
+    pub is_base_input: bool,
+}
+
+impl RaydiumClmmParams {
+    pub fn new(
+        amm_config: Pubkey,
+        pool: Pubkey,
+        input_token_vault: Pubkey,
+        output_token_vault: Pubkey,
+        observation_key: Pubkey,
+        tick_arrays: Vec<Pubkey>,
+        other_amount_threshold: u64,
+        sqrt_price_limit_x64: u128,
+        is_base_input: bool,
+    ) -> Self {
+        Self {
+            amm_config,
+            pool,
+            input_token_vault,
+            output_token_vault,
+            observation_key,
+            tick_arrays,
+            other_amount_threshold,
+            sqrt_price_limit_x64,
+            is_base_input,
+        }
+    }
+}
+
+impl ProtocolParams for RaydiumClmmParams {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn ProtocolParams> {
+        Box::new(self.clone())
+    }
+}
