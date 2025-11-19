@@ -19,6 +19,18 @@ pub fn get_tick_array_bitmap_extension_pda(pool: &Pubkey) -> Option<Pubkey> {
     )
 }
 
+pub fn get_tick_array_pda(pool: &Pubkey, index: i32) -> Option<Pubkey> {
+    get_cached_pda(
+        PdaCacheKey::RaydiumClmmTickArray(*pool, index),
+        || {
+            let seeds: &[&[u8]; 3] = &[TICK_ARRAY_SEED.as_bytes(), pool.as_ref(), &index.to_be_bytes()];
+            let program_id = &RAYDIUM_CLMM_PROGRAM_ID;
+            let pda: Option<(Pubkey, u8)> = Pubkey::try_find_program_address(seeds, program_id);
+            pda.map(|pubkey| pubkey.0)
+        },
+    )
+}
+
 pub fn get_tick_arrays(
     pool_key: &Pubkey,
     pool_state: &PoolState,
@@ -34,17 +46,7 @@ pub fn get_tick_arrays(
     let (_, mut current_valid_tick_array_start_index) = pool_state
         .get_first_initialized_tick_array(&mut Some(*tickarray_bitmap_extension), zero_for_one)
         .unwrap();
-    tick_array_keys.push(
-        Pubkey::find_program_address(
-            &[
-                TICK_ARRAY_SEED.as_bytes(),
-                pool_key.as_ref(),
-                &current_valid_tick_array_start_index.to_be_bytes(),
-            ],
-            &RAYDIUM_CLMM_PROGRAM_ID,
-        )
-            .0,
-    );
+    tick_array_keys.push(get_tick_array_pda(pool_key, current_valid_tick_array_start_index).unwrap());
     let mut max_array_size = 3;
     while max_array_size != 0 {
         let next_tick_array_index = pool_state
@@ -58,17 +60,7 @@ pub fn get_tick_arrays(
             break;
         }
         current_valid_tick_array_start_index = next_tick_array_index.unwrap();
-        tick_array_keys.push(
-            Pubkey::find_program_address(
-                &[
-                    TICK_ARRAY_SEED.as_bytes(),
-                    pool_key.as_ref(),
-                    &current_valid_tick_array_start_index.to_be_bytes(),
-                ],
-                &RAYDIUM_CLMM_PROGRAM_ID,
-            )
-                .0,
-        );
+        tick_array_keys.push(get_tick_array_pda(pool_key, current_valid_tick_array_start_index).unwrap());
         max_array_size -= 1;
     }
     tick_array_keys
