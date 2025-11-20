@@ -148,11 +148,13 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // max_quote_amount_in
         data[16..24].copy_from_slice(&params.input_amount.unwrap().to_le_bytes());
 
-        instructions.push(Instruction {
+        let buy_instruction = Instruction {
             program_id: accounts::AMM_PROGRAM,
-            accounts,
+            accounts: accounts.clone(),
             data: data.to_vec(),
-        });
+        };
+
+        instructions.push(buy_instruction);
         if close_wsol_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
@@ -265,11 +267,13 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // min_quote_amount_out
         data[16..24].copy_from_slice(&output_amount.to_le_bytes());
 
-        instructions.push(Instruction {
+        let sell_instruction = Instruction {
             program_id: accounts::AMM_PROGRAM,
-            accounts,
+            accounts: accounts.clone(),
             data: data.to_vec(),
-        });
+        };
+
+        instructions.push(sell_instruction);
 
         if close_wsol_ata {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));

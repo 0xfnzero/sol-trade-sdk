@@ -615,7 +615,7 @@ async fn handle_buy_pumpfun(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpFun,
@@ -636,7 +636,7 @@ async fn handle_buy_pumpfun(
         simulate: false,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully bought tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -669,7 +669,7 @@ async fn handle_buy_pumpswap(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::PumpSwap,
@@ -690,7 +690,7 @@ async fn handle_buy_pumpswap(
         simulate: false,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully bought tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -722,7 +722,7 @@ async fn handle_buy_bonk(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::Bonk,
@@ -743,7 +743,7 @@ async fn handle_buy_bonk(
         simulate: false,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully bought tokens from Bonk!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -779,7 +779,7 @@ async fn handle_buy_raydium_v4(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
@@ -800,7 +800,7 @@ async fn handle_buy_raydium_v4(
         simulate: false,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully bought tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -836,7 +836,7 @@ async fn handle_buy_raydium_cpmm(
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let buy_params = TradeBuyParams {
         dex_type: DexType::RaydiumCpmm,
@@ -857,7 +857,7 @@ async fn handle_buy_raydium_cpmm(
         simulate: false,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully bought tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1003,7 +1003,7 @@ async fn handle_sell_pumpfun(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpFun,
@@ -1026,7 +1026,7 @@ async fn handle_sell_pumpfun(
     };
 
     match client.sell(sell_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1061,7 +1061,7 @@ async fn handle_sell_pumpswap(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::PumpSwap,
@@ -1083,7 +1083,7 @@ async fn handle_sell_pumpswap(
         simulate: false,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {}", signature);
         }
@@ -1118,7 +1118,7 @@ async fn handle_sell_bonk(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::Bonk,
@@ -1140,7 +1140,7 @@ async fn handle_sell_bonk(
         simulate: false,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from Bonk!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1178,7 +1178,7 @@ async fn handle_sell_raydium_v4(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
@@ -1200,7 +1200,7 @@ async fn handle_sell_raydium_v4(
         simulate: false,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1238,7 +1238,7 @@ async fn handle_sell_raydium_cpmm(
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     let sell_params = TradeSellParams {
         dex_type: DexType::RaydiumCpmm,
@@ -1260,7 +1260,7 @@ async fn handle_sell_raydium_cpmm(
         simulate: false,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature)) => {
+        Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }

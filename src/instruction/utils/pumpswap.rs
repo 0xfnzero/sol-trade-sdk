@@ -230,10 +230,17 @@ pub async fn find_by_base_mint(
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", base_mint));
     }
+    let accounts_count = accounts.len();  // 🔧 保存长度，因为 into_iter() 会消耗 accounts
     let mut pools: Vec<_> = accounts
         .into_iter()
         .filter_map(|(addr, acc)| pool_decode(&acc.data).map(|pool| (addr, pool)))
         .collect();
+
+    // 🔧 修复：检查过滤后的 pools 是否为空（accounts 可能不为空但解码全部失败）
+    if pools.is_empty() {
+        return Err(anyhow!("No valid pool decoded for mint {} (found {} accounts but all decode failed)", base_mint, accounts_count));
+    }
+
     pools.sort_by(|a, b| b.1.lp_supply.cmp(&a.1.lp_supply));
     let (address, pool) = pools[0].clone();
     Ok((address, pool))
@@ -266,10 +273,17 @@ pub async fn find_by_quote_mint(
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", quote_mint));
     }
+    let accounts_count = accounts.len();  // 🔧 保存长度，因为 into_iter() 会消耗 accounts
     let mut pools: Vec<_> = accounts
         .into_iter()
         .filter_map(|(addr, acc)| pool_decode(&acc.data).map(|pool| (addr, pool)))
         .collect();
+
+    // 🔧 修复：检查过滤后的 pools 是否为空（accounts 可能不为空但解码全部失败）
+    if pools.is_empty() {
+        return Err(anyhow!("No valid pool decoded for quote_mint {} (found {} accounts but all decode failed)", quote_mint, accounts_count));
+    }
+
     pools.sort_by(|a, b| b.1.lp_supply.cmp(&a.1.lp_supply));
     let (address, pool) = pools[0].clone();
     Ok((address, pool))

@@ -89,7 +89,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -111,6 +111,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
             trade_info.creator_vault,
             None,
             trade_info.fee_recipient,
+            trade_info.token_program,
         )),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
@@ -143,7 +144,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(PumpFunParams::immediate_sell(trade_info.creator_vault, true)),
+        extension_params: Box::new(PumpFunParams::immediate_sell(trade_info.creator_vault, trade_info.token_program, true)),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,

@@ -5,7 +5,10 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
-use crate::common::{spl_associated_token_account::get_associated_token_address_with_program_id, spl_token::close_account};
+use crate::common::{
+    spl_associated_token_account::get_associated_token_address_with_program_id,
+    spl_token::close_account,
+};
 use crate::perf::compiler_optimization::CompileTimeOptimizedEventProcessor;
 
 /// 🚀 编译时优化的哈希处理器
@@ -56,10 +59,7 @@ where
     };
 
     // Lock-free cache lookup with entry API
-    INSTRUCTION_CACHE
-        .entry(cache_key)
-        .or_insert_with(compute_fn)
-        .clone()
+    INSTRUCTION_CACHE.entry(cache_key).or_insert_with(compute_fn).clone()
 }
 
 // --------------------- Associated Token Account ---------------------
@@ -100,11 +100,12 @@ pub fn _create_associated_token_account_idempotent_fast(
     };
 
     // Only use seed if the mint address is not wSOL or SOL
-    // token 2022 测试不成功（TODO）
+    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
     if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && token_program.eq(&crate::constants::TOKEN_PROGRAM)
+        && (token_program.eq(&crate::constants::TOKEN_PROGRAM)
+            || token_program.eq(&crate::constants::TOKEN_PROGRAM_2022))
     {
         // Use cache to get instruction
         get_cached_instructions(cache_key, || {
@@ -240,11 +241,12 @@ fn _get_associated_token_address_with_program_id_fast(
 
     // Slow path: compute new ATA
     // Only use seed if the token mint address is not wSOL or SOL
-    // token 2022 测试不成功（TODO）
+    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
     let ata = if use_seed
         && !token_mint_address.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !token_mint_address.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && token_program_id.eq(&crate::constants::TOKEN_PROGRAM)
+        && (token_program_id.eq(&crate::constants::TOKEN_PROGRAM)
+            || token_program_id.eq(&crate::constants::TOKEN_PROGRAM_2022))
     {
         super::seed::get_associated_token_address_with_program_id_use_seed(
             wallet_address,

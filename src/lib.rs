@@ -349,7 +349,7 @@ impl SolanaTrade {
     /// - Network or RPC errors occur
     /// - Insufficient SOL balance for the purchase
     /// - Required accounts cannot be created or accessed
-    pub async fn buy(&self, params: TradeBuyParams) -> Result<(bool, Signature), anyhow::Error> {
+    pub async fn buy(&self, params: TradeBuyParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -456,7 +456,7 @@ impl SolanaTrade {
     /// - Insufficient token balance for the sale
     /// - Token account doesn't exist or is not properly initialized
     /// - Required accounts cannot be created or accessed
-    pub async fn sell(&self, params: TradeSellParams) -> Result<(bool, Signature), anyhow::Error> {
+    pub async fn sell(&self, params: TradeSellParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -575,7 +575,7 @@ impl SolanaTrade {
         mut params: TradeSellParams,
         amount_token: u64,
         percent: u64,
-    ) -> Result<(bool, Signature), anyhow::Error> {
+    ) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
         if percent == 0 || percent > 100 {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }
@@ -677,6 +677,42 @@ impl SolanaTrade {
 
         let mut transaction =
             Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        transaction.sign(&[&*self.payer], recent_blockhash);
+        let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
+        Ok(signature.to_string())
+    }
+
+    /// 将 WSOL 转换为 SOL，使用 seed 账户
+    ///
+    /// 这个函数实现以下步骤：
+    /// 1. 使用 super::seed::create_associated_token_account_use_seed 创建 WSOL seed 账号
+    /// 2. 使用 get_associated_token_address_with_program_id_use_seed 获取该账号的 ATA 地址
+    /// 3. 添加从用户 WSOL ATA 转账到该 seed ATA 账号的指令
+    /// 4. 添加关闭 WSOL seed 账号的指令
+    ///
+    /// # Arguments
+    /// * `amount` - 要转换的 WSOL 数量（以 lamports 为单位）
+    ///
+    /// # Returns
+    /// * `Ok(String)` - 交易签名
+    /// * `Err(anyhow::Error)` - 如果交易执行失败
+    ///
+    /// # Errors
+    ///
+    /// 此函数在以下情况下会返回错误：
+    /// - 用户 WSOL ATA 中余额不足
+    /// - seed 账户创建失败
+    /// - 转账指令执行失败
+    /// - 交易执行或确认失败
+    /// - 网络或 RPC 错误
+    pub async fn wrap_wsol_to_sol(&self, amount: u64) -> Result<String, anyhow::Error> {
+        use crate::trading::common::wsol_manager::wrap_wsol_to_sol as wrap_wsol_to_sol_internal;
+        use solana_sdk::transaction::Transaction;
+
+        let recent_blockhash = self.rpc.get_latest_blockhash().await?;
+        let instructions = wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount)?;
+
+        let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())

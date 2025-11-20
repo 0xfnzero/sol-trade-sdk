@@ -30,6 +30,35 @@ pub fn close_account(
     Ok(Instruction { program_id: *token_program_id, accounts, data })
 }
 
+pub fn transfer(
+    token_program_id: &Pubkey,
+    source_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
+    owner_pubkey: &Pubkey,
+    amount: u64,
+    signers: &[&Pubkey],
+) -> Result<Instruction, ProgramError> {
+    // Transfer
+    let mut data = Vec::with_capacity(9);
+    data.push(3); // Instruction discriminator for Transfer
+    data.extend_from_slice(&amount.to_le_bytes());
+
+    let mut accounts = Vec::with_capacity(3 + signers.len());
+    accounts.push(AccountMeta::new(*source_pubkey, false));
+    accounts.push(AccountMeta::new(*destination_pubkey, false));
+    accounts.push(AccountMeta::new_readonly(*owner_pubkey, signers.is_empty()));
+
+    for signer in signers.iter() {
+        accounts.push(AccountMeta::new_readonly(**signer, true));
+    }
+
+    Ok(Instruction {
+        program_id: *token_program_id,
+        accounts,
+        data,
+    })
+}
+
 pub fn initialize_account3(
     token_program_id: &Pubkey,
     account_pubkey: &Pubkey,

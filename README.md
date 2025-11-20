@@ -87,14 +87,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.3.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "3.3.3" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "3.3.0"
+sol-trade-sdk = "3.3.3"
 ```
 
 ## 🛠️ Usage Examples
@@ -146,7 +146,7 @@ For detailed information about Gas Fee Strategy, see the [Gas Fee Strategy Refer
 // Create GasFeeStrategy instance
 let gas_fee_strategy = GasFeeStrategy::new();
 // Set global strategy
-gas_fee_strategy.set_global_fee_strategy(150000, 500000, 0.001, 0.001, 256 * 1024, 0);
+gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
 ```
 
 #### 3. Build Trading Parameters

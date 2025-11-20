@@ -58,16 +58,22 @@ pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
     pub associated_bonding_curve: Pubkey,
     pub creator_vault: Pubkey,
+    pub token_program: Pubkey,
     /// Whether to close token account when selling, only effective during sell operations
     pub close_token_account_when_sell: Option<bool>,
 }
 
 impl PumpFunParams {
-    pub fn immediate_sell(creator_vault: Pubkey, close_token_account_when_sell: bool) -> Self {
+    pub fn immediate_sell(
+        creator_vault: Pubkey,
+        token_program: Pubkey,
+        close_token_account_when_sell: bool,
+    ) -> Self {
         Self {
             bonding_curve: Arc::new(BondingCurveAccount { ..Default::default() }),
             associated_bonding_curve: Pubkey::default(),
             creator_vault: creator_vault,
+            token_program: token_program,
             close_token_account_when_sell: Some(close_token_account_when_sell),
         }
     }
@@ -82,6 +88,7 @@ impl PumpFunParams {
         creator_vault: Pubkey,
         close_token_account_when_sell: Option<bool>,
         fee_recipient: Pubkey,
+        token_program: Pubkey,
     ) -> Self {
         let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve_account = BondingCurveAccount::from_dev_trade(
@@ -97,6 +104,7 @@ impl PumpFunParams {
             associated_bonding_curve: associated_bonding_curve,
             creator_vault: creator_vault,
             close_token_account_when_sell: close_token_account_when_sell,
+            token_program: token_program,
         }
     }
 
@@ -112,6 +120,7 @@ impl PumpFunParams {
         real_sol_reserves: u64,
         close_token_account_when_sell: Option<bool>,
         fee_recipient: Pubkey,
+        token_program: Pubkey,
     ) -> Self {
         let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve = BondingCurveAccount::from_trade(
@@ -129,6 +138,7 @@ impl PumpFunParams {
             associated_bonding_curve: associated_bonding_curve,
             creator_vault: creator_vault,
             close_token_account_when_sell: close_token_account_when_sell,
+            token_program: token_program,
         }
     }
 
@@ -138,6 +148,7 @@ impl PumpFunParams {
     ) -> Result<Self, anyhow::Error> {
         let account =
             crate::instruction::utils::pumpfun::fetch_bonding_curve_account(rpc, mint).await?;
+        let mint_account = rpc.get_account(&mint).await?;
         let bonding_curve = BondingCurveAccount {
             discriminator: 0,
             account: account.1,
@@ -153,7 +164,7 @@ impl PumpFunParams {
         let associated_bonding_curve = get_associated_token_address_with_program_id(
             &bonding_curve.account,
             mint,
-            &crate::constants::TOKEN_PROGRAM,
+            &mint_account.owner,
         );
         let creator_vault =
             crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator);
@@ -162,6 +173,7 @@ impl PumpFunParams {
             associated_bonding_curve: associated_bonding_curve,
             creator_vault: creator_vault.unwrap(),
             close_token_account_when_sell: None,
+            token_program: mint_account.owner,
         })
     }
 }
