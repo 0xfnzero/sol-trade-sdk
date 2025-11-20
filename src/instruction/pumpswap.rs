@@ -148,14 +148,14 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             accounts::AMM_PROGRAM_META,              // PUMP_AMM_PROGRAM_ID (readonly)
             AccountMeta::new(params_coin_creator_vault_ata, false), // coin_creator_vault_ata
             AccountMeta::new_readonly(params_coin_creator_vault_authority, false), // coin_creator_vault_authority (readonly)
+            accounts::GLOBAL_VOLUME_ACCUMULATOR_META,
+            AccountMeta::new(
+                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
+                false,
+            ),
+            accounts::FEE_CONFIG_META,
+            accounts::FEE_PROGRAM_META,
         ]);
-        accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-        accounts.push(AccountMeta::new(
-            get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-            false,
-        ));
-        accounts.push(accounts::FEE_CONFIG_META);
-        accounts.push(accounts::FEE_PROGRAM_META);
 
         // Create instruction data
         let mut data = [0u8; 24];
@@ -214,16 +214,16 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
 
         let (token_amount, mut sol_amount) = {
-            let result = buy_quote_input_internal(
-                params.input_amount.unwrap(),
+            let result = sell_base_input_internal(
+                params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
                 &creator,
             )
                 .unwrap();
-            // max_quote_amount_in, base_amount_out
-            (result.max_quote, result.base)
+            // min_quote_amount_out, base_amount_in
+            (result.min_quote, params.input_amount.unwrap_or(0))
         };
 
         if params.fixed_output_amount.is_some() {
@@ -287,19 +287,13 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             accounts::AMM_PROGRAM_META,              // PUMP_AMM_PROGRAM_ID (readonly)
             AccountMeta::new(params_coin_creator_vault_ata, false), // coin_creator_vault_ata
             AccountMeta::new_readonly(params_coin_creator_vault_authority, false), // coin_creator_vault_authority (readonly)
+            accounts::FEE_CONFIG_META,
+            accounts::FEE_PROGRAM_META,
         ]);
-        accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-        accounts.push(AccountMeta::new(
-            get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-            false,
-        ));
-
-        accounts.push(accounts::FEE_CONFIG_META);
-        accounts.push(accounts::FEE_PROGRAM_META);
 
         // Create instruction data
         let mut data = [0u8; 24];
-        data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+        data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
         // base_amount_out
         data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
         // max_quote_amount_in
