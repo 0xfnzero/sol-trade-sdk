@@ -182,7 +182,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         // Create instruction data
         let mut data = [0u8; 17];
         data[..1].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
-        data[1..9].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
+        data[1..9].copy_from_slice(&amount_in.to_le_bytes());
         data[9..17].copy_from_slice(&minimum_amount_out.to_le_bytes());
 
         instructions.push(Instruction::new_with_bytes(
