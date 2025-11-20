@@ -23,49 +23,31 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
-        
+
         let protocol_params = params
             .protocol_params
             .as_any()
             .downcast_ref::<MeteoraDammV2Params>()
-            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
-
-        let is_wsol = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-        let is_usdc = protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
+            .ok_or_else(|| anyhow!("Invalid protocol params for MeteoraDammV2"))?;
 
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        let amount_in: u64 = params.input_amount.unwrap_or(0);
-        let minimum_amount_out: u64 = match params.fixed_output_amount {
-            Some(fixed) => fixed,
-            None => return Err(anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap")),
-        };
+        let amount_in: u64 = params.input_amount.unwrap();
+        let minimum_amount_out: u64 = params.fixed_output_amount.unwrap_or(0);
 
         let input_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.input_mint,
-                if is_a_in {
-                    &protocol_params.token_a_program
-                } else {
-                    &protocol_params.token_b_program
-                },
+                &params.input_token_program,
                 params.open_seed_optimize,
             );
         let output_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.output_mint,
-                if is_a_in {
-                    &protocol_params.token_b_program
-                } else {
-                    &protocol_params.token_a_program
-                },
+                &params.output_token_program,
                 params.open_seed_optimize,
             );
 
@@ -85,7 +67,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
                     &params.output_mint,
-                    &crate::constants::TOKEN_PROGRAM,
+                    &params.output_token_program,
                     params.open_seed_optimize,
                 ),
             );
@@ -142,41 +124,24 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             return Err(anyhow!("Token amount is not set"));
         }
 
-        let is_wsol = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-        let is_usdc = protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        let minimum_amount_out: u64 = match params.fixed_output_amount {
-            Some(fixed) => fixed,
-            None => return Err(anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap")),
-        };
+        let amount_in: u64 = params.input_amount.unwrap();
+        let minimum_amount_out: u64 = params.fixed_output_amount.unwrap_or(0);
 
         let input_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.input_mint,
-                if is_a_in {
-                    &protocol_params.token_a_program
-                } else {
-                    &protocol_params.token_b_program
-                },
+                &params.input_token_program,
                 params.open_seed_optimize,
             );
         let output_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.output_mint,
-                if is_a_in {
-                    &protocol_params.token_b_program
-                } else {
-                    &protocol_params.token_a_program
-                },
+                &params.output_token_program,
                 params.open_seed_optimize,
             );
 
@@ -209,7 +174,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         // Create instruction data
         let mut data = [0u8; 24];
         data[..8].copy_from_slice(&SWAP_DISCRIMINATOR);
-        data[8..16].copy_from_slice(&params.input_amount.unwrap_or_default().to_le_bytes());
+        data[8..16].copy_from_slice(&amount_in.to_le_bytes());
         data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
 
         instructions.push(Instruction::new_with_bytes(
@@ -223,11 +188,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(
-                if is_a_in {
-                    &protocol_params.token_a_program
-                } else {
-                    &protocol_params.token_b_program
-                },
+                &params.input_token_program,
                 &input_token_account,
                 &params.payer.pubkey(),
                 &params.payer.pubkey(),
