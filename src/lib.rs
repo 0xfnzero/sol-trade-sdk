@@ -88,9 +88,9 @@ pub struct TradeBuyParams {
     /// The DEX protocol to use for the trade
     pub dex_type: DexType,
     /// Type of the token to buy
-    pub input_token_type: TradeTokenType,
+    pub input_mint: Pubkey,
     /// Public key of the token to purchase
-    pub mint: Pubkey,
+    pub output_mint: Pubkey,
     /// Amount of tokens to buy (in smallest token units)
     pub input_token_amount: u64,
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
@@ -131,10 +131,10 @@ pub struct TradeSellParams {
     // Trading configuration
     /// The DEX protocol to use for the trade
     pub dex_type: DexType,
-    /// Type of the token to sell
-    pub output_token_type: TradeTokenType,
     /// Public key of the token to sell
-    pub mint: Pubkey,
+    pub input_mint: Pubkey,
+    /// Type of the token to sell
+    pub output_mint: Pubkey,
     /// Amount of tokens to sell (in smallest token units)
     pub input_token_amount: u64,
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
@@ -356,28 +356,26 @@ impl SolanaTrade {
                 DEFAULT_SLIPPAGE
             );
         }
-        if params.input_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
+        if params.input_mint == USD1_TOKEN_ACCOUNT && params.dex_type != DexType::Bonk {
             return Err(anyhow::anyhow!(
                 " Current version only support USD1 trading on Bonk protocols"
             ));
         }
-        let input_token_mint = if params.input_token_type == TradeTokenType::SOL {
-            SOL_TOKEN_ACCOUNT
-        } else if params.input_token_type == TradeTokenType::WSOL {
-            WSOL_TOKEN_ACCOUNT
-        } else if params.input_token_type == TradeTokenType::USDC {
-            USDC_TOKEN_ACCOUNT
-        } else {
-            USD1_TOKEN_ACCOUNT
-        };
+
+        if params.input_token_amount == 0 {
+            return Err(anyhow::anyhow!(
+                "input_token_amount cannot be zero"
+            ));
+        }
+
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
         let buy_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
             trade_type: TradeType::Buy,
-            input_mint: input_token_mint,
-            output_mint: params.mint,
+            input_mint: params.input_mint,
+            output_mint: params.output_mint,
             input_token_program: params.input_token_program,
             output_token_program: params.output_token_program,
             input_amount: Some(params.input_token_amount),
@@ -465,28 +463,26 @@ impl SolanaTrade {
                 DEFAULT_SLIPPAGE
             );
         }
-        if params.output_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
+        if params.output_mint == USD1_TOKEN_ACCOUNT && params.dex_type != DexType::Bonk {
             return Err(anyhow::anyhow!(
                 " Current version only support USD1 trading on Bonk protocols"
             ));
         }
+
+        if params.input_token_amount == 0 {
+            return Err(anyhow::anyhow!(
+                "input_token_amount cannot be zero"
+            ));
+        }
+
         let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
-        let output_token_mint = if params.output_token_type == TradeTokenType::SOL {
-            SOL_TOKEN_ACCOUNT
-        } else if params.output_token_type == TradeTokenType::WSOL {
-            WSOL_TOKEN_ACCOUNT
-        } else if params.output_token_type == TradeTokenType::USDC {
-            USDC_TOKEN_ACCOUNT
-        } else {
-            USD1_TOKEN_ACCOUNT
-        };
         let sell_params = SwapParams {
             rpc: Some(self.rpc.clone()),
             payer: self.payer.clone(),
             trade_type: TradeType::Sell,
-            input_mint: params.mint,
-            output_mint: output_token_mint,
+            input_mint: params.input_mint,
+            output_mint: params.output_mint,
             input_token_program: params.input_token_program,
             output_token_program: params.output_token_program,
             input_amount: Some(params.input_token_amount),

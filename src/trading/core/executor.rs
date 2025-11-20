@@ -17,7 +17,7 @@ use crate::{
     trading::MiddlewareManager,
 };
 use once_cell::sync::Lazy;
-
+use crate::swqos::TradeType;
 use super::{params::SwapParams, traits::InstructionBuilder};
 
 /// 🚀 全局系统调用绕过管理器
@@ -48,9 +48,7 @@ impl TradeExecutor for GenericTradeExecutor {
         let total_start = Instant::now();
 
         // 判断买卖方向
-        let is_buy = ExecutionPath::is_buy(&params.input_mint)
-            || (params.input_mint == crate::constants::USD1_TOKEN_ACCOUNT
-                && params.output_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
+        let is_buy = params.trade_type == TradeType::Buy || params.trade_type == TradeType::CreateAndBuy;
 
         // CPU 预取
         Prefetch::keypair(&params.payer);
@@ -98,7 +96,7 @@ impl TradeExecutor for GenericTradeExecutor {
                 if is_buy { true } else { params.with_tip },
                 params.gas_fee_strategy,
             )
-            .await;
+                .await;
             let send_elapsed = send_start.elapsed();
             let total_elapsed = total_start.elapsed();
 
@@ -149,7 +147,7 @@ impl TradeExecutor for GenericTradeExecutor {
             if is_buy { true } else { params.with_tip },
             params.gas_fee_strategy,
         )
-        .await;
+            .await;
         let send_elapsed = send_start.elapsed();
         let total_elapsed = total_start.elapsed();
 
@@ -241,7 +239,7 @@ async fn simulate_transaction(
         tip,
         durable_nonce,
     )
-    .await?;
+        .await?;
 
     // 打印原始交易数据
     let bytes = transaction.message.serialize();

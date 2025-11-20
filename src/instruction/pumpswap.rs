@@ -53,29 +53,15 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
 
-        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-                && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
-        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT
-                && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let mut creator = Pubkey::default();
         if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (mut token_amount, sol_amount) = if quote_is_wsol_or_usdc {
+        let (mut token_amount, sol_amount) = {
             let result = buy_quote_input_internal(
                 params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -83,20 +69,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 pool_quote_token_reserves,
                 &creator,
             )
-            .unwrap();
+                .unwrap();
             // base_amount_out, max_quote_amount_in
             (result.base, result.max_quote)
-        } else {
-            let result = sell_base_input_internal(
-                params.input_amount.unwrap_or(0),
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-                pool_base_token_reserves,
-                pool_quote_token_reserves,
-                &creator,
-            )
-            .unwrap();
-            // min_quote_amount_out, base_amount_in
-            (result.min_quote, params.input_amount.unwrap_or(0))
         };
 
         if params.fixed_output_amount.is_some() {
@@ -144,8 +119,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
-                    if quote_is_wsol_or_usdc { &base_mint } else { &quote_mint },
-                    if quote_is_wsol_or_usdc { &base_token_program } else { &quote_token_program },
+                    &base_mint,
+                    &base_token_program,
                     params.open_seed_optimize,
                 ),
             );
@@ -174,31 +149,21 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             AccountMeta::new(params_coin_creator_vault_ata, false), // coin_creator_vault_ata
             AccountMeta::new_readonly(params_coin_creator_vault_authority, false), // coin_creator_vault_authority (readonly)
         ]);
-        if quote_is_wsol_or_usdc {
-            accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-            accounts.push(AccountMeta::new(
-                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-                false,
-            ));
-        }
+        accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
+        accounts.push(AccountMeta::new(
+            get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
+            false,
+        ));
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
 
         // Create instruction data
         let mut data = [0u8; 24];
-        if quote_is_wsol_or_usdc {
-            data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-            // base_amount_out
-            data[8..16].copy_from_slice(&token_amount.to_le_bytes());
-            // max_quote_amount_in
-            data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
-        } else {
-            data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
-            // base_amount_in
-            data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
-            // min_quote_amount_out
-            data[16..24].copy_from_slice(&token_amount.to_le_bytes());
-        }
+        data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+        // base_amount_out
+        data[8..16].copy_from_slice(&token_amount.to_le_bytes());
+        // max_quote_amount_in
+        data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
 
         instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,
@@ -222,6 +187,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             .downcast_ref::<PumpSwapParams>()
             .ok_or_else(|| anyhow!("Invalid protocol params for PumpSwap"))?;
 
+        if params.input_amount.unwrap_or(0) == 0 {
+            return Err(anyhow!("Amount cannot be zero"));
+        }
+
         let pool = protocol_params.pool;
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
@@ -236,44 +205,15 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_token_program = protocol_params.base_token_program;
         let quote_token_program = protocol_params.quote_token_program;
 
-        let is_wsol = (base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::USDC_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-                && base_mint != crate::constants::USDC_TOKEN_ACCOUNT);
-        let is_usdc = (base_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            && quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT)
-            || (quote_mint == crate::constants::USDC_TOKEN_ACCOUNT
-                && base_mint != crate::constants::WSOL_TOKEN_ACCOUNT);
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
-        if params.input_amount.is_none() {
-            return Err(anyhow!("Token amount is not set"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let quote_is_wsol_or_usdc = quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let mut creator = Pubkey::default();
         if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (token_amount, mut sol_amount) = if quote_is_wsol_or_usdc {
-            let result = sell_base_input_internal(
-                params.input_amount.unwrap(),
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-                pool_base_token_reserves,
-                pool_quote_token_reserves,
-                &creator,
-            )
-            .unwrap();
-            // base_amount_in, min_quote_amount_out
-            (params.input_amount.unwrap(), result.min_quote)
-        } else {
+        let (token_amount, mut sol_amount) = {
             let result = buy_quote_input_internal(
                 params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -281,7 +221,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 pool_quote_token_reserves,
                 &creator,
             )
-            .unwrap();
+                .unwrap();
             // max_quote_amount_in, base_amount_out
             (result.max_quote, result.base)
         };
@@ -348,32 +288,22 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             AccountMeta::new(params_coin_creator_vault_ata, false), // coin_creator_vault_ata
             AccountMeta::new_readonly(params_coin_creator_vault_authority, false), // coin_creator_vault_authority (readonly)
         ]);
-        if !quote_is_wsol_or_usdc {
-            accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-            accounts.push(AccountMeta::new(
-                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-                false,
-            ));
-        }
+        accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
+        accounts.push(AccountMeta::new(
+            get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
+            false,
+        ));
 
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
 
         // Create instruction data
         let mut data = [0u8; 24];
-        if quote_is_wsol_or_usdc {
-            data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
-            // base_amount_in
-            data[8..16].copy_from_slice(&token_amount.to_le_bytes());
-            // min_quote_amount_out
-            data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
-        } else {
-            data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-            // base_amount_out
-            data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
-            // max_quote_amount_in
-            data[16..24].copy_from_slice(&token_amount.to_le_bytes());
-        }
+        data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+        // base_amount_out
+        data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
+        // max_quote_amount_in
+        data[16..24].copy_from_slice(&token_amount.to_le_bytes());
 
         instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,
@@ -386,12 +316,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(
-                if quote_is_wsol_or_usdc { &base_token_program } else { &quote_token_program },
-                if quote_is_wsol_or_usdc {
-                    &user_base_token_account
-                } else {
-                    &user_quote_token_account
-                },
+                &quote_token_program,
+                &user_quote_token_account,
                 &params.payer.pubkey(),
                 &params.payer.pubkey(),
                 &[&params.payer.pubkey()],
