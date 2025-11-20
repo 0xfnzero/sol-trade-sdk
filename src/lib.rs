@@ -118,8 +118,8 @@ pub struct TradeBuyParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// Whether to simulate the transaction instead of executing it
     pub simulate: bool,
-    pub input_token_program: Option<Pubkey>,
-    pub output_token_program: Option<Pubkey>,
+    pub input_token_program: Pubkey,
+    pub output_token_program: Pubkey,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -139,8 +139,8 @@ pub struct TradeSellParams {
     pub input_token_amount: u64,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
     pub fixed_output_token_amount: Option<u64>,
-    pub input_token_program: Option<Pubkey>,
-    pub output_token_program: Option<Pubkey>,
+    pub input_token_program: Pubkey,
+    pub output_token_program: Pubkey,
     /// Optional slippage tolerance in basis points (e.g., 100 = 1%)
     pub slippage_basis_points: Option<u64>,
     /// Recent blockhash for transaction validity

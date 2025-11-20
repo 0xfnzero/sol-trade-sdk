@@ -40,13 +40,13 @@ impl InstructionBuilder for MeteoraDlmmInstructionBuilder {
         let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.input_mint,
-            &params.input_token_program.unwrap_or(TOKEN_PROGRAM),
+            &params.input_token_program,
             params.open_seed_optimize,
         );
         let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.output_mint,
-            &params.output_token_program.unwrap_or(TOKEN_PROGRAM),
+            &params.output_token_program,
             params.open_seed_optimize,
         );
 
@@ -66,7 +66,7 @@ impl InstructionBuilder for MeteoraDlmmInstructionBuilder {
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
                     &params.output_mint,
-                    &params.output_token_program.unwrap_or(TOKEN_PROGRAM),
+                    &params.output_token_program,
                     params.open_seed_optimize,
                 ),
             );
@@ -136,13 +136,13 @@ impl InstructionBuilder for MeteoraDlmmInstructionBuilder {
         let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.input_mint,
-            &params.input_token_program.unwrap_or(TOKEN_PROGRAM),
+            &params.input_token_program,
             params.open_seed_optimize,
         );
         let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &params.output_mint,
-            &params.output_token_program.unwrap_or(TOKEN_PROGRAM),
+            &params.output_token_program,
             params.open_seed_optimize,
         );
 
@@ -162,7 +162,7 @@ impl InstructionBuilder for MeteoraDlmmInstructionBuilder {
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
                     &params.output_mint,
-                    &params.output_token_program.unwrap_or(TOKEN_PROGRAM),
+                    &params.output_token_program,
                     params.open_seed_optimize,
                 ),
             );
