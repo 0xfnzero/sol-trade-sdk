@@ -25,52 +25,31 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
+
         let protocol_params = params
             .protocol_params
             .as_any()
             .downcast_ref::<RaydiumAmmV4Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
 
-        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-
-        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT;
         let amount_in: u64 = params.input_amount.unwrap_or(0);
-        let swap_result = compute_swap_amount(
-            protocol_params.base_reserve,
-            protocol_params.quote_reserve,
-            is_base_in,
-            amount_in,
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-        );
-        let minimum_amount_out = match params.fixed_output_amount {
-            Some(fixed) => fixed,
-            None => swap_result.min_amount_out,
-        };
+        let minimum_amount_out = params.fixed_output_amount.unwrap_or(0);
 
         let user_source_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
-                &crate::constants::TOKEN_PROGRAM,
+                &params.input_mint,
+                &params.input_token_program,
                 params.open_seed_optimize,
             );
         let user_destination_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.output_mint,
-                &crate::constants::TOKEN_PROGRAM,
+                &params.output_token_program,
                 params.open_seed_optimize,
             );
 
@@ -90,7 +69,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
                     &params.payer.pubkey(),
                     &params.payer.pubkey(),
                     &params.output_mint,
-                    &crate::constants::TOKEN_PROGRAM,
+                    &params.output_token_program,
                     params.open_seed_optimize,
                 ),
             );
@@ -150,45 +129,24 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             return Err(anyhow!("Token amount is not set"));
         }
 
-        let is_wsol = protocol_params.base_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-
-        let is_usdc = protocol_params.base_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_base_in = protocol_params.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        let swap_result = compute_swap_amount(
-            protocol_params.base_reserve,
-            protocol_params.quote_reserve,
-            is_base_in,
-            params.input_amount.unwrap_or(0),
-            params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-        );
-        let minimum_amount_out = match params.fixed_output_amount {
-            Some(fixed) => fixed,
-            None => swap_result.min_amount_out,
-        };
+        let amount_in = params.input_amount.unwrap_or(0);
+        let minimum_amount_out = params.fixed_output_amount.unwrap_or(0);
 
         let user_source_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.input_mint,
-                &crate::constants::TOKEN_PROGRAM,
+                &params.input_token_program,
                 params.open_seed_optimize,
             );
         let user_destination_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
-                &crate::constants::TOKEN_PROGRAM,
+                &params.output_mint,
+                &params.output_token_program,
                 params.open_seed_optimize,
             );
 

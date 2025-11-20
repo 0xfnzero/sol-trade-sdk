@@ -105,11 +105,11 @@ pub struct TradeBuyParams {
     /// Whether to wait for transaction confirmation before returning
     pub wait_transaction_confirmed: bool,
     /// Whether to create input token associated token account
-    pub create_input_token_ata: bool,
+    pub create_input_mint_ata: bool,
     /// Whether to close input token associated token account after trade
-    pub close_input_token_ata: bool,
+    pub close_input_mint_ata: bool,
     /// Whether to create token mint associated token account
-    pub create_mint_ata: bool,
+    pub create_output_mint_ata: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
     /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
@@ -393,9 +393,9 @@ impl SolanaTrade {
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
             with_tip: true,
-            create_input_mint_ata: params.create_input_token_ata,
-            close_input_mint_ata: params.close_input_token_ata,
-            create_output_mint_ata: params.create_mint_ata,
+            create_input_mint_ata: params.create_input_mint_ata,
+            close_input_mint_ata: params.close_input_mint_ata,
+            create_output_mint_ata: params.create_output_mint_ata,
             close_output_mint_ata: false,
             fixed_output_amount: params.fixed_output_token_amount,
             gas_fee_strategy: params.gas_fee_strategy,

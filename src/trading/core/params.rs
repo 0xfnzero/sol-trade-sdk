@@ -611,10 +611,6 @@ pub struct RaydiumAmmV4Params {
     pub base_vault: Pubkey,
     /// Pool's pc token account address
     pub quote_vault: Pubkey,
-    /// Current coin reserve amount in the pool
-    pub base_reserve: u64,
-    /// Current pc reserve amount in the pool
-    pub quote_reserve: u64,
 }
 
 impl RaydiumAmmV4Params {
@@ -624,10 +620,8 @@ impl RaydiumAmmV4Params {
         quote_mint: Pubkey,
         base_vault: Pubkey,
         quote_vault: Pubkey,
-        base_reserve: u64,
-        quote_reserve: u64,
     ) -> Self {
-        Self { amm, base_mint, quote_mint, base_vault, quote_vault, base_reserve, quote_reserve }
+        Self { amm, base_mint, quote_mint, base_vault, quote_vault }
     }
     pub async fn from_amm_address_by_rpc(
         rpc: &SolanaRpcClient,
@@ -642,8 +636,6 @@ impl RaydiumAmmV4Params {
             quote_mint: amm_info.quote_mint,
             base_vault: amm_info.base_vault,
             quote_vault: amm_info.quote_vault,
-            base_reserve,
-            quote_reserve,
         })
     }
 }
