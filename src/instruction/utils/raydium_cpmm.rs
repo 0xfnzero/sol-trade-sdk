@@ -133,10 +133,10 @@ pub fn get_vault_account(
     token_mint: &Pubkey,
     protocol_params: &RaydiumCpmmParams,
 ) -> Pubkey {
-    if protocol_params.base_mint == *token_mint && protocol_params.base_vault != Pubkey::default() {
-        protocol_params.base_vault
-    } else if protocol_params.quote_mint == *token_mint && protocol_params.quote_vault != Pubkey::default() {
-        protocol_params.quote_vault
+    if protocol_params.token_mint_0 == *token_mint && protocol_params.token_vault_0 != Pubkey::default() {
+        protocol_params.token_vault_0
+    } else if protocol_params.token_mint_1 == *token_mint && protocol_params.token_vault_1 != Pubkey::default() {
+        protocol_params.token_vault_1
     } else {
         get_vault_pda(pool_state, token_mint).unwrap()
     }
