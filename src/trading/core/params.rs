@@ -198,10 +198,6 @@ pub struct PumpSwapParams {
     pub pool_base_token_account: Pubkey,
     /// Pool quote token account
     pub pool_quote_token_account: Pubkey,
-    /// Base token reserves in the pool
-    pub pool_base_token_reserves: u64,
-    /// Quote token reserves in the pool
-    pub pool_quote_token_reserves: u64,
     /// Coin creator vault ATA
     pub coin_creator_vault_ata: Pubkey,
     /// Coin creator vault authority
@@ -221,8 +217,6 @@ impl PumpSwapParams {
         quote_mint: Pubkey,
         pool_base_token_account: Pubkey,
         pool_quote_token_account: Pubkey,
-        pool_base_token_reserves: u64,
-        pool_quote_token_reserves: u64,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -236,8 +230,6 @@ impl PumpSwapParams {
             quote_mint,
             pool_base_token_account,
             pool_quote_token_account,
-            pool_base_token_reserves,
-            pool_quote_token_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -295,8 +287,6 @@ impl PumpSwapParams {
             quote_mint: pool_data.quote_mint,
             pool_base_token_account: pool_data.pool_base_token_account,
             pool_quote_token_account: pool_data.pool_quote_token_account,
-            pool_base_token_reserves: pool_base_token_reserves,
-            pool_quote_token_reserves: pool_quote_token_reserves,
             coin_creator_vault_ata: coin_creator_vault_ata,
             coin_creator_vault_authority: coin_creator_vault_authority,
             base_token_program: if pool_data.pool_base_token_account == base_token_program_ata {

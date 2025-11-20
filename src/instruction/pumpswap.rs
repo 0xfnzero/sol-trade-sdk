@@ -42,8 +42,6 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool = protocol_params.pool;
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
-        let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
         let params_coin_creator_vault_authority = protocol_params.coin_creator_vault_authority;
         let create_wsol_ata = params.create_input_mint_ata;
@@ -61,22 +59,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (mut token_amount, sol_amount) = {
-            let result = buy_quote_input_internal(
-                params.input_amount.unwrap_or(0),
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-                pool_base_token_reserves,
-                pool_quote_token_reserves,
-                &creator,
-            )
-                .unwrap();
-            // base_amount_out, max_quote_amount_in
-            (result.base, result.max_quote)
-        };
-
-        if params.fixed_output_amount.is_some() {
-            token_amount = params.fixed_output_amount.unwrap();
-        }
+        let output_amount = params.fixed_output_amount.unwrap_or(0);
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
@@ -111,7 +94,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
 
         if create_wsol_ata {
             instructions
-                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), sol_amount));
+                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), params.input_amount.unwrap()));
         }
 
         if params.create_output_mint_ata {
@@ -161,9 +144,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let mut data = [0u8; 24];
         data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
         // base_amount_out
-        data[8..16].copy_from_slice(&token_amount.to_le_bytes());
+        data[8..16].copy_from_slice(&output_amount.to_le_bytes());
         // max_quote_amount_in
-        data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
+        data[16..24].copy_from_slice(&params.input_amount.unwrap().to_le_bytes());
 
         instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,
@@ -194,8 +177,6 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let pool = protocol_params.pool;
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
-        let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
@@ -213,22 +194,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             creator = params_coin_creator_vault_authority;
         }
 
-        let (token_amount, mut sol_amount) = {
-            let result = sell_base_input_internal(
-                params.input_amount.unwrap_or(0),
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-                pool_base_token_reserves,
-                pool_quote_token_reserves,
-                &creator,
-            )
-                .unwrap();
-            // min_quote_amount_out, base_amount_in
-            (result.min_quote, params.input_amount.unwrap_or(0))
-        };
-
-        if params.fixed_output_amount.is_some() {
-            sol_amount = params.fixed_output_amount.unwrap();
-        }
+        let output_amount = params.fixed_output_amount.unwrap_or(0);
 
         // Determine fee recipient based on mayhem mode
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
@@ -294,10 +260,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create instruction data
         let mut data = [0u8; 24];
         data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
-        // base_amount_out
-        data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
-        // max_quote_amount_in
-        data[16..24].copy_from_slice(&token_amount.to_le_bytes());
+        // base_amount_in
+        data[8..16].copy_from_slice(&params.input_amount.unwrap().to_le_bytes());
+        // min_quote_amount_out
+        data[16..24].copy_from_slice(&output_amount.to_le_bytes());
 
         instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,

@@ -23,6 +23,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         if params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Amount cannot be zero"));
         }
+        
         let protocol_params = params
             .protocol_params
             .as_any()
