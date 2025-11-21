@@ -64,14 +64,14 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
                 &params.payer.pubkey(),
                 if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
                 &crate::constants::TOKEN_PROGRAM,
-                params.wsol_use_seed,
+                params.open_seed_optimize,
             );
         let user_destination_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &params.output_mint,
                 &crate::constants::TOKEN_PROGRAM,
-                params.mint_use_seed,
+                params.open_seed_optimize,
             );
 
         // ========================================
@@ -81,7 +81,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
 
         if params.create_input_mint_ata {
             instructions
-                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in, params.wsol_use_seed));
+                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in));
         }
 
         if params.create_output_mint_ata {
@@ -91,7 +91,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
                     &params.payer.pubkey(),
                     &params.output_mint,
                     &crate::constants::TOKEN_PROGRAM,
-                    params.mint_use_seed,
+                    params.open_seed_optimize,
                 ),
             );
         }
@@ -130,7 +130,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
 
         if params.close_input_mint_ata {
             // Close wSOL ATA account, reclaim rent
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey(), params.wsol_use_seed));
+            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
 
         Ok(instructions)
@@ -182,14 +182,14 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
                 &params.payer.pubkey(),
                 &params.input_mint,
                 &crate::constants::TOKEN_PROGRAM,
-                params.mint_use_seed,
+                params.open_seed_optimize,
             );
         let user_destination_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 if is_wsol { &crate::constants::WSOL_TOKEN_ACCOUNT } else { &crate::constants::USDC_TOKEN_ACCOUNT },
                 &crate::constants::TOKEN_PROGRAM,
-                params.wsol_use_seed,
+                params.open_seed_optimize,
             );
 
         // ========================================
@@ -198,7 +198,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         let mut instructions = Vec::with_capacity(3);
 
         if params.create_output_mint_ata {
-            instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey(), params.wsol_use_seed));
+            instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey()));
         }
 
         // Create buy instruction
@@ -234,7 +234,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
         ));
 
         if params.close_output_mint_ata {
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey(), params.wsol_use_seed));
+            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(

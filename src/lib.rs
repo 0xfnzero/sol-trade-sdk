@@ -59,10 +59,9 @@ pub struct SolanaTrade {
     pub swqos_clients: Vec<Arc<SwqosClient>>,
     /// Optional middleware manager for custom transaction processing
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
-    /// Whether to use seed optimization for WSOL ATA operations (default: false)
-    pub wsol_use_seed: bool,
-    /// Whether to use seed optimization for other mint ATA operations (default: true)
-    pub mint_use_seed: bool,
+    /// Whether to use seed optimization for all ATA operations (default: true)
+    /// Applies to all token account creations across buy and sell operations
+    pub use_seed_optimize: bool,
 }
 
 static INSTANCE: Mutex<Option<Arc<SolanaTrade>>> = Mutex::new(None);
@@ -74,8 +73,7 @@ impl Clone for SolanaTrade {
             rpc: self.rpc.clone(),
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
-            wsol_use_seed: self.wsol_use_seed,
-            mint_use_seed: self.mint_use_seed,
+            use_seed_optimize: self.use_seed_optimize,
         }
     }
 }
@@ -225,9 +223,9 @@ impl SolanaTrade {
                 Err(_) => {
                     // WSOL ATA不存在，创建它
                     println!("🔨 创建WSOL ATA: {}", wsol_ata);
-                    // 使用配置中的wsol_use_seed设置创建WSOL ATA
+                    // 使用seed优化创建WSOL ATA
                     let create_ata_ixs =
-                        crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey(), trade_config.wsol_use_seed);
+                        crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
 
                     if !create_ata_ixs.is_empty() {
                         // 构建并发送交易
@@ -275,8 +273,7 @@ impl SolanaTrade {
             rpc,
             swqos_clients,
             middleware_manager: None,
-            wsol_use_seed: trade_config.wsol_use_seed,
-            mint_use_seed: trade_config.mint_use_seed,
+            use_seed_optimize: trade_config.use_seed_optimize,
         };
 
         let mut current = INSTANCE.lock();
@@ -389,8 +386,7 @@ impl SolanaTrade {
                 .unwrap_or(256 * 1024),
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
-            wsol_use_seed: self.wsol_use_seed,  // 使用wsol_use_seed配置
-            mint_use_seed: self.mint_use_seed,  // 使用mint_use_seed配置
+            open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
@@ -487,8 +483,7 @@ impl SolanaTrade {
             wait_transaction_confirmed: params.wait_transaction_confirmed,
             protocol_params: protocol_params.clone(),
             with_tip: params.with_tip,
-            wsol_use_seed: self.wsol_use_seed,  // 使用wsol_use_seed配置
-            mint_use_seed: self.mint_use_seed,  // 使用mint_use_seed配置
+            open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
@@ -579,7 +574,6 @@ impl SolanaTrade {
     ///
     /// # Arguments
     /// * `amount` - The amount of SOL to wrap (in lamports)
-    /// * `is_use_seed` - Whether to use seed optimization for WSOL ATA creation
     ///
     /// # Returns
     /// * `Ok(String)` - Transaction signature if successful
@@ -592,11 +586,11 @@ impl SolanaTrade {
     /// - wSOL associated token account creation fails
     /// - Transaction fails to execute or confirm
     /// - Network or RPC errors occur
-    pub async fn wrap_sol_to_wsol(&self, amount: u64, is_use_seed: bool) -> Result<String, anyhow::Error> {
+    pub async fn wrap_sol_to_wsol(&self, amount: u64) -> Result<String, anyhow::Error> {
         use crate::trading::common::wsol_manager::handle_wsol;
         use solana_sdk::transaction::Transaction;
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
-        let instructions = handle_wsol(&self.payer.pubkey(), amount, is_use_seed);
+        let instructions = handle_wsol(&self.payer.pubkey(), amount);
         let mut transaction =
             Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
@@ -609,9 +603,6 @@ impl SolanaTrade {
     /// transfers any remaining wSOL balance back to the account owner as native SOL.
     /// This is useful for cleaning up wSOL accounts and recovering wrapped SOL after trading operations.
     ///
-    /// # Arguments
-    /// * `is_use_seed` - Whether the WSOL ATA was created using seed optimization
-    ///
     /// # Returns
     /// * `Ok(String)` - Transaction signature if successful
     /// * `Err(anyhow::Error)` - If the transaction fails to execute
@@ -623,11 +614,11 @@ impl SolanaTrade {
     /// - Account closure fails due to insufficient permissions
     /// - Transaction fails to execute or confirm
     /// - Network or RPC errors occur
-    pub async fn close_wsol(&self, is_use_seed: bool) -> Result<String, anyhow::Error> {
+    pub async fn close_wsol(&self) -> Result<String, anyhow::Error> {
         use crate::trading::common::wsol_manager::close_wsol;
         use solana_sdk::transaction::Transaction;
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
-        let instructions = close_wsol(&self.payer.pubkey(), is_use_seed);
+        let instructions = close_wsol(&self.payer.pubkey());
         let mut transaction =
             Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
@@ -641,9 +632,6 @@ impl SolanaTrade {
     /// without transferring any SOL into it. This is useful when you want to set up
     /// the account infrastructure in advance without committing funds yet.
     ///
-    /// # Arguments
-    /// * `is_use_seed` - Whether to use seed optimization for WSOL ATA creation
-    ///
     /// # Returns
     /// * `Ok(String)` - Transaction signature if successful
     /// * `Err(anyhow::Error)` - If the transaction fails to execute
@@ -655,12 +643,12 @@ impl SolanaTrade {
     /// - Transaction fails to execute or confirm
     /// - Network or RPC errors occur
     /// - Insufficient SOL for transaction fees
-    pub async fn create_wsol_ata(&self, is_use_seed: bool) -> Result<String, anyhow::Error> {
+    pub async fn create_wsol_ata(&self) -> Result<String, anyhow::Error> {
         use crate::trading::common::wsol_manager::create_wsol_ata;
         use solana_sdk::transaction::Transaction;
 
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
-        let instructions = create_wsol_ata(&self.payer.pubkey(), is_use_seed);
+        let instructions = create_wsol_ata(&self.payer.pubkey());
 
         // If instructions are empty, ATA already exists
         if instructions.is_empty() {
@@ -676,17 +664,16 @@ impl SolanaTrade {
         Ok(signature.to_string())
     }
 
-    /// 将 WSOL 转换为 SOL，使用临时账户
+    /// 将 WSOL 转换为 SOL，使用 seed 账户
     ///
     /// 这个函数实现以下步骤：
-    /// 1. 创建临时 WSOL 账号（如果原始账号是seed创建，则临时账号使用普通ATA；否则使用seed）
-    /// 2. 获取临时账号的 ATA 地址
-    /// 3. 添加从用户 WSOL ATA 转账到临时 ATA 账号的指令
-    /// 4. 添加关闭临时 WSOL 账号的指令
+    /// 1. 使用 super::seed::create_associated_token_account_use_seed 创建 WSOL seed 账号
+    /// 2. 使用 get_associated_token_address_with_program_id_use_seed 获取该账号的 ATA 地址
+    /// 3. 添加从用户 WSOL ATA 转账到该 seed ATA 账号的指令
+    /// 4. 添加关闭 WSOL seed 账号的指令
     ///
     /// # Arguments
     /// * `amount` - 要转换的 WSOL 数量（以 lamports 为单位）
-    /// * `source_is_seed` - 原始 WSOL 账号是否是 seed 创建的
     ///
     /// # Returns
     /// * `Ok(String)` - 交易签名
@@ -696,16 +683,16 @@ impl SolanaTrade {
     ///
     /// 此函数在以下情况下会返回错误：
     /// - 用户 WSOL ATA 中余额不足
-    /// - 临时账户创建失败
+    /// - seed 账户创建失败
     /// - 转账指令执行失败
     /// - 交易执行或确认失败
     /// - 网络或 RPC 错误
-    pub async fn wrap_wsol_to_sol(&self, amount: u64, source_is_seed: bool) -> Result<String, anyhow::Error> {
+    pub async fn wrap_wsol_to_sol(&self, amount: u64) -> Result<String, anyhow::Error> {
         use crate::trading::common::wsol_manager::wrap_wsol_to_sol as wrap_wsol_to_sol_internal;
         use solana_sdk::transaction::Transaction;
 
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
-        let instructions = wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount, source_is_seed)?;
+        let instructions = wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount)?;
 
         let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);

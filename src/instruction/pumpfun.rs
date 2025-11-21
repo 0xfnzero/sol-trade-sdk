@@ -93,7 +93,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                 &params.payer.pubkey(),
                 &params.output_mint,
                 &token_program,
-                params.mint_use_seed,
+                params.open_seed_optimize,
             );
 
         let user_volume_accumulator =
@@ -112,7 +112,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                     &params.payer.pubkey(),
                     &params.output_mint,
                     &token_program,
-                    params.mint_use_seed,
+                    params.open_seed_optimize,
                 ),
             );
         }
@@ -229,7 +229,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                 &params.payer.pubkey(),
                 &params.input_mint,
                 &token_program,
-                params.mint_use_seed,
+                params.open_seed_optimize,
             );
 
         // ========================================

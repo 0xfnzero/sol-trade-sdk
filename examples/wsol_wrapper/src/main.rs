@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔄 WSOL Wrapper Example");
     println!("This example demonstrates:");
     println!("1. Wrapping SOL to WSOL");
-    println!("2. Partial unwrapping WSOL back to SOL using temporary account");
+    println!("2. Partial unwrapping WSOL back to SOL using seed account");
     println!("3. Closing WSOL account and unwrapping remaining balance");
 
     // Initialize SolanaTrade client
@@ -18,9 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📦 Example 1: Wrapping SOL to WSOL");
     let wrap_amount = 1_000_000; // 0.001 SOL in lamports
     println!("Wrapping {} lamports (0.001 SOL) to WSOL...", wrap_amount);
-    let is_use_seed = false; // 设置是否使用seed优化
 
-    match solana_trade.wrap_sol_to_wsol(wrap_amount, is_use_seed).await {
+    match solana_trade.wrap_sol_to_wsol(wrap_amount).await {
         Ok(signature) => {
             println!("✅ Successfully wrapped SOL to WSOL!");
             println!("Transaction signature: {}", signature);
@@ -37,17 +36,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     // Example 2: Unwrap half of the WSOL back to SOL using seed account
-    println!("\n🔄 Example 2: Unwrapping half of WSOL back to SOL using temporary account");
+    println!("\n🔄 Example 2: Unwrapping half of WSOL back to SOL using seed account");
     let unwrap_amount = wrap_amount / 2; // Half of the wrapped amount
-    println!("Unwrapping {} lamports (0.0005 SOL) back to SOL using temporary account...", unwrap_amount);
+    println!("Unwrapping {} lamports (0.0005 SOL) back to SOL using seed account...", unwrap_amount);
 
-    // 假设我们的WSOL ATA是使用seed创建的（根据实际情况设置）
-    // 如果是seed创建的，设置为true；如果是普通ATA，设置为false
-    let source_is_seed = is_use_seed; // 与is_use_seed保持一致
-
-    match solana_trade.wrap_wsol_to_sol(unwrap_amount, source_is_seed).await {
+    match solana_trade.wrap_wsol_to_sol(unwrap_amount).await {
         Ok(signature) => {
-            println!("✅ Successfully unwrapped half of WSOL back to SOL using temporary account!");
+            println!("✅ Successfully unwrapped half of WSOL back to SOL using seed account!");
             println!("Transaction signature: {}", signature);
             println!("Explorer: https://solscan.io/tx/{}", signature);
         }
@@ -64,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🔒 Example 3: Closing WSOL account and unwrapping remaining balance");
     println!("Closing WSOL account and unwrapping all remaining balance to SOL...");
 
-    match solana_trade.close_wsol(is_use_seed).await {
+    match solana_trade.close_wsol().await {
         Ok(signature) => {
             println!("✅ Successfully closed WSOL account and unwrapped remaining balance!");
             println!("Transaction signature: {}", signature);
@@ -86,14 +81,7 @@ async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error:
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
-    let trade_config = TradeConfig::new(
-        rpc_url,
-        swqos_configs,
-        commitment,
-        true,   // create_wsol_ata_on_startup
-        false,  // wsol_use_seed
-        true,   // mint_use_seed
-    );
+    let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
     println!("✅ SolanaTrade client initialized successfully!");
     Ok(solana_trade)
