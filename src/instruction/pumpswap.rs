@@ -108,14 +108,14 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 &params.payer.pubkey(),
                 &base_mint,
                 &base_token_program,
-                params.open_seed_optimize,
+                params.mint_use_seed,
             );
         let user_quote_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &quote_mint,
                 &quote_token_program,
-                params.open_seed_optimize,
+                params.mint_use_seed,
             );
 
         // Determine fee recipient based on mayhem mode
@@ -136,7 +136,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
 
         if create_wsol_ata {
             instructions
-                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), sol_amount));
+                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), sol_amount, params.wsol_use_seed));
         }
 
         if params.create_output_mint_ata {
@@ -146,7 +146,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                     &params.payer.pubkey(),
                     if quote_is_wsol_or_usdc { &base_mint } else { &quote_mint },
                     if quote_is_wsol_or_usdc { &base_token_program } else { &quote_token_program },
-                    params.open_seed_optimize,
+                    params.mint_use_seed,
                 ),
             );
         }
@@ -209,7 +209,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         instructions.push(buy_instruction);
         if close_wsol_ata {
             // Close wSOL ATA account, reclaim rent
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
+            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey(), params.wsol_use_seed));
         }
         Ok(instructions)
     }
@@ -308,14 +308,14 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 &params.payer.pubkey(),
                 &base_mint,
                 &base_token_program,
-                params.open_seed_optimize,
+                params.mint_use_seed,
             );
         let user_quote_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
                 &quote_mint,
                 &quote_token_program,
-                params.open_seed_optimize,
+                params.mint_use_seed,
             );
 
         // ========================================
@@ -324,7 +324,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let mut instructions = Vec::with_capacity(3);
 
         if create_wsol_ata {
-            instructions.extend(wsol_manager::create_wsol_ata(&params.payer.pubkey()));
+            instructions.extend(wsol_manager::create_wsol_ata(&params.payer.pubkey(), params.wsol_use_seed));
         }
 
         // Create sell instruction
@@ -386,7 +386,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         instructions.push(sell_instruction);
 
         if close_wsol_ata {
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
+            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey(), params.wsol_use_seed));
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(
