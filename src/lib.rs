@@ -688,12 +688,28 @@ impl SolanaTrade {
     /// - 交易执行或确认失败
     /// - 网络或 RPC 错误
     pub async fn wrap_wsol_to_sol(&self, amount: u64) -> Result<String, anyhow::Error> {
-        use crate::trading::common::wsol_manager::wrap_wsol_to_sol as wrap_wsol_to_sol_internal;
+        use crate::trading::common::wsol_manager::{wrap_wsol_to_sol as wrap_wsol_to_sol_internal, wrap_wsol_to_sol_without_create};
+        use crate::common::seed::get_associated_token_address_with_program_id_use_seed;
         use solana_sdk::transaction::Transaction;
 
-        let recent_blockhash = self.rpc.get_latest_blockhash().await?;
-        let instructions = wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount)?;
+        // 检查临时seed账户是否已存在
+        let seed_ata_address = get_associated_token_address_with_program_id_use_seed(
+            &self.payer.pubkey(),
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            &crate::constants::TOKEN_PROGRAM,
+        )?;
 
+        let account_exists = self.rpc.get_account(&seed_ata_address).await.is_ok();
+
+        let instructions = if account_exists {
+            // 如果账户已存在，使用不创建账户的版本
+            wrap_wsol_to_sol_without_create(&self.payer.pubkey(), amount)?
+        } else {
+            // 如果账户不存在，使用创建账户的版本
+            wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount)?
+        };
+
+        let recent_blockhash = self.rpc.get_latest_blockhash().await?;
         let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
