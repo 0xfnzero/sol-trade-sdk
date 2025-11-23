@@ -46,24 +46,10 @@ pub async fn build_transaction(
 
     // Add tip transfer instruction
     if with_tip && tip_amount > 0.0 {
-        // 🔧 Node1 最小小费金额限制：0.002 SOL（仅限 Node1）
-        const MIN_TIP_AMOUNT: f64 = 0.002;
-
-        // 检查是否是 Node1 的 tip_account
-        let is_node1 = NODE1_TIP_ACCOUNTS.iter().any(|&account| account == *tip_account);
-
-        let actual_tip_amount = if is_node1 && tip_amount < MIN_TIP_AMOUNT {
-            // Node1 要求最小 0.002 SOL
-            MIN_TIP_AMOUNT
-        } else {
-            // 其他 swqos 使用原始金额
-            tip_amount
-        };
-
         instructions.push(transfer(
             &payer.pubkey(),
             tip_account,
-            sol_str_to_lamports(actual_tip_amount.to_string().as_str()).unwrap_or(0),
+            sol_str_to_lamports(tip_amount.to_string().as_str()).unwrap_or(0),
         ));
     }
 
