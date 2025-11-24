@@ -15,6 +15,18 @@ use crate::{
     common::{GasFeeStrategy, SolanaRpcClient},
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::{common::build_transaction, MiddlewareManager},
+    constants::swqos::{
+        SWQOS_MIN_TIP_DEFAULT,
+        SWQOS_MIN_TIP_JITO,
+        SWQOS_MIN_TIP_NEXTBLOCK,
+        SWQOS_MIN_TIP_ZERO_SLOT,
+        SWQOS_MIN_TIP_TEMPORAL,
+        SWQOS_MIN_TIP_BLOXROUTE,
+        SWQOS_MIN_TIP_NODE1,
+        SWQOS_MIN_TIP_FLASHBLOCK,
+        SWQOS_MIN_TIP_BLOCKRAZOR,
+        SWQOS_MIN_TIP_ASTRALANE,
+    },
 };
 
 #[repr(align(64))]
@@ -142,6 +154,26 @@ pub async fn execute_parallel(
             gas_fee_strategy_configs
                 .into_iter()
                 .filter(|config| config.0.eq(&swqos_client.get_swqos_type()))
+                .filter(|config| {
+                    // 当需要 tip 且不是 Default 时，按 provider 最低小费进行筛选
+                    if with_tip && !matches!(config.0, SwqosType::Default) {
+                        let min_tip = match config.0 {
+                            SwqosType::Jito => SWQOS_MIN_TIP_JITO,
+                            SwqosType::NextBlock => SWQOS_MIN_TIP_NEXTBLOCK,
+                            SwqosType::ZeroSlot => SWQOS_MIN_TIP_ZERO_SLOT,
+                            SwqosType::Temporal => SWQOS_MIN_TIP_TEMPORAL,
+                            SwqosType::Bloxroute => SWQOS_MIN_TIP_BLOXROUTE,
+                            SwqosType::Node1 => SWQOS_MIN_TIP_NODE1,
+                            SwqosType::FlashBlock => SWQOS_MIN_TIP_FLASHBLOCK,
+                            SwqosType::BlockRazor => SWQOS_MIN_TIP_BLOCKRAZOR,
+                            SwqosType::Astralane => SWQOS_MIN_TIP_ASTRALANE,
+                            SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
+                        };
+                        config.2.tip >= min_tip
+                    } else {
+                        true
+                    }
+                })
                 .map(move |config| (i, swqos_client.clone(), config))
         })
         .collect();

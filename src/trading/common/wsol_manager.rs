@@ -96,17 +96,22 @@ pub fn wrap_sol_only(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 2
 }
 
 /// 将 WSOL 转换为 SOL，使用 seed 账户
-/// 1. 使用 super::seed::create_associated_token_account_use_seed 创建 WSOL seed 账号
-/// 2. 使用 get_associated_token_address_with_program_id_use_seed 获取该账号的 ATA 地址
-/// 3. 添加从用户 WSOL ATA 转账到该 seed ATA 账号的指令
-/// 4. 添加关闭 WSOL seed 账号的指令
+/// 1. 检查 seed 账户是否已存在
+/// 2. 如果不存在，使用 super::seed::create_associated_token_account_use_seed 创建 WSOL seed 账号
+/// 3. 使用 get_associated_token_address_with_program_id_use_seed 获取该账号的 ATA 地址
+/// 4. 添加从用户 WSOL ATA 转账到该 seed ATA 账号的指令
+/// 5. 添加关闭 WSOL seed 账号的指令
+///
+/// 注意：此函数只生成指令，不检查账户是否存在（需要调用方在发送交易前检查）
+/// 如果临时账户已存在，可以安全地跳过创建步骤，直接转账并关闭
 pub fn wrap_wsol_to_sol(
     payer: &Pubkey,
     amount: u64,
 ) -> Result<Vec<Instruction>, anyhow::Error> {
     let mut instructions = Vec::new();
 
-    // 1. 创建 WSOL seed 账户
+    // 1. 创建 WSOL seed 账户（注意：如果账户已存在会失败）
+    // 调用方应该先检查账户是否存在，如果存在则跳过此步骤
     let seed_account_instructions = create_associated_token_account_use_seed(
         payer,
         payer,
@@ -141,6 +146,52 @@ pub fn wrap_wsol_to_sol(
     instructions.push(transfer_instruction);
 
     // 5. 添加关闭 WSOL seed 账户的指令
+    let close_instruction = close_account(
+        &crate::constants::TOKEN_PROGRAM,
+        &seed_ata_address,
+        payer,
+        payer,
+        &[],
+    )?;
+    instructions.push(close_instruction);
+
+    Ok(instructions)
+}
+
+/// 将 WSOL 转换为 SOL（仅转账和关闭，不创建账户）
+/// 用于当临时seed账户已存在的情况
+pub fn wrap_wsol_to_sol_without_create(
+    payer: &Pubkey,
+    amount: u64,
+) -> Result<Vec<Instruction>, anyhow::Error> {
+    let mut instructions = Vec::new();
+
+    // 1. 获取 seed 账户的 ATA 地址
+    let seed_ata_address = get_associated_token_address_with_program_id_use_seed(
+        payer,
+        &crate::constants::WSOL_TOKEN_ACCOUNT,
+        &crate::constants::TOKEN_PROGRAM,
+    )?;
+
+    // 2. 获取用户的 WSOL ATA 地址
+    let user_wsol_ata = crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+        payer,
+        &crate::constants::WSOL_TOKEN_ACCOUNT,
+        &crate::constants::TOKEN_PROGRAM,
+    );
+
+    // 3. 添加从用户 WSOL ATA 转账到 seed ATA 的指令
+    let transfer_instruction = crate::common::spl_token::transfer(
+        &crate::constants::TOKEN_PROGRAM,
+        &user_wsol_ata,
+        &seed_ata_address,
+        payer,
+        amount,
+        &[],
+    )?;
+    instructions.push(transfer_instruction);
+
+    // 4. 添加关闭 WSOL seed 账户的指令
     let close_instruction = close_account(
         &crate::constants::TOKEN_PROGRAM,
         &seed_ata_address,
