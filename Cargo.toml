@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "3.3.3"
+version = "3.3.4"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -55,6 +55,7 @@ solana-nonce = "3.0.0"
 solana-address-lookup-table-interface = "3.0.0"
 solana-compute-budget-interface = "3.0.0"
 solana-commitment-config = { version = "3.0.0", features = ["serde"] }
+solana-transaction-status-client-types = "3.0.0"
 
 borsh = { version = "1.5.3", features = ["derive"] }
 isahc = "1.7.2"

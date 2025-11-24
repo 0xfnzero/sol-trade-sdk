@@ -11,8 +11,9 @@ use crate::common::TradeConfig;
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
 use crate::constants::USD1_TOKEN_ACCOUNT;
-use crate::constants::WSOL_TOKEN_ACCOUNT;
 use crate::constants::USDC_TOKEN_ACCOUNT;
+use crate::constants::WSOL_TOKEN_ACCOUNT;
+use crate::swqos::common::TradeError;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
@@ -345,7 +346,10 @@ impl SolanaTrade {
     /// - Network or RPC errors occur
     /// - Insufficient SOL balance for the purchase
     /// - Required accounts cannot be created or accessed
-    pub async fn buy(&self, params: TradeBuyParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
+    pub async fn buy(
+        &self,
+        params: TradeBuyParams,
+    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -380,7 +384,9 @@ impl SolanaTrade {
             slippage_basis_points: params.slippage_basis_points,
             address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
-            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Buy)
+            data_size_limit: params
+                .gas_fee_strategy
+                .get_strategies(TradeType::Buy)
                 .get(0)
                 .map(|(_, _, v)| v.data_size_limit)
                 .unwrap_or(256 * 1024),
@@ -422,7 +428,10 @@ impl SolanaTrade {
             return Err(anyhow::anyhow!("Invalid protocol params for Trade"));
         }
 
-        executor.swap(buy_params).await
+        let swap_result = executor.swap(buy_params).await;
+        let result =
+            swap_result.map(|(success, sig, err)| (success, sig, err.map(TradeError::from)));
+        return result;
     }
 
     /// Execute a sell order for a specified token
@@ -445,7 +454,10 @@ impl SolanaTrade {
     /// - Insufficient token balance for the sale
     /// - Token account doesn't exist or is not properly initialized
     /// - Required accounts cannot be created or accessed
-    pub async fn sell(&self, params: TradeSellParams) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
+    pub async fn sell(
+        &self,
+        params: TradeSellParams,
+    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
         if params.slippage_basis_points.is_none() {
             println!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
@@ -487,7 +499,9 @@ impl SolanaTrade {
             swqos_clients: self.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
             durable_nonce: params.durable_nonce,
-            data_size_limit: params.gas_fee_strategy.get_strategies(TradeType::Sell)
+            data_size_limit: params
+                .gas_fee_strategy
+                .get_strategies(TradeType::Sell)
                 .get(0)
                 .map(|(_, _, v)| v.data_size_limit)
                 .unwrap_or(0),
@@ -523,7 +537,10 @@ impl SolanaTrade {
         }
 
         // Execute sell based on tip preference
-        executor.swap(sell_params).await
+        let swap_result = executor.swap(sell_params).await;
+        let result =
+            swap_result.map(|(success, sig, err)| (success, sig, err.map(TradeError::from)));
+        return result;
     }
 
     /// Execute a sell order for a percentage of the specified token amount
@@ -557,7 +574,7 @@ impl SolanaTrade {
         mut params: TradeSellParams,
         amount_token: u64,
         percent: u64,
-    ) -> Result<(bool, Signature, Option<anyhow::Error>), anyhow::Error> {
+    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
         if percent == 0 || percent > 100 {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }
@@ -652,9 +669,7 @@ impl SolanaTrade {
 
         // If instructions are empty, ATA already exists
         if instructions.is_empty() {
-            return Err(anyhow::anyhow!(
-                "wSOL ATA already exists or no instructions needed"
-            ));
+            return Err(anyhow::anyhow!("wSOL ATA already exists or no instructions needed"));
         }
 
         let mut transaction =
@@ -694,7 +709,8 @@ impl SolanaTrade {
         let recent_blockhash = self.rpc.get_latest_blockhash().await?;
         let instructions = wrap_wsol_to_sol_internal(&self.payer.pubkey(), amount)?;
 
-        let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        let mut transaction =
+            Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())
