@@ -1,4 +1,4 @@
-use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address_with_program_id;
+use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
@@ -233,7 +233,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
     } else {
         params.quote_token_program
     };
-    let account = get_associated_token_address_with_program_id(&payer, &mint_pubkey, &program_id);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(&payer, &mint_pubkey, &program_id, client.use_seed_optimize);
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();
     let sell_params = sol_trade_sdk::TradeSellParams {

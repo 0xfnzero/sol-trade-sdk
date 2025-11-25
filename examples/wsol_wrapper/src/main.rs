@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Create and initialize SolanaTrade client
 async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error::Error>> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("R26eUYq691PC7AFh6yNyC285qr5tZfu43SAYhKGNZrpRVmrwDhR254bSS7Z1e87LWCmPNmiPvYkz9kA9hXyQD2m");
+    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
