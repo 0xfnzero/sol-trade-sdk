@@ -115,8 +115,17 @@ pub async fn poll_transaction_confirmation(
                 {
                     for log in logs {
                         if let Some(idx) = log.find("Error Message: ") {
-                            error_msg = log[idx + 15..].trim_end_matches('.').to_string();
-                            break;
+                            let msg = log[idx + 15..].trim_end_matches('.').to_string();
+                            if !error_msg.is_empty() {
+                                error_msg.push_str("; ");
+                            }
+                            error_msg.push_str(&msg);
+                        } else if let Some(idx) = log.find("Program log: Error: ") {
+                            let msg = log[idx + 20..].trim_end_matches('.').to_string();
+                            if !error_msg.is_empty() {
+                                error_msg.push_str("; ");
+                            }
+                            error_msg.push_str(&msg);
                         }
                     }
                 }
