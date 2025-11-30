@@ -345,6 +345,34 @@ impl GasFeeStrategy {
         });
     }
 
+    /// 动态更新买入优先费（保持其他参数不变）
+    /// Dynamically update buy compute unit price (keep other parameters unchanged)
+    pub fn update_buy_cu_price(&self, buy_cu_price: u64) {
+        self.strategies.rcu(|current_map| {
+            let mut new_map = (**current_map).clone();
+            for ((swqos_type, trade_type, strategy_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Buy {
+                    value.cu_price = buy_cu_price;
+                }
+            }
+            Arc::new(new_map)
+        });
+    }
+
+    /// 动态更新卖出优先费（保持其他参数不变）
+    /// Dynamically update sell compute unit price (keep other parameters unchanged)
+    pub fn update_sell_cu_price(&self, sell_cu_price: u64) {
+        self.strategies.rcu(|current_map| {
+            let mut new_map = (**current_map).clone();
+            for ((swqos_type, trade_type, strategy_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Sell {
+                    value.cu_price = sell_cu_price;
+                }
+            }
+            Arc::new(new_map)
+        });
+    }
+
     /// 打印所有策略。
     /// Print all strategies
     pub fn print_all_strategies(&self) {
