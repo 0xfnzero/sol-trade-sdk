@@ -1,6 +1,6 @@
-use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
+use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::common::TradeConfig;
-use sol_trade_sdk::constants::{WSOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT};
+use sol_trade_sdk::constants::{USDC_TOKEN_ACCOUNT, WSOL_TOKEN_ACCOUNT};
 use sol_trade_sdk::trading::core::params::RaydiumCpmmParams;
 use sol_trade_sdk::trading::factory::DexType;
 use sol_trade_sdk::TradeTokenType;
@@ -130,11 +130,20 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(
+        150000,
+        150000,
+        500000,
+        500000,
+        0.001,
+        0.001,
+        256 * 1024,
+        0,
+    );
 
     let buy_params =
         RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &trade_info.pool_state).await?;
-    
+
     let is_wsol = trade_info.input_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || trade_info.output_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
 
@@ -166,7 +175,12 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let account = get_associated_token_address(&payer, &mint_pubkey);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(
+        &payer,
+        &mint_pubkey,
+        &trade_info.output_token_program,
+        client.use_seed_optimize,
+    );
     let balance = rpc.get_token_account_balance(&account).await?;
     println!("Balance: {:?}", balance);
     let amount_token = balance.amount.parse::<u64>().unwrap();

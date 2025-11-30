@@ -26,6 +26,7 @@ use crate::{
         SWQOS_MIN_TIP_FLASHBLOCK,
         SWQOS_MIN_TIP_BLOCKRAZOR,
         SWQOS_MIN_TIP_ASTRALANE,
+        SWQOS_MIN_TIP_STELLIUM,
     },
 };
 
@@ -167,8 +168,15 @@ pub async fn execute_parallel(
                             SwqosType::FlashBlock => SWQOS_MIN_TIP_FLASHBLOCK,
                             SwqosType::BlockRazor => SWQOS_MIN_TIP_BLOCKRAZOR,
                             SwqosType::Astralane => SWQOS_MIN_TIP_ASTRALANE,
+                            SwqosType::Stellium => SWQOS_MIN_TIP_STELLIUM,
                             SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
                         };
+                        if config.2.tip < min_tip {
+                            println!(
+                                "⚠️ Config filtered: {:?} tip {} is below minimum required tip {}",
+                                config.0, config.2.tip, min_tip
+                            );
+                        }
                         config.2.tip >= min_tip
                     } else {
                         true

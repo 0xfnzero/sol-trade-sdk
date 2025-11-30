@@ -1,4 +1,4 @@
-use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
+use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -95,7 +95,16 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(
+        150000,
+        150000,
+        500000,
+        500000,
+        0.001,
+        0.001,
+        256 * 1024,
+        0,
+    );
 
     let token_type = if trade_info.quote_token_mint == sol_trade_sdk::constants::USD1_TOKEN_ACCOUNT
     {
@@ -144,7 +153,12 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let account = get_associated_token_address(&payer, &mint_pubkey);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(
+        &payer,
+        &mint_pubkey,
+        &trade_info.base_token_program,
+        client.use_seed_optimize,
+    );
     let balance = rpc.get_token_account_balance(&account).await?;
     println!("Balance: {:?}", balance);
     let amount_token = balance.amount.parse::<u64>().unwrap();

@@ -109,6 +109,14 @@ pub const ASTRALANE_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("astrawVNP4xDBKT7rAdxrLYiTSTdqtUr63fSMduivXK"),
 ];
 
+pub const STELLIUM_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("ste11JV3MLMM7x7EJUM2sXcJC1H7F4jBLnP9a9PG8PH"),
+    pubkey!("ste11MWPjXCRfQryCshzi86SGhuXjF4Lv6xMXD2AoSt"),
+    pubkey!("ste11p5x8tJ53H1NbNQsRBg1YNRd4GcVpxtDw8PBpmb"),
+    pubkey!("ste11p7e2KLYou5bwtt35H7BM6uMdo4pvioGjJXKFcN"),
+    pubkey!("ste11TMV68LMi1BguM4RQujtbNCZvf1sjsASpqgAvSX"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -217,13 +225,25 @@ pub const SWQOS_ENDPOINTS_ASTRALANE: [&str; 8] = [
     "http://lim.gateway.astralane.io/iris",
 ];
 
+pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [
+    "http://ewr1.flashrpc.com",
+    "http://fra1.flashrpc.com",
+    "http://ams1.flashrpc.com",
+    "http://ewr1.flashrpc.com",
+    "http://tyo1.flashrpc.com",
+    "http://lhr1.flashrpc.com",
+    "http://ewr1.flashrpc.com",
+    "http://fra1.flashrpc.com",
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = SWQOS_MIN_TIP_DEFAULT;
-pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = SWQOS_MIN_TIP_DEFAULT;
-pub const SWQOS_MIN_TIP_ZERO_SLOT: f64 = SWQOS_MIN_TIP_DEFAULT;
-pub const SWQOS_MIN_TIP_TEMPORAL: f64 = SWQOS_MIN_TIP_DEFAULT;
-pub const SWQOS_MIN_TIP_BLOXROUTE: f64 = SWQOS_MIN_TIP_DEFAULT;
+pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
+pub const SWQOS_MIN_TIP_ZERO_SLOT: f64 = 0.001;
+pub const SWQOS_MIN_TIP_TEMPORAL: f64 = 0.001;
+pub const SWQOS_MIN_TIP_BLOXROUTE: f64 = 0.001;
 pub const SWQOS_MIN_TIP_NODE1: f64 = 0.002; // 如需更高阈值可调整
-pub const SWQOS_MIN_TIP_FLASHBLOCK: f64 = SWQOS_MIN_TIP_DEFAULT;
-pub const SWQOS_MIN_TIP_BLOCKRAZOR: f64 = SWQOS_MIN_TIP_DEFAULT;
+pub const SWQOS_MIN_TIP_FLASHBLOCK: f64 = 0.001;
+pub const SWQOS_MIN_TIP_BLOCKRAZOR: f64 = 0.001;
 pub const SWQOS_MIN_TIP_ASTRALANE: f64 = SWQOS_MIN_TIP_DEFAULT;
+pub const SWQOS_MIN_TIP_STELLIUM: f64 = 0.001; // Stellium requires minimum 0.001 SOL tip
