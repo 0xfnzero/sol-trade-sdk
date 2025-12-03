@@ -117,6 +117,12 @@ pub const STELLIUM_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("ste11TMV68LMi1BguM4RQujtbNCZvf1sjsASpqgAvSX"),
 ];
 
+// Lightspeed (Solana Vibe Station) tip accounts
+pub const LIGHTSPEED_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("53PhM3UTdMQWu5t81wcd35AHGc5xpmHoRjem7GQPvXjA"),
+    pubkey!("9tYF5yPDC1NP8s6diiB3kAX6ZZnva9DM3iDwJkBRarBB"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -247,3 +253,4 @@ pub const SWQOS_MIN_TIP_FLASHBLOCK: f64 = 0.001;
 pub const SWQOS_MIN_TIP_BLOCKRAZOR: f64 = 0.001;
 pub const SWQOS_MIN_TIP_ASTRALANE: f64 = SWQOS_MIN_TIP_DEFAULT;
 pub const SWQOS_MIN_TIP_STELLIUM: f64 = 0.001; // Stellium requires minimum 0.001 SOL tip
+pub const SWQOS_MIN_TIP_LIGHTSPEED: f64 = 0.001; // Lightspeed requires minimum 0.001 SOL tip

@@ -11,6 +11,7 @@ pub mod flashblock;
 pub mod blockrazor;
 pub mod astralane;
 pub mod stellium;
+pub mod lightspeed;
 
 use std::sync::Arc;
 
@@ -45,7 +46,8 @@ use crate::{
         flashblock::FlashBlockClient,
         blockrazor::BlockRazorClient,
         astralane::AstralaneClient,
-        stellium::StelliumClient
+        stellium::StelliumClient,
+        lightspeed::LightspeedClient
     }
 };
 
@@ -85,6 +87,7 @@ pub enum SwqosType {
     BlockRazor,
     Astralane,
     Stellium,
+    Lightspeed,
     Default,
 }
 
@@ -101,6 +104,7 @@ impl SwqosType {
             Self::BlockRazor,
             Self::Astralane,
             Self::Stellium,
+            Self::Lightspeed,
             Self::Default,
         ]
     }
@@ -151,6 +155,10 @@ pub enum SwqosConfig {
     Astralane(String, SwqosRegion, Option<String>),
     /// Stellium(api_token, region, custom_url)
     Stellium(String, SwqosRegion, Option<String>),
+    /// Lightspeed(api_key, region, custom_url) - Solana Vibe Station
+    /// Endpoint format: https://<tier>.rpc.solanavibestation.com/lightspeed?api_key=<key>
+    /// Minimum tip: 0.001 SOL
+    Lightspeed(String, SwqosRegion, Option<String>),
 }
 
 impl SwqosConfig {
@@ -170,6 +178,7 @@ impl SwqosConfig {
             SwqosType::BlockRazor => SWQOS_ENDPOINTS_BLOCKRAZOR[region as usize].to_string(),
             SwqosType::Astralane => SWQOS_ENDPOINTS_ASTRALANE[region as usize].to_string(),
             SwqosType::Stellium => SWQOS_ENDPOINTS_STELLIUM[region as usize].to_string(),
+            SwqosType::Lightspeed => "".to_string(), // Lightspeed requires custom URL with api_key
             SwqosType::Default => "".to_string(),
         }
     }
@@ -265,6 +274,15 @@ impl SwqosConfig {
                     auth_token
                 );
                 Arc::new(stellium_client)
+            },
+            SwqosConfig::Lightspeed(auth_token, region, url) => {
+                let endpoint = SwqosConfig::get_endpoint(SwqosType::Lightspeed, region, url);
+                let lightspeed_client = LightspeedClient::new(
+                    rpc_url.clone(),
+                    endpoint.to_string(),
+                    auth_token
+                );
+                Arc::new(lightspeed_client)
             },
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(
