@@ -156,13 +156,13 @@ pub const SWQOS_ENDPOINTS_NEXTBLOCK: [&str; 8] = [
 
 pub const SWQOS_ENDPOINTS_ZERO_SLOT: [&str; 8] = [
     "http://ny.0slot.trade",
-    "http://de.0slot.trade",
+    "http://de2.0slot.trade", // Use de2 for TSW, and de1 for OVH
     "http://ams.0slot.trade",
     "http://ny.0slot.trade",
     "http://jp.0slot.trade",
     "http://ams.0slot.trade",
     "http://la.0slot.trade",
-    "http://de.0slot.trade",
+    "http://de2.0slot.trade", // Use de2 for TSW, and de1 for OVH
 ];
 
 pub const SWQOS_ENDPOINTS_TEMPORAL: [&str; 8] = [
@@ -193,7 +193,7 @@ pub const SWQOS_ENDPOINTS_NODE1: [&str; 8] = [
     "http://ams.node1.me",
     "http://ny.node1.me",
     "http://fra.node1.me",
-    "http://ams.node1.me",
+    "http://lon.node1.me",
     "http://ny.node1.me",
     "http://fra.node1.me",
 ];
