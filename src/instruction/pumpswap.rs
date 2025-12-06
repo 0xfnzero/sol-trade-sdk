@@ -350,7 +350,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             AccountMeta::new(params_coin_creator_vault_ata, false), // coin_creator_vault_ata
             AccountMeta::new_readonly(params_coin_creator_vault_authority, false), // coin_creator_vault_authority (readonly)
         ]);
-        if !quote_is_wsol_or_usdc {
+        if quote_is_wsol_or_usdc {
             accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
             accounts.push(AccountMeta::new(
                 get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
