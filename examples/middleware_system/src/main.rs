@@ -3,7 +3,7 @@ use sol_trade_sdk::{
     common::{AnyResult, TradeConfig},
     swqos::{SwqosConfig, SwqosRegion},
     trading::{
-        core::params::PumpSwapParams, factory::DexType, middleware::builtin::LoggingMiddleware,
+        core::params::{PumpSwapParams, DexParamEnum}, factory::DexType, middleware::builtin::LoggingMiddleware,
         InstructionMiddleware, MiddlewareManager,
     },
     SolanaTrade, TradeTokenType,
@@ -90,7 +90,7 @@ async fn test_middleware() -> AnyResult<()> {
         input_token_amount: buy_sol_cost,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(
+        extension_params: DexParamEnum::PumpSwap(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?,
         ),
         address_lookup_table_account: None,

@@ -4,6 +4,7 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
+use std::sync::Arc;
 
 use crate::common::{
     spl_associated_token_account::get_associated_token_address_with_program_id,
@@ -38,11 +39,14 @@ pub enum InstructionCacheKey {
 }
 
 /// Global lock-free instruction cache for storing common instructions
-static INSTRUCTION_CACHE: Lazy<DashMap<InstructionCacheKey, Vec<Instruction>>> =
+/// 🚀 性能优化：使用 Arc<Vec<Instruction>> 减少克隆开销
+static INSTRUCTION_CACHE: Lazy<DashMap<InstructionCacheKey, Arc<Vec<Instruction>>>> =
     Lazy::new(|| DashMap::with_capacity(MAX_INSTRUCTION_CACHE_SIZE));
 
 /// Get cached instruction, compute and cache if not exists (lock-free)
-pub fn get_cached_instructions<F>(cache_key: InstructionCacheKey, compute_fn: F) -> Vec<Instruction>
+/// 🚀 返回 Arc 避免每次调用克隆整个 Vec
+#[inline]
+pub fn get_cached_instructions<F>(cache_key: InstructionCacheKey, compute_fn: F) -> Arc<Vec<Instruction>>
 where
     F: FnOnce() -> Vec<Instruction>,
 {
@@ -59,7 +63,10 @@ where
     };
 
     // Lock-free cache lookup with entry API
-    INSTRUCTION_CACHE.entry(cache_key).or_insert_with(compute_fn).clone()
+    INSTRUCTION_CACHE
+        .entry(cache_key)
+        .or_insert_with(|| Arc::new(compute_fn()))
+        .clone()
 }
 
 // --------------------- Associated Token Account ---------------------
@@ -101,7 +108,7 @@ pub fn _create_associated_token_account_idempotent_fast(
 
     // Only use seed if the mint address is not wSOL or SOL
     // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
-    if use_seed
+    let arc_instructions = if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
         && (token_program.eq(&crate::constants::TOKEN_PROGRAM)
@@ -133,7 +140,10 @@ pub fn _create_associated_token_account_idempotent_fast(
                 data: vec![1],
             }]
         })
-    }
+    };
+    
+    // 🚀 性能优化：尝试零开销解包 Arc，如果引用计数=1则直接移出，否则克隆
+    Arc::try_unwrap(arc_instructions).unwrap_or_else(|arc| (*arc).clone())
 }
 
 // --------------------- PDA ---------------------
@@ -154,6 +164,7 @@ static PDA_CACHE: Lazy<DashMap<PdaCacheKey, Pubkey>> =
     Lazy::new(|| DashMap::with_capacity(MAX_PDA_CACHE_SIZE));
 
 /// Get cached PDA, compute and cache if not exists (lock-free)
+#[inline]
 pub fn get_cached_pda<F>(cache_key: PdaCacheKey, compute_fn: F) -> Option<Pubkey>
 where
     F: FnOnce() -> Option<Pubkey>,
@@ -188,6 +199,7 @@ struct AtaCacheKey {
 static ATA_CACHE: Lazy<DashMap<AtaCacheKey, Pubkey>> =
     Lazy::new(|| DashMap::with_capacity(MAX_ATA_CACHE_SIZE));
 
+#[inline]
 pub fn get_associated_token_address_with_program_id_fast_use_seed(
     wallet_address: &Pubkey,
     token_mint_address: &Pubkey,
@@ -203,6 +215,7 @@ pub fn get_associated_token_address_with_program_id_fast_use_seed(
 }
 
 /// Get cached Associated Token Address, compute and cache if not exists
+#[inline]
 pub fn get_associated_token_address_with_program_id_fast(
     wallet_address: &Pubkey,
     token_mint_address: &Pubkey,

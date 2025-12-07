@@ -4,7 +4,7 @@ use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::PumpSwapParams, factory::DexType},
+    trading::{core::params::{PumpSwapParams, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -210,7 +210,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         input_token_amount: buy_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(params.clone()),
+        extension_params: DexParamEnum::PumpSwap(params.clone()),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: is_sol,
@@ -244,7 +244,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(params.clone()),
+        extension_params: DexParamEnum::PumpSwap(params.clone()),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: is_sol,

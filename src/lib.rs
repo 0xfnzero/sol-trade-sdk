@@ -23,7 +23,7 @@ use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
 use crate::trading::core::params::RaydiumAmmV4Params;
 use crate::trading::core::params::RaydiumCpmmParams;
-use crate::trading::core::traits::ProtocolParams;
+use crate::trading::core::params::DexParamEnum;
 use crate::trading::factory::DexType;
 use crate::trading::MiddlewareManager;
 use crate::trading::SwapParams;
@@ -48,10 +48,10 @@ pub enum TradeTokenType {
 
 /// Main trading client for Solana DeFi protocols
 ///
-/// `SolanaTrade` provides a unified interface for trading across multiple Solana DEXs
+/// `SolTradingSDK` provides a unified interface for trading across multiple Solana DEXs
 /// including PumpFun, PumpSwap, Bonk, Raydium AMM V4, and Raydium CPMM.
 /// It manages RPC connections, transaction signing, and SWQOS (Solana Web Quality of Service) settings.
-pub struct SolanaTrade {
+pub struct TradingClient {
     /// The keypair used for signing all transactions
     pub payer: Arc<Keypair>,
     /// RPC client for blockchain interactions
@@ -65,9 +65,12 @@ pub struct SolanaTrade {
     pub use_seed_optimize: bool,
 }
 
-static INSTANCE: Mutex<Option<Arc<SolanaTrade>>> = Mutex::new(None);
+static INSTANCE: Mutex<Option<Arc<TradingClient>>> = Mutex::new(None);
 
-impl Clone for SolanaTrade {
+/// 🔄 向后兼容：SolanaTrade 别名
+pub type SolanaTrade = TradingClient;
+
+impl Clone for TradingClient {
     fn clone(&self) -> Self {
         Self {
             payer: self.payer.clone(),
@@ -99,7 +102,7 @@ pub struct TradeBuyParams {
     /// Recent blockhash for transaction validity
     pub recent_blockhash: Option<Hash>,
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
-    pub extension_params: Box<dyn ProtocolParams>,
+    pub extension_params: DexParamEnum,
     // Extended configuration
     /// Optional address lookup table for transaction size optimization
     pub address_lookup_table_account: Option<AddressLookupTableAccount>,
@@ -143,7 +146,7 @@ pub struct TradeSellParams {
     /// Whether to include tip for transaction priority
     pub with_tip: bool,
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
-    pub extension_params: Box<dyn ProtocolParams>,
+    pub extension_params: DexParamEnum,
     // Extended configuration
     /// Optional address lookup table for transaction size optimization
     pub address_lookup_table_account: Option<AddressLookupTableAccount>,
@@ -165,8 +168,8 @@ pub struct TradeSellParams {
     pub simulate: bool,
 }
 
-impl SolanaTrade {
-    /// Creates a new SolanaTrade instance with the specified configuration
+impl TradingClient {
+    /// Creates a new SolTradingSDK instance with the specified configuration
     ///
     /// This function initializes the trading system with RPC connection, SWQOS settings,
     /// and sets up necessary components for trading operations.
@@ -178,7 +181,7 @@ impl SolanaTrade {
     /// * `swqos_settings` - List of SWQOS (Solana Web Quality of Service) configurations
     ///
     /// # Returns
-    /// Returns a configured `SolanaTrade` instance ready for trading operations
+    /// Returns a configured `SolTradingSDK` instance ready for trading operations
     #[inline]
     pub async fn new(payer: Arc<Keypair>, trade_config: TradeConfig) -> Self {
         crate::common::fast_fn::fast_init(&payer.try_pubkey().unwrap());
@@ -329,13 +332,18 @@ impl SolanaTrade {
 
     /// Execute a buy order for a specified token
     ///
+    /// 🔧 修复：返回Vec<Signature>支持多SWQOS并发交易
+    /// - bool: 是否至少有一个交易成功
+    /// - Vec<Signature>: 所有提交的交易签名（按SWQOS顺序）
+    /// - Option<TradeError>: 最后一个错误（如果全部失败）
+    ///
     /// # Arguments
     ///
     /// * `params` - Buy trade parameters containing all necessary trading configuration
     ///
     /// # Returns
     ///
-    /// Returns `Ok(Signature)` with the transaction signature if the buy order is successfully executed,
+    /// Returns `Ok((bool, Vec<Signature>, Option<TradeError>))` with success flag and all transaction signatures,
     /// or an error if the transaction fails.
     ///
     /// # Errors
@@ -346,12 +354,14 @@ impl SolanaTrade {
     /// - Network or RPC errors occur
     /// - Insufficient SOL balance for the purchase
     /// - Required accounts cannot be created or accessed
+    #[inline]
     pub async fn buy(
         &self,
         params: TradeBuyParams,
-    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
+    ) -> Result<(bool, Vec<Signature>, Option<TradeError>), anyhow::Error> {
+        #[cfg(feature = "perf-trace")]
         if params.slippage_basis_points.is_none() {
-            println!(
+            log::debug!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
                 DEFAULT_SLIPPAGE
             );
@@ -430,11 +440,16 @@ impl SolanaTrade {
 
         let swap_result = executor.swap(buy_params).await;
         let result =
-            swap_result.map(|(success, sig, err)| (success, sig, err.map(TradeError::from)));
+            swap_result.map(|(success, sigs, err)| (success, sigs, err.map(TradeError::from)));
         return result;
     }
 
     /// Execute a sell order for a specified token
+    ///
+    /// 🔧 修复：返回Vec<Signature>支持多SWQOS并发交易
+    /// - bool: 是否至少有一个交易成功
+    /// - Vec<Signature>: 所有提交的交易签名（按SWQOS顺序）
+    /// - Option<TradeError>: 最后一个错误（如果全部失败）
     ///
     /// # Arguments
     ///
@@ -442,7 +457,7 @@ impl SolanaTrade {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(Signature)` with the transaction signature if the sell order is successfully executed,
+    /// Returns `Ok((bool, Vec<Signature>, Option<TradeError>))` with success flag and all transaction signatures,
     /// or an error if the transaction fails.
     ///
     /// # Errors
@@ -454,12 +469,14 @@ impl SolanaTrade {
     /// - Insufficient token balance for the sale
     /// - Token account doesn't exist or is not properly initialized
     /// - Required accounts cannot be created or accessed
+    #[inline]
     pub async fn sell(
         &self,
         params: TradeSellParams,
-    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
+    ) -> Result<(bool, Vec<Signature>, Option<TradeError>), anyhow::Error> {
+        #[cfg(feature = "perf-trace")]
         if params.slippage_basis_points.is_none() {
-            println!(
+            log::debug!(
                 "slippage_basis_points is none, use default slippage basis points: {}",
                 DEFAULT_SLIPPAGE
             );
@@ -539,7 +556,7 @@ impl SolanaTrade {
         // Execute sell based on tip preference
         let swap_result = executor.swap(sell_params).await;
         let result =
-            swap_result.map(|(success, sig, err)| (success, sig, err.map(TradeError::from)));
+            swap_result.map(|(success, sigs, err)| (success, sigs, err.map(TradeError::from)));
         return result;
     }
 
@@ -574,7 +591,7 @@ impl SolanaTrade {
         mut params: TradeSellParams,
         amount_token: u64,
         percent: u64,
-    ) -> Result<(bool, Signature, Option<TradeError>), anyhow::Error> {
+    ) -> Result<(bool, Vec<Signature>, Option<TradeError>), anyhow::Error> {
         if percent == 0 || percent > 100 {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }

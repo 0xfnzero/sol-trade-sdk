@@ -1,12 +1,12 @@
 pub mod calc;
 pub mod price;
 use crate::trading;
-use crate::SolanaTrade;
+use crate::TradingClient;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 
-impl SolanaTrade {
+impl TradingClient {
     #[inline]
     pub async fn get_sol_balance(&self, payer: &Pubkey) -> Result<u64, anyhow::Error> {
         trading::common::utils::get_sol_balance(&self.rpc, payer).await

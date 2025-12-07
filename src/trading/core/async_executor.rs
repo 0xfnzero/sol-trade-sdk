@@ -34,6 +34,7 @@ struct TaskResult {
     success: bool,
     signature: Signature,
     error: Option<anyhow::Error>,
+    swqos_type: SwqosType,  // 🔧 增加：记录SWQOS类型
 }
 
 struct ResultCollector {
@@ -66,24 +67,44 @@ impl ResultCollector {
         self.completed_count.fetch_add(1, Ordering::Release);
     }
 
-    async fn wait_for_success(&self) -> Option<(bool, Signature, Option<anyhow::Error>)> {
+    async fn wait_for_success(&self) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>)> {
         let start = Instant::now();
         let timeout = std::time::Duration::from_secs(30);
 
         loop {
             // 🚀 Acquire 确保看到 push 的内容
             if self.success_flag.load(Ordering::Acquire) {
+                // 🔧 修复：收集所有签名
+                let mut signatures = Vec::new();
+                let mut has_success = false;
                 while let Some(result) = self.results.pop() {
+                    signatures.push(result.signature);
                     if result.success {
-                        return Some((true, result.signature, None));
+                        has_success = true;
                     }
+                }
+                if has_success && !signatures.is_empty() {
+                    return Some((true, signatures, None));
                 }
             }
 
             let completed = self.completed_count.load(Ordering::Acquire);
             if completed >= self.total_tasks {
+                // 🔧 修复：收集所有签名
+                let mut signatures = Vec::new();
+                let mut last_error = None;
+                let mut any_success = false;
                 while let Some(result) = self.results.pop() {
-                    return Some((result.success, result.signature, result.error));
+                    signatures.push(result.signature);
+                    if result.success {
+                        any_success = true;
+                    }
+                    if result.error.is_some() {
+                        last_error = result.error;
+                    }
+                }
+                if !signatures.is_empty() {
+                    return Some((any_success, signatures, last_error));
                 }
                 return None;
             }
@@ -95,15 +116,31 @@ impl ResultCollector {
         }
     }
 
-    fn get_first(&self) -> Option<(bool, Signature, Option<anyhow::Error>,)> {
-        if let Some(result) = self.results.pop() {
-            Some((result.success, result.signature, result.error))
+    fn get_first(&self) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>)> {
+        // 🔧 修复：收集已提交的所有签名
+        let mut signatures = Vec::new();
+        let mut has_success = false;
+        let mut last_error = None;
+        
+        while let Some(result) = self.results.pop() {
+            signatures.push(result.signature);
+            if result.success {
+                has_success = true;
+            }
+            if result.error.is_some() {
+                last_error = result.error;
+            }
+        }
+        
+        if !signatures.is_empty() {
+            Some((has_success, signatures, last_error))
         } else {
             None
         }
     }
 }
 
+/// 🔧 修复：返回Vec<Signature>支持多SWQOS并发交易
 pub async fn execute_parallel(
     swqos_clients: Vec<Arc<SwqosClient>>,
     payer: Arc<Keypair>,
@@ -119,7 +156,7 @@ pub async fn execute_parallel(
     wait_transaction_confirmed: bool,
     with_tip: bool,
     gas_fee_strategy: GasFeeStrategy,
-) -> Result<(bool, Signature, Option<anyhow::Error>)> {
+) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>)> {
     let _exec_start = Instant::now();
 
     if swqos_clients.is_empty() {
@@ -241,6 +278,7 @@ pub async fn execute_parallel(
                         success: false,
                         signature: Signature::default(),
                         error: Some(e),
+                        swqos_type,  // 🔧 记录SWQOS类型
                     });
                     return;
                 }
@@ -268,7 +306,12 @@ pub async fn execute_parallel(
             // Transaction sent
 
             if let Some(signature) = transaction.signatures.first() {
-                collector.submit(TaskResult { success, signature: *signature, error: err });
+                collector.submit(TaskResult { 
+                    success, 
+                    signature: *signature, 
+                    error: err,
+                    swqos_type,  // 🔧 记录SWQOS类型
+                });
             }
         });
     }

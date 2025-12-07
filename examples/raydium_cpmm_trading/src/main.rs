@@ -1,7 +1,7 @@
 use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::constants::{WSOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT};
-use sol_trade_sdk::trading::core::params::RaydiumCpmmParams;
+use sol_trade_sdk::trading::core::params::{RaydiumCpmmParams, DexParamEnum};
 use sol_trade_sdk::trading::factory::DexType;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{common::AnyResult, swqos::SwqosConfig, SolanaTrade};
@@ -148,7 +148,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         input_token_amount: input_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(buy_params),
+        extension_params: DexParamEnum::RaydiumCpmm(buy_params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: is_wsol,
@@ -183,7 +183,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(sell_params),
+        extension_params: DexParamEnum::RaydiumCpmm(sell_params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: is_wsol,

@@ -1,7 +1,7 @@
 use sol_trade_sdk::{
     SolanaTrade, TradeTokenType, common::{
         AnyResult, TradeConfig, fast_fn::get_associated_token_address_with_program_id_fast_use_seed
-    }, swqos::SwqosConfig, trading::{core::params::MeteoraDammV2Params, factory::DexType}
+    }, swqos::SwqosConfig, trading::{core::params::{MeteoraDammV2Params, DexParamEnum}, factory::DexType}
 };
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         input_token_amount: input_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(
+        extension_params: DexParamEnum::MeteoraDammV2(
             MeteoraDammV2Params::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(
+        extension_params: DexParamEnum::MeteoraDammV2(
             MeteoraDammV2Params::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,

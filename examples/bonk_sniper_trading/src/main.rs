@@ -3,7 +3,7 @@ use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::BonkParams, factory::DexType},
+    trading::{core::params::{BonkParams, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -114,7 +114,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(BonkParams::from_dev_trade(
+        extension_params: DexParamEnum::Bonk(BonkParams::from_dev_trade(
             trade_info.exact_in,
             trade_info.amount_in,
             trade_info.amount_out,
@@ -157,7 +157,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(BonkParams::immediate_sell(
+        extension_params: DexParamEnum::Bonk(BonkParams::immediate_sell(
             trade_info.base_token_program,
             trade_info.platform_config,
             trade_info.platform_associated_account,

@@ -1,4 +1,3 @@
-use super::traits::ProtocolParams;
 use crate::common::bonding_curve::BondingCurveAccount;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
@@ -13,6 +12,32 @@ use solana_hash::Hash;
 use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 use std::sync::Arc;
+
+/// DEX 参数枚举 - 零开销抽象替代 Box<dyn ProtocolParams>
+#[derive(Clone)]
+pub enum DexParamEnum {
+    PumpFun(PumpFunParams),
+    PumpSwap(PumpSwapParams),
+    Bonk(BonkParams),
+    RaydiumCpmm(RaydiumCpmmParams),
+    RaydiumAmmV4(RaydiumAmmV4Params),
+    MeteoraDammV2(MeteoraDammV2Params),
+}
+
+impl DexParamEnum {
+    /// 获取内部参数的 Any 引用，用于向后兼容的类型检查
+    #[inline]
+    pub fn as_any(&self) -> &dyn std::any::Any {
+        match self {
+            DexParamEnum::PumpFun(p) => p,
+            DexParamEnum::PumpSwap(p) => p,
+            DexParamEnum::Bonk(p) => p,
+            DexParamEnum::RaydiumCpmm(p) => p,
+            DexParamEnum::RaydiumAmmV4(p) => p,
+            DexParamEnum::MeteoraDammV2(p) => p,
+        }
+    }
+}
 
 /// Swap parameters
 #[derive(Clone)]
@@ -30,7 +55,7 @@ pub struct SwapParams {
     pub recent_blockhash: Option<Hash>,
     pub data_size_limit: u32,
     pub wait_transaction_confirmed: bool,
-    pub protocol_params: Box<dyn ProtocolParams>,
+    pub protocol_params: DexParamEnum,
     pub open_seed_optimize: bool,
     pub swqos_clients: Vec<Arc<SwqosClient>>,
     pub middleware_manager: Option<Arc<MiddlewareManager>>,
@@ -47,7 +72,7 @@ pub struct SwapParams {
 
 impl std::fmt::Debug for SwapParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SwapParams: {:?}", self)
+        write!(f, "SwapParams: ...")
     }
 }
 
@@ -175,16 +200,6 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
         })
-    }
-}
-
-impl ProtocolParams for PumpFunParams {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
     }
 }
 
@@ -323,16 +338,6 @@ impl PumpSwapParams {
             },
             is_mayhem_mode: pool_data.is_mayhem_mode,
         })
-    }
-}
-
-impl ProtocolParams for PumpSwapParams {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
     }
 }
 
@@ -512,16 +517,6 @@ impl BonkParams {
     }
 }
 
-impl ProtocolParams for BonkParams {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
-    }
-}
-
 /// RaydiumCpmm protocol specific parameters
 /// Configuration parameters specific to Raydium CPMM trading protocol
 #[derive(Clone)]
@@ -609,16 +604,6 @@ impl RaydiumCpmmParams {
     }
 }
 
-impl ProtocolParams for RaydiumCpmmParams {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
-    }
-}
-
 /// RaydiumCpmm protocol specific parameters
 /// Configuration parameters specific to Raydium CPMM trading protocol
 #[derive(Clone)]
@@ -667,16 +652,6 @@ impl RaydiumAmmV4Params {
             coin_reserve,
             pc_reserve,
         })
-    }
-}
-
-impl ProtocolParams for RaydiumAmmV4Params {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
     }
 }
 
@@ -729,15 +704,5 @@ impl MeteoraDammV2Params {
             token_a_program: TOKEN_PROGRAM,
             token_b_program: TOKEN_PROGRAM,
         })
-    }
-}
-
-impl ProtocolParams for MeteoraDammV2Params {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn ProtocolParams> {
-        Box::new(self.clone())
     }
 }

@@ -4,7 +4,7 @@ use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::PumpFunParams, factory::DexType},
+    trading::{core::params::{PumpFunParams, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -101,7 +101,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(PumpFunParams::from_dev_trade(
+        extension_params: DexParamEnum::PumpFun(PumpFunParams::from_dev_trade(
             trade_info.mint,
             trade_info.token_amount,
             trade_info.max_sol_cost,
@@ -144,7 +144,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(PumpFunParams::immediate_sell(trade_info.creator_vault, trade_info.token_program, true)),
+        extension_params: DexParamEnum::PumpFun(PumpFunParams::immediate_sell(trade_info.creator_vault, trade_info.token_program, true)),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,

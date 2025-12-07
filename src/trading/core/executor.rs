@@ -44,7 +44,7 @@ impl GenericTradeExecutor {
 
 #[async_trait::async_trait]
 impl TradeExecutor for GenericTradeExecutor {
-    async fn swap(&self, params: SwapParams) -> Result<(bool, Signature, Option<anyhow::Error>)> {
+    async fn swap(&self, params: SwapParams) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>)> {
         let total_start = Instant::now();
 
         // 判断买卖方向
@@ -152,30 +152,21 @@ impl TradeExecutor for GenericTradeExecutor {
         let total_elapsed = total_start.elapsed();
 
         // Get performance metrics using fast timestamp
-        let timestamp_ns = SYSCALL_BYPASS.fast_timestamp_nanos();
-
-        // Print all timing metrics at once to avoid blocking critical path
-        println!("[Timestamp] {}ns", timestamp_ns);
-        println!(
-            "[Build Instructions] Time: {:.3}ms ({:.0}μs)",
-            build_elapsed.as_micros() as f64 / 1000.0,
-            build_elapsed.as_micros()
-        );
-        println!(
-            "[Before Submit] {:.3}ms ({:.0}μs)",
-            before_submit_elapsed.as_micros() as f64 / 1000.0,
-            before_submit_elapsed.as_micros()
-        );
-        println!(
-            "[Send Transaction] Time: {:.3}ms ({:.0}μs)",
-            send_elapsed.as_micros() as f64 / 1000.0,
-            send_elapsed.as_micros()
-        );
-        println!(
-            "[Total Time] {:.3}ms ({:.0}μs)",
-            total_elapsed.as_micros() as f64 / 1000.0,
-            total_elapsed.as_micros()
-        );
+        #[cfg(feature = "perf-trace")]
+        {
+            let timestamp_ns = SYSCALL_BYPASS.fast_timestamp_nanos();
+            log::trace!(
+                "[Execute] timestamp_ns={} build_us={} before_submit_us={} send_us={} total_us={}",
+                timestamp_ns,
+                build_elapsed.as_micros(),
+                before_submit_elapsed.as_micros(),
+                send_elapsed.as_micros(),
+                total_elapsed.as_micros()
+            );
+        }
+        
+        #[cfg(not(feature = "perf-trace"))]
+        let _ = (build_elapsed, before_submit_elapsed, send_elapsed, total_elapsed);
 
         result
     }
@@ -185,7 +176,7 @@ impl TradeExecutor for GenericTradeExecutor {
     }
 }
 
-/// Simulate transaction using RPC client
+/// 🔧 修复：Simulate模式返回Vec<Signature>（单个RPC模拟）
 async fn simulate_transaction(
     rpc: Option<Arc<SolanaRpcClient>>,
     payer: Arc<Keypair>,
@@ -199,7 +190,7 @@ async fn simulate_transaction(
     is_buy: bool,
     with_tip: bool,
     gas_fee_strategy: GasFeeStrategy,
-) -> Result<(bool, Signature, Option<anyhow::Error>)> {
+) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>)> {
     use crate::trading::common::build_transaction;
     use solana_client::rpc_config::RpcSimulateTransactionConfig;
     use solana_commitment_config::CommitmentLevel;
@@ -267,44 +258,30 @@ async fn simulate_transaction(
         .clone();
 
     if let Some(err) = simulate_result.value.err {
-        println!("\n========== [Simulation Failed] ==========");
-        println!("Error Type: {:?}", err);
-        println!("Signature: {:?}", signature);
-
-        // Print logs
-        if let Some(logs) = simulate_result.value.logs {
-            println!("\n========== Transaction Logs ==========");
-            for (i, log) in logs.iter().enumerate() {
-                println!("{:3}. {}", i + 1, log);
+        #[cfg(feature = "perf-trace")]
+        {
+            log::warn!("[Simulation Failed] error={:?} signature={:?}", err, signature);
+            if let Some(logs) = &simulate_result.value.logs {
+                log::trace!("Transaction logs: {:?}", logs);
+            }
+            if let Some(units_consumed) = simulate_result.value.units_consumed {
+                log::trace!("Compute Units Consumed: {}", units_consumed);
             }
         }
-
-        // Print account usage
-        if let Some(units_consumed) = simulate_result.value.units_consumed {
-            println!("\n========== Resource Consumption ==========");
-            println!("Compute Units Consumed: {}", units_consumed);
-        }
-
-        println!("=========================================\n");
-        return Ok((false, signature, Some(anyhow::anyhow!("{:?}", err))));
+        return Ok((false, vec![signature], Some(anyhow::anyhow!("{:?}", err))));
     }
 
     // Simulation succeeded
-    println!("\n========== [Simulation Succeeded] ==========");
-    println!("Signature: {:?}", signature);
-
-    if let Some(units_consumed) = simulate_result.value.units_consumed {
-        println!("Compute Units Consumed: {}", units_consumed);
-    }
-
-    if let Some(logs) = simulate_result.value.logs {
-        println!("\n========== Transaction Logs ==========");
-        for (i, log) in logs.iter().enumerate() {
-            println!("{:3}. {}", i + 1, log);
+    #[cfg(feature = "perf-trace")]
+    {
+        log::info!("[Simulation Succeeded] signature={:?}", signature);
+        if let Some(units_consumed) = simulate_result.value.units_consumed {
+            log::trace!("Compute Units Consumed: {}", units_consumed);
+        }
+        if let Some(logs) = &simulate_result.value.logs {
+            log::trace!("Transaction logs: {:?}", logs);
         }
     }
 
-    println!("============================================\n");
-
-    Ok((true, signature, None))
+    Ok((true, vec![signature], None))
 }

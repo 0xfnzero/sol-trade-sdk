@@ -5,7 +5,7 @@ use sol_trade_sdk::{
 use sol_trade_sdk::{
     common::{spl_associated_token_account::get_associated_token_address, AnyResult},
     swqos::SwqosConfig,
-    trading::{core::params::RaydiumAmmV4Params, factory::DexType},
+    trading::{core::params::{RaydiumAmmV4Params, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -154,7 +154,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         input_token_amount: input_token_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(params),
+        extension_params: DexParamEnum::RaydiumAmmV4(params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_input_token_ata: is_wsol,
@@ -187,7 +187,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(params),
+        extension_params: DexParamEnum::RaydiumAmmV4(params),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: is_wsol,

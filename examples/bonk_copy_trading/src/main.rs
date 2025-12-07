@@ -8,7 +8,7 @@ use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::BonkParams, factory::DexType},
+    trading::{core::params::{BonkParams, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -143,7 +143,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(BonkParams::from_trade(
+        extension_params: DexParamEnum::Bonk(BonkParams::from_trade(
             trade_info.virtual_base,
             trade_info.virtual_quote,
             trade_info.real_base_after,
@@ -187,7 +187,7 @@ async fn bonk_copy_trade_with_grpc(trade_info: BonkTradeEvent) -> AnyResult<()> 
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(BonkParams::from_trade(
+        extension_params: DexParamEnum::Bonk(BonkParams::from_trade(
             trade_info.virtual_base,
             trade_info.virtual_quote,
             trade_info.real_base_after,

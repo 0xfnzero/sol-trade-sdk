@@ -11,7 +11,7 @@ use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::PumpFunParams, factory::DexType},
+    trading::{core::params::{PumpFunParams, DexParamEnum}, factory::DexType},
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -137,7 +137,7 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(PumpFunParams::from_trade(
+        extension_params: DexParamEnum::PumpFun(PumpFunParams::from_trade(
             trade_info.bonding_curve,
             trade_info.associated_bonding_curve,
             trade_info.mint,

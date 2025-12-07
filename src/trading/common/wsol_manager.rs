@@ -37,13 +37,15 @@ pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]>
 }
 
 pub fn close_wsol(payer: &Pubkey) -> Vec<Instruction> {
+    use std::sync::Arc;
+    
     let wsol_token_account =
         crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
             &payer,
             &crate::constants::WSOL_TOKEN_ACCOUNT,
             &crate::constants::TOKEN_PROGRAM,
         );
-    crate::common::fast_fn::get_cached_instructions(
+    let arc_instructions = crate::common::fast_fn::get_cached_instructions(
         crate::common::fast_fn::InstructionCacheKey::CloseWsolAccount {
             payer: *payer,
             wsol_token_account,
@@ -58,7 +60,10 @@ pub fn close_wsol(payer: &Pubkey) -> Vec<Instruction> {
             )
             .unwrap()]
         },
-    )
+    );
+    
+    // 🚀 性能优化：尝试零开销解包 Arc
+    Arc::try_unwrap(arc_instructions).unwrap_or_else(|arc| (*arc).clone())
 }
 
 #[inline]

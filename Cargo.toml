@@ -38,6 +38,10 @@ members = [
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+perf-trace = []  # 性能追踪特性，生产环境应禁用以获得最佳性能
+
 [dependencies]
 solana-sdk = "3.0.0"
 solana-client = "3.0.8"
@@ -110,17 +114,18 @@ memmap2 = "0.9"
 num_cpus = "1.16"
 libc = "0.2"
 
-# 🚀 编译器优化配置
+# 🚀 编译器优化配置 - 平衡性能与编译速度
 [profile.release]
-opt-level = 3              # 最高优化级别
-lto = "fat"                # 胖LTO获得最佳优化
-codegen-units = 1          # 单个代码生成单元
+opt-level = 3              # 最高优化级别（不影响编译速度）
+lto = "thin"               # 瘦LTO - 平衡性能与编译速度（比fat快5-10倍）
+codegen-units = 16         # 16个代码生成单元 - 并行编译（比1快10倍）
 panic = "abort"            # 恐慌即中止
 overflow-checks = false    # 禁用溢出检查
 debug = false              # 禁用调试信息
 debug-assertions = false   # 禁用调试断言
 rpath = false
 strip = true               # 去除符号表
+incremental = true         # 增量编译 - 大幅加速重新编译
 
 [profile.dev]
 opt-level = 1              # 开发时适度优化

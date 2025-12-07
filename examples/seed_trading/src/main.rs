@@ -3,7 +3,7 @@ use sol_trade_sdk::{
         fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult, TradeConfig,
     },
     swqos::SwqosConfig,
-    trading::{core::params::PumpSwapParams, factory::DexType},
+    trading::{core::params::{PumpSwapParams, DexParamEnum}, factory::DexType},
     SolanaTrade, TradeTokenType,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         input_token_amount: buy_sol_amount,
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
-        extension_params: Box::new(
+        extension_params: DexParamEnum::PumpSwap(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: Box::new(
+        extension_params: DexParamEnum::PumpSwap(
             PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,
