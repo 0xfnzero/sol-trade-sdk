@@ -101,9 +101,9 @@ sol-trade-sdk = "3.3.6"
 
 ### 📋 使用示例
 
-#### 1. 创建 SolanaTrade 实例
+#### 1. 创建 TradingClient 实例
 
-可以参考 [示例：创建 SolanaTrade 实例](examples/trading_client/src/main.rs)。
+可以参考 [示例：创建 TradingClient 实例](examples/trading_client/src/main.rs)。
 
 ```rust
 // 钱包
@@ -134,8 +134,8 @@ let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
 //         true   // use_seed_optimize: 全局启用所有 ATA 操作的 seed 优化（默认: true）
 //     );
 
-// 创建 SolanaTrade 客户端
-let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
+// 创建 TradingClient 客户端
+let client = TradingClient::new(Arc::new(payer), trade_config).await;
 ```
 
 #### 2. 配置 Gas Fee 策略
@@ -197,7 +197,7 @@ client.buy(buy_params).await?;
 
 | 描述 | 运行命令 | 源码路径 |
 |------|---------|----------|
-| 创建和配置 SolanaTrade 实例 | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
+| 创建和配置 TradingClient 实例 | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
 | PumpFun 代币狙击交易 | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
 | PumpFun 代币跟单交易 | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
 | PumpSwap 交易操作 | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |

@@ -101,9 +101,9 @@ sol-trade-sdk = "3.3.6"
 
 ### 📋 Example Usage
 
-#### 1. Create SolanaTrade Instance
+#### 1. Create TradingClient Instance
 
-You can refer to [Example: Create SolanaTrade Instance](examples/trading_client/src/main.rs).
+You can refer to [Example: Create TradingClient Instance](examples/trading_client/src/main.rs).
 
 ```rust
 // Wallet
@@ -134,8 +134,8 @@ let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
 //         true   // use_seed_optimize: Enable seed optimization globally for all ATA operations (default: true)
 //     );
 
-// Create SolanaTrade client
-let client = SolanaTrade::new(Arc::new(payer), trade_config).await;
+// Create TradingClient
+let client = TradingClient::new(Arc::new(payer), trade_config).await;
 ```
 
 #### 2. Configure Gas Fee Strategy
@@ -197,7 +197,7 @@ Please ensure that the parameters your trading logic depends on are available in
 
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
-| Create and configure SolanaTrade instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
+| Create and configure TradingClient instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
 | PumpFun token sniping trading | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
 | PumpFun token copy trading | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
 | PumpSwap trading operations | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |
