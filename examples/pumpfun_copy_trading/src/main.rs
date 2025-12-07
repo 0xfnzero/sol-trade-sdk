@@ -4,7 +4,7 @@ use std::sync::{
 };
 
 use sol_trade_sdk::common::{
-    spl_associated_token_account::get_associated_token_address, TradeConfig,
+    fast_fn::get_associated_token_address_with_program_id_fast_use_seed, TradeConfig,
 };
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
@@ -121,7 +121,16 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let recent_blockhash = client.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(
+        150000,
+        150000,
+        500000,
+        500000,
+        0.001,
+        0.001,
+        256 * 1024,
+        0,
+    );
 
     // Buy tokens
     println!("Buying tokens from PumpFun...");
@@ -164,7 +173,12 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let account = get_associated_token_address(&payer, &mint_pubkey);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(
+        &payer,
+        &mint_pubkey,
+        &trade_info.token_program,
+        client.use_seed_optimize,
+    );
     let balance = rpc.get_token_account_balance(&account).await?;
     println!("Balance: {:?}", balance);
     let amount_token = balance.amount.parse::<u64>().unwrap();

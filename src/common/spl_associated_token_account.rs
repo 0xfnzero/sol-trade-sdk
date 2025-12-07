@@ -5,6 +5,14 @@ use solana_sdk::{
 
 use crate::constants::{ASSOCIATED_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM};
 
+/// Get the associated token address with a specified token program ID.
+///
+/// # Warning
+/// **This SDK enables seed optimization by default.** When seed is enabled, you should use
+/// [`get_associated_token_address_with_program_id_fast_use_seed`] instead for better performance.
+/// This function performs PDA derivation which is slower than the optimized version.
+///
+/// [`get_associated_token_address_with_program_id_fast_use_seed`]: crate::common::token_account::get_associated_token_address_with_program_id_fast_use_seed
 pub fn get_associated_token_address_with_program_id(
     wallet_address: &Pubkey,
     token_mint_address: &Pubkey,
@@ -17,6 +25,14 @@ pub fn get_associated_token_address_with_program_id(
     .0
 }
 
+/// Get the associated token address for the default token program.
+///
+/// # Warning
+/// **This SDK enables seed optimization by default.** When seed is enabled, you should use
+/// [`get_associated_token_address_with_program_id_fast_use_seed`] instead for better performance.
+/// This function performs PDA derivation which is slower than the optimized version.
+///
+/// [`get_associated_token_address_with_program_id_fast_use_seed`]: crate::common::token_account::get_associated_token_address_with_program_id_fast_use_seed
 pub fn get_associated_token_address(
     wallet_address: &Pubkey,
     token_mint_address: &Pubkey,

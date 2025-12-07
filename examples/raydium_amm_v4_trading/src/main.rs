@@ -1,12 +1,13 @@
+use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::{
-    common::TradeConfig, instruction::utils::raydium_amm_v4::fetch_amm_info,
-    trading::common::get_multi_token_balances, TradeTokenType,
-};
-use sol_trade_sdk::{
-    common::{spl_associated_token_account::get_associated_token_address, AnyResult},
+    common::AnyResult,
     swqos::SwqosConfig,
     trading::{core::params::{RaydiumAmmV4Params, DexParamEnum}, factory::DexType},
     SolanaTrade,
+};
+use sol_trade_sdk::{
+    common::TradeConfig, instruction::utils::raydium_amm_v4::fetch_amm_info,
+    trading::common::get_multi_token_balances, TradeTokenType,
 };
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
@@ -123,8 +124,9 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let amm_info = fetch_amm_info(&client.rpc, trade_info.amm).await?;
     let (coin_reserve, pc_reserve) =
         get_multi_token_balances(&client.rpc, &amm_info.token_coin, &amm_info.token_pc).await?;
-    let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT 
-        || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT {
+    let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+        || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
+    {
         amm_info.coin_mint
     } else {
         amm_info.pc_mint
@@ -140,7 +142,16 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     );
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+    gas_fee_strategy.set_global_fee_strategy(
+        150000,
+        150000,
+        500000,
+        500000,
+        0.001,
+        0.001,
+        256 * 1024,
+        0,
+    );
 
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");
@@ -172,7 +183,12 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
 
     let rpc = client.rpc.clone();
     let payer = client.payer.pubkey();
-    let account = get_associated_token_address(&payer, &mint_pubkey);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(
+        &payer,
+        &mint_pubkey,
+        &trade_info.token_program,
+        client.use_seed_optimize,
+    );
     let balance = rpc.get_token_account_balance(&account).await?;
     println!("Balance: {:?}", balance);
     let amount_token = balance.amount.parse::<u64>().unwrap();
