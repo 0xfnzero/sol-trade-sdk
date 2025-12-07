@@ -154,6 +154,9 @@ gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.
 For detailed information about all trading parameters, see the [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
 
 ```rust
+// Import DexParamEnum for protocol-specific parameters
+use sol_trade_sdk::trading::core::params::DexParamEnum;
+
 let buy_params = sol_trade_sdk::TradeBuyParams {
   dex_type: DexType::PumpSwap,
   input_token_type: TradeTokenType::WSOL,
@@ -161,14 +164,17 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   input_token_amount: buy_sol_amount,
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
-  extension_params: Box::new(params.clone()),
+  // Use DexParamEnum for type-safe protocol parameters (zero-overhead abstraction)
+  extension_params: DexParamEnum::PumpSwap(params.clone()),
   address_lookup_table_account: None,
   wait_transaction_confirmed: true,
   create_input_token_ata: true,
   close_input_token_ata: true,
   create_mint_ata: true,
   durable_nonce: None,
-  // Note: seed optimization is now configured globally in TradeConfig
+  fixed_output_token_amount: None,  // Optional: specify exact output amount
+  gas_fee_strategy: gas_fee_strategy.clone(),  // Gas fee strategy configuration
+  simulate: false,  // Set to true for simulation only
 };
 ```
 

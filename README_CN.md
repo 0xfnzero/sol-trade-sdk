@@ -154,6 +154,9 @@ gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.
 有关所有交易参数的详细信息，请参阅 [交易参数参考手册](docs/TRADING_PARAMETERS_CN.md)。
 
 ```rust
+// 导入 DexParamEnum 用于协议特定参数
+use sol_trade_sdk::trading::core::params::DexParamEnum;
+
 let buy_params = sol_trade_sdk::TradeBuyParams {
   dex_type: DexType::PumpSwap,
   input_token_type: TradeTokenType::WSOL,
@@ -161,14 +164,17 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   input_token_amount: buy_sol_amount,
   slippage_basis_points: slippage_basis_points,
   recent_blockhash: Some(recent_blockhash),
-  extension_params: Box::new(params.clone()),
+  // 使用 DexParamEnum 实现类型安全的协议参数（零开销抽象）
+  extension_params: DexParamEnum::PumpSwap(params.clone()),
   address_lookup_table_account: None,
   wait_transaction_confirmed: true,
   create_input_token_ata: true,
   close_input_token_ata: true,
   create_mint_ata: true,
   durable_nonce: None,
-  // 注意：seed 优化现在在 TradeConfig 中全局配置
+  fixed_output_token_amount: None,  // 可选：指定精确输出数量
+  gas_fee_strategy: gas_fee_strategy.clone(),  // Gas 费用策略配置
+  simulate: false,  // 设为 true 仅进行模拟
 };
 ```
 
