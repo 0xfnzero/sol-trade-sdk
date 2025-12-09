@@ -106,10 +106,10 @@ impl InstructionProcessor {
     pub fn calculate_size(instructions: &[Instruction]) -> usize {
         let mut total_size = 0;
 
-        for instr in instructions {
+        for (i, instr) in instructions.iter().enumerate() {
             // 预取下一条指令
             unsafe {
-                if let Some(next_instr) = instructions.get(total_size + 1) {
+                if let Some(next_instr) = instructions.get(i + 1) {
                     BranchOptimizer::prefetch_read_data(next_instr);
                 }
             }
