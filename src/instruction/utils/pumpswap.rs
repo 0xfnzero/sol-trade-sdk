@@ -233,7 +233,14 @@ pub async fn find_by_base_mint(
     let accounts_count = accounts.len();  // 🔧 保存长度，因为 into_iter() 会消耗 accounts
     let mut pools: Vec<_> = accounts
         .into_iter()
-        .filter_map(|(addr, acc)| pool_decode(&acc.data).map(|pool| (addr, pool)))
+        .filter_map(|(addr, acc)| {
+            // 🔧 修复：跳过8字节的discriminator
+            if acc.data.len() > 8 {
+                pool_decode(&acc.data[8..]).map(|pool| (addr, pool))
+            } else {
+                None
+            }
+        })
         .collect();
 
     // 🔧 修复：检查过滤后的 pools 是否为空（accounts 可能不为空但解码全部失败）
@@ -276,7 +283,14 @@ pub async fn find_by_quote_mint(
     let accounts_count = accounts.len();  // 🔧 保存长度，因为 into_iter() 会消耗 accounts
     let mut pools: Vec<_> = accounts
         .into_iter()
-        .filter_map(|(addr, acc)| pool_decode(&acc.data).map(|pool| (addr, pool)))
+        .filter_map(|(addr, acc)| {
+            // 🔧 修复：跳过8字节的discriminator
+            if acc.data.len() > 8 {
+                pool_decode(&acc.data[8..]).map(|pool| (addr, pool))
+            } else {
+                None
+            }
+        })
         .collect();
 
     // 🔧 修复：检查过滤后的 pools 是否为空（accounts 可能不为空但解码全部失败）
