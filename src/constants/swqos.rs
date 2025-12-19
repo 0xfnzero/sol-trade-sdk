@@ -184,7 +184,7 @@ pub const SWQOS_ENDPOINTS_BLOX: [&str; 8] = [
     "https://tokyo.solana.dex.blxrbdn.com",
     "https://uk.solana.dex.blxrbdn.com",
     "https://la.solana.dex.blxrbdn.com",
-    "https://germany.solana.dex.blxrbdn.com",
+    "https://global.solana.dex.blxrbdn.com",
 ];
 
 pub const SWQOS_ENDPOINTS_NODE1: [&str; 8] = [
