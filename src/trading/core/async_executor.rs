@@ -37,11 +37,37 @@ struct TaskResult {
     signature: Signature,
     error: Option<anyhow::Error>,
     swqos_type: SwqosType,  // 🔧 增加：记录SWQOS类型
+    landed_on_chain: bool,  // 🔧 Whether tx landed on-chain (even if failed)
+}
+
+/// Check if an error indicates the transaction landed on-chain (vs network/timeout error)
+fn is_landed_error(error: &anyhow::Error) -> bool {
+    use crate::swqos::common::TradeError;
+
+    // If it's a TradeError with a non-zero code, the tx landed but failed on-chain
+    if let Some(trade_error) = error.downcast_ref::<TradeError>() {
+        // Code 500 with "timed out" message means tx never landed
+        if trade_error.code == 500 && trade_error.message.contains("timed out") {
+            return false;
+        }
+        // Any other TradeError means the tx landed (e.g., ExceededSlippage = 6004)
+        return trade_error.code > 0;
+    }
+
+    // Check error message for timeout indication
+    let msg = error.to_string();
+    if msg.contains("timed out") || msg.contains("timeout") {
+        return false;
+    }
+
+    // Assume other errors might indicate landed tx (be conservative)
+    false
 }
 
 struct ResultCollector {
     results: Arc<ArrayQueue<TaskResult>>,
     success_flag: Arc<AtomicBool>,
+    landed_failed_flag: Arc<AtomicBool>,  // 🔧 Tx landed on-chain but failed (nonce consumed)
     completed_count: Arc<AtomicUsize>,
     total_tasks: usize,
 }
@@ -51,6 +77,7 @@ impl ResultCollector {
         Self {
             results: Arc::new(ArrayQueue::new(capacity)),
             success_flag: Arc::new(AtomicBool::new(false)),
+            landed_failed_flag: Arc::new(AtomicBool::new(false)),
             completed_count: Arc::new(AtomicUsize::new(0)),
             total_tasks: capacity,
         }
@@ -59,11 +86,15 @@ impl ResultCollector {
     fn submit(&self, result: TaskResult) {
         // 🚀 优化：ArrayQueue 内部已保证同步，无需额外 fence
         let is_success = result.success;
+        let is_landed_failed = result.landed_on_chain && !result.success;
 
         let _ = self.results.push(result);
 
         if is_success {
             self.success_flag.store(true, Ordering::Release); // Release 确保 push 可见
+        } else if is_landed_failed {
+            // 🔧 Tx landed but failed (e.g., ExceededSlippage) - nonce is consumed, no point waiting
+            self.landed_failed_flag.store(true, Ordering::Release);
         }
 
         self.completed_count.fetch_add(1, Ordering::Release);
@@ -87,6 +118,23 @@ impl ResultCollector {
                 }
                 if has_success && !signatures.is_empty() {
                     return Some((true, signatures, None));
+                }
+            }
+
+            // 🔧 Early exit: if a tx landed but failed (e.g., ExceededSlippage),
+            // nonce is consumed and other channels can't succeed - return immediately
+            if self.landed_failed_flag.load(Ordering::Acquire) {
+                let mut signatures = Vec::new();
+                let mut landed_error = None;
+                while let Some(result) = self.results.pop() {
+                    signatures.push(result.signature);
+                    // Prefer the error from the tx that actually landed
+                    if result.landed_on_chain && result.error.is_some() {
+                        landed_error = result.error;
+                    }
+                }
+                if !signatures.is_empty() {
+                    return Some((false, signatures, landed_error));
                 }
             }
 
@@ -289,6 +337,7 @@ pub async fn execute_parallel(
                         signature: Signature::default(),
                         error: Some(e),
                         swqos_type,  // 🔧 记录SWQOS类型
+                        landed_on_chain: false,  // Build failed, tx never sent
                     });
                     return;
                 }
@@ -297,7 +346,8 @@ pub async fn execute_parallel(
             // Transaction built
 
             let _send_start = Instant::now();
-            let mut err = None;
+            let mut err: Option<anyhow::Error> = None;
+            let mut landed_on_chain = false;
             let success = match swqos_client
                 .send_transaction(
                     if is_buy { TradeType::Buy } else { TradeType::Sell },
@@ -305,8 +355,13 @@ pub async fn execute_parallel(
                 )
                 .await
             {
-                Ok(()) => true,
+                Ok(()) => {
+                    landed_on_chain = true;  // Success means tx confirmed on-chain
+                    true
+                }
                 Err(e) => {
+                    // Check if this error indicates the tx landed but failed (e.g., ExceededSlippage)
+                    landed_on_chain = is_landed_error(&e);
                     err = Some(e);
                     // Send transaction failed
                     false
@@ -316,11 +371,12 @@ pub async fn execute_parallel(
             // Transaction sent
 
             if let Some(signature) = transaction.signatures.first() {
-                collector.submit(TaskResult { 
-                    success, 
-                    signature: *signature, 
+                collector.submit(TaskResult {
+                    success,
+                    signature: *signature,
                     error: err,
                     swqos_type,  // 🔧 记录SWQOS类型
+                    landed_on_chain,  // 🔧 Whether tx landed (even if it failed)
                 });
             }
         });
