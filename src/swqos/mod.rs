@@ -12,6 +12,7 @@ pub mod blockrazor;
 pub mod astralane;
 pub mod stellium;
 pub mod lightspeed;
+pub mod soyas;
 
 use std::sync::Arc;
 
@@ -33,7 +34,8 @@ use crate::{
         SWQOS_ENDPOINTS_FLASHBLOCK,
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
-        SWQOS_ENDPOINTS_STELLIUM
+        SWQOS_ENDPOINTS_STELLIUM,
+        SWQOS_ENDPOINTS_SOYAS
     },
     swqos::{
         bloxroute::BloxrouteClient,
@@ -47,7 +49,8 @@ use crate::{
         blockrazor::BlockRazorClient,
         astralane::AstralaneClient,
         stellium::StelliumClient,
-        lightspeed::LightspeedClient
+        lightspeed::LightspeedClient,
+        soyas::SoyasClient
     }
 };
 
@@ -88,6 +91,7 @@ pub enum SwqosType {
     Astralane,
     Stellium,
     Lightspeed,
+    Soyas,
     Default,
 }
 
@@ -105,6 +109,7 @@ impl SwqosType {
             Self::Astralane,
             Self::Stellium,
             Self::Lightspeed,
+            Self::Soyas,
             Self::Default,
         ]
     }
@@ -159,9 +164,29 @@ pub enum SwqosConfig {
     /// Endpoint format: https://<tier>.rpc.solanavibestation.com/lightspeed?api_key=<key>
     /// Minimum tip: 0.001 SOL
     Lightspeed(String, SwqosRegion, Option<String>),
+    /// Soyas(api_token, region, custom_url)
+    Soyas(String, SwqosRegion, Option<String>),
 }
 
 impl SwqosConfig {
+    pub fn swqos_type(&self) -> SwqosType{
+        match self {
+            SwqosConfig::Default(_) => SwqosType::Default,
+            SwqosConfig::Jito(_, _, _) => SwqosType::Jito,
+            SwqosConfig::NextBlock(_, _, _) => SwqosType::NextBlock,
+            SwqosConfig::Bloxroute(_, _, _) => SwqosType::Bloxroute,
+            SwqosConfig::Temporal(_, _, _) => SwqosType::Temporal,
+            SwqosConfig::ZeroSlot(_, _, _) => SwqosType::ZeroSlot,
+            SwqosConfig::Node1(_, _, _) => SwqosType::Node1,
+            SwqosConfig::FlashBlock(_, _, _) => SwqosType::FlashBlock,
+            SwqosConfig::BlockRazor(_, _, _) => SwqosType::BlockRazor,
+            SwqosConfig::Astralane(_, _, _) => SwqosType::Astralane,
+            SwqosConfig::Stellium(_, _, _) => SwqosType::Stellium,
+            SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
+            SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
+        }
+    }
+
     pub fn get_endpoint(swqos_type: SwqosType, region: SwqosRegion, url: Option<String>) -> String {
         if let Some(custom_url) = url {
             return custom_url;
@@ -179,11 +204,12 @@ impl SwqosConfig {
             SwqosType::Astralane => SWQOS_ENDPOINTS_ASTRALANE[region as usize].to_string(),
             SwqosType::Stellium => SWQOS_ENDPOINTS_STELLIUM[region as usize].to_string(),
             SwqosType::Lightspeed => "".to_string(), // Lightspeed requires custom URL with api_key
+            SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
         }
     }
 
-    pub fn get_swqos_client(rpc_url: String, commitment: CommitmentConfig, swqos_config: SwqosConfig) -> Arc<SwqosClient> {
+    pub async fn get_swqos_client(rpc_url: String, commitment: CommitmentConfig, swqos_config: SwqosConfig) -> Result<Arc<SwqosClient>> {
         match swqos_config {
             SwqosConfig::Jito(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Jito, region, url);
@@ -192,7 +218,7 @@ impl SwqosConfig {
                     endpoint,
                     auth_token
                 );
-                Arc::new(jito_client)
+                Ok(Arc::new(jito_client))
             }
             SwqosConfig::NextBlock(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::NextBlock, region, url);
@@ -201,7 +227,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(nextblock_client)
+                Ok(Arc::new(nextblock_client))
             },
             SwqosConfig::ZeroSlot(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::ZeroSlot, region, url);
@@ -210,7 +236,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(zeroslot_client)
+                Ok(Arc::new(zeroslot_client))
             },
             SwqosConfig::Temporal(auth_token, region, url) => {  
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Temporal, region, url);
@@ -219,7 +245,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(temporal_client)
+                Ok(Arc::new(temporal_client))
             },
             SwqosConfig::Bloxroute(auth_token, region, url) => { 
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Bloxroute, region, url);
@@ -228,7 +254,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(bloxroute_client)
+                Ok(Arc::new(bloxroute_client))
             },
             SwqosConfig::Node1(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Node1, region, url);
@@ -237,7 +263,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(node1_client)
+                Ok(Arc::new(node1_client))
             },
             SwqosConfig::FlashBlock(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::FlashBlock, region, url);
@@ -246,7 +272,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(flashblock_client)
+                Ok(Arc::new(flashblock_client))
             },
             SwqosConfig::BlockRazor(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::BlockRazor, region, url);
@@ -255,7 +281,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(blockrazor_client)
+                Ok(Arc::new(blockrazor_client))
             },
             SwqosConfig::Astralane(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Astralane, region, url);
@@ -264,7 +290,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(astralane_client)
+                Ok(Arc::new(astralane_client))
             },
             SwqosConfig::Stellium(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Stellium, region, url);
@@ -273,7 +299,7 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(stellium_client)
+                Ok(Arc::new(stellium_client))
             },
             SwqosConfig::Lightspeed(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Lightspeed, region, url);
@@ -282,7 +308,16 @@ impl SwqosConfig {
                     endpoint.to_string(),
                     auth_token
                 );
-                Arc::new(lightspeed_client)
+                Ok(Arc::new(lightspeed_client))
+            },
+            SwqosConfig::Soyas(auth_token, region, url) => {
+                let endpoint = SwqosConfig::get_endpoint(SwqosType::Soyas, region, url);
+                let soyas_client = SoyasClient::new(
+                    rpc_url.clone(),
+                    endpoint.to_string(),
+                    auth_token
+                ).await?;
+                Ok(Arc::new(soyas_client))
             },
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(
@@ -290,7 +325,7 @@ impl SwqosConfig {
                     commitment
                 );
                 let rpc_client = SolRpcClient::new(Arc::new(rpc));
-                Arc::new(rpc_client)
+                Ok(Arc::new(rpc_client))
             }
         }
     }

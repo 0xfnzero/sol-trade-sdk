@@ -123,6 +123,13 @@ pub const LIGHTSPEED_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("9tYF5yPDC1NP8s6diiB3kAX6ZZnva9DM3iDwJkBRarBB"),
 ];
 
+pub const SOYAS_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("soyas4s6L8KWZ8rsSk1mF3d1mQScoTGGAgjk98bF8nP"),
+    pubkey!("soyascXFW5wEEYiwfEmHy2pNwomqzvggJosGVD6TJdY"),
+    pubkey!("soyasDBdKjADwPz3xk82U3TNPRDKEWJj7wWLajNHZ1L"),
+    pubkey!("soyasE2abjBAynmHbGWgEwk4ctBy7JMTUCNrMbjcnyH"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -242,6 +249,17 @@ pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [
     "http://fra1.flashrpc.com",
 ];
 
+pub const SWQOS_ENDPOINTS_SOYAS: [&str; 8] = [
+    "nyc.landing.soyas.xyz:9000",
+    "fra.landing.soyas.xyz:9000",
+    "ams.landing.soyas.xyz:9000",
+    "nyc.landing.soyas.xyz:9000",
+    "nyc.landing.soyas.xyz:9000",
+    "ams.landing.soyas.xyz:9000",
+    "nyc.landing.soyas.xyz:9000",
+    "fra.landing.soyas.xyz:9000",
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
@@ -254,3 +272,4 @@ pub const SWQOS_MIN_TIP_BLOCKRAZOR: f64 = 0.0001;
 pub const SWQOS_MIN_TIP_ASTRALANE: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_STELLIUM: f64 = 0.0001; // Stellium requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_LIGHTSPEED: f64 = 0.0001; // Lightspeed requires minimum 0.001 SOL tip
+pub const SWQOS_MIN_TIP_SOYAS: f64 = 0.001; // Soyas requires minimum 0.001 SOL tip
