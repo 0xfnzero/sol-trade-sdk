@@ -115,7 +115,6 @@ let commitment = CommitmentConfig::processed();
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::NextBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::ZeroSlot("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
@@ -233,7 +232,7 @@ let jito_config = SwqosConfig::Jito(
 );
 
 // Using default regional endpoint (third parameter is None)
-let nextblock_config = SwqosConfig::NextBlock(
+let bloxroute_config = SwqosConfig::Bloxroute(
     "your_api_token".to_string(),
     SwqosRegion::NewYork, // Will use the default endpoint for this region
     None // No custom URL, uses SwqosRegion
@@ -273,7 +272,6 @@ Use Durable Nonce to implement transaction replay protection and optimize transa
 You can apply for a key through the official website: [Community Website](https://fnzero.dev/swqos)
 
 - **Jito**: High-performance block space
-- **NextBlock**: Fast transaction execution
 - **ZeroSlot**: Zero-latency transactions
 - **Temporal**: Time-sensitive transactions
 - **Bloxroute**: Blockchain network acceleration

@@ -198,6 +198,11 @@ impl TradingClient {
         let mut swqos_clients: Vec<Arc<SwqosClient>> = vec![];
 
         for swqos in swqos_configs {
+            // Check blacklist, skip disabled providers
+            if swqos.is_blacklisted() {
+                eprintln!("\u{26a0}\u{fe0f} SWQOS {:?} is blacklisted, skipping", swqos.swqos_type());
+                continue;
+            }
             match SwqosConfig::get_swqos_client(rpc_url.clone(), commitment.clone(), swqos.clone())
                 .await
             {

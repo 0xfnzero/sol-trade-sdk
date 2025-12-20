@@ -58,6 +58,13 @@ lazy_static::lazy_static! {
     static ref TIP_ACCOUNT_CACHE: RwLock<Vec<String>> = RwLock::new(Vec::new());
 }
 
+/// SWQOS provider blacklist configuration
+/// Providers added here will be disabled even if configured by user
+/// To enable a provider, remove it from this list
+pub const SWQOS_BLACKLIST: &[SwqosType] = &[
+    SwqosType::NextBlock,  // NextBlock is disabled by default
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TradeType {
     Create,
@@ -185,6 +192,11 @@ impl SwqosConfig {
             SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
         }
+    }
+
+    /// Check if current config is in the blacklist
+    pub fn is_blacklisted(&self) -> bool {
+        SWQOS_BLACKLIST.contains(&self.swqos_type())
     }
 
     pub fn get_endpoint(swqos_type: SwqosType, region: SwqosRegion, url: Option<String>) -> String {

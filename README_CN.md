@@ -115,7 +115,6 @@ let commitment = CommitmentConfig::processed();
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::NextBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::ZeroSlot("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
@@ -233,7 +232,7 @@ let jito_config = SwqosConfig::Jito(
 );
 
 // 使用默认区域端点（第三个参数为 None）
-let nextblock_config = SwqosConfig::NextBlock(
+let bloxroute_config = SwqosConfig::Bloxroute(
     "your_api_token".to_string(),
     SwqosRegion::NewYork, // 将使用该区域的默认端点
     None // 没有自定义 URL，使用 SwqosRegion
@@ -273,7 +272,6 @@ let middleware_manager = MiddlewareManager::new()
 可以通过官网申请密钥：[社区官网](https://fnzero.dev/swqos)
 
 - **Jito**: 高性能区块空间
-- **NextBlock**: 快速交易执行
 - **ZeroSlot**: 零延迟交易
 - **Temporal**: 时间敏感交易
 - **Bloxroute**: 区块链网络加速

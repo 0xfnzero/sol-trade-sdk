@@ -25,7 +25,6 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let swqos_configs: Vec<SwqosConfig> = vec![
         SwqosConfig::Default(rpc_url.clone()),
         SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::NextBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::ZeroSlot("your api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
