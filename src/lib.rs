@@ -198,9 +198,15 @@ impl TradingClient {
         let mut swqos_clients: Vec<Arc<SwqosClient>> = vec![];
 
         for swqos in swqos_configs {
-            let swqos_client =
-                SwqosConfig::get_swqos_client(rpc_url.clone(), commitment.clone(), swqos.clone());
-            swqos_clients.push(swqos_client);
+            match SwqosConfig::get_swqos_client(rpc_url.clone(), commitment.clone(), swqos.clone())
+                .await
+            {
+                Ok(swqos_client) => swqos_clients.push(swqos_client),
+                Err(err) => eprintln!(
+                    "failed to create {:?} swqos client: {err}. Excluding from swqos list",
+                    swqos.swqos_type()
+                ),
+            }
         }
 
         let rpc =
