@@ -255,7 +255,7 @@ pub const SWQOS_ENDPOINTS_SOYAS: [&str; 8] = [
     "ams.landing.soyas.xyz:9000",
     "nyc.landing.soyas.xyz:9000",
     "nyc.landing.soyas.xyz:9000",
-    "ams.landing.soyas.xyz:9000",
+    "lon.landing.soyas.xyz:9000",
     "nyc.landing.soyas.xyz:9000",
     "fra.landing.soyas.xyz:9000",
 ];
