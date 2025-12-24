@@ -199,7 +199,7 @@ pub const SWQOS_ENDPOINTS_NODE1: [&str; 8] = [
     "http://fra.node1.me",
     "http://ams.node1.me",
     "http://ny.node1.me",
-    "http://fra.node1.me",
+    "http://tk.node1.me",
     "http://lon.node1.me",
     "http://ny.node1.me",
     "http://fra.node1.me",
