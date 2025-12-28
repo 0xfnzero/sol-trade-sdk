@@ -21,7 +21,6 @@ pub struct GasFeeStrategyValue {
     pub cu_limit: u32,
     pub cu_price: u64,
     pub tip: f64,
-    pub data_size_limit: u32,
 }
 
 #[derive(Clone)]
@@ -45,8 +44,6 @@ impl GasFeeStrategy {
         sell_cu_price: u64,
         buy_tip: f64,
         sell_tip: f64,
-        buy_data_size_limit: u32,
-        sell_data_size_limit: u32,
     ) {
         for swqos_type in SwqosType::values() {
             if swqos_type.eq(&SwqosType::Default) {
@@ -59,7 +56,6 @@ impl GasFeeStrategy {
                 buy_cu_limit,
                 buy_cu_price,
                 buy_tip,
-                buy_data_size_limit,
             );
             self.set(
                 swqos_type,
@@ -68,7 +64,6 @@ impl GasFeeStrategy {
                 sell_cu_limit,
                 sell_cu_price,
                 sell_tip,
-                sell_data_size_limit,
             );
         }
         self.set(
@@ -78,7 +73,6 @@ impl GasFeeStrategy {
             buy_cu_limit,
             buy_cu_price,
             0.0,
-            buy_data_size_limit,
         );
         self.set(
             SwqosType::Default,
@@ -87,7 +81,6 @@ impl GasFeeStrategy {
             sell_cu_limit,
             sell_cu_price,
             0.0,
-            sell_data_size_limit,
         );
     }
 
@@ -102,7 +95,6 @@ impl GasFeeStrategy {
         high_cu_price: u64,
         low_tip: f64,
         high_tip: f64,
-        data_size_limit: u32,
     ) {
         for swqos_type in swqos_types {
             self.del(*swqos_type, trade_type, GasFeeStrategyType::Normal);
@@ -113,7 +105,6 @@ impl GasFeeStrategy {
                 cu_limit,
                 high_cu_price,
                 low_tip,
-                data_size_limit,
             );
             self.set(
                 *swqos_type,
@@ -122,7 +113,6 @@ impl GasFeeStrategy {
                 cu_limit,
                 low_cu_price,
                 high_tip,
-                data_size_limit,
             );
         }
     }
@@ -138,7 +128,6 @@ impl GasFeeStrategy {
         high_cu_price: u64,
         low_tip: f64,
         high_tip: f64,
-        data_size_limit: u32,
     ) {
         if swqos_type.eq(&SwqosType::Default) {
             return;
@@ -151,7 +140,6 @@ impl GasFeeStrategy {
             cu_limit,
             high_cu_price,
             low_tip,
-            data_size_limit,
         );
         self.set(
             swqos_type,
@@ -160,7 +148,6 @@ impl GasFeeStrategy {
             cu_limit,
             low_cu_price,
             high_tip,
-            data_size_limit,
         );
     }
 
@@ -173,8 +160,6 @@ impl GasFeeStrategy {
         cu_price: u64,
         buy_tip: f64,
         sell_tip: f64,
-        buy_data_size_limit: u32,
-        sell_data_size_limit: u32,
     ) {
         for swqos_type in swqos_types {
             self.del_all(*swqos_type, TradeType::Buy);
@@ -186,7 +171,6 @@ impl GasFeeStrategy {
                 cu_limit,
                 cu_price,
                 buy_tip,
-                buy_data_size_limit,
             );
             self.set(
                 *swqos_type,
@@ -195,7 +179,6 @@ impl GasFeeStrategy {
                 cu_limit,
                 cu_price,
                 sell_tip,
-                sell_data_size_limit,
             );
         }
     }
@@ -207,8 +190,6 @@ impl GasFeeStrategy {
         cu_price: u64,
         buy_tip: f64,
         sell_tip: f64,
-        buy_data_size_limit: u32,
-        sell_data_size_limit: u32,
     ) {
         self.del_all(swqos_type, TradeType::Buy);
         self.del_all(swqos_type, TradeType::Sell);
@@ -219,7 +200,6 @@ impl GasFeeStrategy {
             cu_limit,
             cu_price,
             buy_tip,
-            buy_data_size_limit,
         );
         self.set(
             swqos_type,
@@ -228,7 +208,6 @@ impl GasFeeStrategy {
             cu_limit,
             cu_price,
             sell_tip,
-            sell_data_size_limit,
         );
     }
 
@@ -240,7 +219,6 @@ impl GasFeeStrategy {
         cu_limit: u32,
         cu_price: u64,
         tip: f64,
-        data_size_limit: u32,
     ) {
         if strategy_type == GasFeeStrategyType::Normal {
             self.del(swqos_type, trade_type, GasFeeStrategyType::HighTipLowCuPrice);
@@ -252,7 +230,7 @@ impl GasFeeStrategy {
             let mut new_map = (**current_map).clone();
             new_map.insert(
                 (swqos_type, trade_type, strategy_type),
-                GasFeeStrategyValue { cu_limit, cu_price, tip, data_size_limit },
+                GasFeeStrategyValue { cu_limit, cu_price, tip },
             );
             Arc::new(new_map)
         });

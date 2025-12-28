@@ -25,12 +25,12 @@ pub struct ZeroSlotClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for ZeroSlotClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
-        self.send_transaction(trade_type, transaction).await
+    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+        self.send_transaction(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>) -> Result<()> {
-        self.send_transactions(trade_type, transactions).await
+    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+        self.send_transactions(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
@@ -62,7 +62,7 @@ impl ZeroSlotClient {
         Self { rpc_client: Arc::new(rpc_client), endpoint, auth_token, http_client }
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
+    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
 
@@ -102,7 +102,7 @@ impl ZeroSlotClient {
         }
 
         let start_time: Instant = Instant::now();
-        match poll_transaction_confirmation(&self.rpc_client, signature).await {
+        match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
@@ -110,15 +110,17 @@ impl ZeroSlotClient {
                 return Err(e);
             },
         }
-        println!(" signature: {:?}", signature);
-        println!(" [0slot] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        if wait_confirmation {
+            println!(" signature: {:?}", signature);
+            println!(" [0slot] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        }
 
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>) -> Result<()> {
+    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
         for transaction in transactions {
-            self.send_transaction(trade_type, transaction).await?;
+            self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }
         Ok(())
     }

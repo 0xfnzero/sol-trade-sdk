@@ -23,6 +23,7 @@ impl SwqosClientTrait for SolRpcClient {
         &self,
         trade_type: TradeType,
         transaction: &VersionedTransaction,
+        wait_confirmation: bool,
     ) -> Result<()> {
         let signature = self
             .rpc_client
@@ -39,7 +40,7 @@ impl SwqosClientTrait for SolRpcClient {
             .await?;
 
         let start_time = Instant::now();
-        match poll_transaction_confirmation(&self.rpc_client, signature).await {
+        match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
@@ -47,8 +48,10 @@ impl SwqosClientTrait for SolRpcClient {
                 return Err(e);
             }
         }
-        println!(" signature: {:?}", signature);
-        println!(" [rpc] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        if wait_confirmation {
+            println!(" signature: {:?}", signature);
+            println!(" [rpc] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        }
 
         Ok(())
     }
@@ -57,9 +60,10 @@ impl SwqosClientTrait for SolRpcClient {
         &self,
         trade_type: TradeType,
         transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
     ) -> Result<()> {
         for transaction in transactions {
-            self.send_transaction(trade_type, transaction).await?;
+            self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }
         Ok(())
     }

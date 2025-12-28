@@ -56,15 +56,24 @@ impl FormatBase64VersionedTransaction for VersionedTransaction {
 pub async fn poll_transaction_confirmation(
     rpc: &SolanaRpcClient,
     txt_sig: Signature,
+    wait_confirmation: bool,
 ) -> Result<Signature> {
+    // 如果不需要等待确认，立即返回签名
+    if !wait_confirmation {
+        return Ok(txt_sig);
+    }
+
     let timeout: Duration = Duration::from_secs(15); // 🔧 增加到15秒，避免网络拥堵时超时
     let interval: Duration = Duration::from_millis(1000);
     let start: Instant = Instant::now();
+    let mut poll_count = 0u32;
 
     loop {
         if start.elapsed() >= timeout {
             return Err(anyhow::anyhow!("Transaction {}'s confirmation timed out", txt_sig));
         }
+
+        poll_count += 1;
 
         let status = rpc.get_signature_statuses(&[txt_sig]).await?;
         match status.value[0].clone() {
@@ -77,8 +86,27 @@ pub async fn poll_transaction_confirmation(
                 {
                     return Ok(txt_sig);
                 }
+                // 如果 getSignatureStatuses 返回了错误，立即获取详细信息
+                if status.err.is_some() {
+                    // 直接跳转到获取交易详情
+                }
             }
-            None => {}
+            None => {
+                // 交易还未上链，继续等待，不调用 getTransaction
+                sleep(interval).await;
+                continue;
+            }
+        }
+
+        // 优化：只在以下情况调用 getTransaction
+        // 1. getSignatureStatuses 返回了错误
+        // 2. 或者已经轮询了较长时间（超过10次，即10秒）
+        let should_get_transaction = status.value[0].as_ref().map(|s| s.err.is_some()).unwrap_or(false)
+            || poll_count >= 10;
+
+        if !should_get_transaction {
+            sleep(interval).await;
+            continue;
         }
 
         let tx_details = match rpc

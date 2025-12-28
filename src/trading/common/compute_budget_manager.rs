@@ -7,30 +7,24 @@ use solana_compute_budget_interface::ComputeBudgetInstruction;
 /// Cache key containing all parameters for compute budget instructions
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ComputeBudgetCacheKey {
-    data_size_limit: u32,
     unit_price: u64,
     unit_limit: u32,
-    is_buy: bool,
 }
 
 /// Global cache storing compute budget instructions
 /// Uses DashMap for high-performance lock-free concurrent access
-static COMPUTE_BUDGET_CACHE: Lazy<DashMap<ComputeBudgetCacheKey, SmallVec<[Instruction; 3]>>> =
+static COMPUTE_BUDGET_CACHE: Lazy<DashMap<ComputeBudgetCacheKey, SmallVec<[Instruction; 2]>>> =
     Lazy::new(|| DashMap::new());
 
 #[inline(always)]
 pub fn compute_budget_instructions(
     unit_price: u64,
     unit_limit: u32,
-    data_size_limit: u32,
-    is_buy: bool,
-) -> SmallVec<[Instruction; 3]> {
+) -> SmallVec<[Instruction; 2]> {
     // Create cache key
     let cache_key = ComputeBudgetCacheKey {
-        data_size_limit,
         unit_price: unit_price,
         unit_limit: unit_limit,
-        is_buy,
     };
 
     // Try to get from cache first
@@ -39,12 +33,7 @@ pub fn compute_budget_instructions(
     }
 
     // Cache miss, generate new instructions
-    let mut insts = SmallVec::<[Instruction; 3]>::new();
-
-    // Only add data_size_limit instruction if > 0 and is_buy
-    if is_buy && data_size_limit > 0 {
-        insts.push(ComputeBudgetInstruction::set_loaded_accounts_data_size_limit(data_size_limit));
-    }
+    let mut insts = SmallVec::<[Instruction; 2]>::new();
 
     // Only add compute unit price instruction if > 0
     if unit_price > 0 {

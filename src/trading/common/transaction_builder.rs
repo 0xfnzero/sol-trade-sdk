@@ -24,7 +24,6 @@ pub async fn build_transaction(
     business_instructions: Vec<Instruction>,
     address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
-    data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &str,
     is_buy: bool,
@@ -57,8 +56,6 @@ pub async fn build_transaction(
     instructions.extend(compute_budget_instructions(
         unit_price,
         unit_limit,
-        data_size_limit,
-        is_buy,
     ));
 
     // Add business instructions

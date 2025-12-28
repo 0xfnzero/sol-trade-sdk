@@ -200,7 +200,6 @@ pub async fn execute_parallel(
     address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
-    data_size_limit: u32,
     middleware_manager: Option<Arc<MiddlewareManager>>,
     protocol_name: &'static str,
     is_buy: bool,
@@ -320,7 +319,6 @@ pub async fn execute_parallel(
                 instructions.as_ref().clone(),
                 address_lookup_table_account,
                 recent_blockhash,
-                data_size_limit,
                 middleware_manager,
                 protocol_name,
                 is_buy,
@@ -354,6 +352,7 @@ pub async fn execute_parallel(
                 .send_transaction(
                     if is_buy { TradeType::Buy } else { TradeType::Sell },
                     &transaction,
+                    wait_transaction_confirmed,
                 )
                 .await
             {

@@ -25,12 +25,12 @@ pub struct JitoClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for JitoClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
-        self.send_transaction(trade_type, transaction).await
+    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+        self.send_transaction_impl(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>) -> Result<()> {
-        self.send_transactions(trade_type, transactions).await
+    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+        self.send_transactions_impl(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
@@ -65,13 +65,13 @@ impl JitoClient {
         Self { rpc_client: Arc::new(rpc_client), endpoint, auth_token, http_client }
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction) -> Result<()> {
+    pub async fn send_transaction_impl(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
 
         let request_body = serde_json::to_string(&json!({
             "id": 1,
-            "jsonrpc": "2.0", 
+            "jsonrpc": "2.0",
             "method": "sendTransaction",
             "params": [
                 content,
@@ -111,7 +111,7 @@ impl JitoClient {
         }
 
         let start_time: Instant = Instant::now();
-        match poll_transaction_confirmation(&self.rpc_client, signature).await {
+        match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
@@ -119,13 +119,15 @@ impl JitoClient {
                 return Err(e);
             },
         }
-        println!(" signature: {:?}", signature);
-        println!(" [jito] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        if wait_confirmation {
+            println!(" signature: {:?}", signature);
+            println!(" [jito] {} confirmed: {:?}", trade_type, start_time.elapsed());
+        }
 
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>) -> Result<()> {
+    pub async fn send_transactions_impl(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, _wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
         let txs_base64 = transactions.iter().map(|tx| tx.to_base64_string()).collect::<Vec<String>>();
         let body = serde_json::json!({

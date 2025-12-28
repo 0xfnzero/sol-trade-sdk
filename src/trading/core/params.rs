@@ -53,7 +53,6 @@ pub struct SwapParams {
     pub slippage_basis_points: Option<u64>,
     pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     pub recent_blockhash: Option<Hash>,
-    pub data_size_limit: u32,
     pub wait_transaction_confirmed: bool,
     pub protocol_params: DexParamEnum,
     pub open_seed_optimize: bool,
