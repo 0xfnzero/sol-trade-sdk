@@ -145,7 +145,7 @@ let client = TradingClient::new(Arc::new(payer), trade_config).await;
 // 创建 GasFeeStrategy 实例
 let gas_fee_strategy = GasFeeStrategy::new();
 // 设置全局策略
-gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 ```
 
 #### 3. 构建交易参数

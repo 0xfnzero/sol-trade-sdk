@@ -102,8 +102,6 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         500000,
         0.001,
         0.001,
-        256 * 1024,
-        0,
     );
 
     let token_type = if trade_info.quote_token_mint == sol_trade_sdk::constants::USD1_TOKEN_ACCOUNT

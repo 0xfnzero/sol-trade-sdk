@@ -145,7 +145,7 @@ For detailed information about Gas Fee Strategy, see the [Gas Fee Strategy Refer
 // Create GasFeeStrategy instance
 let gas_fee_strategy = GasFeeStrategy::new();
 // Set global strategy
-gas_fee_strategy.set_global_fee_strategy(150000,150000, 500000,500000, 0.001, 0.001, 256 * 1024, 0);
+gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 ```
 
 #### 3. Build Trading Parameters

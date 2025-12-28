@@ -149,8 +149,6 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         500000,
         0.001,
         0.001,
-        256 * 1024,
-        0,
     );
 
     // Buy tokens

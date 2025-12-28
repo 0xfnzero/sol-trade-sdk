@@ -128,8 +128,6 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
         500000,
         0.001,
         0.001,
-        256 * 1024,
-        0,
     );
 
     // Buy tokens
