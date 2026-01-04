@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-    <strong>Integrate PumpFun, PumpSwap, Bonk, Raydium, and Meteora trading functionality into your applications with powerful tools and unified interfaces.</strong>
+    <strong>A high-performance Rust SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
 </p>
 
 <p align="center">
