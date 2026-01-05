@@ -71,6 +71,7 @@
 8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
 9. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 10. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
+11. **Shared Infrastructure**: Share expensive RPC and SWQOS clients across multiple wallets for reduced resource usage
 
 ## 📦 Installation
 
@@ -105,6 +106,7 @@ sol-trade-sdk = "3.3.6"
 
 You can refer to [Example: Create TradingClient Instance](examples/trading_client/src/main.rs).
 
+**Method 1: Simple (single wallet)**
 ```rust
 // Wallet
 let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
@@ -116,25 +118,27 @@ let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::ZeroSlot("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::FlashBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Node1("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::BlockRazor("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Astralane("your api_token".to_string(), SwqosRegion::Frankfurt, None),
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
 
-// Optional: Customize WSOL ATA and Seed optimization settings
-// let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
-//     .with_wsol_ata_config(
-//         true,  // create_wsol_ata_on_startup: Check and create WSOL ATA on startup (default: true)
-//         true   // use_seed_optimize: Enable seed optimization globally for all ATA operations (default: true)
-//     );
-
 // Create TradingClient
 let client = TradingClient::new(Arc::new(payer), trade_config).await;
+```
+
+**Method 2: Shared infrastructure (multiple wallets)**
+
+For multi-wallet scenarios, create the infrastructure once and share it across wallets.
+See [Example: Shared Infrastructure](examples/shared_infrastructure/src/main.rs).
+
+```rust
+// Create infrastructure once (expensive)
+let infra_config = InfrastructureConfig::new(rpc_url, swqos_configs, commitment);
+let infrastructure = Arc::new(TradingInfrastructure::new(infra_config).await);
+
+// Create multiple clients sharing the same infrastructure (fast)
+let client1 = TradingClient::from_infrastructure(Arc::new(payer1), infrastructure.clone(), true);
+let client2 = TradingClient::from_infrastructure(Arc::new(payer2), infrastructure.clone(), true);
 ```
 
 #### 2. Configure Gas Fee Strategy
@@ -197,6 +201,7 @@ Please ensure that the parameters your trading logic depends on are available in
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
 | Create and configure TradingClient instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
+| Share infrastructure across multiple wallets | `cargo run --package shared_infrastructure` | [examples/shared_infrastructure](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/shared_infrastructure/src/main.rs) |
 | PumpFun token sniping trading | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
 | PumpFun token copy trading | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
 | PumpSwap trading operations | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |

@@ -1,0 +1,10 @@
+[package]
+name = "shared_infrastructure"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sol-trade-sdk = { path = "../.." }
+solana-sdk = "3.0.0"
+solana-commitment-config = { version = "3.0.0", features = ["serde"] }
+tokio = { version = "1", features = ["full"] }
