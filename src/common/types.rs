@@ -1,5 +1,66 @@
 use crate::swqos::SwqosConfig;
 use solana_commitment_config::CommitmentConfig;
+use std::hash::{Hash, Hasher};
+
+/// Infrastructure-only configuration (wallet-independent)
+/// Can be shared across multiple wallets using the same RPC/SWQOS setup
+#[derive(Debug, Clone)]
+pub struct InfrastructureConfig {
+    pub rpc_url: String,
+    pub swqos_configs: Vec<SwqosConfig>,
+    pub commitment: CommitmentConfig,
+}
+
+impl InfrastructureConfig {
+    pub fn new(
+        rpc_url: String,
+        swqos_configs: Vec<SwqosConfig>,
+        commitment: CommitmentConfig,
+    ) -> Self {
+        Self {
+            rpc_url,
+            swqos_configs,
+            commitment,
+        }
+    }
+
+    /// Create from TradeConfig (extract infrastructure-only settings)
+    pub fn from_trade_config(config: &TradeConfig) -> Self {
+        Self {
+            rpc_url: config.rpc_url.clone(),
+            swqos_configs: config.swqos_configs.clone(),
+            commitment: config.commitment.clone(),
+        }
+    }
+
+    /// Generate a cache key for this infrastructure configuration
+    pub fn cache_key(&self) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
+}
+
+// Manual Hash implementation since CommitmentConfig doesn't implement Hash
+impl Hash for InfrastructureConfig {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rpc_url.hash(state);
+        self.swqos_configs.hash(state);
+        // Hash commitment level as string since CommitmentConfig doesn't impl Hash
+        format!("{:?}", self.commitment).hash(state);
+    }
+}
+
+impl PartialEq for InfrastructureConfig {
+    fn eq(&self, other: &Self) -> bool {
+        self.rpc_url == other.rpc_url
+            && self.swqos_configs == other.swqos_configs
+            && self.commitment == other.commitment
+    }
+}
+
+impl Eq for InfrastructureConfig {}
 
 #[derive(Debug, Clone)]
 pub struct TradeConfig {
