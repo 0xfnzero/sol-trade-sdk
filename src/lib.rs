@@ -508,6 +508,7 @@ impl TradingClient {
             fixed_output_amount: params.fixed_output_token_amount,
             gas_fee_strategy: params.gas_fee_strategy,
             simulate: params.simulate,
+            use_exact_in_instruction: false,
         };
 
         // Validate protocol params
@@ -617,6 +618,7 @@ impl TradingClient {
             fixed_output_amount: params.fixed_output_token_amount,
             gas_fee_strategy: params.gas_fee_strategy,
             simulate: params.simulate,
+            use_exact_in_instruction: false,
         };
 
         // Validate protocol params

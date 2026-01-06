@@ -154,6 +154,11 @@ pub mod accounts {
         };
 }
 
+/// Instruction discriminators for PumpFun program
+pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
+pub const BUY_EXACT_SOL_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
+pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
+
 pub struct Symbol;
 
 impl Symbol {

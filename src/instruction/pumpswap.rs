@@ -2,7 +2,7 @@ use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::utils::pumpswap::{
         accounts, fee_recipient_ata, get_user_volume_accumulator_pda, BUY_DISCRIMINATOR,
-        SELL_DISCRIMINATOR,
+        BUY_EXACT_QUOTE_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
     },
     trading::{
         common::wsol_manager,
@@ -187,11 +187,27 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create instruction data
         let mut data = [0u8; 24];
         if quote_is_wsol_or_usdc {
-            data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-            // base_amount_out
-            data[8..16].copy_from_slice(&token_amount.to_le_bytes());
-            // max_quote_amount_in
-            data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
+            if params.use_exact_in_instruction {
+                // buy_exact_quote_in(spendable_quote_in: u64, min_base_amount_out: u64)
+                // Spend exactly the input SOL/quote amount, get at least min_base_amount_out
+                let min_base_amount_out = crate::utils::calc::common::calculate_with_slippage_sell(
+                    token_amount,
+                    params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+                );
+                data[..8].copy_from_slice(&BUY_EXACT_QUOTE_IN_DISCRIMINATOR);
+                // spendable_quote_in (exact SOL amount to spend)
+                data[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
+                // min_base_amount_out (minimum tokens to receive)
+                data[16..24].copy_from_slice(&min_base_amount_out.to_le_bytes());
+            } else {
+                // buy(base_amount_out: u64, max_quote_amount_in: u64)
+                // Buy exactly base_amount_out tokens, pay up to max_quote_amount_in
+                data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+                // base_amount_out
+                data[8..16].copy_from_slice(&token_amount.to_le_bytes());
+                // max_quote_amount_in
+                data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
+            }
         } else {
             data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
             // base_amount_in

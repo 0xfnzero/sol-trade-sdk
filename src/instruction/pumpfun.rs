@@ -9,7 +9,7 @@ use crate::{
 use crate::{
     instruction::utils::pumpfun::{
         accounts, get_bonding_curve_pda, get_creator, get_user_volume_accumulator_pda,
-        global_constants::{self},
+        global_constants::{self}, BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR,
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -118,9 +118,23 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         }
 
         let mut buy_data = [0u8; 24];
-        buy_data[..8].copy_from_slice(&[102, 6, 61, 18, 1, 218, 235, 234]); // Method ID
-        buy_data[8..16].copy_from_slice(&buy_token_amount.to_le_bytes());
-        buy_data[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
+        if params.use_exact_in_instruction {
+            // buy_exact_sol_in(spendable_sol_in: u64, min_tokens_out: u64)
+            // Spend exactly the input SOL amount, get at least min_tokens_out
+            let min_tokens_out = calculate_with_slippage_sell(
+                buy_token_amount,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+            );
+            buy_data[..8].copy_from_slice(&BUY_EXACT_SOL_IN_DISCRIMINATOR);
+            buy_data[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
+            buy_data[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
+        } else {
+            // buy(token_amount: u64, max_sol_cost: u64)
+            // Buy exactly token_amount tokens, pay up to max_sol_cost
+            buy_data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+            buy_data[8..16].copy_from_slice(&buy_token_amount.to_le_bytes());
+            buy_data[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
+        }
 
         // Determine fee recipient based on mayhem mode
         let fee_recipient_meta = if is_mayhem_mode {
