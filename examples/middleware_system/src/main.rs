@@ -102,6 +102,7 @@ async fn test_middleware() -> AnyResult<()> {
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     client.buy(buy_params).await?;
     println!("tip: This transaction will not succeed because we're using a test account. You can modify the code to initialize the payer with your own private key");

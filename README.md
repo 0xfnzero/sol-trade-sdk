@@ -178,6 +178,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   fixed_output_token_amount: None,  // Optional: specify exact output amount
   gas_fee_strategy: gas_fee_strategy.clone(),  // Gas fee strategy configuration
   simulate: false,  // Set to true for simulation only
+  use_exact_sol_amount: None,  // Use exact SOL input for PumpFun/PumpSwap (defaults to true)
 };
 ```
 

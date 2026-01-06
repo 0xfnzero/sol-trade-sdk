@@ -143,6 +143,7 @@ async fn bonk_sniper_trade_with_shreds(trade_info: BonkTradeEvent) -> AnyResult<
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
+        use_exact_sol_amount: None,
     };
     client.buy(buy_params).await?;
 

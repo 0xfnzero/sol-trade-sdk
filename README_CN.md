@@ -174,6 +174,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
   fixed_output_token_amount: None,  // 可选：指定精确输出数量
   gas_fee_strategy: gas_fee_strategy.clone(),  // Gas 费用策略配置
   simulate: false,  // 设为 true 仅进行模拟
+  use_exact_sol_amount: None,  // 对 PumpFun/PumpSwap 使用精确 SOL 输入（默认为 true）
 };
 ```
 

@@ -118,7 +118,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         }
 
         let mut buy_data = [0u8; 24];
-        if params.use_exact_sol_amount {
+        if params.use_exact_sol_amount.unwrap_or(true) {
             // buy_exact_sol_in(spendable_sol_in: u64, min_tokens_out: u64)
             // Spend exactly the input SOL amount, get at least min_tokens_out
             let min_tokens_out = calculate_with_slippage_sell(

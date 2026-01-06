@@ -220,6 +220,7 @@ async fn pumpswap_trade_with_grpc(mint_pubkey: Pubkey, params: PumpSwapParams) -
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
+        use_exact_sol_amount: None,
     };
     client.buy(buy_params).await?;
 
