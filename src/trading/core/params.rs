@@ -67,10 +67,10 @@ pub struct SwapParams {
     pub fixed_output_amount: Option<u64>,
     pub gas_fee_strategy: GasFeeStrategy,
     pub simulate: bool,
-    /// Use exact input instructions (buy_exact_sol_in for PumpFun, buy_exact_quote_in for PumpSwap).
+    /// Use exact SOL amount instructions (buy_exact_sol_in for PumpFun, buy_exact_quote_in for PumpSwap).
     /// When true, the exact SOL/quote amount is spent and slippage is applied to output tokens.
     /// When false (default), uses regular buy instruction where slippage is applied to SOL/quote input.
-    pub use_exact_in_instruction: bool,
+    pub use_exact_sol_amount: bool,
 }
 
 impl std::fmt::Debug for SwapParams {

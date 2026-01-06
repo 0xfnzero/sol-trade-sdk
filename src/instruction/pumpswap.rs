@@ -187,7 +187,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Create instruction data
         let mut data = [0u8; 24];
         if quote_is_wsol_or_usdc {
-            if params.use_exact_in_instruction {
+            if params.use_exact_sol_amount {
                 // buy_exact_quote_in(spendable_quote_in: u64, min_base_amount_out: u64)
                 // Spend exactly the input SOL/quote amount, get at least min_base_amount_out
                 let min_base_amount_out = crate::utils::calc::common::calculate_with_slippage_sell(
