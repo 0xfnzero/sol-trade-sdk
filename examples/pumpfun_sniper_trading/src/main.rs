@@ -122,6 +122,7 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
+        use_exact_sol_amount: None,
     };
     client.buy(buy_params).await?;
 

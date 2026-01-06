@@ -634,6 +634,7 @@ async fn handle_buy_pumpfun(
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature, _)) => {
@@ -688,6 +689,7 @@ async fn handle_buy_pumpswap(
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature, _)) => {
@@ -741,6 +743,7 @@ async fn handle_buy_bonk(
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature, _)) => {
@@ -798,6 +801,7 @@ async fn handle_buy_raydium_v4(
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature, _)) => {
@@ -855,6 +859,7 @@ async fn handle_buy_raydium_cpmm(
         fixed_output_token_amount: None,
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
+        use_exact_sol_amount: None,
     };
     match client.buy(buy_params).await {
         Ok((_, signature, _)) => {
