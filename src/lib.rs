@@ -187,6 +187,10 @@ pub struct TradeBuyParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// Whether to simulate the transaction instead of executing it
     pub simulate: bool,
+    /// Use exact input instructions (buy_exact_sol_in for PumpFun, buy_exact_quote_in for PumpSwap).
+    /// When true, the exact SOL/quote amount is spent and slippage is applied to output tokens.
+    /// When false (default), uses regular buy instruction where slippage is applied to SOL/quote input.
+    pub use_exact_in_instruction: bool,
 }
 
 /// Parameters for executing sell orders across different DEX protocols
@@ -508,7 +512,7 @@ impl TradingClient {
             fixed_output_amount: params.fixed_output_token_amount,
             gas_fee_strategy: params.gas_fee_strategy,
             simulate: params.simulate,
-            use_exact_in_instruction: false,
+            use_exact_in_instruction: params.use_exact_in_instruction,
         };
 
         // Validate protocol params
