@@ -104,18 +104,19 @@ impl SwqosClientTrait for SoyasClient {
         transaction: &VersionedTransaction,
         wait_confirmation: bool,
     ) -> Result<()> {
+        let start_time = Instant::now();
         let signature = transaction.get_signature();
         let serialized_tx = bincode::serialize(transaction)?;
         let connection = self.connection.load_full();
-        if Self::try_send_bytes(&connection, &serialized_tx).await.is_ok() {
-            return Ok(());
+        if Self::try_send_bytes(&connection, &serialized_tx).await.is_err() {
+            eprintln!(" [soyas] {} submission failed, reconnecting", trade_type);
+            self.reconnect().await?;
+            let connection = self.connection.load_full();
+            if let Err(e) = Self::try_send_bytes(&connection, &serialized_tx).await {
+                eprintln!(" [soyas] {} submission failed: {:?}", trade_type, e);
+                return Err(e.into());
+            }
         }
-        eprintln!(" [soyas] failed to send transaction; reconnecting");
-        self.reconnect().await?;
-        let connection = self.connection.load_full();
-        Self::try_send_bytes(&connection, &serialized_tx).await?;
-
-        let start_time: Instant = Instant::now();
         match poll_transaction_confirmation(&self.rpc_client, *signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
