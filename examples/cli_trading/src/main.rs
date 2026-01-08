@@ -475,7 +475,7 @@ async fn check_mint_ata(
 
     let mint_pubkey = Pubkey::from_str(mint).unwrap();
 
-    if let Ok(mint_info) = client.rpc.get_account(&mint_pubkey).await {
+    if let Ok(mint_info) = client.infrastructure.rpc.get_account(&mint_pubkey).await {
         let owner_pubkey = mint_info.owner.clone();
         let mint_ata = get_associated_token_address_with_program_id_fast_use_seed(
             &client.get_payer_pubkey(),
@@ -483,7 +483,7 @@ async fn check_mint_ata(
             &owner_pubkey,
             false,
         );
-        match client.rpc.get_token_account_balance(&mint_ata).await {
+        match client.infrastructure.rpc.get_token_account_balance(&mint_ata).await {
             Ok(balance) => {
                 let amount = balance.ui_amount.unwrap_or(0.0);
                 decimals = balance.decimals;
@@ -504,7 +504,7 @@ async fn check_mint_ata(
             &owner_pubkey,
             true,
         );
-        match client.rpc.get_token_account_balance(&mint_ata).await {
+        match client.infrastructure.rpc.get_token_account_balance(&mint_ata).await {
             Ok(_) => {
                 create_mint_ata = false;
                 use_seed = true;
@@ -610,8 +610,8 @@ async fn handle_buy_pumpfun(
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = PumpFunParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = PumpFunParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -665,8 +665,8 @@ async fn handle_buy_pumpswap(
         println!("   Slippage: {}%", slippage.unwrap());
     }
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = PumpSwapParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = PumpSwapParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -719,8 +719,8 @@ async fn handle_buy_bonk(
         println!("   Slippage: {}%", slippage.unwrap());
     }
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey, false).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = BonkParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey, false).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -777,8 +777,8 @@ async fn handle_buy_raydium_v4(
 
     let mint_pubkey = Pubkey::from_str(mint)?;
     let amm_pubkey = Pubkey::from_str(amm)?;
-    let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, amm_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, amm_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -835,8 +835,8 @@ async fn handle_buy_raydium_cpmm(
 
     let mint_pubkey = Pubkey::from_str(mint)?;
     let pool_pubkey = Pubkey::from_str(pool_address)?;
-    let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &pool_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let sol_lamports = sol_str_to_lamports(sol_amount.to_string().as_str()).unwrap();
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -1004,8 +1004,8 @@ async fn handle_sell_pumpfun(
 
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = PumpFunParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = PumpFunParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -1062,8 +1062,8 @@ async fn handle_sell_pumpswap(
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = PumpSwapParams::from_mint_by_rpc(&client.rpc, &mint_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = PumpSwapParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -1119,8 +1119,8 @@ async fn handle_sell_bonk(
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = BonkParams::from_mint_by_rpc(&client.rpc, &mint_pubkey, false).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = BonkParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey, false).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -1179,8 +1179,8 @@ async fn handle_sell_raydium_v4(
     let client = initialize_real_client().await?;
     let amm_pubkey = Pubkey::from_str(amm)?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, amm_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, amm_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -1239,8 +1239,8 @@ async fn handle_sell_raydium_cpmm(
     let client = initialize_real_client().await?;
     let pool_pubkey = Pubkey::from_str(pool_address)?;
     let mint_pubkey = Pubkey::from_str(mint)?;
-    let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &pool_pubkey).await?;
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let param = RaydiumCpmmParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool_pubkey).await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -1425,7 +1425,7 @@ async fn wrap_sol_real(
     ];
 
     // Build and send transaction
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&client.get_payer_pubkey()),
@@ -1433,7 +1433,7 @@ async fn wrap_sol_real(
         recent_blockhash,
     );
 
-    let signature = client.rpc.send_and_confirm_transaction(&transaction).await?;
+    let signature = client.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
     println!("   📝 Transaction Signature: {}", signature);
     Ok(())
 }
@@ -1445,7 +1445,7 @@ async fn close_wsol_real(client: &SolanaTrade) -> Result<(), Box<dyn std::error:
     let wsol_account = get_associated_token_address(&client.get_payer_pubkey(), &wsol_mint);
 
     // Check if WSOL account exists
-    let account_info = client.rpc.get_account(&wsol_account).await;
+    let account_info = client.infrastructure.rpc.get_account(&wsol_account).await;
     if account_info.is_err() {
         return Err("WSOL account not found".into());
     }
@@ -1460,7 +1460,7 @@ async fn close_wsol_real(client: &SolanaTrade) -> Result<(), Box<dyn std::error:
     )?;
 
     // Build and send transaction
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &[close_instruction],
         Some(&client.get_payer_pubkey()),
@@ -1468,7 +1468,7 @@ async fn close_wsol_real(client: &SolanaTrade) -> Result<(), Box<dyn std::error:
         recent_blockhash,
     );
 
-    let signature = client.rpc.send_and_confirm_transaction(&transaction).await?;
+    let signature = client.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
     println!("   📝 Transaction Signature: {}", signature);
     Ok(())
 }

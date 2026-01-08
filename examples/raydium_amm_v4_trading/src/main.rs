@@ -119,11 +119,11 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
 
     let client = create_solana_trade_client().await?;
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
-    let amm_info = fetch_amm_info(&client.rpc, trade_info.amm).await?;
+    let amm_info = fetch_amm_info(&client.infrastructure.rpc, trade_info.amm).await?;
     let (coin_reserve, pc_reserve) =
-        get_multi_token_balances(&client.rpc, &amm_info.token_coin, &amm_info.token_pc).await?;
+        get_multi_token_balances(&client.infrastructure.rpc, &amm_info.token_coin, &amm_info.token_pc).await?;
     let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
     {
@@ -180,7 +180,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     // Sell tokens
     println!("Selling tokens from Raydium_amm_v4...");
 
-    let rpc = client.rpc.clone();
+    let rpc = client.infrastructure.rpc.clone();
     let payer = client.payer.pubkey();
     let account = get_associated_token_address_with_program_id_fast_use_seed(
         &payer,
@@ -193,7 +193,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     println!("Selling {} tokens", amount_token);
-    let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.rpc, trade_info.amm).await?;
+    let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, trade_info.amm).await?;
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
         output_token_type: if is_wsol { TradeTokenType::WSOL } else { TradeTokenType::USDC },

@@ -118,11 +118,11 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let client = create_solana_trade_client().await?;
     let mint_pubkey = trade_info.mint;
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
     let address_lookup_table_account =
-        fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
+        fetch_address_lookup_table_account(&client.infrastructure.rpc, &lookup_table_key).await.ok();
 
     let gas_fee_strategy = GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);

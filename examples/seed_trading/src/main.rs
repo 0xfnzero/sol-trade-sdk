@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = create_solana_trade_client().await?;
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let pool = Pubkey::from_str("9qKxzRejsV6Bp2zkefXWCbGvg61c3hHei7ShXJ4FythA").unwrap();
     let mint_pubkey = Pubkey::from_str("2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv").unwrap();
 
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpSwap(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
+            PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sell tokens
     println!("Selling tokens from PumpSwap...");
 
-    let rpc = client.rpc.clone();
+    let rpc = client.infrastructure.rpc.clone();
     let payer = client.payer.pubkey();
     let program_id = sol_trade_sdk::constants::TOKEN_PROGRAM;
     // ❗️❗️❗️❗️  Must use the 'use seed' method to get the ATA account, otherwise the transaction will fail
@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
         extension_params: DexParamEnum::PumpSwap(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool).await?,
+            PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool).await?,
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,

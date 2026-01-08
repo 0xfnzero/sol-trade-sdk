@@ -118,11 +118,11 @@ async fn pumpfun_copy_trade_with_grpc(trade_info: PumpFunTradeEvent) -> AnyResul
     let client = create_solana_trade_client().await?;
     let mint_pubkey = trade_info.mint;
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     // Setup nonce cache
     let nonce_account_str = Pubkey::from_str("use_your_nonce_account_here")?;
-    let durable_nonce = fetch_nonce_info(&client.rpc, nonce_account_str).await;
+    let durable_nonce = fetch_nonce_info(&client.infrastructure.rpc, nonce_account_str).await;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
