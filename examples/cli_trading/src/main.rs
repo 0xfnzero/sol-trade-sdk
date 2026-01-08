@@ -1090,7 +1090,7 @@ async fn handle_sell_pumpswap(
     match client.sell(sell_params).await {
         Ok((_, signature, _)) => {
             println!("   ✅ Successfully sold tokens from PumpSwap!");
-            println!("   ✅ Transaction Signature: {}", signature);
+            println!("   ✅ Transaction Signature: {:?}", signature);  
         }
         Err(e) => {
             println!("   ❌ Failed to sell tokens from PumpSwap: {}", e);
