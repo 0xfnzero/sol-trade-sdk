@@ -127,13 +127,13 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         trade_info.input_token_mint
     };
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 
     let buy_params =
-        RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &trade_info.pool_state).await?;
+        RaydiumCpmmParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &trade_info.pool_state).await?;
     
     let is_wsol = trade_info.input_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || trade_info.output_token_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
@@ -165,7 +165,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
     // Sell tokens
     println!("Selling tokens from Raydium_cpmm...");
 
-    let rpc = client.rpc.clone();
+    let rpc = client.infrastructure.rpc.clone();
     let payer = client.payer.pubkey();
     let account = get_associated_token_address(&payer, &mint_pubkey);
     let balance = rpc.get_token_account_balance(&account).await?;
@@ -173,7 +173,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     let sell_params =
-        RaydiumCpmmParams::from_pool_address_by_rpc(&client.rpc, &trade_info.pool_state).await?;
+        RaydiumCpmmParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &trade_info.pool_state).await?;
 
     println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {

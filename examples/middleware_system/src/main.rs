@@ -77,7 +77,7 @@ async fn test_middleware() -> AnyResult<()> {
     let mint_pubkey = Pubkey::from_str("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn")?;
     let buy_sol_cost = 100_000;
     let slippage_basis_points = Some(100);
-    let recent_blockhash = client.rpc.get_latest_blockhash().await?;
+    let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
     let pool_address = Pubkey::from_str("539m4mVWt6iduB6W8rDGPMarzNCMesuqY5eUTiiYHAgR")?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
@@ -91,7 +91,7 @@ async fn test_middleware() -> AnyResult<()> {
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpSwap(
-            PumpSwapParams::from_pool_address_by_rpc(&client.rpc, &pool_address).await?,
+            PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool_address).await?,
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
