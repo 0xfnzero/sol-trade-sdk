@@ -28,7 +28,8 @@ use crate::{
         SWQOS_MIN_TIP_ASTRALANE,
         SWQOS_MIN_TIP_STELLIUM,
         SWQOS_MIN_TIP_LIGHTSPEED,
-        SWQOS_MIN_TIP_SOYAS
+        SWQOS_MIN_TIP_SOYAS,
+        SWQOS_MIN_TIP_SPEEDLANDING
     },
 };
 
@@ -257,6 +258,7 @@ pub async fn execute_parallel(
                             SwqosType::Stellium => SWQOS_MIN_TIP_STELLIUM,
                             SwqosType::Lightspeed => SWQOS_MIN_TIP_LIGHTSPEED,
                             SwqosType::Soyas => SWQOS_MIN_TIP_SOYAS,
+                            SwqosType::Speedlanding => SWQOS_MIN_TIP_SPEEDLANDING,
                             SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
                         };
                         if config.2.tip < min_tip {

@@ -13,6 +13,7 @@ pub mod astralane;
 pub mod stellium;
 pub mod lightspeed;
 pub mod soyas;
+pub mod speedlanding;
 
 use std::sync::Arc;
 
@@ -35,7 +36,8 @@ use crate::{
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
         SWQOS_ENDPOINTS_STELLIUM,
-        SWQOS_ENDPOINTS_SOYAS
+        SWQOS_ENDPOINTS_SOYAS,
+        SWQOS_ENDPOINTS_SPEEDLANDING
     },
     swqos::{
         bloxroute::BloxrouteClient,
@@ -50,7 +52,8 @@ use crate::{
         astralane::AstralaneClient,
         stellium::StelliumClient,
         lightspeed::LightspeedClient,
-        soyas::SoyasClient
+        soyas::SoyasClient,
+        speedlanding::SpeedlandingClient,
     }
 };
 
@@ -99,6 +102,7 @@ pub enum SwqosType {
     Stellium,
     Lightspeed,
     Soyas,
+    Speedlanding,
     Default,
 }
 
@@ -173,6 +177,9 @@ pub enum SwqosConfig {
     Lightspeed(String, SwqosRegion, Option<String>),
     /// Soyas(api_token, region, custom_url)
     Soyas(String, SwqosRegion, Option<String>),
+    /// To apply for an API key, please contact -> https://t.me/speedlanding_bot?start=0xzero
+    /// Minimum tip: 0.001 SOL
+    Speedlanding(String, SwqosRegion, Option<String>),
 }
 
 impl SwqosConfig {
@@ -191,6 +198,7 @@ impl SwqosConfig {
             SwqosConfig::Stellium(_, _, _) => SwqosType::Stellium,
             SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
+            SwqosConfig::Speedlanding(_, _, _) => SwqosType::Speedlanding,
         }
     }
 
@@ -217,6 +225,7 @@ impl SwqosConfig {
             SwqosType::Stellium => SWQOS_ENDPOINTS_STELLIUM[region as usize].to_string(),
             SwqosType::Lightspeed => "".to_string(), // Lightspeed requires custom URL with api_key
             SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
+            SwqosType::Speedlanding => SWQOS_ENDPOINTS_SPEEDLANDING[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
         }
     }
@@ -330,6 +339,15 @@ impl SwqosConfig {
                     auth_token
                 ).await?;
                 Ok(Arc::new(soyas_client))
+            },
+            SwqosConfig::Speedlanding(auth_token, region, url) => {
+                let endpoint = SwqosConfig::get_endpoint(SwqosType::Speedlanding, region, url);
+                let speedlanding_client = SpeedlandingClient::new(
+                    rpc_url.clone(),
+                    endpoint.to_string(),
+                    auth_token
+                ).await?;
+                Ok(Arc::new(speedlanding_client))
             },
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(

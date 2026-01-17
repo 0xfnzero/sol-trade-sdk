@@ -130,6 +130,17 @@ pub const SOYAS_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("soyasE2abjBAynmHbGWgEwk4ctBy7JMTUCNrMbjcnyH"),
 ];
 
+pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("SpEEdz8S1KorkMZqjMUxfxrmWwofmp6ReNP2Nx6CUmq"),
+    pubkey!("SpeeDy3GJM4wcrQmk1itRFWgidvxX4rwjTLMv78wwjE"),
+    pubkey!("SPeEdva37vW8vRtqgYjprQs1g3965icfVN5Rt7SMAyh"),
+    pubkey!("speEdrSEpox5GUfHWcBc7tQjRuSfUin2yvB7qoYvvJh"),
+    pubkey!("SPeEDmkHkN3A2roSZf6aZyEMsmrGqTHKqwP51y2Y4rV"),
+    pubkey!("SpeedLdTJXh2RKpXEaP8JCxkWoUVXhtdPQ1EnxBJMxc"),
+    pubkey!("SpEediGKLbbXndSYTzwmz6Z3NDgHQLDcTDEvGFkSMH9"),
+    pubkey!("speede8xCcUq2Tiv1efXeTuE3k9TDNq8TnGKaKSc6J4"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -260,6 +271,17 @@ pub const SWQOS_ENDPOINTS_SOYAS: [&str; 8] = [
     "fra.landing.soyas.xyz:9000",
 ];
 
+pub const SWQOS_ENDPOINTS_SPEEDLANDING: [&str; 8] = [
+    "nyc.speedlanding.trade:17778",
+    "fra.speedlanding.trade:17778",
+    "ams.speedlanding.trade:17778",
+    "nyc.speedlanding.trade:17778",
+    "tyo.speedlanding.trade:17778",
+    "fra.speedlanding.trade:17778",
+    "nyc.speedlanding.trade:17778",
+    "fra.speedlanding.trade:17778",
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
@@ -273,3 +295,4 @@ pub const SWQOS_MIN_TIP_ASTRALANE: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_STELLIUM: f64 = 0.0001; // Stellium requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_LIGHTSPEED: f64 = 0.0001; // Lightspeed requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_SOYAS: f64 = 0.001; // Soyas requires minimum 0.001 SOL tip
+pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires minimum 0.001 SOL tip
