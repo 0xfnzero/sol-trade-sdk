@@ -117,6 +117,19 @@ pub const STELLIUM_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("ste11TMV68LMi1BguM4RQujtbNCZvf1sjsASpqgAvSX"),
 ];
 
+pub const FALCON_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("Fa1con11xLjPddfzRwRUB16sbFZggp2JeJkCeWREyR8X"),
+    pubkey!("Fa1con11TM1RuAQzbQzYjTy4Ekfap9Lnc9fnEbQYEd6Q"),
+    pubkey!("Fa1con113Bvi76nS5AzUiRDC2fqjfzkNMUNRLgQybMYt"),
+    pubkey!("Fa1con1QGHJK232s8yZpzZZwqPexnAKcoyKj626LNsMv"),
+    pubkey!("Fa1con1zUzb6qJVFz5tNkPq1Ahm8H1qKW7Q48252QbkQ"),
+    pubkey!("Fa1con16d3MSwd3SAiwvr2LwgkpE7ot8zntbpuec8HAx"),
+    pubkey!("Fa1con1i7mpa7Qc6epYJ6r4P9AbU77DFFz173r59Df1x"),
+    pubkey!("Fa1con18nWn8TdAGL7JX8PertfMUGVSc899NawokJ4Bq"),
+    pubkey!("Fa1con1GKusK2EqsfzrDzGPaYZSxQtFGzJiRMMU9Zm2g"),
+    pubkey!("Fa1con1RDwVwM9VrJ53CwVefD3VU9c58EMpDawV7fLMi"),
+];
+
 // Lightspeed (Solana Vibe Station) tip accounts
 pub const LIGHTSPEED_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("53PhM3UTdMQWu5t81wcd35AHGc5xpmHoRjem7GQPvXjA"),
@@ -260,6 +273,17 @@ pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [
     "http://fra1.flashrpc.com",
 ];
 
+pub const SWQOS_ENDPOINTS_FALCON: [&str; 8] = [
+    "http://nyc.falcon.wtf",
+    "http://fra.falcon.wtf",
+    "http://ams.falcon.wtf",
+    "http://nyc.falcon.wtf",
+    "http://tyo.falcon.wtf",
+    "http://lon.falcon.wtf",
+    "http://nyc.falcon.wtf",
+    "http://fra.falcon.wtf",
+];
+
 pub const SWQOS_ENDPOINTS_SOYAS: [&str; 8] = [
     "nyc.landing.soyas.xyz:9000",
     "fra.landing.soyas.xyz:9000",
@@ -294,5 +318,6 @@ pub const SWQOS_MIN_TIP_BLOCKRAZOR: f64 = 0.0001;
 pub const SWQOS_MIN_TIP_ASTRALANE: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_STELLIUM: f64 = 0.0001; // Stellium requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_LIGHTSPEED: f64 = 0.0001; // Lightspeed requires minimum 0.001 SOL tip
+pub const SWQOS_MIN_TIP_FALCON: f64 = 0.001; // Falcon requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_SOYAS: f64 = 0.001; // Soyas requires minimum 0.001 SOL tip
 pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires minimum 0.001 SOL tip

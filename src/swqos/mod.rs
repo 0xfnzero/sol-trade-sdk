@@ -14,6 +14,7 @@ pub mod stellium;
 pub mod lightspeed;
 pub mod soyas;
 pub mod speedlanding;
+pub mod falcon;
 
 use std::sync::Arc;
 
@@ -36,6 +37,7 @@ use crate::{
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
         SWQOS_ENDPOINTS_STELLIUM,
+        SWQOS_ENDPOINTS_FALCON,
         SWQOS_ENDPOINTS_SOYAS,
         SWQOS_ENDPOINTS_SPEEDLANDING
     },
@@ -52,6 +54,7 @@ use crate::{
         astralane::AstralaneClient,
         stellium::StelliumClient,
         lightspeed::LightspeedClient,
+        falcon::FalconClient,
         soyas::SoyasClient,
         speedlanding::SpeedlandingClient,
     }
@@ -101,6 +104,7 @@ pub enum SwqosType {
     Astralane,
     Stellium,
     Lightspeed,
+    Falcon,
     Soyas,
     Speedlanding,
     Default,
@@ -120,6 +124,7 @@ impl SwqosType {
             Self::Astralane,
             Self::Stellium,
             Self::Lightspeed,
+            Self::Falcon,
             Self::Soyas,
             Self::Default,
         ]
@@ -175,6 +180,10 @@ pub enum SwqosConfig {
     /// Endpoint format: https://<tier>.rpc.solanavibestation.com/lightspeed?api_key=<key>
     /// Minimum tip: 0.001 SOL
     Lightspeed(String, SwqosRegion, Option<String>),
+    /// Falcon(api_key, region, custom_url)
+    /// Endpoint format: http://<region>.falcon.wtf/?api-key=<uuid>
+    /// Minimum tip: 0.001 SOL
+    Falcon(String, SwqosRegion, Option<String>),
     /// Soyas(api_token, region, custom_url)
     Soyas(String, SwqosRegion, Option<String>),
     /// To apply for an API key, please contact -> https://t.me/speedlanding_bot?start=0xzero
@@ -197,6 +206,7 @@ impl SwqosConfig {
             SwqosConfig::Astralane(_, _, _) => SwqosType::Astralane,
             SwqosConfig::Stellium(_, _, _) => SwqosType::Stellium,
             SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
+            SwqosConfig::Falcon(_, _, _) => SwqosType::Falcon,
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
             SwqosConfig::Speedlanding(_, _, _) => SwqosType::Speedlanding,
         }
@@ -224,6 +234,7 @@ impl SwqosConfig {
             SwqosType::Astralane => SWQOS_ENDPOINTS_ASTRALANE[region as usize].to_string(),
             SwqosType::Stellium => SWQOS_ENDPOINTS_STELLIUM[region as usize].to_string(),
             SwqosType::Lightspeed => "".to_string(), // Lightspeed requires custom URL with api_key
+            SwqosType::Falcon => SWQOS_ENDPOINTS_FALCON[region as usize].to_string(),
             SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
             SwqosType::Speedlanding => SWQOS_ENDPOINTS_SPEEDLANDING[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
@@ -330,6 +341,15 @@ impl SwqosConfig {
                     auth_token
                 );
                 Ok(Arc::new(lightspeed_client))
+            },
+            SwqosConfig::Falcon(auth_token, region, url) => {
+                let endpoint = SwqosConfig::get_endpoint(SwqosType::Falcon, region, url);
+                let falcon_client = FalconClient::new(
+                    rpc_url.clone(),
+                    endpoint.to_string(),
+                    auth_token
+                );
+                Ok(Arc::new(falcon_client))
             },
             SwqosConfig::Soyas(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Soyas, region, url);
