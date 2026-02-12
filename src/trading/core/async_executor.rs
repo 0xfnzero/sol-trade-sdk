@@ -38,6 +38,7 @@ struct TaskResult {
     success: bool,
     signature: Signature,
     error: Option<anyhow::Error>,
+    #[allow(dead_code)]
     swqos_type: SwqosType,  // 🔧 增加：记录SWQOS类型
     landed_on_chain: bool,  // 🔧 Whether tx landed on-chain (even if failed)
 }
@@ -349,6 +350,7 @@ pub async fn execute_parallel(
 
             let _send_start = Instant::now();
             let mut err: Option<anyhow::Error> = None;
+            #[allow(unused_assignments)]
             let mut landed_on_chain = false;
             let success = match swqos_client
                 .send_transaction(

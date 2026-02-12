@@ -8,6 +8,7 @@ pub mod utils;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::GasFeeStrategy;
 use crate::common::{TradeConfig, InfrastructureConfig};
+#[cfg(feature = "perf-trace")]
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
 use crate::constants::USD1_TOKEN_ACCOUNT;
@@ -286,7 +287,13 @@ impl TradingClient {
         crate::common::fast_fn::fast_init(&payer.pubkey());
 
         if create_wsol_ata {
-            Self::ensure_wsol_ata(&payer, &infrastructure.rpc).await;
+            // 在后台异步创建 WSOL ATA，不阻塞启动
+            let payer_clone = payer.clone();
+            let rpc_clone = infrastructure.rpc.clone();
+            tokio::spawn(async move {
+                Self::ensure_wsol_ata(&payer_clone, &rpc_clone).await;
+            });
+            println!("ℹ️ WSOL ATA 创建已在后台启动，不阻塞机器人启动");
         }
 
         Self {
@@ -309,6 +316,7 @@ impl TradingClient {
         match rpc.get_account(&wsol_ata).await {
             Ok(_) => {
                 println!("✅ WSOL ATA已存在: {}", wsol_ata);
+                return;
             }
             Err(_) => {
                 println!("🔨 创建WSOL ATA: {}", wsol_ata);
@@ -317,34 +325,86 @@ impl TradingClient {
 
                 if !create_ata_ixs.is_empty() {
                     use solana_sdk::transaction::Transaction;
-                    let recent_blockhash = rpc.get_latest_blockhash().await.unwrap();
-                    let tx = Transaction::new_signed_with_payer(
-                        &create_ata_ixs,
-                        Some(&payer.pubkey()),
-                        &[payer.as_ref()],
-                        recent_blockhash,
-                    );
 
-                    match rpc.send_and_confirm_transaction(&tx).await {
-                        Ok(signature) => {
-                            println!("✅ WSOL ATA创建成功: {}", signature);
+                    // 重试逻辑：最多尝试3次，每次超时10秒
+                    const MAX_RETRIES: usize = 3;
+                    const TIMEOUT_SECS: u64 = 10;
+                    let mut last_error = None;
+
+                    for attempt in 1..=MAX_RETRIES {
+                        if attempt > 1 {
+                            println!("🔄 重试创建WSOL ATA (第{}/{}次)...", attempt, MAX_RETRIES);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                         }
-                        Err(e) => {
-                            match rpc.get_account(&wsol_ata).await {
-                                Ok(_) => {
+
+                        let recent_blockhash = match rpc.get_latest_blockhash().await {
+                            Ok(hash) => hash,
+                            Err(e) => {
+                                eprintln!("⚠️ 获取最新blockhash失败: {}", e);
+                                last_error = Some(format!("获取blockhash失败: {}", e));
+                                continue;
+                            }
+                        };
+
+                        let tx = Transaction::new_signed_with_payer(
+                            &create_ata_ixs,
+                            Some(&payer.pubkey()),
+                            &[payer.as_ref()],
+                            recent_blockhash,
+                        );
+
+                        // 使用超时包装 send_and_confirm_transaction
+                        let send_result = tokio::time::timeout(
+                            tokio::time::Duration::from_secs(TIMEOUT_SECS),
+                            rpc.send_and_confirm_transaction(&tx)
+                        ).await;
+
+                        match send_result {
+                            Ok(Ok(signature)) => {
+                                println!("✅ WSOL ATA创建成功: {}", signature);
+                                return;
+                            }
+                            Ok(Err(e)) => {
+                                last_error = Some(format!("{}", e));
+
+                                // 检查账户是否实际已存在
+                                if let Ok(_) = rpc.get_account(&wsol_ata).await {
                                     println!(
                                         "✅ WSOL ATA已存在（交易失败但账户存在）: {}",
                                         wsol_ata
                                     );
+                                    return;
                                 }
-                                Err(_) => {
-                                    panic!(
-                                        "❌ WSOL ATA创建失败且账户不存在: {}. 错误: {}",
-                                        wsol_ata, e
-                                    );
+
+                                if attempt < MAX_RETRIES {
+                                    eprintln!("⚠️ 第{}次尝试失败: {}", attempt, e);
                                 }
                             }
+                            Err(_) => {
+                                last_error = Some(format!("交易确认超时（{}秒）", TIMEOUT_SECS));
+                                eprintln!("⚠️ 第{}次尝试超时", attempt);
+                            }
                         }
+                    }
+
+                    // 所有重试都失败了
+                    if let Some(err) = last_error {
+                        eprintln!("❌ WSOL ATA创建失败（已重试{}次）: {}", MAX_RETRIES, wsol_ata);
+                        eprintln!("   错误详情: {}", err);
+                        eprintln!("   💡 可能原因:");
+                        eprintln!("      1. 钱包SOL余额不足（需要约0.002 SOL用于租金豁免）");
+                        eprintln!("      2. RPC节点响应超时或网络拥堵");
+                        eprintln!("      3. 交易费用不足");
+                        eprintln!("   🔧 解决方案:");
+                        eprintln!("      1. 给钱包充值至少0.1 SOL");
+                        eprintln!("      2. 等待几秒后重试");
+                        eprintln!("      3. 检查RPC节点连接");
+                        eprintln!("   ⚠️ 程序将在5秒后退出，请解决上述问题后重启");
+                        std::thread::sleep(std::time::Duration::from_secs(5));
+                        panic!(
+                            "❌ WSOL ATA创建失败且账户不存在: {}. 错误: {}",
+                            wsol_ata, err
+                        );
                     }
                 } else {
                     println!("ℹ️ WSOL ATA已存在（无需创建）");

@@ -11,14 +11,13 @@ use super::{
 };
 use crate::{
     common::{nonce_cache::DurableNonceInfo, SolanaRpcClient},
-    constants::swqos::NODE1_TIP_ACCOUNTS,
     trading::{MiddlewareManager, core::transaction_pool::{acquire_builder, release_builder}},
 };
 
 /// Build standard RPC transaction
 pub async fn build_transaction(
     payer: Arc<Keypair>,
-    rpc: Option<Arc<SolanaRpcClient>>,
+    _rpc: Option<Arc<SolanaRpcClient>>,
     unit_limit: u32,
     unit_price: u64,
     business_instructions: Vec<Instruction>,

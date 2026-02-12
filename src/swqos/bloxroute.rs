@@ -111,7 +111,7 @@ impl BloxrouteClient {
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, _wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
 
         let body = serde_json::json!({

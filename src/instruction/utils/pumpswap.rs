@@ -227,6 +227,7 @@ pub async fn find_by_base_mint(
         sort_results: None,
     };
     let program_id = accounts::AMM_PROGRAM;
+    #[allow(deprecated)]
     let accounts = rpc.get_program_accounts_with_config(&program_id, config).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", base_mint));
@@ -277,6 +278,7 @@ pub async fn find_by_quote_mint(
         sort_results: None,
     };
     let program_id = accounts::AMM_PROGRAM;
+    #[allow(deprecated)]
     let accounts = rpc.get_program_accounts_with_config(&program_id, config).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", quote_mint));

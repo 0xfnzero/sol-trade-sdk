@@ -11,7 +11,7 @@ use crate::{
     perf::syscall_bypass::SystemCallBypassManager,
     trading::core::{
         async_executor::execute_parallel,
-        execution::{ExecutionPath, InstructionProcessor, Prefetch},
+        execution::{InstructionProcessor, Prefetch},
         traits::TradeExecutor,
     },
     trading::MiddlewareManager,
