@@ -107,6 +107,8 @@ impl PumpFunParams {
         }
     }
 
+    /// When building from event/parser (e.g. sol-parser-sdk), pass `is_cashback_coin` from the event
+    /// so that sell instructions include the correct remaining accounts for cashback.
     pub fn from_dev_trade(
         mint: Pubkey,
         token_amount: u64,
@@ -118,6 +120,7 @@ impl PumpFunParams {
         close_token_account_when_sell: Option<bool>,
         fee_recipient: Pubkey,
         token_program: Pubkey,
+        is_cashback_coin: bool,
     ) -> Self {
         let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve_account = BondingCurveAccount::from_dev_trade(
@@ -127,6 +130,7 @@ impl PumpFunParams {
             max_sol_cost,
             creator,
             is_mayhem_mode,
+            is_cashback_coin,
         );
         Self {
             bonding_curve: Arc::new(bonding_curve_account),
@@ -137,6 +141,8 @@ impl PumpFunParams {
         }
     }
 
+    /// When building from event/parser (e.g. sol-parser-sdk), pass `is_cashback_coin` from the event
+    /// so that sell instructions include the correct remaining accounts for cashback.
     pub fn from_trade(
         bonding_curve: Pubkey,
         associated_bonding_curve: Pubkey,
@@ -150,6 +156,7 @@ impl PumpFunParams {
         close_token_account_when_sell: Option<bool>,
         fee_recipient: Pubkey,
         token_program: Pubkey,
+        is_cashback_coin: bool,
     ) -> Self {
         let is_mayhem_mode = fee_recipient == MAYHEM_FEE_RECIPIENT;
         let bonding_curve = BondingCurveAccount::from_trade(
@@ -161,6 +168,7 @@ impl PumpFunParams {
             real_token_reserves,
             real_sol_reserves,
             is_mayhem_mode,
+            is_cashback_coin,
         );
         Self {
             bonding_curve: Arc::new(bonding_curve),

@@ -1,3 +1,15 @@
+//! PumpFun 狙击示例（仅使用 sol-parser-sdk 订阅 gRPC 事件）
+//!
+//! 监听创建者首次买入（Create 后同笔/首笔 Buy，is_created_buy == true），
+//! 用事件参数（含 is_cashback_coin）构造 from_dev_trade 并执行一次买+卖。
+
+use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+
+use sol_parser_sdk::grpc::{
+    AccountFilter, ClientConfig, EventType, EventTypeFilter, OrderMode, Protocol,
+    TransactionFilter, YellowstoneGrpc,
+};
+use sol_parser_sdk::DexEvent;
 use sol_trade_sdk::common::spl_associated_token_account::get_associated_token_address;
 use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::TradeTokenType;
@@ -10,108 +22,120 @@ use sol_trade_sdk::{
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
-use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
-use solana_streamer_sdk::streaming::event_parser::common::EventType;
-use solana_streamer_sdk::streaming::event_parser::protocols::pumpfun::PumpFunTradeEvent;
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 
-/// Atomic flag to ensure the sniper trade is executed only once
 static ALREADY_EXECUTED: AtomicBool = AtomicBool::new(false);
 
-/// Main entry point - subscribes to PumpFun events and executes sniper trades on token creation
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Subscribing to ShredStream events...");
-    let shred_stream = ShredStreamGrpc::new("use_your_shred_stream_url_here".to_string()).await?;
-    let callback = create_event_callback();
-    let protocols = vec![Protocol::PumpFun];
-    let event_type_filter = EventTypeFilter {
-        include: vec![EventType::PumpFunBuy, EventType::PumpFunSell, EventType::PumpFunCreateToken],
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    println!("PumpFun 狙击示例（sol-parser-sdk gRPC）...");
+
+    let config = ClientConfig {
+        enable_metrics: false,
+        connection_timeout_ms: 10000,
+        request_timeout_ms: 30000,
+        enable_tls: true,
+        order_mode: OrderMode::Unordered,
+        ..Default::default()
     };
-    println!("Starting to listen for events, press Ctrl+C to stop...");
-    shred_stream.shredstream_subscribe(protocols, None, Some(event_type_filter), callback).await?;
+
+    let grpc_endpoint = std::env::var("GRPC_ENDPOINT")
+        .unwrap_or_else(|_| "https://solana-yellowstone-grpc.publicnode.com:443".to_string());
+    let grpc = YellowstoneGrpc::new_with_config(
+        grpc_endpoint,
+        std::env::var("GRPC_AUTH_TOKEN").ok(),
+        config,
+    )?;
+
+    let protocols = vec![Protocol::PumpFun];
+    let transaction_filter = TransactionFilter::for_protocols(&protocols);
+    let account_filter = AccountFilter::for_protocols(&protocols);
+    let event_filter = EventTypeFilter::include_only(vec![
+        EventType::PumpFunCreate,
+        EventType::PumpFunBuy,
+        EventType::PumpFunBuyExactSolIn,
+    ]);
+
+    let queue = grpc
+        .subscribe_dex_events(vec![transaction_filter], vec![account_filter], Some(event_filter))
+        .await?;
+
+    println!("订阅已启动，等待创建者首次买入（is_created_buy）后执行狙击（仅一次）...\n");
+
+    loop {
+        if let Some(event) = queue.pop() {
+            let run = match &event {
+                DexEvent::PumpFunBuy(e) | DexEvent::PumpFunBuyExactSolIn(e) => {
+                    if e.is_created_buy && !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+                        Some(e.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some(e) = run {
+                tokio::spawn(async move {
+                    if let Err(err) = pumpfun_sniper_trade(e).await {
+                        eprintln!("狙击执行错误: {:?}", err);
+                        std::process::exit(1);
+                    }
+                    std::process::exit(0);
+                });
+                break;
+            }
+        } else {
+            tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
+        }
+    }
+
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
 
-/// Create an event callback function that handles different types of events
-fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
-    |event: Box<dyn UnifiedEvent>| {
-        match_event!(event, {
-            PumpFunTradeEvent => |e: PumpFunTradeEvent| {
-                // Only process developer token creation events
-                if !e.is_dev_create_token_trade {
-                    return;
-                }
-                // Ensure we only execute the trade once using atomic compare-and-swap
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    // Spawn a new task to handle the trading operation
-                    tokio::spawn(async move {
-                        if let Err(err) = pumpfun_sniper_trade_with_shreds(event_clone).await {
-                            eprintln!("Error in copy trade: {:?}", err);
-                            std::process::exit(0);
-                        }
-                    });
-                }
-            },
-        });
-    }
-}
-
-/// Create SolanaTrade client
-/// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    println!("🚀 Initializing SolanaTrade client...");
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
-    let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
+    let rpc_url = std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
-    let solana_trade = SolanaTrade::new(Arc::new(payer), trade_config).await;
-    println!("✅ SolanaTrade client initialized successfully!");
-    Ok(solana_trade)
+    Ok(SolanaTrade::new(Arc::new(payer), trade_config).await)
 }
 
-/// Execute PumpFun sniper trading strategy based on received token creation event
-/// This function buys tokens immediately after creation and then sells all tokens
-async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyResult<()> {
-    println!("Testing PumpFun trading...");
-
+async fn pumpfun_sniper_trade(
+    e: sol_parser_sdk::core::events::PumpFunTradeEvent,
+) -> AnyResult<()> {
     let client = create_solana_trade_client().await?;
-    let mint_pubkey = trade_info.mint;
-    let slippage_basis_points = Some(300);
+    let mint_pubkey = e.mint;
+    let slippage_basis_points = Some(300u64);
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 
-    // Buy tokens
-    println!("Buying tokens from PumpFun...");
-    let buy_sol_amount = 100_000;
+    // 创建者首次买入：用 from_dev_trade，max_sol_cost 用事件中的 sol_amount（可酌情加滑点）
+    let buy_sol_amount = 100_000u64;
+    let max_sol_cost = e.sol_amount.saturating_add(e.sol_amount / 10); // 约 +10% 作为上限
+
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::PumpFun,
         input_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
         input_token_amount: buy_sol_amount,
-        slippage_basis_points: slippage_basis_points,
+        slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpFun(PumpFunParams::from_dev_trade(
-            trade_info.mint,
-            trade_info.token_amount,
-            trade_info.max_sol_cost,
-            trade_info.creator,
-            trade_info.bonding_curve,
-            trade_info.associated_bonding_curve,
-            trade_info.creator_vault,
+            e.mint,
+            e.token_amount,
+            max_sol_cost,
+            e.creator,
+            e.bonding_curve,
+            e.associated_bonding_curve,
+            e.creator_vault,
             None,
-            trade_info.fee_recipient,
-            trade_info.token_program,
+            e.fee_recipient,
+            e.token_program,
+            e.is_cashback_coin,
         )),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
@@ -126,26 +150,35 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
     };
     client.buy(buy_params).await?;
 
-    // Sell tokens
-    println!("Selling tokens from PumpFun...");
-
     let rpc = client.infrastructure.rpc.clone();
     let payer = client.payer.pubkey();
     let account = get_associated_token_address(&payer, &mint_pubkey);
     let balance = rpc.get_token_account_balance(&account).await?;
-    println!("Balance: {:?}", balance);
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
-    println!("Selling {} tokens", amount_token);
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpFun,
         output_token_type: TradeTokenType::SOL,
         mint: mint_pubkey,
         input_token_amount: amount_token,
-        slippage_basis_points: slippage_basis_points,
+        slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         with_tip: false,
-        extension_params: DexParamEnum::PumpFun(PumpFunParams::immediate_sell(trade_info.creator_vault, trade_info.token_program, true)),
+        extension_params: DexParamEnum::PumpFun(PumpFunParams::from_trade(
+            e.bonding_curve,
+            e.associated_bonding_curve,
+            e.mint,
+            e.creator,
+            e.creator_vault,
+            e.virtual_token_reserves,
+            e.virtual_sol_reserves,
+            e.real_token_reserves,
+            e.real_sol_reserves,
+            Some(true),
+            e.fee_recipient,
+            e.token_program,
+            e.is_cashback_coin,
+        )),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,
         create_output_token_ata: true,
@@ -153,14 +186,11 @@ async fn pumpfun_sniper_trade_with_shreds(trade_info: PumpFunTradeEvent) -> AnyR
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
     };
     client.sell(sell_params).await?;
 
-    // PumpFunParams can also be set as PumpFunParams::immediate_sell(creator_vault, close_token_account_when_sell)
-    // creator_vault can be obtained from the trade event
-
-    // Exit program after completing the trade
-    std::process::exit(0);
+    println!("狙击一次买+卖完成");
+    Ok(())
 }

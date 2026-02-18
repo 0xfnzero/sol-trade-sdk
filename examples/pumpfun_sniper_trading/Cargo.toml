@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sol-trade-sdk = { path = "../.." }
-solana-streamer-sdk = "0.5.0"
+sol-parser-sdk = { path = "../../../sol-parser-sdk" }
 solana-sdk = "3.0.0"
 solana-commitment-config = { version = "3.0.0", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }

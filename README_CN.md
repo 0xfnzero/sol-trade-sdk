@@ -47,7 +47,7 @@
   - [📋 使用示例](#-使用示例)
   - [⚡ 交易参数](#-交易参数)
   - [📊 使用示例汇总表格](#-使用示例汇总表格)
-  - [⚙️ SWQOS 服务配置说明](#️-swqos-服务配置说明)
+  - [⚙️ SWQoS 服务配置说明](#️-swqos-服务配置说明)
   - [🔧 中间件系统说明](#-中间件系统说明)
   - [🔍 地址查找表](#-地址查找表)
   - [🔍 Nonce 缓存](#-nonce-缓存)
@@ -72,7 +72,7 @@
 8. **并发交易**: 同时使用多个 MEV 服务发送交易，最快的成功，其他失败
 9. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 10. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
-11. **共享基础设施**: 多钱包可共享同一套 RPC 与 SWQOS 客户端，降低资源占用
+11. **共享基础设施**: 多钱包可共享同一套 RPC 与 SWQoS 客户端，降低资源占用
 
 ## 📦 安装
 
@@ -114,7 +114,7 @@ let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
 // RPC 地址
 let rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx".to_string();
 let commitment = CommitmentConfig::processed();
-// 可配置多个 SWQOS 服务
+// 可配置多个 SWQoS 服务
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
@@ -222,16 +222,16 @@ client.buy(buy_params).await?;
 | Seed 优化交易示例 | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
 | Gas费用策略示例 | `cargo run --package gas_fee_strategy` | [examples/gas_fee_strategy](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/gas_fee_strategy/src/main.rs) |
 
-### ⚙️ SWQOS 服务配置说明
+### ⚙️ SWQoS 服务配置说明
 
-在配置 SWQOS 服务时，需要注意不同服务的参数要求：
+在配置 SWQoS 服务时，需要注意不同服务的参数要求：
 
 - **Jito**: 第一个参数为 UUID（如无 UUID 请传入空字符串 `""`）
 - 其他的MEV服务，第一个参数为 API Token
 
 #### 自定义 URL 支持
 
-每个 SWQOS 服务现在都支持可选的自定义 URL 参数：
+每个 SWQoS 服务现在都支持可选的自定义 URL 参数：
 
 ```rust
 // 使用自定义 URL（第三个参数）
@@ -279,10 +279,14 @@ let middleware_manager = MiddlewareManager::new()
 
 ## 💰 Cashback 支持（PumpFun / PumpSwap）
 
-PumpFun 与 PumpSwap 支持**返现（Cashback）**：部分手续费可返还给用户。使用本 SDK 执行 `buy` / `sell` 时，按正常方式提交交易即可；若代币已开启返现，协议会按规则自动结算返现。
+PumpFun 与 PumpSwap 支持**返现（Cashback）**：部分手续费可返还给用户。SDK **必须知道**该代币是否开启返现，才能为 buy/sell 指令传入正确的账户（例如返现代币需要把 `UserVolumeAccumulator` 作为 remaining account）。
 
-- **交易侧**：无需改代码，照常使用 `TradeBuyParams` / `TradeSellParams`，返现由链上处理。
-- **事件解析**：若通过事件驱动（如 [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)）消费链上事件，可获取返现相关字段（如 `cashback_fee_basis_points`、`cashback`、`is_cashback_enabled`），便于策略或统计与返现逻辑结合。
+- **参数来自 RPC 时**：使用 `PumpFunParams::from_mint_by_rpc` 或 `PumpSwapParams::from_pool_address_by_rpc` / `from_mint_by_rpc` 时，SDK 会从链上读取 `is_cashback_coin`，无需额外传入。
+- **参数来自事件/解析器时**：若根据交易事件（如 [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)）构建参数，**必须**把返现标志传给 SDK：
+  - **PumpFun**：`PumpFunParams::from_trade(..., is_cashback_coin)` 与 `PumpFunParams::from_dev_trade(..., is_cashback_coin)` 最后一个参数为 `is_cashback_coin`。从解析出的事件传入（如 sol-parser-sdk 的 `PumpFunTradeEvent.is_cashback_coin`）。
+  - **PumpSwap**：`PumpSwapParams` 有字段 `is_cashback_coin`。手动构造参数（如从池/交易事件）时，从解析到的池或事件数据中设置该字段。
+- **pumpfun_copy_trading**、**pumpfun_sniper_trading** 示例使用 sol-parser-sdk 订阅 gRPC 事件，并在构造参数时传入 `e.is_cashback_coin`。
+- **领取返现**：使用 `client.claim_cashback_pumpfun()` 和 `client.claim_cashback_pumpswap(...)` 领取累计的返现。
 
 ## 🛡️ MEV 保护服务
 
