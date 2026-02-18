@@ -51,6 +51,7 @@
   - [🔧 Middleware System](#-middleware-system)
   - [🔍 Address Lookup Tables](#-address-lookup-tables)
   - [🔍 Nonce Cache](#-nonce-cache)
+- [💰 Cashback Support (PumpFun / PumpSwap)](#-cashback-support-pumpfun--pumpswap)
 - [🛡️ MEV Protection Services](#️-mev-protection-services)
 - [📁 Project Structure](#-project-structure)
 - [📄 License](#-license)
@@ -121,6 +122,10 @@ let swqos_configs: Vec<SwqosConfig> = vec![
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
+
+// Optional: customize WSOL ATA and seed optimization
+// let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
+//     .with_wsol_ata_config(true, true);  // create_wsol_ata_on_startup, use_seed_optimize
 
 // Create TradingClient
 let client = TradingClient::new(Arc::new(payer), trade_config).await;
@@ -272,6 +277,13 @@ Address Lookup Tables (ALT) allow you to optimize transaction size and reduce fe
 ### 🔍 Durable Nonce
 
 Use Durable Nonce to implement transaction replay protection and optimize transaction processing. For detailed information, see the [Durable Nonce Guide](docs/NONCE_CACHE.md).
+
+## 💰 Cashback Support (PumpFun / PumpSwap)
+
+PumpFun and PumpSwap support **cashback** for eligible tokens: part of the trading fee can be returned to the user. When you use this SDK to execute `buy` or `sell`, the transaction is submitted as usual; if the token has cashback enabled, the protocol will credit cashback according to its rules.
+
+- **Trading**: No change to your code—use `TradeBuyParams` / `TradeSellParams` as normal. Cashback is handled on-chain.
+- **Event parsing**: If you consume chain events (e.g. via [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)), trade events can expose cashback-related fields (e.g. `cashback_fee_basis_points`, `cashback`, `is_cashback_enabled`) so your strategy or analytics can be cashback-aware.
 
 ## 🛡️ MEV Protection Services
 
