@@ -1,7 +1,8 @@
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::utils::pumpswap::{
-        accounts, fee_recipient_ata, get_user_volume_accumulator_pda, BUY_DISCRIMINATOR,
+        accounts, fee_recipient_ata, get_user_volume_accumulator_pda,
+        get_user_volume_accumulator_wsol_ata, BUY_DISCRIMINATOR,
         BUY_EXACT_QUOTE_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
     },
     trading::{
@@ -183,6 +184,12 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
+        // Cashback: remaining_accounts[0] = WSOL ATA of UserVolumeAccumulator (after named accounts per IDL)
+        if protocol_params.is_cashback_coin {
+            if let Some(wsol_ata) = get_user_volume_accumulator_wsol_ata(&params.payer.pubkey()) {
+                accounts.push(AccountMeta::new(wsol_ata, false));
+            }
+        }
 
         // Create instruction data
         let mut data = [0u8; 24];
@@ -373,9 +380,18 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 false,
             ));
         }
-
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
+        // Cashback: remaining_accounts[0] = WSOL ATA of UserVolumeAccumulator, remaining_accounts[1] = UserVolumeAccumulator PDA
+        if protocol_params.is_cashback_coin {
+            if let (Some(wsol_ata), Some(accumulator)) = (
+                get_user_volume_accumulator_wsol_ata(&params.payer.pubkey()),
+                get_user_volume_accumulator_pda(&params.payer.pubkey()),
+            ) {
+                accounts.push(AccountMeta::new(wsol_ata, false));
+                accounts.push(AccountMeta::new(accumulator, false));
+            }
+        }
 
         // Create instruction data
         let mut data = [0u8; 24];
@@ -419,4 +435,39 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
         Ok(instructions)
     }
+}
+
+/// Claim cashback for PumpSwap (AMM). Transfers WSOL from UserVolumeAccumulator's WSOL ATA to user's WSOL ATA.
+/// Caller should ensure user's WSOL ATA exists (e.g. create idempotent ATA instruction) before this instruction.
+pub fn claim_cashback_pumpswap_instruction(
+    payer: &Pubkey,
+    quote_mint: Pubkey,
+    quote_token_program: Pubkey,
+) -> Option<solana_sdk::instruction::Instruction> {
+    const CLAIM_CASHBACK_DISCRIMINATOR: [u8; 8] = [37, 58, 35, 126, 190, 53, 228, 197];
+    let user_volume_accumulator = get_user_volume_accumulator_pda(payer)?;
+    let user_volume_accumulator_wsol_ata = get_user_volume_accumulator_wsol_ata(payer)?;
+    let user_wsol_ata = crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+        payer,
+        &quote_mint,
+        &quote_token_program,
+    );
+    // IDL order: user, user_volume_accumulator, quote_mint, quote_token_program,
+    // user_volume_accumulator_wsol_token_account, user_wsol_token_account, system_program, event_authority, program
+    let accounts = vec![
+        AccountMeta::new(*payer, true),                              // user (signer, writable)
+        AccountMeta::new(user_volume_accumulator, false),            // user_volume_accumulator (writable)
+        AccountMeta::new_readonly(quote_mint, false),
+        AccountMeta::new_readonly(quote_token_program, false),
+        AccountMeta::new(user_volume_accumulator_wsol_ata, false),   // writable
+        AccountMeta::new(user_wsol_ata, false),                      // writable
+        crate::constants::SYSTEM_PROGRAM_META,
+        accounts::EVENT_AUTHORITY_META,
+        accounts::AMM_PROGRAM_META,
+    ];
+    Some(solana_sdk::instruction::Instruction::new_with_bytes(
+        accounts::AMM_PROGRAM,
+        &CLAIM_CASHBACK_DISCRIMINATOR,
+        accounts,
+    ))
 }

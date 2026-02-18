@@ -60,6 +60,8 @@ pub struct BondingCurveAccount {
     pub creator: Pubkey,
     /// Whether this is a mayhem mode token (Token2022)
     pub is_mayhem_mode: bool,
+    /// Whether this coin has cashback enabled (creator fee redirected to users)
+    pub is_cashback_coin: bool,
 }
 
 impl BondingCurveAccount {
@@ -87,6 +89,7 @@ impl BondingCurveAccount {
             complete: false,
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
+            is_cashback_coin: false,
         }
     }
 
@@ -116,6 +119,7 @@ impl BondingCurveAccount {
             complete: false,
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
+            is_cashback_coin: false,
         }
     }
 

@@ -902,4 +902,53 @@ impl TradingClient {
         let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())
     }
+
+    /// Claim Bonding Curve (Pump) cashback.
+    ///
+    /// Transfers native SOL from the user's UserVolumeAccumulator to the wallet.
+    /// If there is nothing to claim, the transaction may still succeed with no SOL transferred.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Transaction signature
+    /// * `Err(anyhow::Error)` - Build or send failure (e.g. invalid PDA)
+    pub async fn claim_cashback_pumpfun(&self) -> Result<String, anyhow::Error> {
+        use solana_sdk::transaction::Transaction;
+        let ix = crate::instruction::pumpfun::claim_cashback_pumpfun_instruction(&self.payer.pubkey())
+            .ok_or_else(|| anyhow::anyhow!("Failed to build PumpFun claim_cashback instruction"))?;
+        let recent_blockhash = self.infrastructure.rpc.get_latest_blockhash().await?;
+        let mut transaction = Transaction::new_with_payer(&[ix], Some(&self.payer.pubkey()));
+        transaction.sign(&[&*self.payer], recent_blockhash);
+        let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
+        Ok(signature.to_string())
+    }
+
+    /// Claim PumpSwap (AMM) cashback.
+    ///
+    /// Transfers WSOL from the UserVolumeAccumulator to the user's WSOL ATA.
+    /// Creates the user's WSOL ATA idempotently if it does not exist, then claims.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - Transaction signature
+    /// * `Err(anyhow::Error)` - Build or send failure
+    pub async fn claim_cashback_pumpswap(&self) -> Result<String, anyhow::Error> {
+        use solana_sdk::transaction::Transaction;
+        let mut instructions = crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
+            &self.payer.pubkey(),
+            &self.payer.pubkey(),
+            &WSOL_TOKEN_ACCOUNT,
+            &crate::constants::TOKEN_PROGRAM,
+            self.use_seed_optimize,
+        );
+        let ix = crate::instruction::pumpswap::claim_cashback_pumpswap_instruction(
+            &self.payer.pubkey(),
+            WSOL_TOKEN_ACCOUNT,
+            crate::constants::TOKEN_PROGRAM,
+        ).ok_or_else(|| anyhow::anyhow!("Failed to build PumpSwap claim_cashback instruction"))?;
+        instructions.push(ix);
+        let recent_blockhash = self.infrastructure.rpc.get_latest_blockhash().await?;
+        let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        transaction.sign(&[&*self.payer], recent_blockhash);
+        let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
+        Ok(signature.to_string())
+    }
 }

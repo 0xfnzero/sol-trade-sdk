@@ -189,6 +189,7 @@ impl PumpFunParams {
             complete: account.0.complete,
             creator: account.0.creator,
             is_mayhem_mode: account.0.is_mayhem_mode,
+            is_cashback_coin: account.0.is_cashback_coin,
         };
         let associated_bonding_curve = get_associated_token_address_with_program_id(
             &bonding_curve.account,
@@ -243,6 +244,8 @@ pub struct PumpSwapParams {
     pub quote_token_program: Pubkey,
     /// Whether the pool is in mayhem mode
     pub is_mayhem_mode: bool,
+    /// Whether the pool's coin has cashback enabled
+    pub is_cashback_coin: bool,
 }
 
 impl PumpSwapParams {
@@ -274,6 +277,7 @@ impl PumpSwapParams {
             base_token_program,
             quote_token_program,
             is_mayhem_mode,
+            is_cashback_coin: false,
         }
     }
 
@@ -335,6 +339,7 @@ impl PumpSwapParams {
             } else {
                 crate::constants::TOKEN_PROGRAM_2022
             },
+            is_cashback_coin: pool_data.is_cashback_coin,
             quote_token_program: if pool_data.pool_quote_token_account == quote_token_program_ata {
                 crate::constants::TOKEN_PROGRAM
             } else {

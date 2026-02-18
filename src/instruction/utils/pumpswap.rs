@@ -185,6 +185,16 @@ pub fn get_user_volume_accumulator_pda(user: &Pubkey) -> Option<Pubkey> {
     )
 }
 
+/// WSOL ATA of UserVolumeAccumulator for Pump AMM (used for cashback remaining accounts).
+pub fn get_user_volume_accumulator_wsol_ata(user: &Pubkey) -> Option<Pubkey> {
+    let accumulator = get_user_volume_accumulator_pda(user)?;
+    Some(crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+        &accumulator,
+        &crate::constants::WSOL_TOKEN_ACCOUNT,
+        &crate::constants::TOKEN_PROGRAM,
+    ))
+}
+
 pub fn get_global_volume_accumulator_pda() -> Option<Pubkey> {
     let seeds: &[&[u8]; 1] = &[&seeds::GLOBAL_VOLUME_ACCUMULATOR_SEED];
     let program_id: &Pubkey = &&accounts::AMM_PROGRAM;
