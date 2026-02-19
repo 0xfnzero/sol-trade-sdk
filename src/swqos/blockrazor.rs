@@ -52,8 +52,8 @@ impl BlockRazorClient {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = Client::builder()
             // Optimized connection pool settings for high performance
-            .pool_idle_timeout(Duration::from_secs(120))
-            .pool_max_idle_per_host(256)  // Increased from 64 to 256
+            .pool_idle_timeout(Duration::from_secs(300))  // 5min so ping-kept connection is not evicted early
+            .pool_max_idle_per_host(4)    // Few connections so submit reuses same connection as ping, avoiding cold connection after ~5min server idle close
             .tcp_keepalive(Some(Duration::from_secs(60)))  // Reduced from 1200 to 60
             .tcp_nodelay(true)  // Disable Nagle's algorithm for lower latency
             .http2_keep_alive_interval(Duration::from_secs(10))
@@ -90,16 +90,16 @@ impl BlockRazorClient {
         let stop_ping = self.stop_ping.clone();
         
         let handle = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60)); // Ping every 60 seconds
-            
+            // Immediate first ping to warm connection and reduce first-submit cold start latency
+            if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
+                eprintln!("BlockRazor ping request failed: {}", e);
+            }
+            let mut interval = tokio::time::interval(Duration::from_secs(30));  // 30s keepalive to avoid server ~5min idle close
             loop {
                 interval.tick().await;
-                
                 if stop_ping.load(Ordering::Relaxed) {
                     break;
                 }
-                
-                // Send ping request
                 if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
                     eprintln!("BlockRazor ping request failed: {}", e);
                 }
@@ -137,33 +137,31 @@ impl BlockRazorClient {
         headers.insert("apikey", HeaderValue::from_str(auth_token)?);
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        // Send GET request to /health endpoint with headers
+        // Short timeout for ping; consume body so connection is returned to pool for reuse by submit
         let response = http_client.get(&ping_url)
             .headers(headers)
+            .timeout(Duration::from_millis(1500))
             .send()
             .await?;
-        
-        if response.status().is_success() {
-            // ping successful, connection remains active
-            // Can optionally log, but to reduce noise, not printing here
-        } else {
-            eprintln!("BlockRazor ping request failed with status: {}", response.status());
+        let status = response.status();
+        let _ = response.bytes().await;
+        if !status.is_success() {
+            eprintln!("BlockRazor ping request failed with status: {}", status);
         }
-        
         Ok(())
     }
 
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
+        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
-        // BlockRazor使用fast模式的请求格式
+        // BlockRazor fast-mode request format
         let request_body = serde_json::to_string(&json!({
             "transaction": content,
             "mode": "fast"
         }))?;
 
-        // BlockRazor使用apikey header
+        // BlockRazor uses apikey header
         let response_text = self.http_client.post(&self.endpoint)
             .body(request_body)
             .header("Content-Type", "application/json")

@@ -3,6 +3,7 @@ use anyhow::Result;
 use base64::engine::general_purpose::{self, STANDARD};
 use base64::Engine;
 use bincode::serialize;
+use crate::swqos::serialization;
 use reqwest::Client;
 use serde_json;
 use serde_json::json;
@@ -40,7 +41,7 @@ impl From<anyhow::Error> for TradeError {
     }
 }
 
-// 使用高性能序列化
+// High-performance serialization
 
 pub trait FormatBase64VersionedTransaction {
     fn to_base64_string(&self) -> String;
@@ -58,12 +59,12 @@ pub async fn poll_transaction_confirmation(
     txt_sig: Signature,
     wait_confirmation: bool,
 ) -> Result<Signature> {
-    // 如果不需要等待确认，立即返回签名
+    // If no confirmation needed, return signature immediately
     if !wait_confirmation {
         return Ok(txt_sig);
     }
 
-    let timeout: Duration = Duration::from_secs(15); // 🔧 增加到15秒，避免网络拥堵时超时
+    let timeout: Duration = Duration::from_secs(15); // 15s to avoid timeout under network congestion
     let interval: Duration = Duration::from_millis(1000);
     let start: Instant = Instant::now();
     let mut poll_count = 0u32;
@@ -76,33 +77,23 @@ pub async fn poll_transaction_confirmation(
         poll_count += 1;
 
         let status = rpc.get_signature_statuses(&[txt_sig]).await?;
-        match status.value[0].clone() {
-            Some(status) => {
-                if status.err.is_none()
-                    && (status.confirmation_status
-                        == Some(TransactionConfirmationStatus::Confirmed)
-                        || status.confirmation_status
-                            == Some(TransactionConfirmationStatus::Finalized))
+        let first = status.value.get(0).and_then(|o| o.as_ref());
+        match first {
+            Some(s) => {
+                if s.err.is_none()
+                    && (s.confirmation_status == Some(TransactionConfirmationStatus::Confirmed)
+                        || s.confirmation_status == Some(TransactionConfirmationStatus::Finalized))
                 {
                     return Ok(txt_sig);
                 }
-                // 如果 getSignatureStatuses 返回了错误，立即获取详细信息
-                if status.err.is_some() {
-                    // 直接跳转到获取交易详情
-                }
             }
             None => {
-                // 交易还未上链，继续等待，不调用 getTransaction
                 sleep(interval).await;
                 continue;
             }
         }
 
-        // 优化：只在以下情况调用 getTransaction
-        // 1. getSignatureStatuses 返回了错误
-        // 2. 或者已经轮询了较长时间（超过10次，即10秒）
-        let should_get_transaction = status.value[0].as_ref().map(|s| s.err.is_some()).unwrap_or(false)
-            || poll_count >= 10;
+        let should_get_transaction = first.map(|s| s.err.is_some()).unwrap_or(false) || poll_count >= 10;
 
         if !should_get_transaction {
             sleep(interval).await;
@@ -122,7 +113,7 @@ pub async fn poll_transaction_confirmation(
         {
             Ok(details) => details,
             Err(_) => {
-                // 交易可能还未上链，继续等待
+                // Tx may not be on chain yet, keep waiting
                 sleep(interval).await;
                 continue;
             }
@@ -136,7 +127,7 @@ pub async fn poll_transaction_confirmation(
             if meta.err.is_none() {
                 return Ok(txt_sig);
             } else {
-                // 从 log_messages 中提取错误信息
+                // Extract error message from log_messages
                 let mut error_msg = String::new();
                 if let solana_transaction_status::option_serializer::OptionSerializer::Some(logs) =
                     &meta.log_messages
@@ -162,12 +153,12 @@ pub async fn poll_transaction_confirmation(
                 let tx_err: TransactionError =
                     serde_json::from_value(serde_json::to_value(&ui_err)?)?;
                 
-                // 直接使用Solana原生的InstructionError中的错误码
+                // Use Solana InstructionError codes directly
                 let mut code = 0u32;
                 let mut index = None;
                 match &tx_err {
                     TransactionError::InstructionError(i, i_error) => {
-                        // 直接匹配所有InstructionError类型，Custom也是其中之一
+                        // Match all InstructionError variants including Custom
                         code = match i_error {
                             solana_sdk::instruction::InstructionError::Custom(c) => *c,
                             solana_sdk::instruction::InstructionError::GenericError => 1,
@@ -180,7 +171,7 @@ pub async fn poll_transaction_confirmation(
                             solana_sdk::instruction::InstructionError::MissingRequiredSignature => 8,
                             solana_sdk::instruction::InstructionError::AccountAlreadyInitialized => 9,
                             solana_sdk::instruction::InstructionError::UninitializedAccount => 10,
-                            _ => 999, // 其他未知错误
+                            _ => 999, // Other unknown errors
                         };
                         index = Some(*i);
                     }
@@ -198,11 +189,11 @@ pub async fn poll_transaction_confirmation(
 }
 
 pub async fn send_nb_transaction(client: Client, endpoint: &str, auth_token: &str, transaction: &Transaction) -> Result<Signature, anyhow::Error> {
-    // 序列化交易
+    // Serialize transaction
     let serialized = bincode::serialize(transaction)
         .map_err(|e| anyhow::anyhow!("Transaction serialization failed: {}", e))?;
     
-    // Base64编码
+    // Base64 encode
     let encoded = STANDARD.encode(serialized);
 
     let request_data = json!({
@@ -250,18 +241,12 @@ pub async fn serialize_and_encode(
     Ok(serialized)
 }
 
-pub async fn serialize_transaction_and_encode(
+/// Sync serialize and encode; uses buffer pool when possible for lower allocs and latency.
+pub fn serialize_transaction_and_encode(
     transaction: &impl SerializableTransaction,
     encoding: UiTransactionEncoding,
 ) -> Result<(String, Signature)> {
-    let signature = transaction.get_signature();
-    let serialized_tx = serialize(transaction)?;
-    let serialized = match encoding {
-        UiTransactionEncoding::Base58 => bs58::encode(serialized_tx).into_string(),
-        UiTransactionEncoding::Base64 => STANDARD.encode(serialized_tx),
-        _ => return Err(anyhow::anyhow!("Unsupported encoding")),
-    };
-    Ok((serialized, *signature))
+    serialization::serialize_transaction_sync(transaction, encoding)
 }
 
 pub async fn serialize_smart_transaction_and_encode(

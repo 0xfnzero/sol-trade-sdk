@@ -50,8 +50,8 @@ impl StelliumClient {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = Client::builder()
             // Optimized connection pool settings for high performance
-            .pool_idle_timeout(Duration::from_secs(120))
-            .pool_max_idle_per_host(256)  // Increased from 64 to 256
+            .pool_idle_timeout(Duration::from_secs(300))
+            .pool_max_idle_per_host(4)
             .tcp_keepalive(Some(Duration::from_secs(60)))  // Reduced from 1200 to 60
             .tcp_nodelay(true)  // Disable Nagle's algorithm for lower latency
             .http2_keep_alive_interval(Duration::from_secs(10))
@@ -89,21 +89,28 @@ impl StelliumClient {
         let stop_ping = self.keep_alive_running.clone();
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60)); // Ping every 60 seconds
-
+            // Immediate first ping to warm connection and reduce first-submit cold start latency
+            let url = format!("{}/{}", endpoint, auth_token);
+            if let Ok(resp) = http_client.get(&url).timeout(Duration::from_millis(1500)).send().await {
+                let status = resp.status();
+                let _ = resp.bytes().await;
+                if !status.is_success() {
+                    eprintln!(" [Stellium] Ping failed with status: {}", status);
+                }
+            }
+            let mut interval = tokio::time::interval(Duration::from_secs(30));
             loop {
                 interval.tick().await;
-
                 if stop_ping.load(Ordering::Relaxed) {
                     break;
                 }
-
-                // Send ping request
                 let url = format!("{}/{}", endpoint, auth_token);
-                match http_client.get(&url).send().await {
+                match http_client.get(&url).timeout(Duration::from_millis(1500)).send().await {
                     Ok(response) => {
-                        if !response.status().is_success() {
-                            eprintln!(" [Stellium] Ping failed with status: {}", response.status());
+                        let status = response.status();
+                        let _ = response.bytes().await;
+                        if !status.is_success() {
+                            eprintln!(" [Stellium] Ping failed with status: {}", status);
                         }
                     }
                     Err(e) => {
@@ -116,7 +123,7 @@ impl StelliumClient {
 
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
+        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         // Stellium uses standard Solana sendTransaction format
         let request_body = serde_json::to_string(&json!({

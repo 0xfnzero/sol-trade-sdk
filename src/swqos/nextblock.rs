@@ -69,7 +69,7 @@ impl NextBlockClient {
 
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
+        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         let request_body = serde_json::to_string(&json!({
             "transaction": {

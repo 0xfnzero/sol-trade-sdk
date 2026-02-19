@@ -78,8 +78,8 @@ impl TemporalClient {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = Client::builder()
             // Optimized connection pool settings for high performance
-            .pool_idle_timeout(Duration::from_secs(120))
-            .pool_max_idle_per_host(256)  // Increased from 64 to 256
+            .pool_idle_timeout(Duration::from_secs(300))
+            .pool_max_idle_per_host(4)
             .tcp_keepalive(Some(Duration::from_secs(60)))  // Reduced from 1200 to 60
             .tcp_nodelay(true)  // Disable Nagle's algorithm for lower latency
             .http2_keep_alive_interval(Duration::from_secs(10))
@@ -116,16 +116,16 @@ impl TemporalClient {
         let stop_ping = self.stop_ping.clone();
         
         let handle = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60)); // Ping every 60 seconds
-            
+            // Immediate first ping to warm connection and reduce first-submit cold start latency
+            if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
+                eprintln!("Temporal ping request failed: {}", e);
+            }
+            let mut interval = tokio::time::interval(Duration::from_secs(30));
             loop {
                 interval.tick().await;
-                
                 if stop_ping.load(Ordering::Relaxed) {
                     break;
                 }
-                
-                // Send ping request
                 if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
                     eprintln!("Temporal ping request failed: {}", e);
                 }
@@ -151,24 +151,22 @@ impl TemporalClient {
             format!("{}/ping", endpoint)
         };
 
-        // Send GET request to /ping endpoint
+        // Short timeout for ping; consume body so connection is returned to pool for reuse by submit
         let response = http_client.get(&ping_url)
+            .timeout(Duration::from_millis(1500))
             .send()
             .await?;
-        
-        if response.status().is_success() {
-            // ping successful, connection remains active
-            // Can optionally log, but to reduce noise, not printing here
-        } else {
-            eprintln!("Temporal ping request returned non-success status: {}", response.status());
+        let status = response.status();
+        let _ = response.bytes().await;
+        if !status.is_success() {
+            eprintln!("Temporal ping request returned non-success status: {}", status);
         }
-        
         Ok(())
     }
 
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64).await?;
+        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         // Build request body according to Nozomi documentation requirements
         let request_body = serde_json::to_string(&json!({
