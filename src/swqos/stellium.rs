@@ -14,6 +14,7 @@ use crate::swqos::{SwqosType, TradeType};
 use crate::swqos::SwqosClientTrait;
 
 use crate::{common::SolanaRpcClient, constants::swqos::STELLIUM_TIP_ACCOUNTS};
+use tokio::task::JoinHandle;
 
 
 #[derive(Clone)]
@@ -22,7 +23,9 @@ pub struct StelliumClient {
     pub auth_token: String,
     pub rpc_client: Arc<SolanaRpcClient>,
     pub http_client: Client,
-    keep_alive_running: Arc<AtomicBool>,
+    ping_handle: Arc<tokio::sync::Mutex<Option<JoinHandle<()>>>>,
+    stop_ping: Arc<AtomicBool>,
+    lifecycle_guard: Arc<()>,
 }
 
 #[async_trait::async_trait]
@@ -62,33 +65,31 @@ impl StelliumClient {
             .build()
             .unwrap();
 
-        let keep_alive_running = Arc::new(AtomicBool::new(true));
-
         let client = Self {
             rpc_client: Arc::new(rpc_client),
-            endpoint: endpoint.clone(),
-            auth_token: auth_token.clone(),
-            http_client: http_client.clone(),
-            keep_alive_running: keep_alive_running.clone(),
+            endpoint,
+            auth_token,
+            http_client,
+            ping_handle: Arc::new(tokio::sync::Mutex::new(None)),
+            stop_ping: Arc::new(AtomicBool::new(false)),
+            lifecycle_guard: Arc::new(()),
         };
 
-        // Start ping task
-        let client_clone = client.clone();
-        tokio::spawn(async move {
-            client_clone.start_ping_task().await;
-        });
+        // Start ping task without cloning self (to avoid Drop side effects on clone).
+        client.spawn_ping_task();
 
         client
     }
 
     /// Start periodic ping task to keep connections active
-    async fn start_ping_task(&self) {
+    fn spawn_ping_task(&self) {
         let endpoint = self.endpoint.clone();
         let auth_token = self.auth_token.clone();
         let http_client = self.http_client.clone();
-        let stop_ping = self.keep_alive_running.clone();
+        let stop_ping = self.stop_ping.clone();
+        let ping_handle = self.ping_handle.clone();
 
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(60)); // Ping every 60 seconds
 
             loop {
@@ -111,6 +112,14 @@ impl StelliumClient {
                     }
                 }
             }
+        });
+
+        tokio::spawn(async move {
+            let mut ping_guard = ping_handle.lock().await;
+            if let Some(old_handle) = ping_guard.as_ref() {
+                old_handle.abort();
+            }
+            *ping_guard = Some(handle);
         });
     }
 
@@ -180,13 +189,28 @@ impl StelliumClient {
 
     /// Stop the ping task
     pub fn stop_ping_task(&self) {
-        self.keep_alive_running.store(false, Ordering::Relaxed);
+        self.stop_ping.store(true, Ordering::Relaxed);
+        if let Ok(mut ping_guard) = self.ping_handle.try_lock() {
+            if let Some(handle) = ping_guard.take() {
+                handle.abort();
+            }
+        }
     }
 }
 
 impl Drop for StelliumClient {
     fn drop(&mut self) {
+        // Only the last clone should stop the shared ping task.
+        if Arc::strong_count(&self.lifecycle_guard) != 1 {
+            return;
+        }
+
         // Stop ping task when client is dropped
-        self.keep_alive_running.store(false, Ordering::Relaxed);
+        self.stop_ping.store(true, Ordering::Relaxed);
+        if let Ok(mut ping_guard) = self.ping_handle.try_lock() {
+            if let Some(handle) = ping_guard.take() {
+                handle.abort();
+            }
+        }
     }
 }
