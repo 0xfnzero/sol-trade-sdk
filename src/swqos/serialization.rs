@@ -1,18 +1,24 @@
 //! Transaction serialization module.
 
+use crate::perf::{
+    compiler_optimization::CompileTimeOptimizedEventProcessor, simd::SIMDSerializer,
+};
 use anyhow::Result;
-use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use crossbeam_queue::ArrayQueue;
 use once_cell::sync::Lazy;
 use solana_client::rpc_client::SerializableTransaction;
 use solana_sdk::signature::Signature;
 use solana_transaction_status::UiTransactionEncoding;
 use std::sync::Arc;
-use crossbeam_queue::ArrayQueue;
-use crate::perf::{
-    simd::SIMDSerializer,
-    compiler_optimization::CompileTimeOptimizedEventProcessor,
-};
+
+/// Max number of reusable buffers kept in the queue.
+const SERIALIZER_POOL_SIZE: usize = 10_000;
+/// Per-buffer reserved capacity (bytes).
+const SERIALIZER_BUFFER_SIZE: usize = 256 * 1024;
+/// Cold-start prewarm count. Keep small to avoid first-submit spikes.
+const SERIALIZER_PREWARM_BUFFERS: usize = 64;
 
 /// Zero-allocation serializer using a buffer pool to avoid runtime allocation.
 pub struct ZeroAllocSerializer {
@@ -22,28 +28,30 @@ pub struct ZeroAllocSerializer {
 
 impl ZeroAllocSerializer {
     pub fn new(pool_size: usize, buffer_size: usize) -> Self {
-        let pool = ArrayQueue::new(pool_size);
-
-        // Pre-allocate buffers
-        for _ in 0..pool_size {
-            let mut buffer = Vec::with_capacity(buffer_size);
-            buffer.resize(buffer_size, 0);
-            let _ = pool.push(buffer);
-        }
-
-        Self {
-            buffer_pool: Arc::new(pool),
-            buffer_size,
-        }
+        Self::new_with_prewarm(pool_size, buffer_size, SERIALIZER_PREWARM_BUFFERS)
     }
 
-    pub fn serialize_zero_alloc<T: serde::Serialize>(&self, data: &T, _label: &str) -> Result<Vec<u8>> {
+    fn new_with_prewarm(pool_size: usize, buffer_size: usize, prewarm_buffers: usize) -> Self {
+        let pool = ArrayQueue::new(pool_size);
+        let prewarm_count = prewarm_buffers.min(pool_size);
+
+        // Prewarm only a small hot set to avoid large cold-start blocking.
+        // Remaining buffers are allocated lazily and returned to this pool.
+        for _ in 0..prewarm_count {
+            let _ = pool.push(Vec::with_capacity(buffer_size));
+        }
+
+        Self { buffer_pool: Arc::new(pool), buffer_size }
+    }
+
+    pub fn serialize_zero_alloc<T: serde::Serialize>(
+        &self,
+        data: &T,
+        _label: &str,
+    ) -> Result<Vec<u8>> {
         // Try to get a buffer from the pool
-        let mut buffer = self.buffer_pool.pop().unwrap_or_else(|| {
-            let mut buf = Vec::with_capacity(self.buffer_size);
-            buf.resize(self.buffer_size, 0);
-            buf
-        });
+        let mut buffer =
+            self.buffer_pool.pop().unwrap_or_else(|| Vec::with_capacity(self.buffer_size));
 
         // Serialize into buffer
         let serialized = bincode::serialize(data)?;
@@ -67,12 +75,8 @@ impl ZeroAllocSerializer {
 }
 
 /// Global serializer instance.
-static SERIALIZER: Lazy<Arc<ZeroAllocSerializer>> = Lazy::new(|| {
-    Arc::new(ZeroAllocSerializer::new(
-        10_000,      // Pool size
-        256 * 1024,  // Buffer size: 256KB
-    ))
-});
+static SERIALIZER: Lazy<Arc<ZeroAllocSerializer>> =
+    Lazy::new(|| Arc::new(ZeroAllocSerializer::new(SERIALIZER_POOL_SIZE, SERIALIZER_BUFFER_SIZE)));
 
 /// Compile-time optimized event processor (zero runtime cost).
 static COMPILE_TIME_PROCESSOR: CompileTimeOptimizedEventProcessor =
@@ -101,7 +105,9 @@ impl Base64Encoder {
         event_type: &str,
     ) -> Result<String> {
         let serialized = SERIALIZER.serialize_zero_alloc(value, event_type)?;
-        Ok(STANDARD.encode(&serialized))
+        let encoded = STANDARD.encode(&serialized);
+        SERIALIZER.return_buffer(serialized);
+        Ok(encoded)
     }
 }
 
@@ -227,6 +233,7 @@ pub fn get_serializer_stats() -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     #[test]
     fn test_base64_encode() {
@@ -243,6 +250,110 @@ mod tests {
     fn test_serializer_stats() {
         let (available, capacity) = get_serializer_stats();
         assert!(available <= capacity);
-        assert_eq!(capacity, 10_000);
+        assert_eq!(capacity, SERIALIZER_POOL_SIZE);
+    }
+
+    #[test]
+    fn test_serializer_prewarm_is_bounded() {
+        let serializer = ZeroAllocSerializer::new_with_prewarm(128, 1024, 8);
+        let (available, capacity) = serializer.get_pool_stats();
+        assert_eq!(capacity, 128);
+        assert_eq!(available, 8);
+    }
+
+    #[test]
+    fn test_serializer_lazy_alloc_and_return() {
+        let serializer = ZeroAllocSerializer::new_with_prewarm(8, 1024, 0);
+        let (available_before, capacity) = serializer.get_pool_stats();
+        assert_eq!(capacity, 8);
+        assert_eq!(available_before, 0);
+
+        let buf = serializer.serialize_zero_alloc(&"hello", "test").unwrap();
+        assert!(buf.capacity() >= 1024);
+        serializer.return_buffer(buf);
+
+        let (available_after, _) = serializer.get_pool_stats();
+        assert_eq!(available_after, 1);
+    }
+
+    fn legacy_eager_zero_fill_serializer(
+        pool_size: usize,
+        buffer_size: usize,
+    ) -> ZeroAllocSerializer {
+        let pool = ArrayQueue::new(pool_size);
+        for _ in 0..pool_size {
+            let mut buffer = Vec::with_capacity(buffer_size);
+            buffer.resize(buffer_size, 0);
+            let _ = pool.push(buffer);
+        }
+        ZeroAllocSerializer { buffer_pool: Arc::new(pool), buffer_size }
+    }
+
+    /// Manual perf test: compares old eager cold-start behavior to current bounded prewarm.
+    /// Run with:
+    /// cargo test --release perf_serializer_cold_start_vs_legacy_eager -- --ignored --nocapture
+    #[test]
+    #[ignore = "manual perf benchmark"]
+    fn perf_serializer_cold_start_vs_legacy_eager() {
+        const POOL_SIZE: usize = 4096;
+        const BUFFER_SIZE: usize = 32 * 1024;
+        const PREWARM: usize = 64;
+        let payload = vec![7u8; 4096];
+
+        let legacy_init_start = Instant::now();
+        let legacy = legacy_eager_zero_fill_serializer(POOL_SIZE, BUFFER_SIZE);
+        let legacy_init = legacy_init_start.elapsed();
+
+        let current_init_start = Instant::now();
+        let current = ZeroAllocSerializer::new_with_prewarm(POOL_SIZE, BUFFER_SIZE, PREWARM);
+        let current_init = current_init_start.elapsed();
+
+        let legacy_first_start = Instant::now();
+        let legacy_buf = legacy.serialize_zero_alloc(&payload, "perf").unwrap();
+        let legacy_first = legacy_first_start.elapsed();
+        legacy.return_buffer(legacy_buf);
+
+        let current_first_start = Instant::now();
+        let current_buf = current.serialize_zero_alloc(&payload, "perf").unwrap();
+        let current_first = current_first_start.elapsed();
+        current.return_buffer(current_buf);
+
+        println!(
+            "[perf] serializer cold-start compare\n  pool_size={POOL_SIZE} buffer_size={BUFFER_SIZE} prewarm={PREWARM}\n  legacy_init={legacy_init:?} current_init={current_init:?}\n  legacy_first_serialize={legacy_first:?} current_first_serialize={current_first:?}"
+        );
+
+        assert!(
+            current_init <= legacy_init,
+            "expected bounded prewarm init ({current_init:?}) to be <= legacy eager init ({legacy_init:?})"
+        );
+    }
+
+    /// Manual perf test: demonstrates lazy allocation amortization.
+    /// Run with:
+    /// cargo test --release perf_serializer_lazy_growth_amortization -- --ignored --nocapture
+    #[test]
+    #[ignore = "manual perf benchmark"]
+    fn perf_serializer_lazy_growth_amortization() {
+        const POOL_SIZE: usize = 128;
+        const BUFFER_SIZE: usize = 256 * 1024;
+        let serializer = ZeroAllocSerializer::new_with_prewarm(POOL_SIZE, BUFFER_SIZE, 0);
+        let payload = vec![1u8; 8 * 1024];
+
+        let first_start = Instant::now();
+        let first_buf = serializer.serialize_zero_alloc(&payload, "perf").unwrap();
+        let first = first_start.elapsed();
+        serializer.return_buffer(first_buf);
+
+        let second_start = Instant::now();
+        let second_buf = serializer.serialize_zero_alloc(&payload, "perf").unwrap();
+        let second = second_start.elapsed();
+        serializer.return_buffer(second_buf);
+
+        let (available, capacity) = serializer.get_pool_stats();
+        println!(
+            "[perf] serializer lazy growth\n  pool_size={POOL_SIZE} buffer_size={BUFFER_SIZE}\n  first_serialize={first:?} second_serialize={second:?}\n  available={available} capacity={capacity}"
+        );
+        assert!(available >= 1);
+        assert_eq!(capacity, POOL_SIZE);
     }
 }
