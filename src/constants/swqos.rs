@@ -155,6 +155,13 @@ pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("speede8xCcUq2Tiv1efXeTuE3k9TDNq8TnGKaKSc6J4"),
 ];
 
+pub const SOLAMI_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("6993ZufwyEDNdB94kciDTGB17ANXguiNH22VmMQU1ami"),
+    pubkey!("E1BkG293HQocKfCkfPS7tEvs8Enh6FK8pUKi17EH1ami"),
+    pubkey!("2Ga87xvZwpP9WRsSdiPiWre21cQbDcFhGLmT5EMo1ami"),
+    pubkey!("CGzT5jzT68vGUWVagQAQqESfrCEHSKYe9DAjfgfC1ami"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -313,6 +320,17 @@ pub const SWQOS_ENDPOINTS_HELIUS: [&str; 8] = [
     "https://sender.helius-rpc.com/fast",
 ];
 
+pub const SWQOS_ENDPOINTS_SOLAMI: [&str; 8] = [
+    "nyc.landing.solami.fast:11000",
+    "fra.landing.solami.fast:11000",
+    "ams.landing.solami.fast:11000",
+    "nyc.landing.solami.fast:11000",
+    "sgp.landing.solami.fast:11000",
+    "fra.landing.solami.fast:11000",
+    "nyc.landing.solami.fast:11000",
+    "landing.solami.fast:11000",
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
@@ -331,3 +349,4 @@ pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires mini
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
+pub const SWQOS_MIN_TIP_SOLAMI: f64 = 0.0001;

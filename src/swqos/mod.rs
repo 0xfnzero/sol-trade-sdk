@@ -15,6 +15,7 @@ pub mod lightspeed;
 pub mod soyas;
 pub mod speedlanding;
 pub mod helius;
+pub mod solami;
 
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ use crate::{
         SWQOS_ENDPOINTS_SOYAS,
         SWQOS_ENDPOINTS_SPEEDLANDING,
         SWQOS_ENDPOINTS_HELIUS,
+        SWQOS_ENDPOINTS_SOLAMI,
         SWQOS_MIN_TIP_DEFAULT,
         SWQOS_MIN_TIP_JITO,
         SWQOS_MIN_TIP_NEXTBLOCK,
@@ -55,6 +57,7 @@ use crate::{
         SWQOS_MIN_TIP_SOYAS,
         SWQOS_MIN_TIP_SPEEDLANDING,
         SWQOS_MIN_TIP_HELIUS,
+        SWQOS_MIN_TIP_SOLAMI,
     },
     swqos::{
         bloxroute::BloxrouteClient,
@@ -72,6 +75,7 @@ use crate::{
         soyas::SoyasClient,
         speedlanding::SpeedlandingClient,
         helius::HeliusClient,
+        solami::SolamiClient,
     }
 };
 
@@ -122,6 +126,7 @@ pub enum SwqosType {
     Soyas,
     Speedlanding,
     Helius,
+    Solami,
     Default,
 }
 
@@ -142,6 +147,7 @@ impl SwqosType {
             Self::Soyas,
             Self::Speedlanding,
             Self::Helius,
+            Self::Solami,
             Self::Default,
         ]
     }
@@ -173,6 +179,7 @@ pub trait SwqosClientTrait {
             SwqosType::Soyas => SWQOS_MIN_TIP_SOYAS,
             SwqosType::Speedlanding => SWQOS_MIN_TIP_SPEEDLANDING,
             SwqosType::Helius => SWQOS_MIN_TIP_HELIUS,
+            SwqosType::Solami => SWQOS_MIN_TIP_SOLAMI,
             SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
         }
     }
@@ -225,6 +232,9 @@ pub enum SwqosConfig {
     /// Helius Sender: dual routing to validators and Jito. API key optional (custom TPS only).
     /// (api_key, region, custom_url, swqos_only). swqos_only: None => false (min tip 0.0002 SOL); Some(true) => SWQOS-only (min tip 0.000005 SOL, much lower).
     Helius(String, SwqosRegion, Option<String>, Option<bool>),
+    /// Register on https://solami.fast and use your rpc key
+    /// Solami(api_key, region, custom_url)
+    Solami(String, SwqosRegion, Option<String>),
 }
 
 impl SwqosConfig {
@@ -245,6 +255,7 @@ impl SwqosConfig {
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
             SwqosConfig::Speedlanding(_, _, _) => SwqosType::Speedlanding,
             SwqosConfig::Helius(_, _, _, _) => SwqosType::Helius,
+            SwqosConfig::Solami(_, _, _) => SwqosType::Solami,
         }
     }
 
@@ -273,6 +284,7 @@ impl SwqosConfig {
             SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
             SwqosType::Speedlanding => SWQOS_ENDPOINTS_SPEEDLANDING[region as usize].to_string(),
             SwqosType::Helius => SWQOS_ENDPOINTS_HELIUS[region as usize].to_string(),
+            SwqosType::Solami => SWQOS_ENDPOINTS_SOLAMI[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
         }
     }
@@ -407,6 +419,15 @@ impl SwqosConfig {
                     swqos_only,
                 );
                 Ok(Arc::new(helius_client))
+            },
+            SwqosConfig::Solami(auth_token, region, url) => {
+                let endpoint = SwqosConfig::get_endpoint(SwqosType::Solami, region, url);
+                let solami_client = SolamiClient::new(
+                    rpc_url.clone(),
+                    endpoint.to_string(),
+                    auth_token
+                ).await?;
+                Ok(Arc::new(solami_client))
             },
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(
