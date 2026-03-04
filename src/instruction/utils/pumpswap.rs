@@ -2,12 +2,16 @@ use crate::{
     common::{
         spl_associated_token_account::get_associated_token_address_with_program_id, SolanaRpcClient,
     },
-    constants::TOKEN_PROGRAM,
+    constants::{TOKEN_PROGRAM, WSOL_TOKEN_ACCOUNT},
     instruction::utils::pumpswap_types::{pool_decode, Pool},
 };
 use anyhow::anyhow;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::pubkey::Pubkey;
+
+/// PumpSwap 池账户总长度（见 pump-public-docs Breaking Change）：8 字节 discriminator + 244 字节 Pool。
+/// 官方文档：pool structure needs to be 244 bytes (was 243)，含 is_mayhem_mode。DataSize 必须与此一致，否则 getProgramAccounts 会返回 0。
+const POOL_ACCOUNT_DATA_LEN: u64 = 8 + 244;
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {
@@ -29,6 +33,10 @@ pub mod seeds {
 
     /// Seed for pool v2 PDA (required by program upgrade, readonly at end of account list)
     pub const POOL_V2_SEED: &[u8] = b"pool-v2";
+    /// Legacy pool PDA seed (used with index, creator, base_mint, quote_mint)
+    pub const POOL_SEED: &[u8] = b"pool";
+    /// Pump program: pool-authority PDA seed (creator for canonical pool)
+    pub const POOL_AUTHORITY_SEED: &[u8] = b"pool-authority";
 }
 
 /// Constants related to program accounts and authorities
@@ -53,6 +61,8 @@ pub mod accounts {
         pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
 
     pub const AMM_PROGRAM: Pubkey = pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
+    /// Pump Bonding Curve program（canonical pool 的 creator 来自此程序的 pool-authority PDA）
+    pub const PUMP_PROGRAM_ID: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 
     pub const LP_FEE_BASIS_POINTS: u64 = 25;
     pub const PROTOCOL_FEE_BASIS_POINTS: u64 = 5;
@@ -152,6 +162,35 @@ pub fn get_pool_v2_pda(base_mint: &Pubkey) -> Option<Pubkey> {
     Some(pda)
 }
 
+/// Pump 程序上的 pool-authority PDA（canonical pool 的 creator），与 @pump-fun/pump-swap-sdk 一致。
+#[inline]
+pub fn get_pump_pool_authority_pda(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[seeds::POOL_AUTHORITY_SEED, mint.as_ref()],
+        &accounts::PUMP_PROGRAM_ID,
+    )
+    .0
+}
+
+/// Canonical Pump 池 PDA：index=0，creator=pumpPoolAuthorityPda(mint)，base_mint=mint，quote_mint=WSOL。
+/// 与 @pump-fun/pump-swap-sdk 的 canonicalPumpPoolPda(mint) 一致，用于从 bonding curve 迁移后的标准池查找。
+#[inline]
+pub fn get_canonical_pool_pda(mint: &Pubkey) -> Pubkey {
+    const CANONICAL_POOL_INDEX: u16 = 0;
+    let authority = get_pump_pool_authority_pda(mint);
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            seeds::POOL_SEED,
+            &CANONICAL_POOL_INDEX.to_le_bytes(),
+            authority.as_ref(),
+            mint.as_ref(),
+            WSOL_TOKEN_ACCOUNT.as_ref(),
+        ],
+        &accounts::AMM_PROGRAM,
+    );
+    pda
+}
+
 // Find a pool for a specific mint
 pub async fn find_pool(rpc: &SolanaRpcClient, mint: &Pubkey) -> Result<Pubkey, anyhow::Error> {
     let (pool_address, _) = find_by_mint(rpc, mint).await?;
@@ -231,11 +270,12 @@ pub async fn find_by_base_mint(
     rpc: &SolanaRpcClient,
     base_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
-    // Use getProgramAccounts to find pools for the given mint
+    // Use getProgramAccounts to find pools for the given mint.
+    // base_mint 在账户布局中的偏移：8(discriminator) + 1(bump) + 2(index) + 32(creator) = 43
     let filters = vec![
-        // solana_rpc_client_api::filter::RpcFilterType::DataSize(211), // Pool account size
+        solana_rpc_client_api::filter::RpcFilterType::DataSize(POOL_ACCOUNT_DATA_LEN),
         solana_rpc_client_api::filter::RpcFilterType::Memcmp(
-            solana_client::rpc_filter::Memcmp::new_base58_encoded(43, &base_mint.to_bytes()),
+            solana_client::rpc_filter::Memcmp::new_base58_encoded(43, base_mint.as_ref()),
         ),
     ];
     let config = solana_rpc_client_api::config::RpcProgramAccountsConfig {
@@ -282,11 +322,12 @@ pub async fn find_by_quote_mint(
     rpc: &SolanaRpcClient,
     quote_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
-    // Use getProgramAccounts to find pools for the given mint
+    // Use getProgramAccounts to find pools for the given mint.
+    // quote_mint 在账户布局中的偏移：8 + 1 + 2 + 32 + 32 = 75
     let filters = vec![
-        // solana_rpc_client_api::filter::RpcFilterType::DataSize(211), // Pool account size
+        solana_rpc_client_api::filter::RpcFilterType::DataSize(POOL_ACCOUNT_DATA_LEN),
         solana_rpc_client_api::filter::RpcFilterType::Memcmp(
-            solana_client::rpc_filter::Memcmp::new_base58_encoded(75, &quote_mint.to_bytes()),
+            solana_client::rpc_filter::Memcmp::new_base58_encoded(75, quote_mint.as_ref()),
         ),
     ];
     let config = solana_rpc_client_api::config::RpcProgramAccountsConfig {
@@ -329,17 +370,52 @@ pub async fn find_by_quote_mint(
     Ok((address, pool))
 }
 
+/// 按 mint 查找 PumpSwap 池（本函数仅用于 PumpSwap，其他 DEX 勿用）。
+///
+/// 查找顺序（与 @pump-fun/pump-swap-sdk 一致）：
+/// 1. Pool v2 PDA ["pool-v2", base_mint] — 一次 getAccount
+/// 2. Canonical pool PDA ["pool", 0, pumpPoolAuthority(mint), mint, WSOL] — 迁移后的标准池
+/// 3. getProgramAccounts 按 base_mint / quote_mint 过滤
 pub async fn find_by_mint(
     rpc: &SolanaRpcClient,
     mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
-    if let Ok((address, pool)) = find_by_base_mint(rpc, mint).await {
-        return Ok((address, pool));
+    let mut diag = Vec::<String>::new();
+
+    // 1. PumpSwap v2 PDA（seeds: ["pool-v2", base_mint]）
+    if let Some(pool_address) = get_pool_v2_pda(mint) {
+        diag.push(format!("PDA(v2)={}", pool_address));
+        match fetch_pool(rpc, &pool_address).await {
+            Ok(pool) if pool.base_mint == *mint => return Ok((pool_address, pool)),
+            Ok(_) => diag.push("PDA(v2) 账户存在但 base_mint 不匹配".into()),
+            Err(e) => diag.push(format!("PDA(v2) get_account/decode 失败: {}", e)),
+        }
     }
-    if let Ok((address, pool)) = find_by_quote_mint(rpc, mint).await {
-        return Ok((address, pool));
+
+    // 2. Canonical pool PDA（与 pump-swap-sdk canonicalPumpPoolPda(mint) 一致）
+    let canonical_address = get_canonical_pool_pda(mint);
+    diag.push(format!("canonical={}", canonical_address));
+    match fetch_pool(rpc, &canonical_address).await {
+        Ok(pool) if pool.base_mint == *mint => return Ok((canonical_address, pool)),
+        Ok(_) => diag.push("canonical 账户存在但 base_mint 不匹配".into()),
+        Err(e) => diag.push(format!("canonical get_account/decode 失败: {}", e)),
     }
-    Err(anyhow!("No pool found for mint {}", mint))
+
+    // 3. 回退：getProgramAccounts 按 base_mint / quote_mint
+    match find_by_base_mint(rpc, mint).await {
+        Ok((address, pool)) => return Ok((address, pool)),
+        Err(e) => diag.push(format!("getProgramAccounts(base_mint): {}", e)),
+    }
+    match find_by_quote_mint(rpc, mint).await {
+        Ok((address, pool)) => return Ok((address, pool)),
+        Err(e) => diag.push(format!("getProgramAccounts(quote_mint): {}", e)),
+    }
+
+    Err(anyhow!(
+        "No pool found for mint {}. 诊断: {}。若使用自建 RPC 请确认已开启 getProgramAccounts 或换用公共 RPC 重试；若代币未在 PumpSwap 建池请先在 pump.fun/DEX 上确认",
+        mint,
+        diag.join("; ")
+    ))
 }
 
 pub async fn get_token_balances(

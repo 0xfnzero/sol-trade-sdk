@@ -54,6 +54,25 @@ fn validate_protocol_params(dex_type: DexType, params: &DexParamEnum) -> bool {
     }
 }
 
+/// 按 mint 查找池地址（通用入口，根据 DEX 类型分发，仅 PumpSwap 等已实现的类型会走优化路径）。
+///
+/// * `dex_type`：PumpSwap 时先走 PDA 再回退 getProgramAccounts，其他类型返回未实现错误。
+pub async fn find_pool_by_mint(
+    rpc: &SolanaRpcClient,
+    mint: &Pubkey,
+    dex_type: DexType,
+) -> Result<Pubkey, anyhow::Error> {
+    match dex_type {
+        DexType::PumpSwap => {
+            crate::instruction::utils::pumpswap::find_pool(rpc, mint).await
+        }
+        _ => Err(anyhow::anyhow!(
+            "find_pool_by_mint not implemented for {:?}",
+            dex_type
+        )),
+    }
+}
+
 /// Type of the token to buy
 #[derive(Clone, PartialEq)]
 pub enum TradeTokenType {
@@ -97,32 +116,62 @@ impl TradingInfrastructure {
             config.commitment.clone(),
         ));
 
-        // Initialize rent cache and start background updater
-        common::seed::update_rents(&rpc).await.unwrap();
+        // Initialize rent cache (with timeout so slow RPC doesn't block forever)
+        const RENT_UPDATE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+        match tokio::time::timeout(RENT_UPDATE_TIMEOUT, common::seed::update_rents(&rpc)).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                if sdk_log::sdk_log_enabled() {
+                    warn!(target: "sol_trade_sdk", "rent update failed: {}, using defaults", e);
+                }
+                common::seed::set_default_rents();
+            }
+            Err(_) => {
+                if sdk_log::sdk_log_enabled() {
+                    warn!(target: "sol_trade_sdk", "rent update timed out ({}s), using defaults; check RPC", RENT_UPDATE_TIMEOUT.as_secs());
+                }
+                common::seed::set_default_rents();
+            }
+        }
         common::seed::start_rent_updater(rpc.clone());
 
-        // Create SWQOS clients with blacklist checking
+        // Create SWQOS clients with blacklist checking（单节点超时 5s，避免某一家卡死整段初始化）
+        const SWQOS_CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
         let mut swqos_clients: Vec<Arc<SwqosClient>> = vec![];
         for swqos in &config.swqos_configs {
-            // Check blacklist, skip disabled providers
             if swqos.is_blacklisted() {
                 if sdk_log::sdk_log_enabled() {
                     warn!(target: "sol_trade_sdk", "⚠️ SWQOS {:?} is blacklisted, skipping", swqos.swqos_type());
                 }
                 continue;
             }
-            match SwqosConfig::get_swqos_client(
-                config.rpc_url.clone(),
-                config.commitment.clone(),
-                swqos.clone(),
-            ).await {
-                Ok(swqos_client) => swqos_clients.push(swqos_client),
-                Err(err) => {
+            match tokio::time::timeout(
+                SWQOS_CLIENT_TIMEOUT,
+                SwqosConfig::get_swqos_client(
+                    config.rpc_url.clone(),
+                    config.commitment.clone(),
+                    swqos.clone(),
+                ),
+            )
+            .await
+            {
+                Ok(Ok(swqos_client)) => swqos_clients.push(swqos_client),
+                Ok(Err(err)) => {
                     if sdk_log::sdk_log_enabled() {
                         warn!(
                             target: "sol_trade_sdk",
                             "failed to create {:?} swqos client: {err}. Excluding from swqos list",
                             swqos.swqos_type()
+                        );
+                    }
+                }
+                Err(_) => {
+                    if sdk_log::sdk_log_enabled() {
+                        warn!(
+                            target: "sol_trade_sdk",
+                            "swqos {:?} init timed out ({}s), skipping",
+                            swqos.swqos_type(),
+                            SWQOS_CLIENT_TIMEOUT.as_secs()
                         );
                     }
                 }
@@ -348,7 +397,7 @@ impl TradingClient {
         }
     }
 
-    /// Helper to ensure WSOL ATA exists for a wallet
+    /// 确保钱包存在 WSOL ATA；不存在则发交易创建（会花费租金 + 手续费，初始化阶段唯一会扣钱的逻辑）
     async fn ensure_wsol_ata(payer: &Arc<Keypair>, rpc: &Arc<SolanaRpcClient>) {
         let wsol_ata =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
@@ -496,9 +545,32 @@ impl TradingClient {
         // Initialize wallet-specific caches
         crate::common::fast_fn::fast_init(&payer.pubkey());
 
-        // Handle WSOL ATA creation if configured
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // 初始化阶段会花费租金/手续费的唯一路径：创建 WSOL ATA（ensure_wsol_ata）
+        // - 触发条件：create_wsol_ata_on_startup == true 且钱包 SOL >= MIN_SOL_FOR_WSOL_ATA_LAMPORTS
+        // - 花费：ATA 租金（约 0.00203928 SOL）+ 交易手续费；钱包不足时已跳过
+        // - 其它初始化（TradingInfrastructure::new、update_rents、get_swqos_client）仅 RPC/HTTP，不发送交易
+        // ═══════════════════════════════════════════════════════════════════════════════
         if trade_config.create_wsol_ata_on_startup {
-            Self::ensure_wsol_ata(&payer, &infrastructure.rpc).await;
+            const MIN_SOL_FOR_WSOL_ATA_LAMPORTS: u64 = 500_000; // 约 0.0005 SOL，用于 ATA 租金 + 手续费
+            const BALANCE_CHECK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+            let balance = tokio::time::timeout(
+                BALANCE_CHECK_TIMEOUT,
+                infrastructure.rpc.get_balance(&payer.pubkey()),
+            )
+            .await
+            .unwrap_or(Ok(0))
+            .unwrap_or(0);
+            if balance >= MIN_SOL_FOR_WSOL_ATA_LAMPORTS {
+                Self::ensure_wsol_ata(&payer, &infrastructure.rpc).await;
+            } else if sdk_log::sdk_log_enabled() {
+                info!(
+                    target: "sol_trade_sdk",
+                    "⏭️ 跳过创建 WSOL ATA：钱包 SOL 不足（当前 {} lamports，需要至少 {}）",
+                    balance,
+                    MIN_SOL_FOR_WSOL_ATA_LAMPORTS
+                );
+            }
         }
 
         let instance = Self {

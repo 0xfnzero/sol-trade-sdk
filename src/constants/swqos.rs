@@ -331,3 +331,22 @@ pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires mini
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
+
+/// Fastlane SWQoS: v2 API POST /v2/sendTransaction, body = binary bincode. ny / fra endpoints.
+pub const SWQOS_ENDPOINTS_FASTLANE: [&str; 8] = [
+    "http://64.130.37.195:8080",  // NewYork (ny)
+    "http://70.40.184.37:8080",   // Frankfurt (fra)
+    "http://70.40.184.37:8080",   // Amsterdam -> fra
+    "http://64.130.37.195:8080",  // SLC -> ny
+    "http://64.130.37.195:8080",  // Tokyo -> ny
+    "http://70.40.184.37:8080",   // London -> fra
+    "http://64.130.37.195:8080",  // LosAngeles -> ny
+    "http://64.130.37.195:8080",  // Default -> ny
+];
+
+/// Fastlane: server parses tip from tx; this is optional default tip wallet for SDK.
+pub const FASTLANE_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("DYQ3ATDe9fBNeMYXDfrUtAQXQ41xzaH1hJ1CXktnL3fG"),
+];
+
+pub const SWQOS_MIN_TIP_FASTLANE: f64 = 0.00001;

@@ -19,6 +19,7 @@ pub struct Pool {
     pub is_cashback_coin: bool,
 }
 
+/// Borsh 解码用的 Pool 字段长度。链上池账户数据为 244 字节（pump-public-docs），末尾可有 reserved 字节，解码只取前 POOL_SIZE。
 pub const POOL_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1 + 1;
 
 pub fn pool_decode(data: &[u8]) -> Option<Pool> {

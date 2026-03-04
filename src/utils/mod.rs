@@ -31,6 +31,23 @@ impl TradingClient {
         trading::common::utils::get_token_balance(&self.infrastructure.rpc, &self.payer.pubkey(), mint).await
     }
 
+    /// 使用与交易一致的 ATA 推导（含 seed 优化）查询 payer 某 mint 的余额；卖出前查余额应使用此接口并传入池的 base_token_program，否则若使用 seed ATA 会查错账户。
+    #[inline]
+    pub async fn get_payer_token_balance_with_program(
+        &self,
+        mint: &Pubkey,
+        token_program: &Pubkey,
+    ) -> Result<u64, anyhow::Error> {
+        trading::common::utils::get_token_balance_with_options(
+            &self.infrastructure.rpc,
+            &self.payer.pubkey(),
+            mint,
+            token_program,
+            self.use_seed_optimize,
+        )
+        .await
+    }
+
     #[inline]
     pub fn get_payer_pubkey(&self) -> Pubkey {
         self.payer.pubkey()

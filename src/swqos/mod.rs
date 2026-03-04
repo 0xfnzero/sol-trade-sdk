@@ -10,6 +10,7 @@ pub mod node1;
 pub mod flashblock;
 pub mod blockrazor;
 pub mod astralane;
+pub mod fastlane;
 pub mod stellium;
 pub mod lightspeed;
 pub mod soyas;
@@ -36,6 +37,7 @@ use crate::{
         SWQOS_ENDPOINTS_FLASHBLOCK,
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
+        SWQOS_ENDPOINTS_FASTLANE,
         SWQOS_ENDPOINTS_STELLIUM,
         SWQOS_ENDPOINTS_SOYAS,
         SWQOS_ENDPOINTS_SPEEDLANDING,
@@ -50,6 +52,7 @@ use crate::{
         SWQOS_MIN_TIP_FLASHBLOCK,
         SWQOS_MIN_TIP_BLOCKRAZOR,
         SWQOS_MIN_TIP_ASTRALANE,
+        SWQOS_MIN_TIP_FASTLANE,
         SWQOS_MIN_TIP_STELLIUM,
         SWQOS_MIN_TIP_LIGHTSPEED,
         SWQOS_MIN_TIP_SOYAS,
@@ -67,6 +70,7 @@ use crate::{
         flashblock::FlashBlockClient,
         blockrazor::BlockRazorClient,
         astralane::AstralaneClient,
+        fastlane::FastlaneClient,
         stellium::StelliumClient,
         lightspeed::LightspeedClient,
         soyas::SoyasClient,
@@ -117,6 +121,7 @@ pub enum SwqosType {
     FlashBlock,
     BlockRazor,
     Astralane,
+    Fastlane,
     Stellium,
     Lightspeed,
     Soyas,
@@ -137,6 +142,7 @@ impl SwqosType {
             Self::FlashBlock,
             Self::BlockRazor,
             Self::Astralane,
+            Self::Fastlane,
             Self::Stellium,
             Self::Lightspeed,
             Self::Soyas,
@@ -168,6 +174,7 @@ pub trait SwqosClientTrait {
             SwqosType::FlashBlock => SWQOS_MIN_TIP_FLASHBLOCK,
             SwqosType::BlockRazor => SWQOS_MIN_TIP_BLOCKRAZOR,
             SwqosType::Astralane => SWQOS_MIN_TIP_ASTRALANE,
+            SwqosType::Fastlane => SWQOS_MIN_TIP_FASTLANE,
             SwqosType::Stellium => SWQOS_MIN_TIP_STELLIUM,
             SwqosType::Lightspeed => SWQOS_MIN_TIP_LIGHTSPEED,
             SwqosType::Soyas => SWQOS_MIN_TIP_SOYAS,
@@ -211,6 +218,8 @@ pub enum SwqosConfig {
     BlockRazor(String, SwqosRegion, Option<String>),
     /// Astralane(api_token, region, custom_url)
     Astralane(String, SwqosRegion, Option<String>),
+    /// Fastlane(api_key_optional, region, custom_url). v2 API only: POST /v2/sendTransaction, body = bincode.
+    Fastlane(String, SwqosRegion, Option<String>),
     /// Stellium(api_token, region, custom_url)
     Stellium(String, SwqosRegion, Option<String>),
     /// Lightspeed(api_key, region, custom_url) - Solana Vibe Station
@@ -240,6 +249,7 @@ impl SwqosConfig {
             SwqosConfig::FlashBlock(_, _, _) => SwqosType::FlashBlock,
             SwqosConfig::BlockRazor(_, _, _) => SwqosType::BlockRazor,
             SwqosConfig::Astralane(_, _, _) => SwqosType::Astralane,
+            SwqosConfig::Fastlane(_, _, _) => SwqosType::Fastlane,
             SwqosConfig::Stellium(_, _, _) => SwqosType::Stellium,
             SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
@@ -268,6 +278,7 @@ impl SwqosConfig {
             SwqosType::FlashBlock => SWQOS_ENDPOINTS_FLASHBLOCK[region as usize].to_string(),
             SwqosType::BlockRazor => SWQOS_ENDPOINTS_BLOCKRAZOR[region as usize].to_string(),
             SwqosType::Astralane => SWQOS_ENDPOINTS_ASTRALANE[region as usize].to_string(),
+            SwqosType::Fastlane => SWQOS_ENDPOINTS_FASTLANE[region as usize].to_string(),
             SwqosType::Stellium => SWQOS_ENDPOINTS_STELLIUM[region as usize].to_string(),
             SwqosType::Lightspeed => "".to_string(), // Lightspeed requires custom URL with api_key
             SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
@@ -359,6 +370,15 @@ impl SwqosConfig {
                     auth_token
                 );
                 Ok(Arc::new(astralane_client))
+            },
+            SwqosConfig::Fastlane(api_key, region, url) => {
+                let base_url = SwqosConfig::get_endpoint(SwqosType::Fastlane, region, url);
+                let fastlane_client = FastlaneClient::new(
+                    rpc_url.clone(),
+                    base_url,
+                    api_key,
+                );
+                Ok(Arc::new(fastlane_client))
             },
             SwqosConfig::Stellium(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Stellium, region, url);
