@@ -2,8 +2,9 @@ use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::utils::pumpswap::{
         accounts, fee_recipient_ata, get_mayhem_fee_recipient_random, get_pool_v2_pda,
-        get_user_volume_accumulator_pda, get_user_volume_accumulator_wsol_ata, BUY_DISCRIMINATOR,
-        BUY_EXACT_QUOTE_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
+        get_user_volume_accumulator_pda, get_user_volume_accumulator_quote_ata,
+        get_user_volume_accumulator_wsol_ata, BUY_DISCRIMINATOR, BUY_EXACT_QUOTE_IN_DISCRIMINATOR,
+        SELL_DISCRIMINATOR,
     },
     trading::{
         common::wsol_manager,
@@ -192,48 +193,44 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 accounts.push(AccountMeta::new(wsol_ata, false));
             }
         }
-        // Program upgrade: pool_v2 (readonly) at end of account list
+        // remainingAccounts: @pump-fun/pump-swap-sdk 要求末尾传 poolV2Pda(baseMint)，勿删
         accounts.push(AccountMeta::new_readonly(
             get_pool_v2_pda(&base_mint).unwrap(),
             false,
         ));
 
-        // Create instruction data
-        let mut data = [0u8; 24];
-        if quote_is_wsol_or_usdc {
+        // Create instruction data（buy/buy_exact_quote_in 第三参数 track_volume: OptionBool，仅代币支持返现时传 Some(true)；sell 仅两参数）
+        let track_volume = if protocol_params.is_cashback_coin { [1u8, 1u8] } else { [1u8, 0u8] }; // Some(true) / Some(false)
+        let data: Vec<u8> = if quote_is_wsol_or_usdc {
+            let mut buf = [0u8; 26];
             if params.use_exact_sol_amount.unwrap_or(true) {
-                // buy_exact_quote_in(spendable_quote_in: u64, min_base_amount_out: u64)
-                // Spend exactly the input SOL/quote amount, get at least min_base_amount_out
                 let min_base_amount_out = crate::utils::calc::common::calculate_with_slippage_sell(
                     token_amount,
                     params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 );
-                data[..8].copy_from_slice(&BUY_EXACT_QUOTE_IN_DISCRIMINATOR);
-                // spendable_quote_in (exact SOL amount to spend)
-                data[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
-                // min_base_amount_out (minimum tokens to receive)
-                data[16..24].copy_from_slice(&min_base_amount_out.to_le_bytes());
+                buf[..8].copy_from_slice(&BUY_EXACT_QUOTE_IN_DISCRIMINATOR);
+                buf[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
+                buf[16..24].copy_from_slice(&min_base_amount_out.to_le_bytes());
+                buf[24..26].copy_from_slice(&track_volume);
             } else {
-                // buy(base_amount_out: u64, max_quote_amount_in: u64)
-                // Buy exactly base_amount_out tokens, pay up to max_quote_amount_in
-                data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-                // base_amount_out
-                data[8..16].copy_from_slice(&token_amount.to_le_bytes());
-                // max_quote_amount_in
-                data[16..24].copy_from_slice(&sol_amount.to_le_bytes());
+                buf[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+                buf[8..16].copy_from_slice(&token_amount.to_le_bytes());
+                buf[16..24].copy_from_slice(&sol_amount.to_le_bytes());
+                buf[24..26].copy_from_slice(&track_volume);
             }
+            buf.to_vec()
         } else {
-            data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
-            // base_amount_in
-            data[8..16].copy_from_slice(&sol_amount.to_le_bytes());
-            // min_quote_amount_out
-            data[16..24].copy_from_slice(&token_amount.to_le_bytes());
-        }
+            let mut buf = [0u8; 24];
+            buf[..8].copy_from_slice(&SELL_DISCRIMINATOR);
+            buf[8..16].copy_from_slice(&sol_amount.to_le_bytes());
+            buf[16..24].copy_from_slice(&token_amount.to_le_bytes());
+            buf.to_vec()
+        };
 
         let buy_instruction = Instruction {
             program_id: accounts::AMM_PROGRAM,
             accounts: accounts.clone(),
-            data: data.to_vec(),
+            data,
         };
 
         instructions.push(buy_instruction);
@@ -391,17 +388,21 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         }
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
-        // Cashback: remaining_accounts[0] = WSOL ATA of UserVolumeAccumulator, remaining_accounts[1] = UserVolumeAccumulator PDA
+        // Cashback sell: 官方 remainingAccounts = [accumulator 的 quote_mint ATA, accumulator PDA, poolV2]（用 quote_mint 非固定 WSOL）
         if protocol_params.is_cashback_coin {
-            if let (Some(wsol_ata), Some(accumulator)) = (
-                get_user_volume_accumulator_wsol_ata(&params.payer.pubkey()),
+            if let (Some(quote_ata), Some(accumulator)) = (
+                get_user_volume_accumulator_quote_ata(
+                    &params.payer.pubkey(),
+                    &quote_mint,
+                    &quote_token_program,
+                ),
                 get_user_volume_accumulator_pda(&params.payer.pubkey()),
             ) {
-                accounts.push(AccountMeta::new(wsol_ata, false));
+                accounts.push(AccountMeta::new(quote_ata, false));
                 accounts.push(AccountMeta::new(accumulator, false));
             }
         }
-        // Program upgrade: pool_v2 (readonly) at end of account list
+        // remainingAccounts: @pump-fun/pump-swap-sdk sell 要求末尾传 poolV2Pda(baseMint)，勿删
         accounts.push(AccountMeta::new_readonly(
             get_pool_v2_pda(&base_mint).unwrap(),
             false,

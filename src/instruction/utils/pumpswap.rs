@@ -262,13 +262,27 @@ pub fn get_user_volume_accumulator_pda(user: &Pubkey) -> Option<Pubkey> {
     )
 }
 
-/// WSOL ATA of UserVolumeAccumulator for Pump AMM (used for cashback remaining accounts).
+/// WSOL ATA of UserVolumeAccumulator for Pump AMM (buy cashback: remaining_accounts[0] 官方用 NATIVE_MINT).
 pub fn get_user_volume_accumulator_wsol_ata(user: &Pubkey) -> Option<Pubkey> {
     let accumulator = get_user_volume_accumulator_pda(user)?;
     Some(crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
         &accumulator,
         &crate::constants::WSOL_TOKEN_ACCOUNT,
         &crate::constants::TOKEN_PROGRAM,
+    ))
+}
+
+/// Quote-mint ATA of UserVolumeAccumulator（sell cashback 时官方用 quoteMint，非固定 WSOL）.
+pub fn get_user_volume_accumulator_quote_ata(
+    user: &Pubkey,
+    quote_mint: &Pubkey,
+    quote_token_program: &Pubkey,
+) -> Option<Pubkey> {
+    let accumulator = get_user_volume_accumulator_pda(user)?;
+    Some(crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+        &accumulator,
+        quote_mint,
+        quote_token_program,
     ))
 }
 

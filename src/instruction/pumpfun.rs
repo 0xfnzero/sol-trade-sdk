@@ -118,10 +118,11 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             );
         }
 
-        let mut buy_data = [0u8; 24];
+        // IDL: buy/buy_exact_sol_in 第三参数 track_volume: OptionBool，仅代币支持返现时传 Some(true)
+        let track_volume = if bonding_curve.is_cashback_coin { [1u8, 1u8] } else { [1u8, 0u8] }; // Some(true) / Some(false)
+        let mut buy_data = [0u8; 26];
         if params.use_exact_sol_amount.unwrap_or(true) {
-            // buy_exact_sol_in(spendable_sol_in: u64, min_tokens_out: u64)
-            // Spend exactly the input SOL amount, get at least min_tokens_out
+            // buy_exact_sol_in(spendable_sol_in: u64, min_tokens_out: u64, track_volume)
             let min_tokens_out = calculate_with_slippage_sell(
                 buy_token_amount,
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
@@ -129,12 +130,13 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             buy_data[..8].copy_from_slice(&BUY_EXACT_SOL_IN_DISCRIMINATOR);
             buy_data[8..16].copy_from_slice(&params.input_amount.unwrap_or(0).to_le_bytes());
             buy_data[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
+            buy_data[24..26].copy_from_slice(&track_volume);
         } else {
-            // buy(token_amount: u64, max_sol_cost: u64)
-            // Buy exactly token_amount tokens, pay up to max_sol_cost
+            // buy(token_amount: u64, max_sol_cost: u64, track_volume)
             buy_data[..8].copy_from_slice(&BUY_DISCRIMINATOR);
             buy_data[8..16].copy_from_slice(&buy_token_amount.to_le_bytes());
             buy_data[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
+            buy_data[24..26].copy_from_slice(&track_volume);
         }
 
         // Determine fee recipient based on mayhem mode (pump-public-docs: 2nd account = Mayhem fee recipient; use any one randomly)
@@ -163,7 +165,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             accounts::FEE_CONFIG_META,
             accounts::FEE_PROGRAM_META,
         ];
-        accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false)); // bonding_curve_v2 (readonly) at end
+        accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false)); // remainingAccounts: @pump-fun/pump-sdk 要求末尾传 bondingCurveV2Pda(mint)，勿删
 
         instructions.push(Instruction::new_with_bytes(
             accounts::PUMPFUN,
@@ -289,7 +291,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                 get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap();
             accounts.push(AccountMeta::new(user_volume_accumulator, false));
         }
-        // Program upgrade: bonding_curve_v2 (readonly) at end of account list
+        // remainingAccounts: @pump-fun/pump-sdk sell 要求末尾传 bondingCurveV2Pda(mint)（cashback 时在 user_volume_accumulator 之后），勿删
         let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.input_mint).unwrap();
         accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false));
 

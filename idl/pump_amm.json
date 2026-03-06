@@ -4835,7 +4835,7 @@
     },
     {
       "code": 6052,
-      "name": "CashbackEarnedDoesNotMatchTokenInVault"
+      "name": "TokensInVaultLessThanCashbackEarned"
     }
   ],
   "types": [
