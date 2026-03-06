@@ -17,9 +17,12 @@ pub struct Pool {
     pub is_mayhem_mode: bool,
     /// Whether this pool's coin has cashback enabled
     pub is_cashback_coin: bool,
+    /// Reserved for future fields (pump-public-docs: pool structure = 244 bytes total)
+    pub _reserved: [u8; 7],
 }
 
-pub const POOL_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1 + 1;
+/// Borsh 解码用的 Pool 长度。链上池为 244 字节（pump-public-docs Breaking Change），与 POOL_SIZE 一致。
+pub const POOL_SIZE: usize = 244;
 
 pub fn pool_decode(data: &[u8]) -> Option<Pool> {
     if data.len() < POOL_SIZE {

@@ -2,7 +2,11 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction
 use solana_system_interface::instruction::transfer;
 
 use crate::common::{
-    fast_fn::get_associated_token_address_with_program_id_fast, spl_token::close_account,
+    fast_fn::{
+        get_associated_token_address_with_program_id_fast,
+        get_associated_token_address_with_program_id_fast_use_seed,
+    },
+    spl_token::close_account,
     SolanaRpcClient,
 };
 use anyhow::anyhow;
@@ -36,10 +40,30 @@ pub async fn get_token_balance(
     payer: &Pubkey,
     mint: &Pubkey,
 ) -> Result<u64, anyhow::Error> {
-    let ata = crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+    get_token_balance_with_options(
+        rpc,
         payer,
         mint,
         &crate::constants::TOKEN_PROGRAM,
+        false,
+    )
+    .await
+}
+
+/// 使用与交易指令一致的 ATA 推导（可选 seed）查询余额；卖出/余额查询应与买入使用同一 ATA 地址。
+#[inline]
+pub async fn get_token_balance_with_options(
+    rpc: &SolanaRpcClient,
+    payer: &Pubkey,
+    mint: &Pubkey,
+    token_program: &Pubkey,
+    use_seed: bool,
+) -> Result<u64, anyhow::Error> {
+    let ata = get_associated_token_address_with_program_id_fast_use_seed(
+        payer,
+        mint,
+        token_program,
+        use_seed,
     );
     let balance = rpc.get_token_account_balance(&ata).await?;
     let balance_u64 =

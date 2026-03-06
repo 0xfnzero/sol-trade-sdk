@@ -25,6 +25,15 @@ pub async fn update_rents(client: &SolanaRpcClient) -> Result<(), anyhow::Error>
     Ok(())
 }
 
+/// 165 字节 Token 账户的典型租金（lamports），RPC 超时时用作回退
+const DEFAULT_TOKEN_ACCOUNT_RENT: u64 = 2_039_280;
+
+/// 当 RPC 超时或不可用时设置默认租金，避免客户端创建卡死
+pub fn set_default_rents() {
+    SPL_TOKEN_RENT.store(DEFAULT_TOKEN_ACCOUNT_RENT, Ordering::Release);
+    SPL_TOKEN_2022_RENT.store(DEFAULT_TOKEN_ACCOUNT_RENT, Ordering::Release);
+}
+
 pub fn start_rent_updater(client: Arc<SolanaRpcClient>) {
     tokio::spawn(async move {
         loop {

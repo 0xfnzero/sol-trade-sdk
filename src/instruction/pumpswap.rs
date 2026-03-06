@@ -1,8 +1,8 @@
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::utils::pumpswap::{
-        accounts, fee_recipient_ata, get_pool_v2_pda, get_user_volume_accumulator_pda,
-        get_user_volume_accumulator_wsol_ata, BUY_DISCRIMINATOR,
+        accounts, fee_recipient_ata, get_mayhem_fee_recipient_random, get_pool_v2_pda,
+        get_user_volume_accumulator_pda, get_user_volume_accumulator_wsol_ata, BUY_DISCRIMINATOR,
         BUY_EXACT_QUOTE_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
     },
     trading::{
@@ -119,16 +119,18 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 params.open_seed_optimize,
             );
 
-        // Determine fee recipient based on mayhem mode
+        // Determine fee recipient based on mayhem mode (pump-public-docs: 10th = Mayhem fee recipient, 11th = WSOL ATA of Mayhem; use any one randomly)
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
-        let fee_recipient =
-            if is_mayhem_mode { accounts::MAYHEM_FEE_RECIPIENT } else { accounts::FEE_RECIPIENT };
-        let fee_recipient_meta = if is_mayhem_mode {
-            accounts::MAYHEM_FEE_RECIPIENT_META
+        let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
+            get_mayhem_fee_recipient_random()
         } else {
-            accounts::FEE_RECIPIENT_META
+            (accounts::FEE_RECIPIENT, accounts::FEE_RECIPIENT_META)
         };
-        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
+        let fee_recipient_ata = if is_mayhem_mode {
+            fee_recipient_ata(fee_recipient, crate::constants::WSOL_TOKEN_ACCOUNT)
+        } else {
+            fee_recipient_ata(fee_recipient, quote_mint)
+        };
 
         // ========================================
         // Build instructions
@@ -320,16 +322,18 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             sol_amount = params.fixed_output_amount.unwrap();
         }
 
-        // Determine fee recipient based on mayhem mode
+        // Determine fee recipient based on mayhem mode (pump-public-docs: 10th = Mayhem fee recipient, 11th = WSOL ATA of Mayhem; use any one randomly)
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
-        let fee_recipient =
-            if is_mayhem_mode { accounts::MAYHEM_FEE_RECIPIENT } else { accounts::FEE_RECIPIENT };
-        let fee_recipient_meta = if is_mayhem_mode {
-            accounts::MAYHEM_FEE_RECIPIENT_META
+        let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
+            get_mayhem_fee_recipient_random()
         } else {
-            accounts::FEE_RECIPIENT_META
+            (accounts::FEE_RECIPIENT, accounts::FEE_RECIPIENT_META)
         };
-        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
+        let fee_recipient_ata = if is_mayhem_mode {
+            fee_recipient_ata(fee_recipient, crate::constants::WSOL_TOKEN_ACCOUNT)
+        } else {
+            fee_recipient_ata(fee_recipient, quote_mint)
+        };
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(

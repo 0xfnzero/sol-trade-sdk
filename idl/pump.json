@@ -768,21 +768,6 @@
         {
           "name": "fee_program",
           "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
-        },
-        {
-          "name": "bonding_curve_v2",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [98, 111, 110, 100, 105, 110, 103, 45, 99, 117, 114, 118, 101, 45, 118, 50]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ]
-          }
         }
       ],
       "args": [
@@ -1179,21 +1164,6 @@
         {
           "name": "fee_program",
           "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
-        },
-        {
-          "name": "bonding_curve_v2",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [98, 111, 110, 100, 105, 110, 103, 45, 99, 117, 114, 118, 101, 45, 118, 50]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ]
-          }
         }
       ],
       "args": [
@@ -3987,21 +3957,6 @@
         {
           "name": "fee_program",
           "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
-        },
-        {
-          "name": "bonding_curve_v2",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [98, 111, 110, 100, 105, 110, 103, 45, 99, 117, 114, 118, 101, 45, 118, 50]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ]
-          }
         }
       ],
       "args": [

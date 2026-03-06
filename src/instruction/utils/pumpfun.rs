@@ -1,6 +1,7 @@
 use crate::common::{bonding_curve::BondingCurveAccount, SolanaRpcClient};
 use anyhow::anyhow;
-use solana_sdk::pubkey::Pubkey;
+use rand::seq::IndexedRandom;
+use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
 use std::sync::Arc;
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
@@ -59,8 +60,18 @@ pub mod global_constants {
             is_writable: true,
         };
 
-    pub const MAYHEM_FEE_RECIPIENT: Pubkey =
-        pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS");
+    /// Mayhem fee recipients (pump-public-docs: use any one randomly)
+    pub const MAYHEM_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS"),
+        pubkey!("4budycTjhs9fD6xw62VBducVTNgMgJJ5BgtKq7mAZwn6"),
+        pubkey!("8SBKzEQU4nLSzcwF4a74F2iaUDQyTfjGndn6qUWBnrpR"),
+        pubkey!("4UQeTP1T39KZ9Sfxzo3WR5skgsaP6NZa87BAkuazLEKH"),
+        pubkey!("8sNeir4QsLsJdYpc9RZacohhK1Y5FLU3nC5LXgYB4aa6"),
+        pubkey!("Fh9HmeLNUMVCvejxCtCL2DbYaRyBFVJ5xrWkLnMH6fdk"),
+        pubkey!("463MEnMeGyJekNZFQSTUABBEbLnvMTALbT6ZmsxAbAdq"),
+        pubkey!("6AUH3WEHucYZyC61hqpqYUWVto5qA5hjHuNQ32GNnNxA"),
+    ];
+    pub const MAYHEM_FEE_RECIPIENT: Pubkey = MAYHEM_FEE_RECIPIENTS[0];
     pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: MAYHEM_FEE_RECIPIENT,
@@ -160,6 +171,19 @@ pub mod accounts {
 pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_SOL_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
+
+/// Returns a random Mayhem fee recipient AccountMeta (pump-public-docs: Bonding Curve 2nd account = Mayhem fee recipient; use any one randomly).
+#[inline]
+pub fn get_mayhem_fee_recipient_meta_random() -> AccountMeta {
+    let recipient = *global_constants::MAYHEM_FEE_RECIPIENTS
+        .choose(&mut rand::rng())
+        .unwrap_or(&global_constants::MAYHEM_FEE_RECIPIENTS[0]);
+    AccountMeta {
+        pubkey: recipient,
+        is_signer: false,
+        is_writable: true,
+    }
+}
 
 pub struct Symbol;
 

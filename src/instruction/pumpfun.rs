@@ -9,8 +9,8 @@ use crate::{
 use crate::{
     instruction::utils::pumpfun::{
         accounts, get_bonding_curve_pda, get_bonding_curve_v2_pda, get_creator,
-        get_user_volume_accumulator_pda, global_constants::{self}, BUY_DISCRIMINATOR,
-        BUY_EXACT_SOL_IN_DISCRIMINATOR,
+        get_mayhem_fee_recipient_meta_random, get_user_volume_accumulator_pda,
+        global_constants::{self}, BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR,
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -137,9 +137,9 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             buy_data[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
         }
 
-        // Determine fee recipient based on mayhem mode
+        // Determine fee recipient based on mayhem mode (pump-public-docs: 2nd account = Mayhem fee recipient; use any one randomly)
         let fee_recipient_meta = if is_mayhem_mode {
-            global_constants::MAYHEM_FEE_RECIPIENT_META
+            get_mayhem_fee_recipient_meta_random()
         } else {
             global_constants::FEE_RECIPIENT_META
         };
@@ -259,9 +259,9 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         sell_data[8..16].copy_from_slice(&token_amount.to_le_bytes());
         sell_data[16..24].copy_from_slice(&min_sol_output.to_le_bytes());
 
-        // Determine fee recipient based on mayhem mode
+        // Determine fee recipient based on mayhem mode (pump-public-docs: 2nd account = Mayhem fee recipient; use any one randomly)
         let fee_recipient_meta = if is_mayhem_mode {
-            global_constants::MAYHEM_FEE_RECIPIENT_META
+            get_mayhem_fee_recipient_meta_random()
         } else {
             global_constants::FEE_RECIPIENT_META
         };
