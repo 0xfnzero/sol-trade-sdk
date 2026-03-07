@@ -77,7 +77,7 @@ impl TradeExecutor for GenericTradeExecutor {
             Some(middleware_manager) => middleware_manager
                 .apply_middlewares_process_protocol_instructions(
                     instructions,
-                    self.protocol_name.to_string(),
+                    self.protocol_name,
                     is_buy,
                 )?,
             None => instructions,
@@ -144,53 +144,51 @@ impl TradeExecutor for GenericTradeExecutor {
         .await;
 
         let log_enabled = params.log_enabled && crate::common::sdk_log::sdk_log_enabled();
-        let submit_timings = if log_enabled {
-            result.as_ref().ok().map(|(_, _, _, t)| t.clone()).unwrap_or_default()
-        } else {
-            Vec::new()
+
+        let (ok, signatures, err, submit_timings) = match result {
+            Ok((success, sigs, last_error, timings)) => (
+                success,
+                sigs,
+                last_error.map(|e| anyhow::anyhow!("{}", e)),
+                timings,
+            ),
+            Err(e) => (false, vec![], Some(anyhow::anyhow!("{}", e)), vec![]),
         };
+        let submit_timings_ref: &[(crate::swqos::SwqosType, i64)] = submit_timings.as_slice();
 
         let result = if need_confirm {
-            let (ok, sigs, err) = match &result {
-                Ok((success, signatures, last_error, _)) => (
-                    *success,
-                    signatures.clone(),
-                    last_error.as_ref().map(|e| anyhow::anyhow!("{}", e)),
-                ),
-                Err(e) => (false, vec![], Some(anyhow::anyhow!("{}", e))),
-            };
             let confirm_result = if let Some(rpc) = params.rpc.as_ref() {
-                if sigs.is_empty() {
-                    (ok, sigs, err)
+                if signatures.is_empty() {
+                    (ok, signatures, err)
                 } else {
-                let poll_res = poll_any_transaction_confirmation(rpc, &sigs, true).await;
-                let confirm_done_us = log_enabled.then(crate::common::clock::now_micros);
-                if log_enabled {
-                    let dir = if is_buy { "Buy" } else { "Sell" };
-                    if let Some(start_us) = timing_start_us {
-                        if let Some(end_us) = build_end_us {
-                            println!(" [SDK] {} build_instructions: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
-                        }
-                        if let Some(end_us) = before_submit_us {
-                            println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
-                        }
-                        if let Some(confirm_us) = confirm_done_us {
-                            let total_ms = (confirm_us - start_us) as f64 / 1000.0;
-                            for (swqos_type, submit_done_us) in &submit_timings {
-                                let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
-                                let confirmed_ms = (confirm_us - *submit_done_us).max(0) as f64 / 1000.0;
-                                println!(" [SDK] {} {:?} submit: {:.4} ms, confirmed: {:.4} ms, total: {:.4} ms", dir, swqos_type, submit_ms, confirmed_ms, total_ms);
+                    let poll_res = poll_any_transaction_confirmation(rpc, &signatures, true).await;
+                    let confirm_done_us = log_enabled.then(crate::common::clock::now_micros);
+                    if log_enabled {
+                        let dir = if is_buy { "Buy" } else { "Sell" };
+                        if let Some(start_us) = timing_start_us {
+                            if let Some(end_us) = build_end_us {
+                                println!(" [SDK] {} build_instructions: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                            }
+                            if let Some(end_us) = before_submit_us {
+                                println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                            }
+                            if let Some(confirm_us) = confirm_done_us {
+                                let total_ms = (confirm_us - start_us) as f64 / 1000.0;
+                                for (swqos_type, submit_done_us) in submit_timings_ref {
+                                    let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
+                                    let confirmed_ms = (confirm_us - *submit_done_us).max(0) as f64 / 1000.0;
+                                    println!(" [SDK] {} {:?} submit: {:.4} ms, confirmed: {:.4} ms, total: {:.4} ms", dir, swqos_type, submit_ms, confirmed_ms, total_ms);
+                                }
                             }
                         }
                     }
-                }
-                match poll_res {
-                    Ok(_) => (true, sigs, None),
-                    Err(e) => (false, sigs, Some(e)),
-                }
+                    match poll_res {
+                        Ok(_) => (true, signatures, None),
+                        Err(e) => (false, signatures, Some(e)),
+                    }
                 }
             } else {
-                (ok, sigs, err)
+                (ok, signatures, err)
             };
             Ok(confirm_result)
         } else {
@@ -203,13 +201,13 @@ impl TradeExecutor for GenericTradeExecutor {
                     if let Some(end_us) = before_submit_us {
                         println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
                     }
-                    for (swqos_type, submit_done_us) in &submit_timings {
+                    for (swqos_type, submit_done_us) in submit_timings_ref {
                         let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
                         println!(" [SDK] {} {:?} submit: {:.4} ms, confirmed: -, total: {:.4} ms", dir, swqos_type, submit_ms, submit_ms);
                     }
                 }
             }
-            result.map(|(a, b, c, _)| (a, b, c))
+            Ok((ok, signatures, err))
         };
 
         result
@@ -256,22 +254,21 @@ async fn simulate_transaction(
     let unit_limit = default_config.2.cu_limit;
     let unit_price = default_config.2.cu_price;
 
-    // Build transaction for simulation
     let transaction = build_transaction(
-        payer.clone(),
-        Some(rpc.clone()),
+        &payer,
+        Some(&rpc),
         unit_limit,
         unit_price,
         &instructions,
-        address_lookup_table_account,
+        address_lookup_table_account.as_ref(),
         recent_blockhash,
-        middleware_manager,
+        middleware_manager.as_ref(),
         protocol_name,
         is_buy,
-        false, // simulate doesn't need tip instruction
+        false,
         &Pubkey::default(),
         tip,
-        durable_nonce,
+        durable_nonce.as_ref(),
     )
     .await?;
 

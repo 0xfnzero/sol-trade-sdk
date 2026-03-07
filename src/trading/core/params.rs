@@ -398,7 +398,7 @@ impl PumpSwapParams {
         );
 
         Ok(Self {
-            pool: pool_address.clone(),
+            pool: *pool_address,
             base_mint: pool_data.base_mint,
             quote_mint: pool_data.quote_mint,
             pool_base_token_account: pool_data.pool_base_token_account,
@@ -671,7 +671,7 @@ impl RaydiumCpmmParams {
             )
             .await?;
         Ok(Self {
-            pool_state: pool_address.clone(),
+            pool_state: *pool_address,
             amm_config: pool.amm_config,
             base_mint: pool.token0_mint,
             quote_mint: pool.token1_mint,
@@ -778,7 +778,7 @@ impl MeteoraDammV2Params {
         let pool_data =
             crate::instruction::utils::meteora_damm_v2::fetch_pool(rpc, pool_address).await?;
         Ok(Self {
-            pool: pool_address.clone(),
+            pool: *pool_address,
             token_a_vault: pool_data.token_a_vault,
             token_b_vault: pool_data.token_b_vault,
             token_a_mint: pool_data.token_a_mint,

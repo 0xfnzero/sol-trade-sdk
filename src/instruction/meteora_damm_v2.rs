@@ -27,7 +27,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .protocol_params
             .as_any()
             .downcast_ref::<MeteoraDammV2Params>()
-            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
+            .ok_or_else(|| anyhow!("Invalid protocol params for MeteoraDammV2"))?;
 
         let is_wsol = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
         let is_usdc = protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
@@ -135,7 +135,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .protocol_params
             .as_any()
             .downcast_ref::<MeteoraDammV2Params>()
-            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
+            .ok_or_else(|| anyhow!("Invalid protocol params for MeteoraDammV2"))?;
 
         if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));

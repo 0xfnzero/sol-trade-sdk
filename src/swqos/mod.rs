@@ -77,6 +77,8 @@ use crate::{
 };
 
 lazy_static::lazy_static! {
+    /// Reserved for future per-SWQOS tip account caching (currently unused).
+    #[allow(dead_code)]
     static ref TIP_ACCOUNT_CACHE: RwLock<Vec<String>> = RwLock::new(Vec::new());
 }
 

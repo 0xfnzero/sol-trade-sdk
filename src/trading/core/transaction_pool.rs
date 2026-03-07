@@ -6,6 +6,15 @@
 //! - 零拷贝 I/O
 //! - 内存预热
 
+/// 预分配指令容量（单笔交易常见指令数）
+const TX_BUILDER_INSTRUCTION_CAP: usize = 32;
+/// 预分配地址查找表数量
+const TX_BUILDER_LOOKUP_TABLE_CAP: usize = 8;
+/// 对象池最大容量
+const TX_BUILDER_POOL_CAP: usize = 1000;
+/// 启动时预填充对象池数量
+const TX_BUILDER_POOL_PREFILL: usize = 100;
+
 use crossbeam_queue::ArrayQueue;
 use once_cell::sync::Lazy;
 use solana_sdk::{
@@ -23,8 +32,8 @@ pub struct PreallocatedTxBuilder {
 impl PreallocatedTxBuilder {
     fn new() -> Self {
         Self {
-            instructions: Vec::with_capacity(32), // 预分配32条指令空间
-            lookup_tables: Vec::with_capacity(8),  // 预分配8个查找表空间
+            instructions: Vec::with_capacity(TX_BUILDER_INSTRUCTION_CAP),
+            lookup_tables: Vec::with_capacity(TX_BUILDER_LOOKUP_TABLE_CAP),
         }
     }
 
@@ -65,23 +74,20 @@ impl PreallocatedTxBuilder {
         &mut self,
         payer: &Pubkey,
         instructions: &[Instruction],
-        address_lookup_table_account: Option<AddressLookupTableAccount>,
+        address_lookup_table_account: Option<&AddressLookupTableAccount>,
         recent_blockhash: Hash,
     ) -> VersionedMessage {
-        // 重用已分配的 vector
         self.reset();
         self.instructions.extend_from_slice(instructions);
 
-        // ✅ 如果有查找表，使用 V0 消息
-        if let Some(address_lookup_table_account) = address_lookup_table_account {
-             let message = v0::Message::try_compile(
+        if let Some(alt) = address_lookup_table_account {
+            let message = v0::Message::try_compile(
                 payer,
                 &self.instructions,
-                &[address_lookup_table_account],
+                std::slice::from_ref(alt),
                 recent_blockhash,
-            ).expect("v0 message compile failed");
-
-
+            )
+            .expect("v0 message compile failed");
             VersionedMessage::V0(message)
         } else {
             // ✅ 没有查找表，使用 Legacy 消息（兼容所有 RPC）
@@ -97,10 +103,9 @@ impl PreallocatedTxBuilder {
 
 /// 🚀 全局交易构建器对象池
 static TX_BUILDER_POOL: Lazy<Arc<ArrayQueue<PreallocatedTxBuilder>>> = Lazy::new(|| {
-    let pool = ArrayQueue::new(1000); // 1000个预分配构建器
+    let pool = ArrayQueue::new(TX_BUILDER_POOL_CAP);
 
-    // 预填充池
-    for _ in 0..100 {
+    for _ in 0..TX_BUILDER_POOL_PREFILL {
         let _ = pool.push(PreallocatedTxBuilder::new());
     }
 

@@ -353,8 +353,8 @@ pub async fn find_by_base_mint(
     }
 
     pools.sort_by(|a, b| b.1.lp_supply.cmp(&a.1.lp_supply));
-    let (address, pool) = pools[0].clone();
-    Ok((address, pool))
+    let first = &pools[0];
+    Ok((first.0, first.1.clone()))
 }
 
 pub async fn find_by_quote_mint(
@@ -405,8 +405,8 @@ pub async fn find_by_quote_mint(
     }
 
     pools.sort_by(|a, b| b.1.lp_supply.cmp(&a.1.lp_supply));
-    let (address, pool) = pools[0].clone();
-    Ok((address, pool))
+    let first = &pools[0];
+    Ok((first.0, first.1.clone()))
 }
 
 /// 按 mint 查找 PumpSwap 池（本函数仅用于 PumpSwap，其他 DEX 勿用）。

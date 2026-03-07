@@ -1,70 +1,66 @@
 use solana_hash::Hash;
 use solana_sdk::{
-    instruction::Instruction, message::AddressLookupTableAccount, native_token::sol_str_to_lamports, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::VersionedTransaction
+    instruction::Instruction, message::AddressLookupTableAccount, pubkey::Pubkey,
+    signature::Keypair, signer::Signer, transaction::VersionedTransaction,
 };
 use solana_system_interface::instruction::transfer;
 use std::sync::Arc;
 
-use super::{
-    compute_budget_manager::compute_budget_instructions,
-    nonce_manager::{add_nonce_instruction, get_transaction_blockhash},
-};
+use super::nonce_manager::{add_nonce_instruction, get_transaction_blockhash};
 use crate::{
     common::{nonce_cache::DurableNonceInfo, SolanaRpcClient},
     trading::{MiddlewareManager, core::transaction_pool::{acquire_builder, release_builder}},
 };
 
+/// Convert SOL amount (f64) to lamports without string allocation (hot path).
+#[inline(always)]
+fn sol_f64_to_lamports(sol: f64) -> u64 {
+    if sol <= 0.0 {
+        return 0;
+    }
+    let lamports = sol * 1_000_000_000.0;
+    (lamports.min(u64::MAX as f64)).round() as u64
+}
+
 /// Build standard RPC transaction.
-/// Takes `business_instructions` by reference to avoid per-task Vec clone in execute_parallel.
+/// Takes Arc/context by reference to avoid clone in worker hot path (Arc::clone is cheap but ref is zero-cost).
 pub async fn build_transaction(
-    payer: Arc<Keypair>,
-    _rpc: Option<Arc<SolanaRpcClient>>,
+    payer: &Arc<Keypair>,
+    _rpc: Option<&Arc<SolanaRpcClient>>,
     unit_limit: u32,
     unit_price: u64,
     business_instructions: &[Instruction],
-    address_lookup_table_account: Option<AddressLookupTableAccount>,
+    address_lookup_table_account: Option<&AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
-    middleware_manager: Option<Arc<MiddlewareManager>>,
+    middleware_manager: Option<&Arc<MiddlewareManager>>,
     protocol_name: &str,
     is_buy: bool,
     with_tip: bool,
     tip_account: &Pubkey,
     tip_amount: f64,
-    durable_nonce: Option<DurableNonceInfo>,
-    // nonce_account: Option<Pubkey>,
-    // current_nonce: Option<Hash>,
+    durable_nonce: Option<&DurableNonceInfo>,
 ) -> Result<VersionedTransaction, anyhow::Error> {
     let mut instructions = Vec::with_capacity(business_instructions.len() + 5);
 
-    // Add nonce instruction
-    if let Err(e) =
-        add_nonce_instruction(&mut instructions, payer.as_ref(), durable_nonce.clone())
-    {
+    if let Err(e) = add_nonce_instruction(&mut instructions, payer.as_ref(), durable_nonce) {
         return Err(e);
     }
 
-    // Add tip transfer instruction
     if with_tip && tip_amount > 0.0 {
-        instructions.push(transfer(
-            &payer.pubkey(),
-            tip_account,
-            sol_str_to_lamports(tip_amount.to_string().as_str()).unwrap_or(0),
-        ));
+        let tip_lamports = sol_f64_to_lamports(tip_amount);
+        instructions.push(transfer(&payer.pubkey(), tip_account, tip_lamports));
     }
 
-    // Add compute budget instructions
-    instructions.extend(compute_budget_instructions(
+    super::compute_budget_manager::extend_compute_budget_instructions(
+        &mut instructions,
         unit_price,
         unit_limit,
-    ));
+    );
 
-    // Add business instructions (clone only here; avoids per-task Vec clone in execute_parallel)
     instructions.extend_from_slice(business_instructions);
 
-    // Get blockhash for transaction
-    let blockhash = get_transaction_blockhash(recent_blockhash, durable_nonce.clone());
+    let blockhash = get_transaction_blockhash(recent_blockhash, durable_nonce)?;
 
-    // Build transaction
     build_versioned_transaction(
         payer,
         instructions,
@@ -77,23 +73,18 @@ pub async fn build_transaction(
     .await
 }
 
-/// Low-level function for building versioned transactions
 async fn build_versioned_transaction(
-    payer: Arc<Keypair>,
+    payer: &Arc<Keypair>,
     instructions: Vec<Instruction>,
-    address_lookup_table_account: Option<AddressLookupTableAccount>,
+    address_lookup_table_account: Option<&AddressLookupTableAccount>,
     blockhash: Hash,
-    middleware_manager: Option<Arc<MiddlewareManager>>,
+    middleware_manager: Option<&Arc<MiddlewareManager>>,
     protocol_name: &str,
     is_buy: bool,
 ) -> Result<VersionedTransaction, anyhow::Error> {
     let full_instructions = match middleware_manager {
         Some(middleware_manager) => middleware_manager
-            .apply_middlewares_process_full_instructions(
-                instructions,
-                protocol_name.to_string(),
-                is_buy,
-            )?,
+            .apply_middlewares_process_full_instructions(instructions, protocol_name, is_buy)?,
         None => instructions,
     };
 
@@ -108,7 +99,7 @@ async fn build_versioned_transaction(
     );
 
     let msg_bytes = versioned_msg.serialize();
-    let signature = payer.try_sign_message(&msg_bytes).expect("sign failed");
+    let signature = payer.as_ref().try_sign_message(&msg_bytes).expect("sign failed");
     let tx = VersionedTransaction { signatures: vec![signature], message: versioned_msg };
 
     // 归还构建器到池

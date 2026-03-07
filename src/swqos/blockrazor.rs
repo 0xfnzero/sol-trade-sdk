@@ -49,7 +49,11 @@ impl SwqosClientTrait for BlockRazorClient {
 impl BlockRazorClient {
     pub fn new(rpc_url: String, endpoint: String, auth_token: String) -> Self {
         let rpc_client = SolanaRpcClient::new(rpc_url);
-        let http_client = default_http_client_builder().build().unwrap();
+        // 官方文档：請求中唯一允許的 header 是 Content-Type: text/plain；避免默认 User-Agent 等导致 500
+        let http_client = default_http_client_builder()
+            .user_agent("")
+            .build()
+            .unwrap();
         
         let client = Self { 
             rpc_client: Arc::new(rpc_client), 
@@ -127,6 +131,7 @@ impl BlockRazorClient {
     }
 
     /// Send transaction via v2 API: plain Base64 body, Content-Type: text/plain. Only required URI param: auth.
+    /// 文档要求：auth 以 URI 参数传入；body 为纯 Base64 编码交易；唯一允许的 header 为 Content-Type: text/plain。
     pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
         let start_time = Instant::now();
         let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
@@ -140,16 +145,21 @@ impl BlockRazorClient {
             .await?;
 
         let status = response.status();
-        let _ = response.bytes().await;
         if status.is_success() {
+            let _ = response.bytes().await;
             if crate::common::sdk_log::sdk_log_enabled() {
                 println!(" [blockrazor] {} submitted: {:?}", trade_type, start_time.elapsed());
             }
         } else {
+            let body = response.text().await.unwrap_or_default();
             if crate::common::sdk_log::sdk_log_enabled() {
-                eprintln!(" [blockrazor] {} submission failed: status {}", trade_type, status);
+                eprintln!(" [blockrazor] {} submission failed: status {} body: {}", trade_type, status, body);
             }
-            return Err(anyhow::anyhow!("BlockRazor sendTransaction failed: {}", status));
+            return Err(anyhow::anyhow!(
+                "BlockRazor sendTransaction failed: status {} body: {}",
+                status,
+                body
+            ));
         }
 
         let start_time = Instant::now();

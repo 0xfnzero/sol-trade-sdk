@@ -4,12 +4,9 @@ use crate::{
         accounts, get_pool_pda, get_vault_pda, BUY_EXECT_IN_DISCRIMINATOR,
         SELL_EXECT_IN_DISCRIMINATOR,
     },
-    trading::{
-        common::utils::get_token_balance,
-        core::{
-            params::{BonkParams, SwapParams},
-            traits::InstructionBuilder,
-        },
+    trading::core::{
+        params::{BonkParams, SwapParams},
+        traits::InstructionBuilder,
     },
     utils::calc::bonk::{
         get_buy_token_amount_from_sol_amount, get_sell_sol_amount_from_token_amount,
@@ -177,9 +174,10 @@ impl InstructionBuilder for BonkInstructionBuilder {
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
-        if params.rpc.is_none() {
-            return Err(anyhow!("RPC is not set"));
-        }
+        let amount = params
+            .input_amount
+            .filter(|&a| a > 0)
+            .ok_or_else(|| anyhow!("Bonk sell requires input_amount (token amount to sell); fetch balance via RPC before calling build_sell"))?;
 
         let protocol_params = params
             .protocol_params
@@ -188,20 +186,6 @@ impl InstructionBuilder for BonkInstructionBuilder {
             .ok_or_else(|| anyhow!("Invalid protocol params for Bonk"))?;
 
         let usd1_pool = protocol_params.global_config == accounts::USD1_GLOBAL_CONFIG;
-
-        let rpc = params.rpc.as_ref().unwrap().clone();
-
-        let mut amount = params.input_amount;
-        if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
-            let balance_u64 =
-                get_token_balance(rpc.as_ref(), &params.payer.pubkey(), &params.input_mint).await?;
-            amount = Some(balance_u64);
-        }
-        let amount = amount.unwrap_or(0);
-
-        if amount == 0 {
-            return Err(anyhow!("Amount cannot be zero"));
-        }
 
         let pool_state = if protocol_params.pool_state == Pubkey::default() {
             if usd1_pool {

@@ -29,7 +29,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             .protocol_params
             .as_any()
             .downcast_ref::<RaydiumAmmV4Params>()
-            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
+            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumAmmV4"))?;
 
         let is_wsol = protocol_params.coin_mint == crate::constants::WSOL_TOKEN_ACCOUNT
             || protocol_params.pc_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
@@ -144,7 +144,7 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             .protocol_params
             .as_any()
             .downcast_ref::<RaydiumAmmV4Params>()
-            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumCpmm"))?;
+            .ok_or_else(|| anyhow!("Invalid protocol params for RaydiumAmmV4"))?;
 
         if params.input_amount.is_none() || params.input_amount.unwrap_or(0) == 0 {
             return Err(anyhow!("Token amount is not set"));

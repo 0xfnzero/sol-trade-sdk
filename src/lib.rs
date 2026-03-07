@@ -643,6 +643,11 @@ impl TradingClient {
         &self,
         params: TradeBuyParams,
     ) -> Result<(bool, Vec<Signature>, Option<TradeError>), anyhow::Error> {
+        if params.recent_blockhash.is_none() && params.durable_nonce.is_none() {
+            return Err(anyhow::anyhow!(
+                "Must provide either recent_blockhash or durable_nonce for buy (required for transaction validity)"
+            ));
+        }
         #[cfg(feature = "perf-trace")]
         if sdk_log::sdk_log_enabled() && params.slippage_basis_points.is_none() {
             debug!(
@@ -656,6 +661,13 @@ impl TradingClient {
                 " Current version only supports USD1 trading on Bonk protocols"
             ));
         }
+        let protocol_params = params.extension_params;
+        if !validate_protocol_params(params.dex_type, &protocol_params) {
+            return Err(anyhow::anyhow!(
+                "Invalid protocol params for Trade (dex={:?})",
+                params.dex_type
+            ));
+        }
         let input_token_mint = if params.input_token_type == TradeTokenType::SOL {
             SOL_TOKEN_ACCOUNT
         } else if params.input_token_type == TradeTokenType::WSOL {
@@ -665,8 +677,7 @@ impl TradingClient {
         } else {
             USD1_TOKEN_ACCOUNT
         };
-        let executor = TradeFactory::create_executor(params.dex_type.clone());
-        let protocol_params = params.extension_params;
+        let executor = TradeFactory::create_executor(params.dex_type);
         let buy_params = SwapParams {
             rpc: Some(self.infrastructure.rpc.clone()),
             payer: self.payer.clone(),
@@ -680,7 +691,7 @@ impl TradingClient {
             address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
             wait_transaction_confirmed: params.wait_transaction_confirmed,
-            protocol_params: protocol_params.clone(),
+            protocol_params,
             open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.infrastructure.swqos_clients.clone(),
             middleware_manager: self.middleware_manager.clone(),
@@ -699,10 +710,6 @@ impl TradingClient {
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: params.use_exact_sol_amount,
         };
-
-        if !validate_protocol_params(params.dex_type, &protocol_params) {
-            return Err(anyhow::anyhow!("Invalid protocol params for Trade"));
-        }
 
         let swap_result = executor.swap(buy_params).await;
         let result =
@@ -748,13 +755,24 @@ impl TradingClient {
                 DEFAULT_SLIPPAGE
             );
         }
+        if params.recent_blockhash.is_none() && params.durable_nonce.is_none() {
+            return Err(anyhow::anyhow!(
+                "Must provide either recent_blockhash or durable_nonce for sell (required for transaction validity)"
+            ));
+        }
         if params.output_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
             return Err(anyhow::anyhow!(
                 " Current version only supports USD1 trading on Bonk protocols"
             ));
         }
-        let executor = TradeFactory::create_executor(params.dex_type.clone());
         let protocol_params = params.extension_params;
+        if !validate_protocol_params(params.dex_type, &protocol_params) {
+            return Err(anyhow::anyhow!(
+                "Invalid protocol params for Trade (dex={:?})",
+                params.dex_type
+            ));
+        }
+        let executor = TradeFactory::create_executor(params.dex_type);
         let output_token_mint = if params.output_token_type == TradeTokenType::SOL {
             SOL_TOKEN_ACCOUNT
         } else if params.output_token_type == TradeTokenType::WSOL {
@@ -777,7 +795,7 @@ impl TradingClient {
             address_lookup_table_account: params.address_lookup_table_account,
             recent_blockhash: params.recent_blockhash,
             wait_transaction_confirmed: params.wait_transaction_confirmed,
-            protocol_params: protocol_params.clone(),
+            protocol_params,
             with_tip: params.with_tip,
             open_seed_optimize: self.use_seed_optimize, // 使用全局seed优化配置
             swqos_clients: self.infrastructure.swqos_clients.clone(),
@@ -796,10 +814,6 @@ impl TradingClient {
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: None,
         };
-
-        if !validate_protocol_params(params.dex_type, &protocol_params) {
-            return Err(anyhow::anyhow!("Invalid protocol params for Trade"));
-        }
 
         let swap_result = executor.swap(sell_params).await;
         let result =

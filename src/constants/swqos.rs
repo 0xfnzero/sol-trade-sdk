@@ -242,6 +242,7 @@ pub const SWQOS_ENDPOINTS_FLASHBLOCK: [&str; 8] = [
 ];
 
 /// BlockRazor Send Transaction v2: plain-text Base64 body, auth in URI, Content-Type: text/plain. Keep-alive: POST /v2/health.
+/// 若 HTTP 返回 500，可尝试 HTTPS：https://<region>.solana.blockrazor.io/v2/sendTransaction（Frankfurt/NewYork/Tokyo），通过 custom_url 覆盖。
 pub const SWQOS_ENDPOINTS_BLOCKRAZOR: [&str; 8] = [
     "http://newyork.solana.blockrazor.xyz:443/v2/sendTransaction",
     "http://frankfurt.solana.blockrazor.xyz:443/v2/sendTransaction",

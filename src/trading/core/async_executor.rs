@@ -1,14 +1,25 @@
 //! Parallel executor for multi-SWQOS submit.
+//!
+//! - **Pool**: Pre-spawned workers; hot path only enqueues jobs (no per-call tokio::spawn).
+//! - **Arc**: Shared data is behind `Arc` so "clone" is just a refcount increment (no data copy).
+//! - **Refs**: `build_transaction` takes `&Arc<..>`, `Option<&DurableNonceInfo>`, `Option<&AddressLookupTableAccount>` so the worker passes refs only (zero clone on worker path).
 
 use anyhow::{anyhow, Result};
 use crossbeam_queue::ArrayQueue;
+use once_cell::sync::OnceCell;
 use solana_hash::Hash;
 use solana_sdk::message::AddressLookupTableAccount;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signature::Signature,
 };
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{str::FromStr, sync::Arc, time::Instant};
+
+use fnv::FnvHasher;
+
+type FnvHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 use crate::{
     common::nonce_cache::DurableNonceInfo,
@@ -16,6 +27,133 @@ use crate::{
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::{common::build_transaction, MiddlewareManager},
 };
+
+const SWQOS_POOL_WORKERS: usize = 32;
+const SWQOS_QUEUE_CAP: usize = 128;
+
+/// Shared across all jobs in one batch; built once, cloned as single Arc per job (minimal hot-path clone).
+struct SwqosSharedContext {
+    payer: Arc<Keypair>,
+    instructions: Arc<Vec<Instruction>>,
+    rpc: Option<Arc<SolanaRpcClient>>,
+    address_lookup_table_account: Option<AddressLookupTableAccount>,
+    recent_blockhash: Option<Hash>,
+    durable_nonce: Option<DurableNonceInfo>,
+    middleware_manager: Option<Arc<MiddlewareManager>>,
+    protocol_name: &'static str,
+    is_buy: bool,
+    wait_transaction_confirmed: bool,
+    with_tip: bool,
+    collector: Arc<ResultCollector>,
+}
+
+/// One SWQOS submit task; only per-task data + one Arc to shared (reduces hot-path clones).
+struct SwqosJob {
+    shared: Arc<SwqosSharedContext>,
+    tip: f64,
+    unit_limit: u32,
+    unit_price: u64,
+    tip_account: Arc<Pubkey>,
+    swqos_client: Arc<SwqosClient>,
+    swqos_type: SwqosType,
+    core_id: Option<core_affinity::CoreId>,
+    use_affinity: bool,
+}
+
+async fn run_one_swqos_job(job: SwqosJob) {
+    let s = &job.shared;
+    if job.use_affinity {
+        if let Some(cid) = job.core_id {
+            core_affinity::set_for_current(cid);
+        }
+    }
+
+    let tip_amount = if s.with_tip { job.tip } else { 0.0 };
+
+    let transaction = match build_transaction(
+        &s.payer,
+        s.rpc.as_ref(),
+        job.unit_limit,
+        job.unit_price,
+        s.instructions.as_ref(),
+        s.address_lookup_table_account.as_ref(),
+        s.recent_blockhash,
+        s.middleware_manager.as_ref(),
+        s.protocol_name,
+        s.is_buy,
+        job.swqos_type != SwqosType::Default,
+        &job.tip_account,
+        tip_amount,
+        s.durable_nonce.as_ref(),
+    )
+    .await
+    {
+        Ok(tx) => tx,
+        Err(e) => {
+            s.collector.submit(TaskResult {
+                success: false,
+                signature: Signature::default(),
+                error: Some(e),
+                swqos_type: job.swqos_type,
+                landed_on_chain: false,
+                submit_done_us: crate::common::clock::now_micros(),
+            });
+            return;
+        }
+    };
+
+    let (success, err, landed_on_chain) = match job
+        .swqos_client
+        .send_transaction(
+            if s.is_buy {
+                TradeType::Buy
+            } else {
+                TradeType::Sell
+            },
+            &transaction,
+            s.wait_transaction_confirmed,
+        )
+        .await
+    {
+        Ok(()) => (true, None, true),
+        Err(e) => {
+            let landed = is_landed_error(&e);
+            (false, Some(e), landed)
+        }
+    };
+
+    let sig = transaction.signatures.first().copied().unwrap_or_default();
+    s.collector.submit(TaskResult {
+        success,
+        signature: sig,
+        error: err,
+        swqos_type: job.swqos_type,
+        landed_on_chain,
+        submit_done_us: crate::common::clock::now_micros(),
+    });
+}
+
+async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>) {
+    loop {
+        if let Some(job) = queue.pop() {
+            run_one_swqos_job(job).await;
+        } else {
+            tokio::task::yield_now().await;
+        }
+    }
+}
+
+static SWQOS_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
+static SWQOS_WORKERS_STARTED: AtomicBool = AtomicBool::new(false);
+
+fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>) {
+    if SWQOS_WORKERS_STARTED.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    for _ in 0..SWQOS_POOL_WORKERS {
+        tokio::spawn(swqos_worker_loop(queue.clone()));
+    }
+}
 
 #[repr(align(64))]
 struct TaskResult {
@@ -282,116 +420,64 @@ pub async fn execute_parallel(
         return Err(anyhow!("Multiple swqos transactions require durable_nonce to be set.",));
     }
 
-    // Task preparation completed
-
+    // Task preparation completed: one shared context (clone once per batch), then minimal per-task data.
     let collector = Arc::new(ResultCollector::new(task_configs.len()));
-    let _spawn_start = Instant::now();
+    let shared = Arc::new(SwqosSharedContext {
+        payer,
+        instructions,
+        rpc,
+        address_lookup_table_account,
+        recent_blockhash,
+        durable_nonce,
+        middleware_manager,
+        protocol_name,
+        is_buy,
+        wait_transaction_confirmed,
+        with_tip,
+        collector: collector.clone(),
+    });
 
-    for (i, swqos_client, gas_fee_strategy_config) in task_configs {
-        let core_id = cores.get(i % cores.len().max(1)).copied();
-        let use_affinity = use_core_affinity;
-        let payer = payer.clone();
-        let instructions = instructions.clone();
-        let middleware_manager = middleware_manager.clone();
-        let swqos_type = swqos_client.get_swqos_type();
-        let tip_account_str = swqos_client.get_tip_account()?;
-        let tip_account = Arc::new(Pubkey::from_str(&tip_account_str).unwrap_or_default());
-        let collector = collector.clone();
+    let queue = SWQOS_QUEUE.get_or_init(|| Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP)));
+    ensure_swqos_pool(queue.clone());
 
-        let tip = gas_fee_strategy_config.2.tip;
-        let unit_limit = gas_fee_strategy_config.2.cu_limit;
-        let unit_price = gas_fee_strategy_config.2.cu_price;
-        let rpc = rpc.clone();
-        let durable_nonce = durable_nonce.clone();
-        let address_lookup_table_account = address_lookup_table_account.clone();
-        let recent_blockhash_task = recent_blockhash.clone();
-
-        tokio::spawn(async move {
-            let _task_start = Instant::now();
-            if use_affinity {
-                if let Some(cid) = core_id {
-                    core_affinity::set_for_current(cid);
+    {
+        // Cache tip_account per client (one get_tip_account/from_str per unique client per batch). Dropped before await so future stays Send.
+        let mut tip_cache: FnvHashMap<*const (), Arc<Pubkey>> =
+            FnvHashMap::with_capacity_and_hasher(task_configs.len(), BuildHasherDefault::default());
+        for (i, swqos_client, gas_fee_strategy_config) in task_configs {
+            let core_id = cores.get(i % cores.len().max(1)).copied();
+            let swqos_type = swqos_client.get_swqos_type();
+            let key = Arc::as_ptr(&swqos_client) as *const ();
+            let tip_account = match tip_cache.get(&key) {
+                Some(tip) => tip.clone(),
+                None => {
+                    let s = swqos_client.get_tip_account()?;
+                    let tip = Arc::new(Pubkey::from_str(&s).unwrap_or_default());
+                    tip_cache.insert(key, tip.clone());
+                    tip
                 }
-            }
-
-            let tip_amount = if with_tip { tip } else { 0.0 };
-
-            let _build_start = Instant::now();
-            let transaction = match build_transaction(
-                payer,
-                rpc,
+            };
+            let (tip, unit_limit, unit_price) = (
+                gas_fee_strategy_config.2.tip,
+                gas_fee_strategy_config.2.cu_limit,
+                gas_fee_strategy_config.2.cu_price,
+            );
+            let job = SwqosJob {
+                shared: shared.clone(),
+                tip,
                 unit_limit,
                 unit_price,
-                instructions.as_ref(),
-                address_lookup_table_account,
-                recent_blockhash_task,
-                middleware_manager,
-                protocol_name,
-                is_buy,
-                swqos_type != SwqosType::Default,
-                &tip_account,
-                tip_amount,
-                durable_nonce,
-            )
-            .await
-            {
-                Ok(tx) => tx,
-                Err(e) => {
-                    // Build transaction failed
-                    collector.submit(TaskResult {
-                        success: false,
-                        signature: Signature::default(),
-                        error: Some(e),
-                        swqos_type,
-                        landed_on_chain: false,
-                        submit_done_us: crate::common::clock::now_micros(),
-                    });
-                    return;
-                }
-            };
-
-            // Transaction built
-
-            let _send_start = Instant::now();
-            let mut err: Option<anyhow::Error> = None;
-            #[allow(unused_assignments)]
-            let mut landed_on_chain = false;
-            let success = match swqos_client
-                .send_transaction(
-                    if is_buy { TradeType::Buy } else { TradeType::Sell },
-                    &transaction,
-                    wait_transaction_confirmed,
-                )
-                .await
-            {
-                Ok(()) => {
-                    landed_on_chain = true;  // Success means tx confirmed on-chain
-                    true
-                }
-                Err(e) => {
-                    // Check if this error indicates the tx landed but failed (e.g., ExceededSlippage)
-                    landed_on_chain = is_landed_error(&e);
-                    err = Some(e);
-                    // Send transaction failed
-                    false
-                }
-            };
-
-            // Transaction sent: always submit a result so collector never has "no result" for this task.
-            // If transaction has no signatures (malformed), submit with default signature and success=false.
-            let sig = transaction.signatures.first().copied().unwrap_or_default();
-            collector.submit(TaskResult {
-                success,
-                signature: sig,
-                error: err,
+                tip_account,
+                swqos_client,
                 swqos_type,
-                landed_on_chain,
-                submit_done_us: crate::common::clock::now_micros(),
-            });
-        });
+                core_id,
+                use_affinity: use_core_affinity,
+            };
+            let _ = queue.push(job);
+        }
     }
 
-    // All tasks spawned
+    // All jobs enqueued (no spawn on hot path)
 
     if !wait_transaction_confirmed {
         const SUBMIT_TIMEOUT_SECS: u64 = 30;

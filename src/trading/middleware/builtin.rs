@@ -14,7 +14,7 @@ impl InstructionMiddleware for LoggingMiddleware {
     fn process_protocol_instructions(
         &self,
         protocol_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>> {
         println!("-------------------[{}]-------------------", self.name());
@@ -32,7 +32,7 @@ impl InstructionMiddleware for LoggingMiddleware {
     fn process_full_instructions(
         &self,
         full_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>> {
         println!("-------------------[{}]-------------------", self.name());

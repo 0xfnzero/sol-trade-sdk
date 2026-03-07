@@ -20,7 +20,7 @@ pub trait InstructionMiddleware: Send + Sync {
     fn process_protocol_instructions(
         &self,
         protocol_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>>;
 
@@ -36,7 +36,7 @@ pub trait InstructionMiddleware: Send + Sync {
     fn process_full_instructions(
         &self,
         full_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>>;
 
@@ -72,13 +72,13 @@ impl MiddlewareManager {
     pub fn apply_middlewares_process_full_instructions(
         &self,
         mut full_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>> {
         for middleware in &self.middlewares {
             full_instructions = middleware.process_full_instructions(
                 full_instructions,
-                protocol_name.clone(),
+                protocol_name,
                 is_buy,
             )?;
             if full_instructions.is_empty() {
@@ -92,13 +92,13 @@ impl MiddlewareManager {
     pub fn apply_middlewares_process_protocol_instructions(
         &self,
         mut protocol_instructions: Vec<Instruction>,
-        protocol_name: String,
+        protocol_name: &str,
         is_buy: bool,
     ) -> Result<Vec<Instruction>> {
         for middleware in &self.middlewares {
             protocol_instructions = middleware.process_protocol_instructions(
                 protocol_instructions,
-                protocol_name.clone(),
+                protocol_name,
                 is_buy,
             )?;
             if protocol_instructions.is_empty() {
