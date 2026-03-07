@@ -89,11 +89,18 @@ impl std::fmt::Debug for SwapParams {
 }
 
 /// PumpFun protocol specific parameters
-/// Configuration parameters specific to PumpFun trading protocol
+/// Configuration parameters specific to PumpFun trading protocol.
+///
+/// **Creator Rewards Sharing**: Some coins use a dynamic `creator_vault` (fee-sharing config).
+/// Always use the latest on-chain creator/vault when building params for **sell**; do not reuse
+/// cached params from buy. Either fetch fresh data via RPC, or pass `creator_vault` from gRPC
+/// using [`from_trade`](PumpFunParams::from_trade) / [`from_dev_trade`](PumpFunParams::from_dev_trade),
+/// or override with [`with_creator_vault`](PumpFunParams::with_creator_vault).
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
     pub associated_bonding_curve: Pubkey,
+    /// Creator vault PDA. For Creator Rewards Sharing coins this can change; pass latest from gRPC when selling.
     pub creator_vault: Pubkey,
     pub token_program: Pubkey,
     /// Whether to close token account when selling, only effective during sell operations
@@ -221,6 +228,14 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
         })
+    }
+
+    /// Override `creator_vault` with a value from gRPC/event (e.g. for Creator Rewards Sharing).
+    /// Use when selling so the instruction uses the latest on-chain vault and avoids "seeds constraint violated" (2006).
+    #[inline]
+    pub fn with_creator_vault(mut self, creator_vault: Pubkey) -> Self {
+        self.creator_vault = creator_vault;
+        self
     }
 }
 

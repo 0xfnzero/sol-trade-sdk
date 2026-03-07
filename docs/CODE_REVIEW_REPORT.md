@@ -111,7 +111,40 @@
 
 ---
 
-## 7. 汇总：必须改 vs 建议改
+## 7. 三库联动与超低延迟检查（sol-trade-sdk / sol-parser-sdk / solana-streamer）
+
+### 7.1 逻辑一致性（已确认）
+
+| 检查项 | sol-parser-sdk | solana-streamer | 说明 |
+|--------|----------------|-----------------|------|
+| Pump buy 账户数 | 16（fill 用 get(9) 填 creator_vault） | 16，accounts[9]=creator_vault | 与 idl/pumpfun.json 一致 |
+| Pump sell 账户数 | 14（get(8)=creator_vault） | 14，accounts[8]=creator_vault | 一致 |
+| PumpSwap buy 17/18 | 指令解析 + fill_buy_accounts get(17)/get(18) | 指令解析 accounts.get(17)/get(18) | coin_creator_vault_ata/authority 正确 |
+| PumpSwap sell 17/18 | fill_sell_accounts 同左 | 同左 | 一致 |
+| 填充顺序 | 先 parse（log 或 instruction）→ fill_accounts → push | 指令解析直接写 17/18；无单独 fill 步骤 | 两者均保证事件带齐 creator_vault / coin_creator_vault |
+| find_instruction_invoke | 选「账户数最多」的 invoke，保证取到 outer buy/sell | N/A（按当前 instruction 解析） | 正确 |
+
+### 7.2 版本化交易账户解析
+
+- **sol-parser-sdk**：`get_instruction_account_getter` 正确支持 versioned tx：先 `account_keys`，再 `loaded_writable_addresses`，再 `loaded_readonly_addresses`，与 Solana 约定一致。
+- **solana-streamer**：指令的 `accounts` 为索引，通过 `accounts.get(idx as usize).copied()` 从完整 `accounts: &[Pubkey]` 解析；调用方需传入已包含 loaded 的完整账户列表，否则高索引会得到 `default()`。
+
+### 7.3 超低延迟相关
+
+| 项目 | 状态 / 建议 |
+|------|-------------|
+| solana-streamer 热路径 | 已改为**顺序执行** inner 解析与 swap_data 提取，去掉 `thread::scope` + 双 spawn/join，减少 μs 级开销。 |
+| sol-parser-sdk | log 与 instruction 并行（rayon::join）；fill 仅在有 invoke 时做；`find_instruction_invoke` 为 O(invokes)，单程序单 tx 下可接受。 |
+| sol-trade-sdk | 见上文第 4 节；PumpSwap instruction 构建避免 `accounts.clone()` 已列为必须改。 |
+
+### 7.4 建议
+
+- **solana-streamer**：若 gRPC 上游已提供完整 `accounts`（含 loaded），可避免对每笔 tx 做 `accounts.to_vec()`，仅在需要 resize 时克隆，进一步降低分配。
+- **三库**：保持 IDL 与账户索引注释同步（pumpfun.json / pump_amm.json），避免后续扩展时索引错位。
+
+---
+
+## 8. 汇总：必须改 vs 建议改
 
 ### 必须改（优先处理）
 

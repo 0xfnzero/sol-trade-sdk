@@ -321,6 +321,24 @@ PumpFun and PumpSwap support **cashback** for eligible tokens: part of the tradi
 - The **pumpfun_copy_trading** and **pumpfun_sniper_trading** examples use sol-parser-sdk for gRPC subscription and pass `e.is_cashback_coin` when building params.
 - **Claim**: Use `client.claim_cashback_pumpfun()` and `client.claim_cashback_pumpswap(...)` to claim accumulated cashback.
 
+#### PumpFun: Creator Rewards Sharing (creator_vault)
+
+Some PumpFun coins use **Creator Rewards Sharing**, so the on-chain `creator_vault` can differ from the default derivation. If you reuse cached params from a **buy** when **selling**, you may see program error **2006 (seeds constraint violated)**. To avoid this:
+
+- **From gRPC/events (no RPC needed)**: You can get both `creator` and `creator_vault` from parsed transaction events:
+  - **sol-parser-sdk**: Before pushing events, the pipeline calls `fill_trade_accounts`, which fills `creator_vault` from the buy/sell instruction accounts (buy index 9, sell index 8). `creator` comes from the TradeEvent log. Use `PumpFunParams::from_trade(..., e.creator, e.creator_vault, ...)` or `from_dev_trade(..., e.creator, e.creator_vault, ...)` with the event `e`.
+  - **solana-streamer**: Instruction parsers set `creator_vault` from accounts[9] (buy) or accounts[8] (sell); `creator` comes from the merged CPI TradeEvent log. Use the same `from_trade` / `from_dev_trade` with `e.creator` and `e.creator_vault`.
+- **Override after RPC**: If you get params via `PumpFunParams::from_mint_by_rpc` but later receive a newer `creator_vault` from gRPC, call `.with_creator_vault(latest_creator_vault)` on the params before selling.
+
+The SDK does not fetch creator_vault from RPC on every sell (to avoid latency); pass the up-to-date vault from gRPC/events when available.
+
+#### PumpSwap: coin_creator_vault from events (no RPC)
+
+For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_authority` are required in buy/sell instructions. Both are available from parsed events without RPC:
+
+- **sol-parser-sdk**: Instruction parser sets them from accounts 17 and 18; the account filler also fills them when the event comes from logs. Use `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` with the buy/sell event `e`.
+- **solana-streamer**: Instruction parser sets them from `accounts.get(17)` and `accounts.get(18)`. Use the same `from_trade` with the event’s `coin_creator_vault_ata` and `coin_creator_vault_authority`.
+
 ## 🛡️ MEV Protection Services
 
 You can apply for a key through the official website: [Community Website](https://fnzero.dev/swqos)
