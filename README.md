@@ -48,6 +48,7 @@
   - [⚡ Trading Parameters](#-trading-parameters)
   - [📊 Usage Examples Summary Table](#-usage-examples-summary-table)
   - [⚙️ SWQoS Service Configuration](#️-swqos-service-configuration)
+  - [Astralane QUIC (Low-Latency)](#astralane-quic-low-latency)
   - [🔧 Middleware System](#-middleware-system)
   - [🔍 Address Lookup Tables](#-address-lookup-tables)
   - [🔍 Nonce Cache](#-nonce-cache)
@@ -119,6 +120,7 @@ let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, Some(SwqosTransport::Quic)),
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
@@ -257,6 +259,29 @@ let bloxroute_config = SwqosConfig::Bloxroute(
 
 When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
 
+#### Astralane QUIC (Low-Latency)
+
+Astralane supports both HTTP and **QUIC** transport. QUIC reduces connection overhead and can lower submission latency. To use the QUIC channel, pass `Some(SwqosTransport::Quic)` as the fourth parameter of `SwqosConfig::Astralane`. Astralane’s QUIC service uses a **single endpoint** (no per-region endpoints); the SDK ignores the `region` (and optional custom URL) when QUIC is selected. You can pass the same region as your other SWQoS configs for consistency.
+
+```rust
+use sol_trade_sdk::{SwqosConfig, SwqosRegion, SwqosTransport};
+
+// Astralane over QUIC (low-latency); region is ignored (single QUIC endpoint)
+let swqos_configs: Vec<SwqosConfig> = vec![
+    SwqosConfig::Default(rpc_url.clone()),
+    SwqosConfig::Astralane(
+        "your_astralane_api_key".to_string(),
+        SwqosRegion::Frankfurt,  // same as other services; ignored for QUIC
+        None,
+        Some(SwqosTransport::Quic),
+    ),
+];
+// Then create TradeConfig / TradingClient as usual with swqos_configs
+```
+
+- **HTTP** (default): use `None` or `Some(SwqosTransport::Http)`; region and optional custom URL apply.
+- **QUIC**: use `Some(SwqosTransport::Quic)`; the SDK uses a single QUIC endpoint and ignores region. Same API key as HTTP.
+
 ---
 
 ### 🔧 Middleware System
@@ -297,10 +322,10 @@ You can apply for a key through the official website: [Community Website](https:
 - **ZeroSlot**: Zero-latency transactions
 - **Temporal**: Time-sensitive transactions
 - **Bloxroute**: Blockchain network acceleration
-- **FlashBlock**: High-speed transaction execution with API key authentication - [Official Documentation](https://doc.flashblock.trade/)
-- **BlockRazor**: High-speed transaction execution with API key authentication - [Official Documentation](https://blockrazor.gitbook.io/blockrazor/)
-- **Node1**: High-speed transaction execution with API key authentication - [Official Documentation](https://node1.me/docs.html) 
-- **Astralane**: Blockchain network acceleration
+- **FlashBlock**: High-speed transaction execution with API key authentication
+- **BlockRazor**: High-speed transaction execution with API key authentication
+- **Node1**: High-speed transaction execution with API key authentication 
+- **Astralane**: Blockchain network acceleration (supports HTTP and QUIC; see [Astralane QUIC](#astralane-quic-low-latency) above)
 
 ## 📁 Project Structure
 

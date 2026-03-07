@@ -267,6 +267,9 @@ pub const SWQOS_ENDPOINTS_ASTRALANE: [&str; 8] = [
     "http://lim.gateway.astralane.io/irisb",
 ];
 
+/// Astralane QUIC 默认端点。
+pub const ASTRALANE_QUIC_ENDPOINT: &str = "lim.gateway.astralane.io:7000";
+
 pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [
     "http://ewr1.flashrpc.com",
     "http://fra1.flashrpc.com",

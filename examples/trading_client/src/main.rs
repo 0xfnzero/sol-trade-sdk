@@ -10,7 +10,7 @@
 use sol_trade_sdk::{
     common::{AnyResult, InfrastructureConfig, TradeConfig},
     swqos::{SwqosConfig, SwqosRegion},
-    TradingClient, TradingInfrastructure,
+    SwqosTransport, TradingClient, TradingInfrastructure,
 };
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
@@ -48,7 +48,7 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
         SwqosConfig::FlashBlock("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::Astralane("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
+        SwqosConfig::Astralane("your_api_token".to_string(), SwqosRegion::Frankfurt, None, Some(SwqosTransport::Quic)), // QUIC; use None for HTTP
         // Helius Sender: 4th param swqos_only Some(true) => min tip 0.000005 SOL; None => 0.0002 SOL
         SwqosConfig::Helius("".to_string(), SwqosRegion::Default, None, Some(true)),
     ];

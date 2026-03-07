@@ -255,7 +255,7 @@ pub fn get_user_volume_accumulator_pda(user: &Pubkey) -> Option<Pubkey> {
         crate::common::fast_fn::PdaCacheKey::PumpSwapUserVolume(*user),
         || {
             let seeds: &[&[u8]; 2] = &[&seeds::USER_VOLUME_ACCUMULATOR_SEED, user.as_ref()];
-            let program_id: &Pubkey = &&accounts::AMM_PROGRAM;
+            let program_id: &Pubkey = &accounts::AMM_PROGRAM;
             let pda: Option<(Pubkey, u8)> = Pubkey::try_find_program_address(seeds, program_id);
             pda.map(|pubkey| pubkey.0)
         },
@@ -288,7 +288,7 @@ pub fn get_user_volume_accumulator_quote_ata(
 
 pub fn get_global_volume_accumulator_pda() -> Option<Pubkey> {
     let seeds: &[&[u8]; 1] = &[&seeds::GLOBAL_VOLUME_ACCUMULATOR_SEED];
-    let program_id: &Pubkey = &&accounts::AMM_PROGRAM;
+    let program_id: &Pubkey = &accounts::AMM_PROGRAM;
     let pda: Option<(Pubkey, u8)> = Pubkey::try_find_program_address(seeds, program_id);
     pda.map(|pubkey| pubkey.0)
 }
@@ -476,4 +476,32 @@ pub fn get_fee_config_pda() -> Option<Pubkey> {
     let program_id: &Pubkey = &accounts::FEE_PROGRAM;
     let pda: Option<(Pubkey, u8)> = Pubkey::try_find_program_address(seeds, program_id);
     pda.map(|pubkey| pubkey.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_sdk::pubkey::Pubkey;
+
+    #[test]
+    fn pumpswap_user_volume_accumulator_pda_deterministic() {
+        let user = Pubkey::new_unique();
+        let a = get_user_volume_accumulator_pda(&user).unwrap();
+        let b = get_user_volume_accumulator_pda(&user).unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn pumpswap_global_volume_accumulator_matches_constant() {
+        let pda = get_global_volume_accumulator_pda().unwrap();
+        assert_eq!(pda, accounts::GLOBAL_VOLUME_ACCUMULATOR);
+    }
+
+    #[test]
+    fn pumpswap_pool_v2_pda_deterministic() {
+        let base_mint = Pubkey::new_unique();
+        let a = get_pool_v2_pda(&base_mint).unwrap();
+        let b = get_pool_v2_pda(&base_mint).unwrap();
+        assert_eq!(a, b);
+    }
 }

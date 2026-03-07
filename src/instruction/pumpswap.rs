@@ -180,10 +180,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         ]);
         if quote_is_wsol_or_usdc {
             accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-            accounts.push(AccountMeta::new(
-                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-                false,
-            ));
+            let uva = get_user_volume_accumulator_pda(&params.payer.pubkey())
+                .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
+            accounts.push(AccountMeta::new(uva, false));
         }
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
@@ -194,10 +193,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             }
         }
         // remainingAccounts: @pump-fun/pump-swap-sdk 要求末尾传 poolV2Pda(baseMint)，勿删
-        accounts.push(AccountMeta::new_readonly(
-            get_pool_v2_pda(&base_mint).unwrap(),
-            false,
-        ));
+        let pool_v2 = get_pool_v2_pda(&base_mint)
+            .ok_or_else(|| anyhow!("pool_v2 PDA derivation failed for base_mint {}", base_mint))?;
+        accounts.push(AccountMeta::new_readonly(pool_v2, false));
 
         // Create instruction data（buy/buy_exact_quote_in 第三参数 track_volume: OptionBool，仅代币支持返现时传 Some(true)；sell 仅两参数）
         let track_volume = if protocol_params.is_cashback_coin { [1u8, 1u8] } else { [1u8, 0u8] }; // Some(true) / Some(false)
@@ -227,13 +225,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             buf.to_vec()
         };
 
-        let buy_instruction = Instruction {
+        instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,
-            accounts: accounts.clone(),
+            accounts,
             data,
-        };
-
-        instructions.push(buy_instruction);
+        });
         if close_wsol_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
@@ -381,10 +377,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         ]);
         if !quote_is_wsol_or_usdc {
             accounts.push(accounts::GLOBAL_VOLUME_ACCUMULATOR_META);
-            accounts.push(AccountMeta::new(
-                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap(),
-                false,
-            ));
+            let uva = get_user_volume_accumulator_pda(&params.payer.pubkey())
+                .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
+            accounts.push(AccountMeta::new(uva, false));
         }
         accounts.push(accounts::FEE_CONFIG_META);
         accounts.push(accounts::FEE_PROGRAM_META);
@@ -403,10 +398,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             }
         }
         // remainingAccounts: @pump-fun/pump-swap-sdk sell 要求末尾传 poolV2Pda(baseMint)，勿删
-        accounts.push(AccountMeta::new_readonly(
-            get_pool_v2_pda(&base_mint).unwrap(),
-            false,
-        ));
+        let pool_v2 = get_pool_v2_pda(&base_mint)
+            .ok_or_else(|| anyhow!("pool_v2 PDA derivation failed for base_mint {}", base_mint))?;
+        accounts.push(AccountMeta::new_readonly(pool_v2, false));
 
         // Create instruction data
         let mut data = [0u8; 24];
@@ -424,13 +418,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             data[16..24].copy_from_slice(&token_amount.to_le_bytes());
         }
 
-        let sell_instruction = Instruction {
+        instructions.push(Instruction {
             program_id: accounts::AMM_PROGRAM,
-            accounts: accounts.clone(),
+            accounts,
             data: data.to_vec(),
-        };
-
-        instructions.push(sell_instruction);
+        });
 
         if close_wsol_ata {
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));

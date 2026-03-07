@@ -107,7 +107,8 @@ parking_lot = "0.12"
 arc-swap = "1.7"
 sha2 = "0.10"
 tonic-prost = "0.14.2"
-quinn = {version = "0.11", default-features = false, features = ["rustls"]}
+quinn = { version = "0.11", default-features = false, features = ["rustls"] }
+rcgen = "0.13"
 
 # Performance optimization dependencies
 crossbeam-queue = "0.3"

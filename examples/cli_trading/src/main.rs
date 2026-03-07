@@ -531,7 +531,7 @@ async fn handle_buy(
 
     let client = initialize_real_client().await?;
 
-    let (create_mint_ata, use_seed, owner_pubkey, amount_f64, decimals) =
+    let (create_mint_ata, use_seed, owner_pubkey, _amount_f64, _decimals) =
         check_mint_ata(&client, mint).await?;
 
     match dex {
@@ -565,7 +565,7 @@ async fn handle_buy_rv4(
     slippage: Option<u64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
-    let (create_mint_ata, use_seed, owner_pubkey, amount_f64, decimals) =
+    let (create_mint_ata, use_seed, owner_pubkey, _amount_f64, _decimals) =
         check_mint_ata(&client, mint).await?;
     handle_buy_raydium_v4(mint, amm, sol_amount, slippage, create_mint_ata, use_seed, owner_pubkey)
         .await?;
@@ -579,7 +579,7 @@ async fn handle_buy_rcpmm(
     slippage: Option<u64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
-    let (create_mint_ata, use_seed, owner_pubkey, amount_f64, decimals) =
+    let (create_mint_ata, use_seed, owner_pubkey, _amount_f64, _decimals) =
         check_mint_ata(&client, mint).await?;
     handle_buy_raydium_cpmm(
         mint,
@@ -599,8 +599,8 @@ async fn handle_buy_pumpfun(
     sol_amount: f64,
     slippage: Option<u64>,
     create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("🔥 BUY PUMPFUN COMMAND");
     println!("   Token Mint: {}", mint);
@@ -655,7 +655,7 @@ async fn handle_buy_pumpswap(
     sol_amount: f64,
     slippage: Option<u64>,
     create_mint_ata: bool,
-    use_seed: bool,
+    _use_seed: bool,
     _owner_pubkey: Pubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
@@ -710,8 +710,8 @@ async fn handle_buy_bonk(
     sol_amount: f64,
     slippage: Option<u64>,
     create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
     println!("🔥 BUY BONK COMMAND");
@@ -766,8 +766,8 @@ async fn handle_buy_raydium_v4(
     sol_amount: f64,
     slippage: Option<u64>,
     create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
     println!("🔥 BUY RAYDIUM V4 COMMAND");
@@ -825,8 +825,8 @@ async fn handle_buy_raydium_cpmm(
     sol_amount: f64,
     slippage: Option<u64>,
     create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = initialize_real_client().await?;
     println!("🔥 BUY RAYDIUM CPMM COMMAND");
@@ -992,11 +992,11 @@ async fn handle_sell_pumpfun(
     mint: &str,
     token_amount: Option<f64>,
     slippage: Option<u64>,
-    create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _create_mint_ata: bool,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
     amount_f64: f64,
-    decimals: u8,
+    _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
 
@@ -1053,11 +1053,11 @@ async fn handle_sell_pumpswap(
     mint: &str,
     token_amount: Option<f64>,
     slippage: Option<u64>,
-    create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _create_mint_ata: bool,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
     amount_f64: f64,
-    decimals: u8,
+    _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
     println!("🔥 SELL PUMPSWAP COMMAND");
@@ -1111,11 +1111,11 @@ async fn handle_sell_bonk(
     mint: &str,
     token_amount: Option<f64>,
     slippage: Option<u64>,
-    create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _create_mint_ata: bool,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
     amount_f64: f64,
-    decimals: u8,
+    _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
     println!("🔥 SELL PUMPSWAP COMMAND");
@@ -1170,11 +1170,11 @@ async fn handle_sell_raydium_v4(
     mint: &str,
     token_amount: Option<f64>,
     slippage: Option<u64>,
-    create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _create_mint_ata: bool,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
     amount_f64: f64,
-    decimals: u8,
+    _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
     println!("🔥 SELL RAYDIUM V4 COMMAND");
@@ -1231,11 +1231,11 @@ async fn handle_sell_raydium_cpmm(
     pool_address: &str,
     token_amount: Option<f64>,
     slippage: Option<u64>,
-    create_mint_ata: bool,
-    use_seed: bool,
-    owner_pubkey: Pubkey,
+    _create_mint_ata: bool,
+    _use_seed: bool,
+    _owner_pubkey: Pubkey,
     amount_f64: f64,
-    decimals: u8,
+    _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
     println!("🔥 SELL RAYDIUM CPMM COMMAND");

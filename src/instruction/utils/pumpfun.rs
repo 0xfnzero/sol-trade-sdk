@@ -226,10 +226,9 @@ pub fn get_creator(creator_vault_pda: &Pubkey) -> Pubkey {
         // Fast check against cached default creator vault
         static DEFAULT_CREATOR_VAULT: std::sync::LazyLock<Option<Pubkey>> =
             std::sync::LazyLock::new(|| get_creator_vault_pda(&Pubkey::default()));
-        if creator_vault_pda.eq(&DEFAULT_CREATOR_VAULT.unwrap()) {
-            Pubkey::default()
-        } else {
-            *creator_vault_pda
+        match DEFAULT_CREATOR_VAULT.as_ref() {
+            Some(default) if creator_vault_pda.eq(default) => Pubkey::default(),
+            _ => *creator_vault_pda,
         }
     }
 }
@@ -298,4 +297,33 @@ pub fn get_buy_price(
     let s_u64 = s as u64;
 
     s_u64.min(real_token_reserves)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_sdk::pubkey::Pubkey;
+
+    #[test]
+    fn pumpfun_discriminators_are_8_bytes() {
+        assert_eq!(BUY_DISCRIMINATOR.len(), 8);
+        assert_eq!(BUY_EXACT_SOL_IN_DISCRIMINATOR.len(), 8);
+        assert_eq!(SELL_DISCRIMINATOR.len(), 8);
+    }
+
+    #[test]
+    fn pumpfun_bonding_curve_and_v2_pda_differ_for_same_mint() {
+        let mint = Pubkey::new_unique();
+        let pda = get_bonding_curve_pda(&mint).unwrap();
+        let pda_v2 = get_bonding_curve_v2_pda(&mint).unwrap();
+        assert_ne!(pda, pda_v2, "bonding_curve and bonding_curve_v2 PDAs must differ");
+    }
+
+    #[test]
+    fn pumpfun_creator_vault_pda_deterministic() {
+        let creator = Pubkey::new_unique();
+        let a = get_creator_vault_pda(&creator).unwrap();
+        let b = get_creator_vault_pda(&creator).unwrap();
+        assert_eq!(a, b);
+    }
 }

@@ -19,6 +19,8 @@ use crate::swqos::common::TradeError;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
 use crate::swqos::TradeType;
+// Re-export for SWQOS HTTP/QUIC choice in SwqosConfig (e.g. Astralane)
+pub use crate::swqos::SwqosTransport;
 use crate::trading::core::params::BonkParams;
 use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::PumpFunParams;
@@ -397,8 +399,44 @@ impl TradingClient {
         }
     }
 
+    /// 单次尝试创建 WSOL ATA：获取 blockhash、组交易、发送并确认。成功或账户已存在返回 Ok(())，否则返回 Err(错误信息)。
+    async fn try_create_wsol_ata_once(
+        rpc: &SolanaRpcClient,
+        payer: &Arc<Keypair>,
+        wsol_ata: &solana_sdk::pubkey::Pubkey,
+        create_ata_ixs: &[solana_sdk::instruction::Instruction],
+        timeout_secs: u64,
+    ) -> Result<(), String> {
+        use solana_sdk::transaction::Transaction;
+        let recent_blockhash = rpc.get_latest_blockhash().await
+            .map_err(|e| format!("Failed to get blockhash: {}", e))?;
+        let tx = Transaction::new_signed_with_payer(
+            create_ata_ixs,
+            Some(&payer.pubkey()),
+            &[payer.as_ref()],
+            recent_blockhash,
+        );
+        let send_result = tokio::time::timeout(
+            tokio::time::Duration::from_secs(timeout_secs),
+            rpc.send_and_confirm_transaction(&tx),
+        ).await;
+        match send_result {
+            Ok(Ok(_signature)) => Ok(()),
+            Ok(Err(e)) => {
+                if rpc.get_account(wsol_ata).await.is_ok() {
+                    return Ok(());
+                }
+                Err(format!("{}", e))
+            }
+            Err(_) => Err(format!("Transaction confirmation timeout ({}s)", timeout_secs)),
+        }
+    }
+
     /// 确保钱包存在 WSOL ATA；不存在则发交易创建（会花费租金 + 手续费，初始化阶段唯一会扣钱的逻辑）
     async fn ensure_wsol_ata(payer: &Arc<Keypair>, rpc: &Arc<SolanaRpcClient>) {
+        const MAX_RETRIES: usize = 3;
+        const TIMEOUT_SECS: u64 = 10;
+
         let wsol_ata =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
                 &payer.pubkey(),
@@ -406,118 +444,61 @@ impl TradingClient {
                 &crate::constants::TOKEN_PROGRAM,
             );
 
-        match rpc.get_account(&wsol_ata).await {
-            Ok(_) => {
-                if sdk_log::sdk_log_enabled() {
-                    info!(target: "sol_trade_sdk", "✅ WSOL ATA already exists: {}", wsol_ata);
-                }
-                return;
+        if rpc.get_account(&wsol_ata).await.is_ok() {
+            if sdk_log::sdk_log_enabled() {
+                info!(target: "sol_trade_sdk", "✅ WSOL ATA already exists: {}", wsol_ata);
             }
-            Err(_) => {
+            return;
+        }
+
+        let create_ata_ixs =
+            crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
+        if create_ata_ixs.is_empty() {
+            if sdk_log::sdk_log_enabled() {
+                info!(target: "sol_trade_sdk", "ℹ️ WSOL ATA already exists (no need to create)");
+            }
+            return;
+        }
+
+        if sdk_log::sdk_log_enabled() {
+            info!(target: "sol_trade_sdk", "🔨 Creating WSOL ATA: {}", wsol_ata);
+        }
+        let mut last_error = None;
+        for attempt in 1..=MAX_RETRIES {
+            if attempt > 1 {
                 if sdk_log::sdk_log_enabled() {
-                    info!(target: "sol_trade_sdk", "🔨 Creating WSOL ATA: {}", wsol_ata);
+                    info!(target: "sol_trade_sdk", "🔄 Retrying WSOL ATA creation (attempt {}/{})...", attempt, MAX_RETRIES);
                 }
-                let create_ata_ixs =
-                    crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
-
-                if !create_ata_ixs.is_empty() {
-                    use solana_sdk::transaction::Transaction;
-
-                    // 重试逻辑：最多尝试3次，每次超时10秒
-                    const MAX_RETRIES: usize = 3;
-                    const TIMEOUT_SECS: u64 = 10;
-                    let mut last_error = None;
-
-                    for attempt in 1..=MAX_RETRIES {
-                        if attempt > 1 {
-                            if sdk_log::sdk_log_enabled() {
-                                info!(target: "sol_trade_sdk", "🔄 Retrying WSOL ATA creation (attempt {}/{})...", attempt, MAX_RETRIES);
-                            }
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                        }
-
-                        let recent_blockhash = match rpc.get_latest_blockhash().await {
-                            Ok(hash) => hash,
-                            Err(e) => {
-                                if sdk_log::sdk_log_enabled() {
-                                    warn!(target: "sol_trade_sdk", "⚠️ Failed to get latest blockhash: {}", e);
-                                }
-                                last_error = Some(format!("Failed to get blockhash: {}", e));
-                                continue;
-                            }
-                        };
-
-                        let tx = Transaction::new_signed_with_payer(
-                            &create_ata_ixs,
-                            Some(&payer.pubkey()),
-                            &[payer.as_ref()],
-                            recent_blockhash,
-                        );
-
-                        // 使用超时包装 send_and_confirm_transaction
-                        let send_result = tokio::time::timeout(
-                            tokio::time::Duration::from_secs(TIMEOUT_SECS),
-                            rpc.send_and_confirm_transaction(&tx)
-                        ).await;
-
-                        match send_result {
-                            Ok(Ok(signature)) => {
-                                if sdk_log::sdk_log_enabled() {
-                                    info!(target: "sol_trade_sdk", "✅ WSOL ATA created successfully: {}", signature);
-                                }
-                                return;
-                            }
-                            Ok(Err(e)) => {
-                                last_error = Some(format!("{}", e));
-
-                                // 检查账户是否实际已存在
-                                if let Ok(_) = rpc.get_account(&wsol_ata).await {
-                                    if sdk_log::sdk_log_enabled() {
-                                        info!(target: "sol_trade_sdk", "✅ WSOL ATA already exists (tx failed but account exists): {}", wsol_ata);
-                                    }
-                                    return;
-                                }
-
-                                if attempt < MAX_RETRIES && sdk_log::sdk_log_enabled() {
-                                    warn!(target: "sol_trade_sdk", "⚠️ Attempt {} failed: {}", attempt, e);
-                                }
-                            }
-                            Err(_) => {
-                                last_error = Some(format!("Transaction confirmation timeout ({}s)", TIMEOUT_SECS));
-                                if sdk_log::sdk_log_enabled() {
-                                    warn!(target: "sol_trade_sdk", "⚠️ Attempt {} timed out", attempt);
-                                }
-                            }
-                        }
-                    }
-
-                    // 所有重试都失败了
-                    if let Some(err) = last_error {
-                        if sdk_log::sdk_log_enabled() {
-                            error!(target: "sol_trade_sdk", "❌ WSOL ATA creation failed after {} retries: {}", MAX_RETRIES, wsol_ata);
-                            error!(target: "sol_trade_sdk", "   Error: {}", err);
-                            error!(target: "sol_trade_sdk", "   💡 Possible causes:");
-                            error!(target: "sol_trade_sdk", "      1. Insufficient SOL balance (need ~0.002 SOL for rent exemption)");
-                            error!(target: "sol_trade_sdk", "      2. RPC timeout or network congestion");
-                            error!(target: "sol_trade_sdk", "      3. Insufficient transaction fee");
-                            error!(target: "sol_trade_sdk", "   🔧 Solutions:");
-                            error!(target: "sol_trade_sdk", "      1. Fund wallet with at least 0.1 SOL");
-                            error!(target: "sol_trade_sdk", "      2. Retry after a few seconds");
-                            error!(target: "sol_trade_sdk", "      3. Check RPC connection");
-                            error!(target: "sol_trade_sdk", "   ⚠️ Process will exit in 5 seconds, restart after fixing the above");
-                        }
-                        std::thread::sleep(std::time::Duration::from_secs(5));
-                        panic!(
-                            "❌ WSOL ATA creation failed and account does not exist: {}. Error: {}",
-                            wsol_ata, err
-                        );
-                    }
-                } else {
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+            match Self::try_create_wsol_ata_once(rpc.as_ref(), payer, &wsol_ata, &create_ata_ixs, TIMEOUT_SECS).await {
+                Ok(()) => {
                     if sdk_log::sdk_log_enabled() {
-                        info!(target: "sol_trade_sdk", "ℹ️ WSOL ATA already exists (no need to create)");
+                        info!(target: "sol_trade_sdk", "✅ WSOL ATA created or already exists");
+                    }
+                    return;
+                }
+                Err(e) => {
+                    last_error = Some(e.clone());
+                    if attempt < MAX_RETRIES && sdk_log::sdk_log_enabled() {
+                        warn!(target: "sol_trade_sdk", "⚠️ Attempt {} failed: {}", attempt, e);
                     }
                 }
             }
+        }
+
+        if let Some(err) = last_error {
+            if sdk_log::sdk_log_enabled() {
+                error!(target: "sol_trade_sdk", "❌ WSOL ATA creation failed after {} retries: {}", MAX_RETRIES, wsol_ata);
+                error!(target: "sol_trade_sdk", "   Error: {}", err);
+                error!(target: "sol_trade_sdk", "   💡 Possible causes: insufficient SOL, RPC timeout, or fee");
+                error!(target: "sol_trade_sdk", "   🔧 Solutions: fund wallet (e.g. 0.1 SOL), retry, check RPC");
+            }
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            panic!(
+                "❌ WSOL ATA creation failed and account does not exist: {}. Error: {}",
+                wsol_ata, err
+            );
         }
     }
 
@@ -672,7 +653,7 @@ impl TradingClient {
         }
         if params.input_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
             return Err(anyhow::anyhow!(
-                " Current version only support USD1 trading on Bonk protocols"
+                " Current version only supports USD1 trading on Bonk protocols"
             ));
         }
         let input_token_mint = if params.input_token_type == TradeTokenType::SOL {
@@ -769,7 +750,7 @@ impl TradingClient {
         }
         if params.output_token_type == TradeTokenType::USD1 && params.dex_type != DexType::Bonk {
             return Err(anyhow::anyhow!(
-                " Current version only support USD1 trading on Bonk protocols"
+                " Current version only supports USD1 trading on Bonk protocols"
             ));
         }
         let executor = TradeFactory::create_executor(params.dex_type.clone());

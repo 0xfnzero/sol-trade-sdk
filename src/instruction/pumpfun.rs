@@ -10,7 +10,7 @@ use crate::{
     instruction::utils::pumpfun::{
         accounts, get_bonding_curve_pda, get_bonding_curve_v2_pda, get_creator,
         get_mayhem_fee_recipient_meta_random, get_user_volume_accumulator_pda,
-        global_constants::{self}, BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR,
+        global_constants::{self}, BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -64,7 +64,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         );
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.output_mint).unwrap()
+            get_bonding_curve_pda(&params.output_mint)
+                .ok_or_else(|| anyhow!("bonding_curve PDA derivation failed for mint {}", params.output_mint))?
         } else {
             bonding_curve.account
         };
@@ -97,8 +98,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
                 params.open_seed_optimize,
             );
 
-        let user_volume_accumulator =
-            get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap();
+        let user_volume_accumulator = get_user_volume_accumulator_pda(&params.payer.pubkey())
+            .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
 
         // ========================================
         // Build instructions
@@ -146,7 +147,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             global_constants::FEE_RECIPIENT_META
         };
 
-        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.output_mint).unwrap();
+        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.output_mint)
+            .ok_or_else(|| anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.output_mint))?;
         let mut accounts: Vec<AccountMeta> = vec![
             global_constants::GLOBAL_ACCOUNT_META,
             fee_recipient_meta,
@@ -218,7 +220,8 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         };
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.input_mint).unwrap()
+            get_bonding_curve_pda(&params.input_mint)
+                .ok_or_else(|| anyhow!("bonding_curve PDA derivation failed for mint {}", params.input_mint))?
         } else {
             bonding_curve.account
         };
@@ -257,7 +260,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         let mut instructions = Vec::with_capacity(2);
 
         let mut sell_data = [0u8; 24];
-        sell_data[..8].copy_from_slice(&[51, 230, 133, 164, 1, 127, 131, 173]); // Method ID
+        sell_data[..8].copy_from_slice(&SELL_DISCRIMINATOR);
         sell_data[8..16].copy_from_slice(&token_amount.to_le_bytes());
         sell_data[16..24].copy_from_slice(&min_sol_output.to_le_bytes());
 
@@ -287,12 +290,13 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
 
         // Cashback: Bonding Curve Sell expects UserVolumeAccumulator PDA at 0th remaining account (writable)
         if bonding_curve.is_cashback_coin {
-            let user_volume_accumulator =
-                get_user_volume_accumulator_pda(&params.payer.pubkey()).unwrap();
+            let user_volume_accumulator = get_user_volume_accumulator_pda(&params.payer.pubkey())
+                .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
             accounts.push(AccountMeta::new(user_volume_accumulator, false));
         }
         // remainingAccounts: @pump-fun/pump-sdk sell 要求末尾传 bondingCurveV2Pda(mint)（cashback 时在 user_volume_accumulator 之后），勿删
-        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.input_mint).unwrap();
+        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.input_mint)
+            .ok_or_else(|| anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.input_mint))?;
         accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false));
 
         instructions.push(Instruction::new_with_bytes(

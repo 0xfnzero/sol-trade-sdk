@@ -1,3 +1,4 @@
+pub mod astralane_quic;
 pub mod common;
 pub mod serialization;
 pub mod solana_rpc;
@@ -85,6 +86,14 @@ lazy_static::lazy_static! {
 pub const SWQOS_BLACKLIST: &[SwqosType] = &[
     SwqosType::NextBlock,  // NextBlock is disabled by default
 ];
+
+/// SWQOS 提交通道：HTTP 或 QUIC（低延迟）。部分提供商（如 Astralane）支持 QUIC。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum SwqosTransport {
+    #[default]
+    Http,
+    Quic,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TradeType {
@@ -209,8 +218,8 @@ pub enum SwqosConfig {
     FlashBlock(String, SwqosRegion, Option<String>),
     /// BlockRazor(api_token, region, custom_url)
     BlockRazor(String, SwqosRegion, Option<String>),
-    /// Astralane(api_token, region, custom_url)
-    Astralane(String, SwqosRegion, Option<String>),
+    /// Astralane(api_token, region, custom_url, transport). transport=None 表示 Http。
+    Astralane(String, SwqosRegion, Option<String>, Option<SwqosTransport>),
     /// Stellium(api_token, region, custom_url)
     Stellium(String, SwqosRegion, Option<String>),
     /// Lightspeed(api_key, region, custom_url) - Solana Vibe Station
@@ -239,7 +248,7 @@ impl SwqosConfig {
             SwqosConfig::Node1(_, _, _) => SwqosType::Node1,
             SwqosConfig::FlashBlock(_, _, _) => SwqosType::FlashBlock,
             SwqosConfig::BlockRazor(_, _, _) => SwqosType::BlockRazor,
-            SwqosConfig::Astralane(_, _, _) => SwqosType::Astralane,
+            SwqosConfig::Astralane(_, _, _, _) => SwqosType::Astralane,
             SwqosConfig::Stellium(_, _, _) => SwqosType::Stellium,
             SwqosConfig::Lightspeed(_, _, _) => SwqosType::Lightspeed,
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
@@ -351,14 +360,22 @@ impl SwqosConfig {
                 );
                 Ok(Arc::new(blockrazor_client))
             },
-            SwqosConfig::Astralane(auth_token, region, url) => {
-                let endpoint = SwqosConfig::get_endpoint(SwqosType::Astralane, region, url);
-                let astralane_client = AstralaneClient::new(
-                    rpc_url.clone(),
-                    endpoint.to_string(),
-                    auth_token
-                );
-                Ok(Arc::new(astralane_client))
+            SwqosConfig::Astralane(auth_token, region, url, transport) => {
+                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                if use_quic {
+                    let quic_endpoint = crate::constants::swqos::ASTRALANE_QUIC_ENDPOINT;
+                    let astralane_client =
+                        AstralaneClient::new_quic(rpc_url.clone(), quic_endpoint, auth_token).await?;
+                    Ok(Arc::new(astralane_client))
+                } else {
+                    let endpoint = SwqosConfig::get_endpoint(SwqosType::Astralane, region, url);
+                    let astralane_client = AstralaneClient::new(
+                        rpc_url.clone(),
+                        endpoint.to_string(),
+                        auth_token,
+                    );
+                    Ok(Arc::new(astralane_client))
+                }
             },
             SwqosConfig::Stellium(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::Stellium, region, url);
