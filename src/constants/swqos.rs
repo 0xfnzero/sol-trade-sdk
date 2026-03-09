@@ -155,6 +155,20 @@ pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("speede8xCcUq2Tiv1efXeTuE3k9TDNq8TnGKaKSc6J4"),
 ];
 
+// LunarLander (HelloMoon) tip accounts
+pub const LUNARLANDER_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("moon17L6BgxXRX5uHKudAmqVF96xia9h8ygcmG2sL3F"),
+    pubkey!("moon26Sek222Md7ZydcAGxoKG832DK36CkLrS3PQY4c"),
+    pubkey!("moon7fwyajcVstMoBnVy7UBcTx87SBtNoGGAaH2Cb8V"),
+    pubkey!("moonBtH9HvLHjLqi9ivyrMVKgFUsSfrz9BwQ9khhn1u"),
+    pubkey!("moonCJg8476LNFLptX1qrK8PdRsA1HD1R6XWyu9MB93"),
+    pubkey!("moonF2sz7qwAtdETnrgxNbjonnhGGjd6r4W4UC9284s"),
+    pubkey!("moonKfftMiGSak3cezvhEqvkPSzwrmQxQHXuspC96yj"),
+    pubkey!("moonQBUKBpkifLcTd78bfxxt4PYLwmJ5admLW6cBBs8"),
+    pubkey!("moonXwpKwoVkMegt5Bc776cSW793X1irL5hHV1vJ3JA"),
+    pubkey!("moonZ6u9E2fgk6eWd82621eLPHt9zuJuYECXAYjMY1C"),
+];
+
 // NewYork,
 // Frankfurt,
 // Amsterdam,
@@ -314,6 +328,19 @@ pub const SWQOS_ENDPOINTS_SPEEDLANDING: [&str; 8] = [
     "fra.speedlanding.trade:17778",
 ];
 
+/// HelloMoon Lunar Lander: JSON-RPC sendTransaction, auth via ?api-key= query param.
+/// Region order: NewYork(NYC), Frankfurt, Amsterdam, SLC(Ashburn), Tokyo, London(→Frankfurt), LosAngeles(→NYC), Default(geolocated).
+pub const SWQOS_ENDPOINTS_LUNARLANDER: [&str; 8] = [
+    "http://nyc.lunar-lander.hellomoon.io/send",       // NewYork
+    "http://fra.lunar-lander.hellomoon.io/send",       // Frankfurt
+    "http://ams.lunar-lander.hellomoon.io/send",       // Amsterdam
+    "http://ash.lunar-lander.hellomoon.io/send",       // SLC (closest: Ashburn)
+    "http://tyo.lunar-lander.hellomoon.io/send",       // Tokyo
+    "http://fra.lunar-lander.hellomoon.io/send",       // London (fallback to Frankfurt)
+    "http://nyc.lunar-lander.hellomoon.io/send",       // LosAngeles (fallback to NYC)
+    "http://lunar-lander.hellomoon.io/send",           // Default (geolocated)
+];
+
 /// Helius Sender: POST /fast, dual routing to validators and Jito. API key optional (custom TPS only).
 /// Region order: NewYork(EWR), Frankfurt, Amsterdam, SLC, Tokyo, London, LosAngeles(SG), Default(Global).
 pub const SWQOS_ENDPOINTS_HELIUS: [&str; 8] = [
@@ -343,5 +370,6 @@ pub const SWQOS_MIN_TIP_SOYAS: f64 = 0.001; // Soyas requires minimum 0.001 SOL 
 pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires minimum 0.001 SOL tip
 /// Helius Sender: 0.0002 SOL when not swqos_only; use SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY when swqos_only=true.
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
+pub const SWQOS_MIN_TIP_LUNARLANDER: f64 = 0.001; // LunarLander 最低小费 0.001 SOL
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;

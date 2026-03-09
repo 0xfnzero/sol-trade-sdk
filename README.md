@@ -69,7 +69,7 @@
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
 5. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
 6. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
-7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane and other services
+7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, LunarLander and other services
 8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
 9. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 10. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
@@ -122,6 +122,7 @@ let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     // Astralane: HTTP (4th param None) or QUIC (Some(SwqosTransport::Quic)); same API key
     SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None), // HTTP
+    SwqosConfig::LunarLander("your_hellomoon_api_key".to_string(), SwqosRegion::Frankfurt, None),
     SwqosConfig::Astralane(
         "your_astralane_api_key".to_string(),
         SwqosRegion::Frankfurt,
@@ -351,6 +352,7 @@ You can apply for a key through the official website: [Community Website](https:
 - **BlockRazor**: High-speed transaction execution with API key authentication
 - **Node1**: High-speed transaction execution with API key authentication 
 - **Astralane**: Blockchain network acceleration (supports HTTP and QUIC; see [Astralane QUIC](#astralane-quic-low-latency) above)
+- **LunarLander**: HelloMoon transaction landing service (minimum tip: 0.001 SOL)
 
 ## 📁 Project Structure
 
