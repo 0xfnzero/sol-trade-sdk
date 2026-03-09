@@ -37,6 +37,7 @@ use crate::{
         SWQOS_ENDPOINTS_FLASHBLOCK,
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
+        SWQOS_ENDPOINTS_ASTRALANE_QUIC,
         SWQOS_ENDPOINTS_STELLIUM,
         SWQOS_ENDPOINTS_SOYAS,
         SWQOS_ENDPOINTS_SPEEDLANDING,
@@ -365,9 +366,10 @@ impl SwqosConfig {
             SwqosConfig::Astralane(auth_token, region, url, transport) => {
                 let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
                 if use_quic {
-                    let quic_endpoint = crate::constants::swqos::ASTRALANE_QUIC_ENDPOINT;
+                    let quic_endpoint = url
+                        .unwrap_or_else(|| SWQOS_ENDPOINTS_ASTRALANE_QUIC[region as usize].to_string());
                     let astralane_client =
-                        AstralaneClient::new_quic(rpc_url.clone(), quic_endpoint, auth_token).await?;
+                        AstralaneClient::new_quic(rpc_url.clone(), &quic_endpoint, auth_token).await?;
                     Ok(Arc::new(astralane_client))
                 } else {
                     let endpoint = SwqosConfig::get_endpoint(SwqosType::Astralane, region, url);

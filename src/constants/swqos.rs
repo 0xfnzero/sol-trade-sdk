@@ -268,8 +268,18 @@ pub const SWQOS_ENDPOINTS_ASTRALANE: [&str; 8] = [
     "http://lim.gateway.astralane.io/irisb",
 ];
 
-/// Astralane QUIC 默认端点。
-pub const ASTRALANE_QUIC_ENDPOINT: &str = "lim.gateway.astralane.io:7000";
+/// Astralane QUIC endpoints (port 7000). Region order: NewYork, Frankfurt, Amsterdam, SLC, Tokyo, London, LosAngeles, Default.
+/// See: https://github.com/Astralane/astralane-quic-client. We use fr, ams, la, ny, lim, sg only (avoid ams2/fr2 for lower latency).
+pub const SWQOS_ENDPOINTS_ASTRALANE_QUIC: [&str; 8] = [
+    "ny.gateway.astralane.io:7000",   // NewYork
+    "fr.gateway.astralane.io:7000",   // Frankfurt
+    "ams.gateway.astralane.io:7000",  // Amsterdam
+    "lim.gateway.astralane.io:7000",  // SLC (no slc, use lim)
+    "sg.gateway.astralane.io:7000",   // Tokyo (Asia)
+    "ams.gateway.astralane.io:7000",  // London (Europe, avoid ams2)
+    "la.gateway.astralane.io:7000",   // LosAngeles
+    "lim.gateway.astralane.io:7000",  // Default
+];
 
 pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [
     "http://ewr1.flashrpc.com",
