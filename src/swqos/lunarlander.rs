@@ -207,3 +207,74 @@ impl Drop for LunarLanderClient {
         self.stop_ping.store(true, Ordering::Relaxed);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ping_url_default_endpoint() {
+        let url = LunarLanderClient::ping_url(
+            "http://nyc.lunar-lander.hellomoon.io/send",
+            "test-key",
+        );
+        assert_eq!(url, "http://nyc.lunar-lander.hellomoon.io/ping?api-key=test-key");
+    }
+
+    #[test]
+    fn test_ping_url_geolocated_endpoint() {
+        let url = LunarLanderClient::ping_url(
+            "http://lunar-lander.hellomoon.io/send",
+            "test-key",
+        );
+        assert_eq!(url, "http://lunar-lander.hellomoon.io/ping?api-key=test-key");
+    }
+
+    #[test]
+    fn test_ping_url_custom_with_nested_path() {
+        let url = LunarLanderClient::ping_url(
+            "http://proxy.example.com/v2/lunar/send",
+            "key123",
+        );
+        assert_eq!(url, "http://proxy.example.com/v2/lunar/ping?api-key=key123");
+    }
+
+    #[test]
+    fn test_ping_url_custom_pathless() {
+        // Custom URL with no path — should append /ping to the host
+        let url = LunarLanderClient::ping_url(
+            "http://proxy.example.com",
+            "key123",
+        );
+        assert_eq!(url, "http://proxy.example.com/ping?api-key=key123");
+    }
+
+    #[test]
+    fn test_send_url_simple() {
+        let url = LunarLanderClient::send_url(
+            "http://nyc.lunar-lander.hellomoon.io/send",
+            "test-key",
+        );
+        assert_eq!(url, "http://nyc.lunar-lander.hellomoon.io/send?api-key=test-key");
+    }
+
+    #[test]
+    fn test_send_url_existing_query_params() {
+        let url = LunarLanderClient::send_url(
+            "http://proxy.example.com/send?foo=bar",
+            "test-key",
+        );
+        assert_eq!(url, "http://proxy.example.com/send?foo=bar&api-key=test-key");
+    }
+
+    #[test]
+    fn test_tip_account_is_valid() {
+        // Verify the tip accounts array is non-empty and accounts parse as pubkeys
+        assert!(!LUNARLANDER_TIP_ACCOUNTS.is_empty());
+        for account in LUNARLANDER_TIP_ACCOUNTS {
+            // If these were invalid, the pubkey! macro would fail at compile time,
+            // but verify they are 32 bytes
+            assert_eq!(account.to_bytes().len(), 32);
+        }
+    }
+}
