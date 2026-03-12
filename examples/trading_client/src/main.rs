@@ -46,7 +46,7 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
         SwqosConfig::ZeroSlot("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Temporal("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::FlashBlock("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
+        SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
         SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Astralane("your_api_token".to_string(), SwqosRegion::Frankfurt, None, Some(SwqosTransport::Quic)), // QUIC; use None for HTTP
         // Helius Sender: 4th param swqos_only Some(true) => min tip 0.000005 SOL; None => 0.0002 SOL

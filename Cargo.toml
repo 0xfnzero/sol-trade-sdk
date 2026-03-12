@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "3.6.1"
+version = "3.6.2"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -109,6 +109,7 @@ sha2 = "0.10"
 tonic-prost = "0.14.2"
 quinn = { version = "0.11", default-features = false, features = ["rustls"] }
 rcgen = "0.13"
+uuid = "1.11"
 
 # Performance optimization dependencies
 crossbeam-queue = "0.3"

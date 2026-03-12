@@ -230,6 +230,19 @@ pub const SWQOS_ENDPOINTS_NODE1: [&str; 8] = [
     "http://fra.node1.me",
 ];
 
+/// Node1 QUIC: port 16666. Region order: NewYork, Frankfurt, Amsterdam, SLC→ny, Tokyo, London, LosAngeles→ny, Default→ny.
+/// server_name = host part (e.g. ny.node1.me). Auth: first bi stream = 16-byte UUID; each tx = new bi stream, bincode body.
+pub const SWQOS_ENDPOINTS_NODE1_QUIC: [&str; 8] = [
+    "ny.node1.me:16666",
+    "fra.node1.me:16666",
+    "ams.node1.me:16666",
+    "ny.node1.me:16666",   // SLC → ny
+    "tk.node1.me:16666",
+    "lon.node1.me:16666",
+    "ny.node1.me:16666",   // LA → ny
+    "ny.node1.me:16666",   // Default → ny
+];
+
 pub const SWQOS_ENDPOINTS_FLASHBLOCK: [&str; 8] = [
     "http://ny.flashblock.trade",
     "http://fra.flashblock.trade",

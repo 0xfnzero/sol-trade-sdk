@@ -8,6 +8,7 @@ pub mod zeroslot;
 pub mod temporal;
 pub mod bloxroute;
 pub mod node1;
+pub mod node1_quic;
 pub mod flashblock;
 pub mod blockrazor;
 pub mod astralane;
@@ -34,6 +35,7 @@ use crate::{
         SWQOS_ENDPOINTS_TEMPORAL,
         SWQOS_ENDPOINTS_ZERO_SLOT,
         SWQOS_ENDPOINTS_NODE1,
+        SWQOS_ENDPOINTS_NODE1_QUIC,
         SWQOS_ENDPOINTS_FLASHBLOCK,
         SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_ASTRALANE,
@@ -66,6 +68,7 @@ use crate::{
         temporal::TemporalClient,
         zeroslot::ZeroSlotClient,
         node1::Node1Client,
+        node1_quic::Node1QuicClient,
         flashblock::FlashBlockClient,
         blockrazor::BlockRazorClient,
         astralane::AstralaneClient,
@@ -215,8 +218,8 @@ pub enum SwqosConfig {
     Temporal(String, SwqosRegion, Option<String>),
     /// ZeroSlot(api_token, region, custom_url)
     ZeroSlot(String, SwqosRegion, Option<String>),
-    /// Node1(api_token, region, custom_url)
-    Node1(String, SwqosRegion, Option<String>),
+    /// Node1(api_token, region, custom_url, transport). transport=None => HTTP; Some(Quic) => QUIC (port 16666, UUID auth).
+    Node1(String, SwqosRegion, Option<String>, Option<SwqosTransport>),
     /// FlashBlock(api_token, region, custom_url)
     FlashBlock(String, SwqosRegion, Option<String>),
     /// BlockRazor(api_token, region, custom_url)
@@ -248,7 +251,7 @@ impl SwqosConfig {
             SwqosConfig::Bloxroute(_, _, _) => SwqosType::Bloxroute,
             SwqosConfig::Temporal(_, _, _) => SwqosType::Temporal,
             SwqosConfig::ZeroSlot(_, _, _) => SwqosType::ZeroSlot,
-            SwqosConfig::Node1(_, _, _) => SwqosType::Node1,
+            SwqosConfig::Node1(_, _, _, _) => SwqosType::Node1,
             SwqosConfig::FlashBlock(_, _, _) => SwqosType::FlashBlock,
             SwqosConfig::BlockRazor(_, _, _) => SwqosType::BlockRazor,
             SwqosConfig::Astralane(_, _, _, _) => SwqosType::Astralane,
@@ -336,14 +339,27 @@ impl SwqosConfig {
                 );
                 Ok(Arc::new(bloxroute_client))
             },
-            SwqosConfig::Node1(auth_token, region, url) => {
-                let endpoint = SwqosConfig::get_endpoint(SwqosType::Node1, region, url);
-                let node1_client = Node1Client::new(
-                    rpc_url.clone(),
-                    endpoint.to_string(),
-                    auth_token
-                );
-                Ok(Arc::new(node1_client))
+            SwqosConfig::Node1(auth_token, region, url, transport) => {
+                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                if use_quic {
+                    let quic_endpoint = url
+                        .unwrap_or_else(|| SWQOS_ENDPOINTS_NODE1_QUIC[region as usize].to_string());
+                    let node1_quic = Node1QuicClient::connect(
+                        &quic_endpoint,
+                        &auth_token,
+                        rpc_url.clone(),
+                    )
+                    .await?;
+                    Ok(Arc::new(node1_quic))
+                } else {
+                    let endpoint = SwqosConfig::get_endpoint(SwqosType::Node1, region, url);
+                    let node1_client = Node1Client::new(
+                        rpc_url.clone(),
+                        endpoint.to_string(),
+                        auth_token,
+                    );
+                    Ok(Arc::new(node1_client))
+                }
             },
             SwqosConfig::FlashBlock(auth_token, region, url) => {
                 let endpoint = SwqosConfig::get_endpoint(SwqosType::FlashBlock, region, url);
