@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{str::FromStr, sync::Arc, time::Instant};
+use tokio::sync::Notify;
 
 use fnv::FnvHasher;
 
@@ -133,25 +134,27 @@ async fn run_one_swqos_job(job: SwqosJob) {
     });
 }
 
-async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>) {
+async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>, notify: Arc<Notify>) {
     loop {
         if let Some(job) = queue.pop() {
             run_one_swqos_job(job).await;
         } else {
-            tokio::task::yield_now().await;
+            notify.notified().await;
         }
     }
 }
 
 static SWQOS_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
+static SWQOS_NOTIFY: OnceCell<Arc<Notify>> = OnceCell::new();
 static SWQOS_WORKERS_STARTED: AtomicBool = AtomicBool::new(false);
 
 fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>) {
     if SWQOS_WORKERS_STARTED.swap(true, Ordering::AcqRel) {
         return;
     }
+    let notify = SWQOS_NOTIFY.get_or_init(|| Arc::new(Notify::new())).clone();
     for _ in 0..SWQOS_POOL_WORKERS {
-        tokio::spawn(swqos_worker_loop(queue.clone()));
+        tokio::spawn(swqos_worker_loop(queue.clone(), notify.clone()));
     }
 }
 
@@ -475,6 +478,11 @@ pub async fn execute_parallel(
             };
             let _ = queue.push(job);
         }
+    }
+
+    // Wake all workers to process enqueued jobs
+    if let Some(notify) = SWQOS_NOTIFY.get() {
+        notify.notify_waiters();
     }
 
     // All jobs enqueued (no spawn on hot path)
