@@ -2,7 +2,10 @@ use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::{RaydiumAmmV4Params, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, RaydiumAmmV4Params},
+        factory::DexType,
+    },
     SolanaTrade,
 };
 use sol_trade_sdk::{
@@ -122,8 +125,12 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let amm_info = fetch_amm_info(&client.infrastructure.rpc, trade_info.amm).await?;
-    let (coin_reserve, pc_reserve) =
-        get_multi_token_balances(&client.infrastructure.rpc, &amm_info.token_coin, &amm_info.token_pc).await?;
+    let (coin_reserve, pc_reserve) = get_multi_token_balances(
+        &client.infrastructure.rpc,
+        &amm_info.token_coin,
+        &amm_info.token_pc,
+    )
+    .await?;
     let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
     {
@@ -142,14 +149,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     );
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(
-        150000,
-        150000,
-        500000,
-        500000,
-        0.001,
-        0.001,
-    );
+    gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");
@@ -194,7 +194,9 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let amount_token = balance.amount.parse::<u64>().unwrap();
 
     println!("Selling {} tokens", amount_token);
-    let params = RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, trade_info.amm).await?;
+    let params =
+        RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, trade_info.amm)
+            .await?;
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::RaydiumAmmV4,
         output_token_type: if is_wsol { TradeTokenType::WSOL } else { TradeTokenType::USDC },

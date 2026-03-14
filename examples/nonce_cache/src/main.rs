@@ -16,7 +16,10 @@ use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::{PumpFunParams, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, PumpFunParams},
+        factory::DexType,
+    },
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -62,7 +65,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some(event) = queue.pop() {
             let run = match &event {
-                DexEvent::PumpFunBuy(e) | DexEvent::PumpFunSell(e) | DexEvent::PumpFunBuyExactSolIn(e) => {
+                DexEvent::PumpFunBuy(e)
+                | DexEvent::PumpFunSell(e)
+                | DexEvent::PumpFunBuyExactSolIn(e) => {
                     if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                         Some(e.clone())
                     } else {

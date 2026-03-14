@@ -1,7 +1,6 @@
 use solana_program::pubkey;
 use solana_sdk::pubkey::Pubkey;
 
-
 pub const JITO_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5"),
     pubkey!("HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe"),
@@ -165,13 +164,13 @@ pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
 // Default,
 
 pub const SWQOS_ENDPOINTS_JITO: [&str; 8] = [
-    "https://ny.mainnet.block-engine.jito.wtf", 
+    "https://ny.mainnet.block-engine.jito.wtf",
     "https://frankfurt.mainnet.block-engine.jito.wtf",
     "https://amsterdam.mainnet.block-engine.jito.wtf",
     "https://slc.mainnet.block-engine.jito.wtf",
     "https://tokyo.mainnet.block-engine.jito.wtf",
     "https://london.mainnet.block-engine.jito.wtf",
-    "https://ny.mainnet.block-engine.jito.wtf", 
+    "https://ny.mainnet.block-engine.jito.wtf",
     "https://mainnet.block-engine.jito.wtf",
 ];
 
@@ -180,8 +179,8 @@ pub const SWQOS_ENDPOINTS_NEXTBLOCK: [&str; 8] = [
     "http://frankfurt.nextblock.io",
     "http://amsterdam.nextblock.io",
     "http://slc.nextblock.io",
-    "http://tokyo.nextblock.io",  
-    "http://london.nextblock.io", 
+    "http://tokyo.nextblock.io",
+    "http://london.nextblock.io",
     "http://singapore.nextblock.io",
     "http://frankfurt.nextblock.io",
 ];
@@ -236,11 +235,11 @@ pub const SWQOS_ENDPOINTS_NODE1_QUIC: [&str; 8] = [
     "ny.node1.me:16666",
     "fra.node1.me:16666",
     "ams.node1.me:16666",
-    "ny.node1.me:16666",   // SLC → ny
+    "ny.node1.me:16666", // SLC → ny
     "tk.node1.me:16666",
     "lon.node1.me:16666",
-    "ny.node1.me:16666",   // LA → ny
-    "ny.node1.me:16666",   // Default → ny
+    "ny.node1.me:16666", // LA → ny
+    "ny.node1.me:16666", // Default → ny
 ];
 
 pub const SWQOS_ENDPOINTS_FLASHBLOCK: [&str; 8] = [
@@ -284,14 +283,14 @@ pub const SWQOS_ENDPOINTS_ASTRALANE: [&str; 8] = [
 /// Astralane QUIC endpoints (port 7000). Region order: NewYork, Frankfurt, Amsterdam, SLC, Tokyo, London, LosAngeles, Default.
 /// See: https://github.com/Astralane/astralane-quic-client. We use fr, ams, la, ny, lim, sg only (avoid ams2/fr2 for lower latency).
 pub const SWQOS_ENDPOINTS_ASTRALANE_QUIC: [&str; 8] = [
-    "ny.gateway.astralane.io:7000",   // NewYork
-    "fr.gateway.astralane.io:7000",   // Frankfurt
-    "ams.gateway.astralane.io:7000",  // Amsterdam
-    "lim.gateway.astralane.io:7000",  // SLC (no slc, use lim)
-    "sg.gateway.astralane.io:7000",   // Tokyo (Asia)
-    "ams.gateway.astralane.io:7000",  // London (Europe, avoid ams2)
-    "la.gateway.astralane.io:7000",   // LosAngeles
-    "lim.gateway.astralane.io:7000",  // Default
+    "ny.gateway.astralane.io:7000",  // NewYork
+    "fr.gateway.astralane.io:7000",  // Frankfurt
+    "ams.gateway.astralane.io:7000", // Amsterdam
+    "lim.gateway.astralane.io:7000", // SLC (no slc, use lim)
+    "sg.gateway.astralane.io:7000",  // Tokyo (Asia)
+    "ams.gateway.astralane.io:7000", // London (Europe, avoid ams2)
+    "la.gateway.astralane.io:7000",  // LosAngeles
+    "lim.gateway.astralane.io:7000", // Default
 ];
 
 pub const SWQOS_ENDPOINTS_STELLIUM: [&str; 8] = [

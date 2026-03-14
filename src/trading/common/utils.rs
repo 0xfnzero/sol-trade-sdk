@@ -40,14 +40,7 @@ pub async fn get_token_balance(
     payer: &Pubkey,
     mint: &Pubkey,
 ) -> Result<u64, anyhow::Error> {
-    get_token_balance_with_options(
-        rpc,
-        payer,
-        mint,
-        &crate::constants::TOKEN_PROGRAM,
-        false,
-    )
-    .await
+    get_token_balance_with_options(rpc, payer, mint, &crate::constants::TOKEN_PROGRAM, false).await
 }
 
 /// 使用与交易指令一致的 ATA 推导（可选 seed）查询余额；卖出/余额查询应与买入使用同一 ATA 地址。

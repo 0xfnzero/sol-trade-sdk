@@ -1,4 +1,6 @@
-use crate::swqos::common::{default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode};
+use crate::swqos::common::{
+    default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode,
+};
 use rand::seq::IndexedRandom;
 use reqwest::Client;
 use serde_json::json;
@@ -6,10 +8,10 @@ use std::{sync::Arc, time::Instant};
 
 use solana_transaction_status::UiTransactionEncoding;
 
+use crate::swqos::SwqosClientTrait;
+use crate::swqos::{SwqosType, TradeType};
 use anyhow::Result;
 use solana_sdk::transaction::VersionedTransaction;
-use crate::swqos::{SwqosType, TradeType};
-use crate::swqos::SwqosClientTrait;
 
 use crate::{common::SolanaRpcClient, constants::swqos::LIGHTSPEED_TIP_ACCOUNTS};
 
@@ -23,16 +25,29 @@ pub struct LightspeedClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for LightspeedClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transaction(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transactions(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
-        let tip_account = *LIGHTSPEED_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| LIGHTSPEED_TIP_ACCOUNTS.first()).unwrap();
+        let tip_account = *LIGHTSPEED_TIP_ACCOUNTS
+            .choose(&mut rand::rng())
+            .or_else(|| LIGHTSPEED_TIP_ACCOUNTS.first())
+            .unwrap();
         Ok(tip_account.to_string())
     }
 
@@ -50,9 +65,15 @@ impl LightspeedClient {
         Self { rpc_client: Arc::new(rpc_client), endpoint, auth_token, http_client }
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
+        let (content, signature) =
+            serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         // Lightspeed uses standard Solana JSON-RPC format for sendTransaction
         let request_body = serde_json::to_string(&json!({
@@ -70,7 +91,9 @@ impl LightspeedClient {
             ]
         }))?;
 
-        let response_text = self.http_client.post(&self.endpoint)
+        let response_text = self
+            .http_client
+            .post(&self.endpoint)
             .body(request_body)
             .header("Content-Type", "application/json")
             .send()
@@ -93,9 +116,13 @@ impl LightspeedClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" [lightspeed] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(
+                    " [lightspeed] {} confirmation failed: {:?}",
+                    trade_type,
+                    start_time.elapsed()
+                );
                 return Err(e);
-            },
+            }
         }
         if wait_confirmation {
             println!(" signature: {:?}", signature);
@@ -105,7 +132,12 @@ impl LightspeedClient {
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         for transaction in transactions {
             self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }

@@ -43,8 +43,7 @@ pub const USD1_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
     };
 
 // USDC (mainnet) mint and meta
-pub const USDC_TOKEN_ACCOUNT: Pubkey =
-    pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+pub const USDC_TOKEN_ACCOUNT: Pubkey = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 pub const USDC_TOKEN_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
     solana_sdk::instruction::AccountMeta {
         pubkey: USDC_TOKEN_ACCOUNT,

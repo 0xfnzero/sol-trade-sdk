@@ -1,8 +1,8 @@
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use smallvec::SmallVec;
-use solana_sdk::instruction::Instruction;
 use solana_compute_budget_interface::ComputeBudgetInstruction;
+use solana_sdk::instruction::Instruction;
 use std::sync::Arc;
 
 /// Cache key containing all parameters for compute budget instructions

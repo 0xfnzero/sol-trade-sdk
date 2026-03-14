@@ -1,9 +1,9 @@
 use crate::common::types::SolanaRpcClient;
+use crate::swqos::serialization;
 use anyhow::Result;
 use base64::engine::general_purpose::{self, STANDARD};
 use base64::Engine;
 use bincode::serialize;
-use crate::swqos::serialization;
 use reqwest::Client;
 use serde_json;
 use serde_json::json;
@@ -117,7 +117,11 @@ pub async fn poll_any_transaction_confirmation(
 
     loop {
         if start.elapsed() >= timeout {
-            return Err(anyhow::anyhow!("Transaction confirmation timed out after {}s ({} signatures polled)", timeout.as_secs(), signatures.len()));
+            return Err(anyhow::anyhow!(
+                "Transaction confirmation timed out after {}s ({} signatures polled)",
+                timeout.as_secs(),
+                signatures.len()
+            ));
         }
 
         poll_count += 1;
@@ -205,7 +209,7 @@ pub async fn poll_any_transaction_confirmation(
                 let ui_err = meta.err.unwrap();
                 let tx_err: TransactionError =
                     serde_json::from_value(serde_json::to_value(&ui_err)?)?;
-                
+
                 // Use Solana InstructionError codes directly
                 let mut code = 0u32;
                 let mut index = None;
@@ -230,7 +234,7 @@ pub async fn poll_any_transaction_confirmation(
                     }
                     _ => {}
                 }
-                
+
                 return Err(anyhow::Error::new(TradeError {
                     code: code,
                     message: format!("{} {:?}", tx_err, error_msg),
@@ -241,11 +245,16 @@ pub async fn poll_any_transaction_confirmation(
     }
 }
 
-pub async fn send_nb_transaction(client: Client, endpoint: &str, auth_token: &str, transaction: &Transaction) -> Result<Signature, anyhow::Error> {
+pub async fn send_nb_transaction(
+    client: Client,
+    endpoint: &str,
+    auth_token: &str,
+    transaction: &Transaction,
+) -> Result<Signature, anyhow::Error> {
     // Serialize transaction
     let serialized = bincode::serialize(transaction)
         .map_err(|e| anyhow::anyhow!("Transaction serialization failed: {}", e))?;
-    
+
     // Base64 encode
     let encoded = STANDARD.encode(serialized);
 
@@ -266,18 +275,21 @@ pub async fn send_nb_transaction(client: Client, endpoint: &str, auth_token: &st
         .await
         .map_err(|e| anyhow::anyhow!("Request failed: {}", e))?;
 
-    let resp = response.json::<serde_json::Value>().await
+    let resp = response
+        .json::<serde_json::Value>()
+        .await
         .map_err(|e| anyhow::anyhow!("Response parsing failed: {}", e))?;
 
     if let Some(reason) = resp["reason"].as_str() {
         return Err(anyhow::anyhow!(reason.to_string()));
     }
 
-    let signature = resp["signature"].as_str()
+    let signature = resp["signature"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("Missing signature field in response"))?;
 
-    let signature = Signature::from_str(signature)
-        .map_err(|e| anyhow::anyhow!("Invalid signature: {}", e))?;
+    let signature =
+        Signature::from_str(signature).map_err(|e| anyhow::anyhow!("Invalid signature: {}", e))?;
 
     Ok(signature)
 }

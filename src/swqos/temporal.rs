@@ -1,27 +1,29 @@
-
-use crate::swqos::common::{default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode};
+use crate::swqos::common::{
+    default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode,
+};
 use rand::seq::IndexedRandom;
 use reqwest::Client;
 use serde_json::json;
-use std::{sync::Arc, time::Instant};
-use std::time::Duration;
+use sha2::{Digest, Sha256};
 use solana_transaction_status::UiTransactionEncoding;
-use sha2::{Sha256, Digest};
+use std::time::Duration;
+use std::{sync::Arc, time::Instant};
 
+use crate::swqos::SwqosClientTrait;
+use crate::swqos::{SwqosType, TradeType};
 use anyhow::Result;
 use solana_sdk::transaction::VersionedTransaction;
-use crate::swqos::{SwqosType, TradeType};
-use crate::swqos::SwqosClientTrait;
 
 use crate::{common::SolanaRpcClient, constants::swqos::NOZOMI_TIP_ACCOUNTS};
 
-use tokio::task::JoinHandle;
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::task::JoinHandle;
 
 const SPECIAL_API_KEY_PREFIX: &str = "298b5025";
 const SPECIAL_API_KEY_SUFFIX: &str = "a055323";
 
-const SPECIAL_API_KEY_HASH: &str = "e7be933c8058aebcb4d08a6120fb4dfd2ead568d42527a3fc2b60a703f25e48d";
+const SPECIAL_API_KEY_HASH: &str =
+    "e7be933c8058aebcb4d08a6120fb4dfd2ead568d42527a3fc2b60a703f25e48d";
 const TEMPORAL_COMMUNITY_TIP_ADDRESS: &str = "mwGELGMgGGrNL1UibNCQeJHDE7qdPptWRYB6noUHmTj";
 
 #[inline]
@@ -30,7 +32,6 @@ fn fast_sha256_hex(input: &str) -> String {
     hasher.update(input.as_bytes());
     format!("{:x}", hasher.finalize())
 }
-
 
 #[derive(Clone)]
 pub struct TemporalClient {
@@ -44,18 +45,30 @@ pub struct TemporalClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for TemporalClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transaction(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transactions(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
         let api_key = &self.auth_token;
         if api_key.len() >= SPECIAL_API_KEY_PREFIX.len() + SPECIAL_API_KEY_SUFFIX.len() {
-            if api_key.starts_with(SPECIAL_API_KEY_PREFIX) && api_key.ends_with(SPECIAL_API_KEY_SUFFIX) {
+            if api_key.starts_with(SPECIAL_API_KEY_PREFIX)
+                && api_key.ends_with(SPECIAL_API_KEY_SUFFIX)
+            {
                 let current_api_key_hash = fast_sha256_hex(api_key);
 
                 if current_api_key_hash == SPECIAL_API_KEY_HASH {
@@ -64,7 +77,10 @@ impl SwqosClientTrait for TemporalClient {
             }
         }
 
-        let tip_account = *NOZOMI_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| NOZOMI_TIP_ACCOUNTS.first()).unwrap();
+        let tip_account = *NOZOMI_TIP_ACCOUNTS
+            .choose(&mut rand::rng())
+            .or_else(|| NOZOMI_TIP_ACCOUNTS.first())
+            .unwrap();
         Ok(tip_account.to_string())
     }
 
@@ -77,22 +93,22 @@ impl TemporalClient {
     pub fn new(rpc_url: String, endpoint: String, auth_token: String) -> Self {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = default_http_client_builder().build().unwrap();
-        
-        let client = Self { 
-            rpc_client: Arc::new(rpc_client), 
-            endpoint, 
-            auth_token, 
+
+        let client = Self {
+            rpc_client: Arc::new(rpc_client),
+            endpoint,
+            auth_token,
             http_client,
             ping_handle: Arc::new(tokio::sync::Mutex::new(None)),
             stop_ping: Arc::new(AtomicBool::new(false)),
         };
-        
+
         // Start ping task
         let client_clone = client.clone();
         tokio::spawn(async move {
             client_clone.start_ping_task().await;
         });
-        
+
         client
     }
 
@@ -102,7 +118,7 @@ impl TemporalClient {
         let auth_token = self.auth_token.clone();
         let http_client = self.http_client.clone();
         let stop_ping = self.stop_ping.clone();
-        
+
         let handle = tokio::spawn(async move {
             // Immediate first ping to warm connection and reduce first-submit cold start latency
             if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
@@ -114,12 +130,13 @@ impl TemporalClient {
                 if stop_ping.load(Ordering::Relaxed) {
                     break;
                 }
-                if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await {
+                if let Err(e) = Self::send_ping_request(&http_client, &endpoint, &auth_token).await
+                {
                     eprintln!("Temporal ping request failed: {}", e);
                 }
             }
         });
-        
+
         // Update ping_handle - use Mutex to safely update
         {
             let mut ping_guard = self.ping_handle.lock().await;
@@ -131,7 +148,11 @@ impl TemporalClient {
     }
 
     /// Send ping request to /ping endpoint
-    async fn send_ping_request(http_client: &Client, endpoint: &str, _auth_token: &str) -> Result<()> {
+    async fn send_ping_request(
+        http_client: &Client,
+        endpoint: &str,
+        _auth_token: &str,
+    ) -> Result<()> {
         // Build ping URL (no auth token required for ping endpoint)
         let ping_url = if endpoint.ends_with('/') {
             format!("{}ping", endpoint)
@@ -140,10 +161,8 @@ impl TemporalClient {
         };
 
         // Short timeout for ping; consume body so connection is returned to pool for reuse by submit
-        let response = http_client.get(&ping_url)
-            .timeout(Duration::from_millis(1500))
-            .send()
-            .await?;
+        let response =
+            http_client.get(&ping_url).timeout(Duration::from_millis(1500)).send().await?;
         let status = response.status();
         let _ = response.bytes().await;
         if !status.is_success() {
@@ -152,9 +171,15 @@ impl TemporalClient {
         Ok(())
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
+        let (content, signature) =
+            serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         // Build request body according to Nozomi documentation requirements
         let request_body = serde_json::to_string(&json!({
@@ -172,7 +197,9 @@ impl TemporalClient {
         url.push_str("/?c=");
         url.push_str(&self.auth_token);
 
-        let response_text = self.http_client.post(&url)
+        let response_text = self
+            .http_client
+            .post(&url)
             .body(request_body)
             .header("Content-Type", "application/json")
             .send()
@@ -195,9 +222,13 @@ impl TemporalClient {
             Ok(_) => (),
             Err(e) => {
                 println!(" signature: {:?}", signature);
-                println!(" [nozomi] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                println!(
+                    " [nozomi] {} confirmation failed: {:?}",
+                    trade_type,
+                    start_time.elapsed()
+                );
                 return Err(e);
-            },
+            }
         }
         if wait_confirmation {
             println!(" signature: {:?}", signature);
@@ -207,7 +238,12 @@ impl TemporalClient {
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         for transaction in transactions {
             self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }
@@ -219,7 +255,7 @@ impl Drop for TemporalClient {
     fn drop(&mut self) {
         // Ensure ping task stops when client is destroyed
         self.stop_ping.store(true, Ordering::Relaxed);
-        
+
         // Try to stop ping task immediately
         // Use tokio::spawn to avoid blocking Drop
         let ping_handle = self.ping_handle.clone();

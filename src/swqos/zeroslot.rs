@@ -1,4 +1,6 @@
-use crate::swqos::common::{default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode};
+use crate::swqos::common::{
+    default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode,
+};
 use rand::seq::IndexedRandom;
 use reqwest::Client;
 use serde_json::json;
@@ -6,13 +8,12 @@ use std::{sync::Arc, time::Instant};
 
 use solana_transaction_status::UiTransactionEncoding;
 
+use crate::swqos::SwqosClientTrait;
+use crate::swqos::{SwqosType, TradeType};
 use anyhow::Result;
 use solana_sdk::transaction::VersionedTransaction;
-use crate::swqos::{SwqosType, TradeType};
-use crate::swqos::SwqosClientTrait;
 
 use crate::{common::SolanaRpcClient, constants::swqos::ZEROSLOT_TIP_ACCOUNTS};
-
 
 #[derive(Clone)]
 pub struct ZeroSlotClient {
@@ -24,16 +25,29 @@ pub struct ZeroSlotClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for ZeroSlotClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transaction(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transactions(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
-        let tip_account = *ZEROSLOT_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| ZEROSLOT_TIP_ACCOUNTS.first()).unwrap();
+        let tip_account = *ZEROSLOT_TIP_ACCOUNTS
+            .choose(&mut rand::rng())
+            .or_else(|| ZEROSLOT_TIP_ACCOUNTS.first())
+            .unwrap();
         Ok(tip_account.to_string())
     }
 
@@ -49,9 +63,15 @@ impl ZeroSlotClient {
         Self { rpc_client: Arc::new(rpc_client), endpoint, auth_token, http_client }
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
+        let (content, signature) =
+            serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         let request_body = serde_json::to_string(&json!({
             "jsonrpc": "2.0",
@@ -69,7 +89,9 @@ impl ZeroSlotClient {
         url.push_str(&self.auth_token);
 
         // 4. Use `text().await?` directly, avoiding async JSON parsing from `json().await?`
-        let response_text = self.http_client.post(&url)
+        let response_text = self
+            .http_client
+            .post(&url)
             .body(request_body) // Pass string directly, avoiding `json()` overhead
             .header("Content-Type", "application/json") // Explicitly specify JSON header
             .send()
@@ -95,7 +117,7 @@ impl ZeroSlotClient {
                 println!(" signature: {:?}", signature);
                 println!(" [0slot] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
                 return Err(e);
-            },
+            }
         }
         if wait_confirmation {
             println!(" signature: {:?}", signature);
@@ -105,7 +127,12 @@ impl ZeroSlotClient {
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         for transaction in transactions {
             self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }

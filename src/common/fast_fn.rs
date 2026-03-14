@@ -46,7 +46,10 @@ static INSTRUCTION_CACHE: Lazy<DashMap<InstructionCacheKey, Arc<Vec<Instruction>
 /// Get cached instruction, compute and cache if not exists (lock-free)
 /// 🚀 返回 Arc 避免每次调用克隆整个 Vec
 #[inline]
-pub fn get_cached_instructions<F>(cache_key: InstructionCacheKey, compute_fn: F) -> Arc<Vec<Instruction>>
+pub fn get_cached_instructions<F>(
+    cache_key: InstructionCacheKey,
+    compute_fn: F,
+) -> Arc<Vec<Instruction>>
 where
     F: FnOnce() -> Vec<Instruction>,
 {
@@ -63,10 +66,7 @@ where
     };
 
     // Lock-free cache lookup with entry API
-    INSTRUCTION_CACHE
-        .entry(cache_key)
-        .or_insert_with(|| Arc::new(compute_fn()))
-        .clone()
+    INSTRUCTION_CACHE.entry(cache_key).or_insert_with(|| Arc::new(compute_fn())).clone()
 }
 
 // --------------------- Associated Token Account ---------------------
@@ -141,7 +141,7 @@ pub fn _create_associated_token_account_idempotent_fast(
             }]
         })
     };
-    
+
     // 🚀 性能优化：尝试零开销解包 Arc，如果引用计数=1则直接移出，否则克隆
     Arc::try_unwrap(arc_instructions).unwrap_or_else(|arc| (*arc).clone())
 }

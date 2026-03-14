@@ -52,11 +52,7 @@ pub fn transfer(
         accounts.push(AccountMeta::new_readonly(**signer, true));
     }
 
-    Ok(Instruction {
-        program_id: *token_program_id,
-        accounts,
-        data,
-    })
+    Ok(Instruction { program_id: *token_program_id, accounts, data })
 }
 
 pub fn initialize_account3(

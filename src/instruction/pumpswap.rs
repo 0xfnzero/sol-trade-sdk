@@ -225,11 +225,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             buf.to_vec()
         };
 
-        instructions.push(Instruction {
-            program_id: accounts::AMM_PROGRAM,
-            accounts,
-            data,
-        });
+        instructions.push(Instruction { program_id: accounts::AMM_PROGRAM, accounts, data });
         if close_wsol_ata {
             // Close wSOL ATA account, reclaim rent
             instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
@@ -462,12 +458,12 @@ pub fn claim_cashback_pumpswap_instruction(
     // IDL order: user, user_volume_accumulator, quote_mint, quote_token_program,
     // user_volume_accumulator_wsol_token_account, user_wsol_token_account, system_program, event_authority, program
     let accounts = vec![
-        AccountMeta::new(*payer, true),                              // user (signer, writable)
-        AccountMeta::new(user_volume_accumulator, false),            // user_volume_accumulator (writable)
+        AccountMeta::new(*payer, true), // user (signer, writable)
+        AccountMeta::new(user_volume_accumulator, false), // user_volume_accumulator (writable)
         AccountMeta::new_readonly(quote_mint, false),
         AccountMeta::new_readonly(quote_token_program, false),
-        AccountMeta::new(user_volume_accumulator_wsol_ata, false),   // writable
-        AccountMeta::new(user_wsol_ata, false),                      // writable
+        AccountMeta::new(user_volume_accumulator_wsol_ata, false), // writable
+        AccountMeta::new(user_wsol_ata, false),                    // writable
         crate::constants::SYSTEM_PROGRAM_META,
         accounts::EVENT_AUTHORITY_META,
         accounts::AMM_PROGRAM_META,

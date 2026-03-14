@@ -16,7 +16,10 @@ use sol_trade_sdk::common::{GasFeeStrategy, TradeConfig};
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::{PumpFunParams, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, PumpFunParams},
+        factory::DexType,
+    },
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -63,7 +66,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some(event) = queue.pop() {
             let run = match &event {
-                DexEvent::PumpFunBuy(e) | DexEvent::PumpFunSell(e) | DexEvent::PumpFunBuyExactSolIn(e) => {
+                DexEvent::PumpFunBuy(e)
+                | DexEvent::PumpFunSell(e)
+                | DexEvent::PumpFunBuyExactSolIn(e) => {
                     if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                         Some(e.clone())
                     } else {
@@ -123,7 +128,9 @@ async fn pumpfun_copy_trade_with_grpc(
 
     let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
     let address_lookup_table_account =
-        fetch_address_lookup_table_account(&client.infrastructure.rpc, &lookup_table_key).await.ok();
+        fetch_address_lookup_table_account(&client.infrastructure.rpc, &lookup_table_key)
+            .await
+            .ok();
 
     let gas_fee_strategy = GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);

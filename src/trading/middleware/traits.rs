@@ -76,11 +76,8 @@ impl MiddlewareManager {
         is_buy: bool,
     ) -> Result<Vec<Instruction>> {
         for middleware in &self.middlewares {
-            full_instructions = middleware.process_full_instructions(
-                full_instructions,
-                protocol_name,
-                is_buy,
-            )?;
+            full_instructions =
+                middleware.process_full_instructions(full_instructions, protocol_name, is_buy)?;
             if full_instructions.is_empty() {
                 break;
             }

@@ -1,20 +1,21 @@
-use crate::swqos::common::{default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode};
+use crate::swqos::common::{
+    default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode,
+};
 use rand::seq::IndexedRandom;
 use reqwest::Client;
 use serde_json::json;
-use std::{sync::Arc, time::Instant};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::{sync::Arc, time::Instant};
 
-use std::time::Duration;
 use solana_transaction_status::UiTransactionEncoding;
+use std::time::Duration;
 
+use crate::swqos::SwqosClientTrait;
+use crate::swqos::{SwqosType, TradeType};
 use anyhow::Result;
 use solana_sdk::transaction::VersionedTransaction;
-use crate::swqos::{SwqosType, TradeType};
-use crate::swqos::SwqosClientTrait;
 
 use crate::{common::SolanaRpcClient, constants::swqos::STELLIUM_TIP_ACCOUNTS};
-
 
 #[derive(Clone)]
 pub struct StelliumClient {
@@ -27,16 +28,29 @@ pub struct StelliumClient {
 
 #[async_trait::async_trait]
 impl SwqosClientTrait for StelliumClient {
-    async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transaction(trade_type, transaction, wait_confirmation).await
     }
 
-    async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         self.send_transactions(trade_type, transactions, wait_confirmation).await
     }
 
     fn get_tip_account(&self) -> Result<String> {
-        let tip_account = *STELLIUM_TIP_ACCOUNTS.choose(&mut rand::rng()).or_else(|| STELLIUM_TIP_ACCOUNTS.first()).unwrap();
+        let tip_account = *STELLIUM_TIP_ACCOUNTS
+            .choose(&mut rand::rng())
+            .or_else(|| STELLIUM_TIP_ACCOUNTS.first())
+            .unwrap();
         Ok(tip_account.to_string())
     }
 
@@ -79,7 +93,9 @@ impl StelliumClient {
         tokio::spawn(async move {
             // Immediate first ping to warm connection and reduce first-submit cold start latency
             let url = format!("{}/{}", endpoint, auth_token);
-            if let Ok(resp) = http_client.get(&url).timeout(Duration::from_millis(1500)).send().await {
+            if let Ok(resp) =
+                http_client.get(&url).timeout(Duration::from_millis(1500)).send().await
+            {
                 let status = resp.status();
                 let _ = resp.bytes().await;
                 if !status.is_success() && crate::common::sdk_log::sdk_log_enabled() {
@@ -111,9 +127,15 @@ impl StelliumClient {
         });
     }
 
-    pub async fn send_transaction(&self, trade_type: TradeType, transaction: &VersionedTransaction, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transaction(
+        &self,
+        trade_type: TradeType,
+        transaction: &VersionedTransaction,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) = serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
+        let (content, signature) =
+            serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
 
         // Stellium uses standard Solana sendTransaction format
         let request_body = serde_json::to_string(&json!({
@@ -130,7 +152,9 @@ impl StelliumClient {
         let url = format!("{}/{}", self.endpoint, self.auth_token);
 
         // Send request to Stellium
-        let response_text = self.http_client.post(&url)
+        let response_text = self
+            .http_client
+            .post(&url)
             .body(request_body)
             .header("Content-Type", "application/json")
             .header("Connection", "keep-alive")
@@ -159,10 +183,14 @@ impl StelliumClient {
             Err(e) => {
                 if crate::common::sdk_log::sdk_log_enabled() {
                     println!(" signature: {:?}", signature);
-                    println!(" [Stellium] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                    println!(
+                        " [Stellium] {} confirmation failed: {:?}",
+                        trade_type,
+                        start_time.elapsed()
+                    );
                 }
                 return Err(e);
-            },
+            }
         }
         if wait_confirmation && crate::common::sdk_log::sdk_log_enabled() {
             println!(" signature: {:?}", signature);
@@ -172,7 +200,12 @@ impl StelliumClient {
         Ok(())
     }
 
-    pub async fn send_transactions(&self, trade_type: TradeType, transactions: &Vec<VersionedTransaction>, wait_confirmation: bool) -> Result<()> {
+    pub async fn send_transactions(
+        &self,
+        trade_type: TradeType,
+        transactions: &Vec<VersionedTransaction>,
+        wait_confirmation: bool,
+    ) -> Result<()> {
         for transaction in transactions {
             self.send_transaction(trade_type, transaction, wait_confirmation).await?;
         }

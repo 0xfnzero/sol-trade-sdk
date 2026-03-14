@@ -119,9 +119,11 @@ impl SpeedlandingClient {
         let _guard = self.reconnect.lock().await;
         let current = self.connection.load_full();
         if current.close_reason().is_some() {
-            let connecting = self
-                .endpoint
-                .connect_with(self.client_config.clone(), self.addr, self.server_name.as_str())?;
+            let connecting = self.endpoint.connect_with(
+                self.client_config.clone(),
+                self.addr,
+                self.server_name.as_str(),
+            )?;
             let connection = timeout(CONNECT_TIMEOUT, connecting)
                 .await
                 .context("Speedlanding QUIC reconnect timeout")?
@@ -151,7 +153,8 @@ impl SwqosClientTrait for SpeedlandingClient {
         let start_time = Instant::now();
         let (buf_guard, signature) = serialize_transaction_bincode_sync(transaction)?;
         let connection = self.ensure_connected().await?;
-        let mut send_result = timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &*buf_guard)).await;
+        let mut send_result =
+            timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &*buf_guard)).await;
         let need_retry = match &send_result {
             Ok(Ok(())) => false,
             Ok(Err(_)) | Err(_) => true,
@@ -161,16 +164,20 @@ impl SwqosClientTrait for SpeedlandingClient {
                 eprintln!(" [speedlanding] {} send failed or timeout, reconnecting", trade_type);
             }
             let connection = self.ensure_connected().await?;
-            send_result = timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &*buf_guard)).await;
+            send_result =
+                timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &*buf_guard)).await;
         }
-        send_result
-            .context("Speedlanding QUIC send timeout")??;
+        send_result.context("Speedlanding QUIC send timeout")??;
         match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
                 if crate::common::sdk_log::sdk_log_enabled() {
                     println!(" signature: {:?}", signature);
-                    println!(" [speedlanding] {} confirmation failed: {:?}", trade_type, start_time.elapsed());
+                    println!(
+                        " [speedlanding] {} confirmation failed: {:?}",
+                        trade_type,
+                        start_time.elapsed()
+                    );
                 }
                 return Err(e);
             }
