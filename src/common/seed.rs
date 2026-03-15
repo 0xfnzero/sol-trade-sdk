@@ -1,13 +1,13 @@
 use crate::common::SolanaRpcClient;
 use anyhow::anyhow;
 use fnv::FnvHasher;
+use once_cell::sync::Lazy;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 use solana_system_interface::instruction::create_account_with_seed;
 use std::hash::Hasher;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use once_cell::sync::Lazy;
 
 // 🚀 优化：使用 AtomicU64 替代 RwLock，性能提升 5-10x
 // u64::MAX 表示未初始化状态
@@ -17,7 +17,7 @@ static SPL_TOKEN_2022_RENT: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(u64::M
 /// 更新租金缓存（后台任务调用）
 pub async fn update_rents(client: &SolanaRpcClient) -> Result<(), anyhow::Error> {
     let rent = fetch_rent_for_token_account(client, false).await?;
-    SPL_TOKEN_RENT.store(rent, Ordering::Release);  // Release 确保其他线程可见
+    SPL_TOKEN_RENT.store(rent, Ordering::Release); // Release 确保其他线程可见
 
     let rent = fetch_rent_for_token_account(client, true).await?;
     SPL_TOKEN_2022_RENT.store(rent, Ordering::Release);
@@ -62,11 +62,15 @@ pub fn create_associated_token_account_use_seed(
     // Relaxed: 租金值不变，无需同步；Release/Acquire 在 update_rents 保证初始化可见性
     let rent = if is_2022_token {
         let v = SPL_TOKEN_2022_RENT.load(Ordering::Relaxed);
-        if v == u64::MAX { return Err(anyhow!("Rent not initialized")); }
+        if v == u64::MAX {
+            return Err(anyhow!("Rent not initialized"));
+        }
         v
     } else {
         let v = SPL_TOKEN_RENT.load(Ordering::Relaxed);
-        if v == u64::MAX { return Err(anyhow!("Rent not initialized")); }
+        if v == u64::MAX {
+            return Err(anyhow!("Rent not initialized"));
+        }
         v
     };
 

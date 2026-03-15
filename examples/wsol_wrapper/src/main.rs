@@ -38,7 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 2: Unwrap half of the WSOL back to SOL using seed account
     println!("\n🔄 Example 2: Unwrapping half of WSOL back to SOL using seed account");
     let unwrap_amount = wrap_amount / 2; // Half of the wrapped amount
-    println!("Unwrapping {} lamports (0.0005 SOL) back to SOL using seed account...", unwrap_amount);
+    println!(
+        "Unwrapping {} lamports (0.0005 SOL) back to SOL using seed account...",
+        unwrap_amount
+    );
 
     match solana_trade.wrap_wsol_to_sol(unwrap_amount).await {
         Ok(signature) => {

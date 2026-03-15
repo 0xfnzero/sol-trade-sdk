@@ -235,7 +235,7 @@ impl SIMDHash {
     /// 批量计算 SHA256 哈希
     #[inline(always)]
     pub fn hash_batch_sha256(data: &[&[u8]]) -> Vec<[u8; 32]> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
 
         data.iter()
             .map(|item| {

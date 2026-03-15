@@ -10,7 +10,8 @@ use crate::{
     instruction::utils::pumpfun::{
         accounts, get_bonding_curve_pda, get_bonding_curve_v2_pda, get_creator,
         get_mayhem_fee_recipient_meta_random, get_user_volume_accumulator_pda,
-        global_constants::{self}, BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
+        global_constants::{self},
+        BUY_DISCRIMINATOR, BUY_EXACT_SOL_IN_DISCRIMINATOR, SELL_DISCRIMINATOR,
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -64,8 +65,9 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         );
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.output_mint)
-                .ok_or_else(|| anyhow!("bonding_curve PDA derivation failed for mint {}", params.output_mint))?
+            get_bonding_curve_pda(&params.output_mint).ok_or_else(|| {
+                anyhow!("bonding_curve PDA derivation failed for mint {}", params.output_mint)
+            })?
         } else {
             bonding_curve.account
         };
@@ -147,8 +149,9 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
             global_constants::FEE_RECIPIENT_META
         };
 
-        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.output_mint)
-            .ok_or_else(|| anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.output_mint))?;
+        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.output_mint).ok_or_else(|| {
+            anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.output_mint)
+        })?;
         let mut accounts: Vec<AccountMeta> = vec![
             global_constants::GLOBAL_ACCOUNT_META,
             fee_recipient_meta,
@@ -169,11 +172,7 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         ];
         accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false)); // remainingAccounts: @pump-fun/pump-sdk 要求末尾传 bondingCurveV2Pda(mint)，勿删
 
-        instructions.push(Instruction::new_with_bytes(
-            accounts::PUMPFUN,
-            &buy_data,
-            accounts,
-        ));
+        instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &buy_data, accounts));
 
         Ok(instructions)
     }
@@ -220,8 +219,9 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         };
 
         let bonding_curve_addr = if bonding_curve.account == Pubkey::default() {
-            get_bonding_curve_pda(&params.input_mint)
-                .ok_or_else(|| anyhow!("bonding_curve PDA derivation failed for mint {}", params.input_mint))?
+            get_bonding_curve_pda(&params.input_mint).ok_or_else(|| {
+                anyhow!("bonding_curve PDA derivation failed for mint {}", params.input_mint)
+            })?
         } else {
             bonding_curve.account
         };
@@ -290,20 +290,18 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
 
         // Cashback: Bonding Curve Sell expects UserVolumeAccumulator PDA at 0th remaining account (writable)
         if bonding_curve.is_cashback_coin {
-            let user_volume_accumulator = get_user_volume_accumulator_pda(&params.payer.pubkey())
-                .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
+            let user_volume_accumulator =
+                get_user_volume_accumulator_pda(&params.payer.pubkey())
+                    .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
             accounts.push(AccountMeta::new(user_volume_accumulator, false));
         }
         // remainingAccounts: @pump-fun/pump-sdk sell 要求末尾传 bondingCurveV2Pda(mint)（cashback 时在 user_volume_accumulator 之后），勿删
-        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.input_mint)
-            .ok_or_else(|| anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.input_mint))?;
+        let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.input_mint).ok_or_else(|| {
+            anyhow!("bonding_curve_v2 PDA derivation failed for mint {}", params.input_mint)
+        })?;
         accounts.push(AccountMeta::new_readonly(bonding_curve_v2, false));
 
-        instructions.push(Instruction::new_with_bytes(
-            accounts::PUMPFUN,
-            &sell_data,
-            accounts,
-        ));
+        instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &sell_data, accounts));
 
         // Optional: Close token account
         if protocol_params.close_token_account_when_sell.unwrap_or(false)
@@ -327,15 +325,11 @@ pub fn claim_cashback_pumpfun_instruction(payer: &Pubkey) -> Option<Instruction>
     const CLAIM_CASHBACK_DISCRIMINATOR: [u8; 8] = [37, 58, 35, 126, 190, 53, 228, 197];
     let user_volume_accumulator = get_user_volume_accumulator_pda(payer)?;
     let accounts = vec![
-        AccountMeta::new(*payer, true),           // user (signer, writable)
+        AccountMeta::new(*payer, true), // user (signer, writable)
         AccountMeta::new(user_volume_accumulator, false), // user_volume_accumulator (writable, not signer)
         crate::constants::SYSTEM_PROGRAM_META,
         accounts::EVENT_AUTHORITY_META,
         accounts::PUMPFUN_META,
     ];
-    Some(Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &CLAIM_CASHBACK_DISCRIMINATOR,
-        accounts,
-    ))
+    Some(Instruction::new_with_bytes(accounts::PUMPFUN, &CLAIM_CASHBACK_DISCRIMINATOR, accounts))
 }

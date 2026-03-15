@@ -106,11 +106,7 @@ async fn run_one_swqos_job(job: SwqosJob) {
     let (success, err, landed_on_chain) = match job
         .swqos_client
         .send_transaction(
-            if s.is_buy {
-                TradeType::Buy
-            } else {
-                TradeType::Sell
-            },
+            if s.is_buy { TradeType::Buy } else { TradeType::Sell },
             &transaction,
             s.wait_transaction_confirmed,
         )
@@ -196,7 +192,7 @@ fn is_landed_error(error: &anyhow::Error) -> bool {
 struct ResultCollector {
     results: Arc<ArrayQueue<TaskResult>>,
     success_flag: Arc<AtomicBool>,
-    landed_failed_flag: Arc<AtomicBool>,  // 🔧 Tx landed on-chain but failed (nonce consumed)
+    landed_failed_flag: Arc<AtomicBool>, // 🔧 Tx landed on-chain but failed (nonce consumed)
     completed_count: Arc<AtomicUsize>,
     total_tasks: usize,
 }
@@ -229,7 +225,9 @@ impl ResultCollector {
         self.completed_count.fetch_add(1, Ordering::Release);
     }
 
-    async fn wait_for_success(&self) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    async fn wait_for_success(
+        &self,
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
         let start = Instant::now();
         let timeout = std::time::Duration::from_secs(5);
         let poll_interval = std::time::Duration::from_millis(1000);
@@ -271,7 +269,7 @@ impl ResultCollector {
             }
 
             let completed = self.completed_count.load(Ordering::Acquire);
-                if completed >= self.total_tasks {
+            if completed >= self.total_tasks {
                 let mut signatures = Vec::new();
                 let mut last_error = None;
                 let mut any_success = false;
@@ -299,7 +297,9 @@ impl ResultCollector {
         }
     }
 
-    fn get_first(&self) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    fn get_first(
+        &self,
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
         let mut signatures = Vec::new();
         let mut has_success = false;
         let mut last_error = None;
@@ -325,7 +325,10 @@ impl ResultCollector {
 
     /// 等待全部任务完成（不等待链上确认），然后收集并返回所有签名。用于「多路提交」时返回多笔签名。
     /// 轮询间隔 2ms，避免 50ms 间隔在最后一笔返回时多等几十 ms 拉高 submit 耗时。
-    async fn wait_for_all_submitted(&self, timeout_secs: u64) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    async fn wait_for_all_submitted(
+        &self,
+        timeout_secs: u64,
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
         let start = Instant::now();
         let timeout = std::time::Duration::from_secs(timeout_secs);
         let poll_interval = std::time::Duration::from_millis(2);
@@ -390,11 +393,7 @@ pub async fn execute_parallel(
                 TradeType::Sell
             });
             let check_tip = with_tip && !matches!(swqos_type, SwqosType::Default) && check_min_tip;
-            let min_tip = if check_tip {
-                swqos_client.min_tip_sol()
-            } else {
-                0.0
-            };
+            let min_tip = if check_tip { swqos_client.min_tip_sol() } else { 0.0 };
             gas_fee_strategy_configs
                 .into_iter()
                 .filter(move |config| config.0 == swqos_type)
@@ -489,10 +488,12 @@ pub async fn execute_parallel(
 
     if !wait_transaction_confirmed {
         const SUBMIT_TIMEOUT_SECS: u64 = 30;
-        let ret = collector
-            .wait_for_all_submitted(SUBMIT_TIMEOUT_SECS)
-            .await
-            .unwrap_or((false, vec![], Some(anyhow!("No SWQOS result within {}s", SUBMIT_TIMEOUT_SECS)), vec![]));
+        let ret = collector.wait_for_all_submitted(SUBMIT_TIMEOUT_SECS).await.unwrap_or((
+            false,
+            vec![],
+            Some(anyhow!("No SWQOS result within {}s", SUBMIT_TIMEOUT_SECS)),
+            vec![],
+        ));
         let (success, signatures, last_error, submit_timings) = ret;
         return Ok((success, signatures, last_error, submit_timings));
     }

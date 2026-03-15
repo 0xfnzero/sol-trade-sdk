@@ -135,7 +135,9 @@ pub fn get_vault_account(
 ) -> Pubkey {
     if protocol_params.base_mint == *token_mint && protocol_params.base_vault != Pubkey::default() {
         protocol_params.base_vault
-    } else if protocol_params.quote_mint == *token_mint && protocol_params.quote_vault != Pubkey::default() {
+    } else if protocol_params.quote_mint == *token_mint
+        && protocol_params.quote_vault != Pubkey::default()
+    {
         protocol_params.quote_vault
     } else {
         get_vault_pda(pool_state, token_mint).unwrap()

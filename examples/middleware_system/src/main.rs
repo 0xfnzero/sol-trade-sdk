@@ -3,7 +3,8 @@ use sol_trade_sdk::{
     common::{AnyResult, TradeConfig},
     swqos::SwqosConfig,
     trading::{
-        core::params::{PumpSwapParams, DexParamEnum}, factory::DexType,
+        core::params::{DexParamEnum, PumpSwapParams},
+        factory::DexType,
         InstructionMiddleware, MiddlewareManager,
     },
     SolanaTrade, TradeTokenType,
@@ -91,7 +92,8 @@ async fn test_middleware() -> AnyResult<()> {
         slippage_basis_points: slippage_basis_points,
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpSwap(
-            PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool_address).await?,
+            PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool_address)
+                .await?,
         ),
         address_lookup_table_account: None,
         wait_transaction_confirmed: true,

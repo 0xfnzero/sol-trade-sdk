@@ -1,11 +1,14 @@
 use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::common::TradeConfig;
-use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::instruction::utils::pumpswap::fetch_pool;
+use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::{PumpSwapParams, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, PumpSwapParams},
+        factory::DexType,
+    },
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -244,7 +247,12 @@ async fn pumpswap_trade_with_grpc(
     } else {
         params.quote_token_program
     };
-    let account = get_associated_token_address_with_program_id_fast_use_seed(&payer, &mint_pubkey, &program_id, client.use_seed_optimize);
+    let account = get_associated_token_address_with_program_id_fast_use_seed(
+        &payer,
+        &mint_pubkey,
+        &program_id,
+        client.use_seed_optimize,
+    );
     let balance = rpc.get_token_account_balance(&account).await?;
     let amount_token = balance.amount.parse::<u64>().unwrap();
     let sell_params = sol_trade_sdk::TradeSellParams {

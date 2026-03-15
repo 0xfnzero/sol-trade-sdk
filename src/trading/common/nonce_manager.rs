@@ -15,10 +15,11 @@ pub fn add_nonce_instruction(
     durable_nonce: Option<&DurableNonceInfo>,
 ) -> Result<(), anyhow::Error> {
     if let Some(durable_nonce) = durable_nonce {
-        let nonce_advance_ix = advance_nonce_account(&durable_nonce.nonce_account.unwrap(), &payer.pubkey());
+        let nonce_advance_ix =
+            advance_nonce_account(&durable_nonce.nonce_account.unwrap(), &payer.pubkey());
         instructions.push(nonce_advance_ix);
     }
- 
+
     Ok(())
 }
 

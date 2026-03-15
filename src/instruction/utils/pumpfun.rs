@@ -178,11 +178,7 @@ pub fn get_mayhem_fee_recipient_meta_random() -> AccountMeta {
     let recipient = *global_constants::MAYHEM_FEE_RECIPIENTS
         .choose(&mut rand::rng())
         .unwrap_or(&global_constants::MAYHEM_FEE_RECIPIENTS[0]);
-    AccountMeta {
-        pubkey: recipient,
-        is_signer: false,
-        is_writable: true,
-    }
+    AccountMeta { pubkey: recipient, is_signer: false, is_writable: true }
 }
 
 pub struct Symbol;

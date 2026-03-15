@@ -3,7 +3,10 @@ use sol_trade_sdk::{
         fast_fn::get_associated_token_address_with_program_id_fast_use_seed, AnyResult, TradeConfig,
     },
     swqos::SwqosConfig,
-    trading::{core::params::{PumpSwapParams, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, PumpSwapParams},
+        factory::DexType,
+    },
     SolanaTrade, TradeTokenType,
 };
 use solana_commitment_config::CommitmentConfig;

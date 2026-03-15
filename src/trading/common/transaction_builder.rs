@@ -9,7 +9,10 @@ use std::sync::Arc;
 use super::nonce_manager::{add_nonce_instruction, get_transaction_blockhash};
 use crate::{
     common::{nonce_cache::DurableNonceInfo, SolanaRpcClient},
-    trading::{MiddlewareManager, core::transaction_pool::{acquire_builder, release_builder}},
+    trading::{
+        core::transaction_pool::{acquire_builder, release_builder},
+        MiddlewareManager,
+    },
 };
 
 /// Convert SOL amount (f64) to lamports without string allocation (hot path).

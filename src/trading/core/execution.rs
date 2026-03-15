@@ -2,16 +2,9 @@
 //! 执行模块：指令预处理、缓存预取、分支提示。
 
 use anyhow::Result;
-use solana_sdk::{
-    instruction::Instruction,
-    pubkey::Pubkey,
-    signature::Keypair,
-};
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair};
 
-use crate::perf::{
-    hardware_optimizations::BranchOptimizer,
-    simd::SIMDMemory,
-};
+use crate::perf::{hardware_optimizations::BranchOptimizer, simd::SIMDMemory};
 
 /// Solana account key size in bytes (Pubkey). 每个账户（Pubkey）的字节数。
 pub const BYTES_PER_ACCOUNT: usize = 32;

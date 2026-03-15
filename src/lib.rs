@@ -8,7 +8,7 @@ pub mod utils;
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::sdk_log;
 use crate::common::GasFeeStrategy;
-use crate::common::{TradeConfig, InfrastructureConfig};
+use crate::common::{InfrastructureConfig, TradeConfig};
 #[cfg(feature = "perf-trace")]
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
 use crate::constants::SOL_TOKEN_ACCOUNT;
@@ -22,12 +22,12 @@ use crate::swqos::TradeType;
 // Re-export for SWQOS HTTP/QUIC choice in SwqosConfig (e.g. Astralane)
 pub use crate::swqos::SwqosTransport;
 use crate::trading::core::params::BonkParams;
+use crate::trading::core::params::DexParamEnum;
 use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::PumpSwapParams;
 use crate::trading::core::params::RaydiumAmmV4Params;
 use crate::trading::core::params::RaydiumCpmmParams;
-use crate::trading::core::params::DexParamEnum;
 use crate::trading::factory::DexType;
 use crate::trading::MiddlewareManager;
 use crate::trading::SwapParams;
@@ -65,13 +65,8 @@ pub async fn find_pool_by_mint(
     dex_type: DexType,
 ) -> Result<Pubkey, anyhow::Error> {
     match dex_type {
-        DexType::PumpSwap => {
-            crate::instruction::utils::pumpswap::find_pool(rpc, mint).await
-        }
-        _ => Err(anyhow::anyhow!(
-            "find_pool_by_mint not implemented for {:?}",
-            dex_type
-        )),
+        DexType::PumpSwap => crate::instruction::utils::pumpswap::find_pool(rpc, mint).await,
+        _ => Err(anyhow::anyhow!("find_pool_by_mint not implemented for {:?}", dex_type)),
     }
 }
 
@@ -180,11 +175,7 @@ impl TradingInfrastructure {
             }
         }
 
-        Self {
-            rpc,
-            swqos_clients,
-            config,
-        }
+        Self { rpc, swqos_clients, config }
     }
 }
 
@@ -408,7 +399,9 @@ impl TradingClient {
         timeout_secs: u64,
     ) -> Result<(), String> {
         use solana_sdk::transaction::Transaction;
-        let recent_blockhash = rpc.get_latest_blockhash().await
+        let recent_blockhash = rpc
+            .get_latest_blockhash()
+            .await
             .map_err(|e| format!("Failed to get blockhash: {}", e))?;
         let tx = Transaction::new_signed_with_payer(
             create_ata_ixs,
@@ -419,7 +412,8 @@ impl TradingClient {
         let send_result = tokio::time::timeout(
             tokio::time::Duration::from_secs(timeout_secs),
             rpc.send_and_confirm_transaction(&tx),
-        ).await;
+        )
+        .await;
         match send_result {
             Ok(Ok(_signature)) => Ok(()),
             Ok(Err(e)) => {
@@ -437,12 +431,11 @@ impl TradingClient {
         const MAX_RETRIES: usize = 3;
         const TIMEOUT_SECS: u64 = 10;
 
-        let wsol_ata =
-            crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
-                &payer.pubkey(),
-                &WSOL_TOKEN_ACCOUNT,
-                &crate::constants::TOKEN_PROGRAM,
-            );
+        let wsol_ata = crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+            &payer.pubkey(),
+            &WSOL_TOKEN_ACCOUNT,
+            &crate::constants::TOKEN_PROGRAM,
+        );
 
         if rpc.get_account(&wsol_ata).await.is_ok() {
             if sdk_log::sdk_log_enabled() {
@@ -451,8 +444,7 @@ impl TradingClient {
             return;
         }
 
-        let create_ata_ixs =
-            crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
+        let create_ata_ixs = crate::trading::common::wsol_manager::create_wsol_ata(&payer.pubkey());
         if create_ata_ixs.is_empty() {
             if sdk_log::sdk_log_enabled() {
                 info!(target: "sol_trade_sdk", "ℹ️ WSOL ATA already exists (no need to create)");
@@ -471,7 +463,15 @@ impl TradingClient {
                 }
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
-            match Self::try_create_wsol_ata_once(rpc.as_ref(), payer, &wsol_ata, &create_ata_ixs, TIMEOUT_SECS).await {
+            match Self::try_create_wsol_ata_once(
+                rpc.as_ref(),
+                payer,
+                &wsol_ata,
+                &create_ata_ixs,
+                TIMEOUT_SECS,
+            )
+            .await
+            {
                 Ok(()) => {
                     if sdk_log::sdk_log_enabled() {
                         info!(target: "sol_trade_sdk", "✅ WSOL ATA created or already exists");
@@ -981,8 +981,10 @@ impl TradingClient {
     /// - 交易执行或确认失败
     /// - 网络或 RPC 错误
     pub async fn wrap_wsol_to_sol(&self, amount: u64) -> Result<String, anyhow::Error> {
-        use crate::trading::common::wsol_manager::{wrap_wsol_to_sol as wrap_wsol_to_sol_internal, wrap_wsol_to_sol_without_create};
         use crate::common::seed::get_associated_token_address_with_program_id_use_seed;
+        use crate::trading::common::wsol_manager::{
+            wrap_wsol_to_sol as wrap_wsol_to_sol_internal, wrap_wsol_to_sol_without_create,
+        };
         use solana_sdk::transaction::Transaction;
 
         // 检查临时seed账户是否已存在
@@ -1003,7 +1005,8 @@ impl TradingClient {
         };
 
         let recent_blockhash = self.infrastructure.rpc.get_latest_blockhash().await?;
-        let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        let mut transaction =
+            Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())
@@ -1019,8 +1022,10 @@ impl TradingClient {
     /// * `Err(anyhow::Error)` - Build or send failure (e.g. invalid PDA)
     pub async fn claim_cashback_pumpfun(&self) -> Result<String, anyhow::Error> {
         use solana_sdk::transaction::Transaction;
-        let ix = crate::instruction::pumpfun::claim_cashback_pumpfun_instruction(&self.payer.pubkey())
-            .ok_or_else(|| anyhow::anyhow!("Failed to build PumpFun claim_cashback instruction"))?;
+        let ix = crate::instruction::pumpfun::claim_cashback_pumpfun_instruction(
+            &self.payer.pubkey(),
+        )
+        .ok_or_else(|| anyhow::anyhow!("Failed to build PumpFun claim_cashback instruction"))?;
         let recent_blockhash = self.infrastructure.rpc.get_latest_blockhash().await?;
         let mut transaction = Transaction::new_with_payer(&[ix], Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
@@ -1038,21 +1043,24 @@ impl TradingClient {
     /// * `Err(anyhow::Error)` - Build or send failure
     pub async fn claim_cashback_pumpswap(&self) -> Result<String, anyhow::Error> {
         use solana_sdk::transaction::Transaction;
-        let mut instructions = crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
-            &self.payer.pubkey(),
-            &self.payer.pubkey(),
-            &WSOL_TOKEN_ACCOUNT,
-            &crate::constants::TOKEN_PROGRAM,
-            self.use_seed_optimize,
-        );
+        let mut instructions =
+            crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
+                &self.payer.pubkey(),
+                &self.payer.pubkey(),
+                &WSOL_TOKEN_ACCOUNT,
+                &crate::constants::TOKEN_PROGRAM,
+                self.use_seed_optimize,
+            );
         let ix = crate::instruction::pumpswap::claim_cashback_pumpswap_instruction(
             &self.payer.pubkey(),
             WSOL_TOKEN_ACCOUNT,
             crate::constants::TOKEN_PROGRAM,
-        ).ok_or_else(|| anyhow::anyhow!("Failed to build PumpSwap claim_cashback instruction"))?;
+        )
+        .ok_or_else(|| anyhow::anyhow!("Failed to build PumpSwap claim_cashback instruction"))?;
         instructions.push(ix);
         let recent_blockhash = self.infrastructure.rpc.get_latest_blockhash().await?;
-        let mut transaction = Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
+        let mut transaction =
+            Transaction::new_with_payer(&instructions, Some(&self.payer.pubkey()));
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())

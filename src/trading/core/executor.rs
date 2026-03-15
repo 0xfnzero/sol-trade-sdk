@@ -4,10 +4,15 @@ use solana_sdk::{
     instruction::Instruction, message::AddressLookupTableAccount, pubkey::Pubkey,
     signature::Keypair, signature::Signature,
 };
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 #[allow(unused_imports)]
 use tracing::{info, trace, warn};
 
+use super::{params::SwapParams, traits::InstructionBuilder};
+use crate::swqos::TradeType;
 use crate::{
     common::{nonce_cache::DurableNonceInfo, GasFeeStrategy, SolanaRpcClient},
     perf::syscall_bypass::SystemCallBypassManager,
@@ -20,8 +25,6 @@ use crate::{
     trading::MiddlewareManager,
 };
 use once_cell::sync::Lazy;
-use crate::swqos::TradeType;
-use super::{params::SwapParams, traits::InstructionBuilder};
 
 /// Global syscall bypass manager (reserved for future time/IO optimizations).
 /// 全局系统调用绕过管理器（预留，后续可接入时间/IO 等优化）。
@@ -49,7 +52,10 @@ impl GenericTradeExecutor {
 
 #[async_trait::async_trait]
 impl TradeExecutor for GenericTradeExecutor {
-    async fn swap(&self, params: SwapParams) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>)> {
+    async fn swap(
+        &self,
+        params: SwapParams,
+    ) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>)> {
         // Sample total start only when logging or simulate. 仅在有日志或 simulate 时取起点。
         let total_start = (params.log_enabled || params.simulate).then(Instant::now);
         let timing_start_us: Option<i64> = if params.log_enabled {
@@ -58,7 +64,8 @@ impl TradeExecutor for GenericTradeExecutor {
             None
         };
 
-        let is_buy = params.trade_type == TradeType::Buy || params.trade_type == TradeType::CreateAndBuy;
+        let is_buy =
+            params.trade_type == TradeType::Buy || params.trade_type == TradeType::CreateAndBuy;
 
         Prefetch::keypair(&params.payer);
 
@@ -85,7 +92,8 @@ impl TradeExecutor for GenericTradeExecutor {
 
         let build_end_us = (params.log_enabled && crate::common::sdk_log::sdk_log_enabled())
             .then(crate::common::clock::now_micros);
-        let _before_submit_elapsed = total_start.as_ref().map(|s| s.elapsed()).unwrap_or(Duration::ZERO);
+        let _before_submit_elapsed =
+            total_start.as_ref().map(|s| s.elapsed()).unwrap_or(Duration::ZERO);
         let before_submit_us = (params.log_enabled && crate::common::sdk_log::sdk_log_enabled())
             .then(crate::common::clock::now_micros);
 
@@ -111,12 +119,24 @@ impl TradeExecutor for GenericTradeExecutor {
             if crate::common::sdk_log::sdk_log_enabled() {
                 let dir = if is_buy { "Buy" } else { "Sell" };
                 if let (Some(start_us), Some(end_us)) = (timing_start_us, build_end_us) {
-                    println!(" [SDK] {} build_instructions: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                    println!(
+                        " [SDK] {} build_instructions: {:.4} ms",
+                        dir,
+                        (end_us - start_us) as f64 / 1000.0
+                    );
                 }
                 if let (Some(start_us), Some(end_us)) = (timing_start_us, before_submit_us) {
-                    println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                    println!(
+                        " [SDK] {} before_submit: {:.4} ms",
+                        dir,
+                        (end_us - start_us) as f64 / 1000.0
+                    );
                 }
-                println!(" [SDK] {} simulate (dry-run): {:.4} ms", dir, send_elapsed.as_secs_f64() * 1000.0);
+                println!(
+                    " [SDK] {} simulate (dry-run): {:.4} ms",
+                    dir,
+                    send_elapsed.as_secs_f64() * 1000.0
+                );
                 println!(" [SDK] {} total: {:.4} ms", dir, total_elapsed.as_secs_f64() * 1000.0);
             }
 
@@ -146,12 +166,9 @@ impl TradeExecutor for GenericTradeExecutor {
         let log_enabled = params.log_enabled && crate::common::sdk_log::sdk_log_enabled();
 
         let (ok, signatures, err, submit_timings) = match result {
-            Ok((success, sigs, last_error, timings)) => (
-                success,
-                sigs,
-                last_error.map(|e| anyhow::anyhow!("{}", e)),
-                timings,
-            ),
+            Ok((success, sigs, last_error, timings)) => {
+                (success, sigs, last_error.map(|e| anyhow::anyhow!("{}", e)), timings)
+            }
             Err(e) => (false, vec![], Some(anyhow::anyhow!("{}", e)), vec![]),
         };
         let submit_timings_ref: &[(crate::swqos::SwqosType, i64)] = submit_timings.as_slice();
@@ -167,16 +184,26 @@ impl TradeExecutor for GenericTradeExecutor {
                         let dir = if is_buy { "Buy" } else { "Sell" };
                         if let Some(start_us) = timing_start_us {
                             if let Some(end_us) = build_end_us {
-                                println!(" [SDK] {} build_instructions: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                                println!(
+                                    " [SDK] {} build_instructions: {:.4} ms",
+                                    dir,
+                                    (end_us - start_us) as f64 / 1000.0
+                                );
                             }
                             if let Some(end_us) = before_submit_us {
-                                println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                                println!(
+                                    " [SDK] {} before_submit: {:.4} ms",
+                                    dir,
+                                    (end_us - start_us) as f64 / 1000.0
+                                );
                             }
                             if let Some(confirm_us) = confirm_done_us {
                                 let total_ms = (confirm_us - start_us) as f64 / 1000.0;
                                 for (swqos_type, submit_done_us) in submit_timings_ref {
-                                    let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
-                                    let confirmed_ms = (confirm_us - *submit_done_us).max(0) as f64 / 1000.0;
+                                    let submit_ms =
+                                        (*submit_done_us - start_us).max(0) as f64 / 1000.0;
+                                    let confirmed_ms =
+                                        (confirm_us - *submit_done_us).max(0) as f64 / 1000.0;
                                     println!(" [SDK] {} {:?} submit: {:.4} ms, confirmed: {:.4} ms, total: {:.4} ms", dir, swqos_type, submit_ms, confirmed_ms, total_ms);
                                 }
                             }
@@ -196,14 +223,25 @@ impl TradeExecutor for GenericTradeExecutor {
                 let dir = if is_buy { "Buy" } else { "Sell" };
                 if let Some(start_us) = timing_start_us {
                     if let Some(end_us) = build_end_us {
-                        println!(" [SDK] {} build_instructions: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                        println!(
+                            " [SDK] {} build_instructions: {:.4} ms",
+                            dir,
+                            (end_us - start_us) as f64 / 1000.0
+                        );
                     }
                     if let Some(end_us) = before_submit_us {
-                        println!(" [SDK] {} before_submit: {:.4} ms", dir, (end_us - start_us) as f64 / 1000.0);
+                        println!(
+                            " [SDK] {} before_submit: {:.4} ms",
+                            dir,
+                            (end_us - start_us) as f64 / 1000.0
+                        );
                     }
                     for (swqos_type, submit_done_us) in submit_timings_ref {
                         let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
-                        println!(" [SDK] {} {:?} submit: {:.4} ms, confirmed: -, total: {:.4} ms", dir, swqos_type, submit_ms, submit_ms);
+                        println!(
+                            " [SDK] {} {:?} submit: {:.4} ms, confirmed: -, total: {:.4} ms",
+                            dir, swqos_type, submit_ms, submit_ms
+                        );
                     }
                 }
             }
@@ -278,14 +316,14 @@ async fn simulate_transaction(
         .simulate_transaction_with_config(
             &transaction,
             RpcSimulateTransactionConfig {
-                sig_verify: false,               // Don't verify signature during simulation for speed
+                sig_verify: false, // Don't verify signature during simulation for speed
                 replace_recent_blockhash: false, // Use actual blockhash from transaction
                 commitment: Some(CommitmentConfig {
                     commitment: CommitmentLevel::Processed, // Use Processed level to get latest state
                 }),
                 encoding: Some(UiTransactionEncoding::Base64), // Base64 encoding
-                accounts: None,           // Don't return specific account states (can be specified if needed)
-                min_context_slot: None,   // Don't specify minimum context slot
+                accounts: None, // Don't return specific account states (can be specified if needed)
+                min_context_slot: None, // Don't specify minimum context slot
                 inner_instructions: true, // Enable inner instructions for debugging and detailed execution flow
             },
         )
@@ -353,10 +391,9 @@ mod tests {
         }
 
         println!("\n--- 3. 不等待链上确认时：每行 total = 该通道 submit 耗时（独立）---\n");
-        for (swqos_type, submit_ms, total_ms) in [
-            (SwqosType::Jito, 44.20, 44.20),
-            (SwqosType::Helius, 51.80, 51.80),
-        ] {
+        for (swqos_type, submit_ms, total_ms) in
+            [(SwqosType::Jito, 44.20, 44.20), (SwqosType::Helius, 51.80, 51.80)]
+        {
             println!(
                 " [SDK] {} {:?} submit: {:.4} ms, confirmed: -, total: {:.4} ms",
                 dir, swqos_type, submit_ms, total_ms

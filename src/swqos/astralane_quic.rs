@@ -49,14 +49,16 @@ impl AstralaneQuicClient {
     /// Generates a self-signed TLS certificate with the API key as the Common Name (CN).
     pub async fn connect(server_addr: &str, api_key: &str) -> Result<Self> {
         let _ = rustls::crypto::ring::default_provider().install_default();
-        let addr = SocketAddr::from_str(server_addr).or_else(|_| {
-            use std::net::ToSocketAddrs;
-            server_addr
-                .to_socket_addrs()
-                .ok()
-                .and_then(|mut addrs| addrs.next())
-                .ok_or_else(|| anyhow::anyhow!("Cannot resolve address: {}", server_addr))
-        }).context("Invalid server address")?;
+        let addr = SocketAddr::from_str(server_addr)
+            .or_else(|_| {
+                use std::net::ToSocketAddrs;
+                server_addr
+                    .to_socket_addrs()
+                    .ok()
+                    .and_then(|mut addrs| addrs.next())
+                    .ok_or_else(|| anyhow::anyhow!("Cannot resolve address: {}", server_addr))
+            })
+            .context("Invalid server address")?;
 
         info!("[astralane-quic] Building TLS config (CN = api_key)");
         let client_config = Self::build_client_config(api_key)?;
@@ -116,10 +118,8 @@ impl AstralaneQuicClient {
             guard.clone()
         };
 
-        let mut send_stream = conn
-            .open_uni()
-            .await
-            .context("Failed to open unidirectional stream")?;
+        let mut send_stream =
+            conn.open_uni().await.context("Failed to open unidirectional stream")?;
 
         send_stream
             .write_all(transaction_bytes)
@@ -154,19 +154,15 @@ impl AstralaneQuicClient {
 
     /// Close the connection gracefully.
     pub async fn close(&self) {
-        self.connection
-            .lock()
-            .await
-            .close(error_code::OK.into(), b"client closing");
+        self.connection.lock().await.close(error_code::OK.into(), b"client closing");
     }
 
     fn build_client_config(api_key: &str) -> Result<ClientConfig> {
         let key_pair = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
         let mut cert_params = CertificateParams::new(vec![])?;
-        cert_params.distinguished_name.push(
-            rcgen::DnType::CommonName,
-            rcgen::DnValue::Utf8String(api_key.to_string()),
-        );
+        cert_params
+            .distinguished_name
+            .push(rcgen::DnType::CommonName, rcgen::DnValue::Utf8String(api_key.to_string()));
         let cert = cert_params.self_signed(&key_pair)?;
 
         let cert_der = CertificateDer::from(cert.der().to_vec());
@@ -181,9 +177,7 @@ impl AstralaneQuicClient {
         crypto.alpn_protocols = vec![ALPN_ASTRALANE_TPU.to_vec()];
 
         let mut transport = TransportConfig::default();
-        transport.max_idle_timeout(Some(
-            IdleTimeout::try_from(Duration::from_secs(30)).unwrap(),
-        ));
+        transport.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(30)).unwrap()));
         transport.keep_alive_interval(Some(Duration::from_secs(25)));
 
         let mut client_config =
@@ -196,9 +190,7 @@ impl AstralaneQuicClient {
 
 impl Drop for AstralaneQuicClient {
     fn drop(&mut self) {
-        self.connection
-            .get_mut()
-            .close(error_code::OK.into(), b"client closing");
+        self.connection.get_mut().close(error_code::OK.into(), b"client closing");
     }
 }
 

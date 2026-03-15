@@ -10,8 +10,8 @@ use quinn::{ClientConfig, Connection, Endpoint, IdleTimeout, RecvStream, Transpo
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::timeout;
 use tokio::sync::Mutex;
+use tokio::time::timeout;
 use uuid::Uuid;
 
 use crate::common::SolanaRpcClient;
@@ -41,44 +41,34 @@ pub struct Node1QuicClient {
 
 impl Node1QuicClient {
     /// Connect and authenticate. Reuse the returned client for all subsequent sends.
-    pub async fn connect(
-        server_addr: &str,
-        api_key: &str,
-        rpc_url: String,
-    ) -> Result<Self> {
+    pub async fn connect(server_addr: &str, api_key: &str, rpc_url: String) -> Result<Self> {
         let socket_addr = server_addr
             .to_socket_addrs()
             .context("resolve Node1 QUIC server address")?
             .next()
             .context("no socket address for Node1 QUIC")?;
 
-        let api_key_uuid = Uuid::parse_str(api_key).context("Node1 API key must be a valid UUID")?;
+        let api_key_uuid =
+            Uuid::parse_str(api_key).context("Node1 API key must be a valid UUID")?;
         let api_key_bytes: [u8; 16] = *api_key_uuid.as_bytes();
 
-        let server_name = server_addr
-            .split(':')
-            .next()
-            .unwrap_or(server_addr);
+        let server_name = server_addr.split(':').next().unwrap_or(server_addr);
 
         let client_config = Self::build_client_config()?;
-        let mut endpoint = Endpoint::client("0.0.0.0:0".parse()?)
-            .context("create QUIC endpoint")?;
+        let mut endpoint =
+            Endpoint::client("0.0.0.0:0".parse()?).context("create QUIC endpoint")?;
         endpoint.set_default_client_config(client_config);
 
-        let connecting = endpoint
-            .connect(socket_addr, server_name)
-            .context("Node1 QUIC connect failed")?;
+        let connecting =
+            endpoint.connect(socket_addr, server_name).context("Node1 QUIC connect failed")?;
         let connection = timeout(CONNECT_TIMEOUT, connecting)
             .await
             .context("Node1 QUIC connect timeout")?
             .context("Node1 QUIC handshake failed")?;
 
-        timeout(
-            AUTH_TIMEOUT,
-            Self::authenticate(&connection, &api_key_bytes),
-        )
-        .await
-        .context("Node1 QUIC auth timeout")??;
+        timeout(AUTH_TIMEOUT, Self::authenticate(&connection, &api_key_bytes))
+            .await
+            .context("Node1 QUIC auth timeout")??;
 
         Ok(Self {
             endpoint,
@@ -96,8 +86,7 @@ impl Node1QuicClient {
             .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
             .with_no_client_auth();
 
-        let client_crypto = QuicClientConfig::try_from(crypto)
-            .context("build QUIC TLS config")?;
+        let client_crypto = QuicClientConfig::try_from(crypto).context("build QUIC TLS config")?;
         let mut client_config = ClientConfig::new(Arc::new(client_crypto));
 
         let mut transport = TransportConfig::default();
@@ -140,12 +129,9 @@ impl Node1QuicClient {
                 .context("Node1 QUIC reconnect timeout")?
                 .context("Node1 QUIC re-handshake failed")?;
 
-            timeout(
-                AUTH_TIMEOUT,
-                Self::authenticate(&connection, &self.api_key_uuid),
-            )
-            .await
-            .context("Node1 QUIC re-auth timeout")??;
+            timeout(AUTH_TIMEOUT, Self::authenticate(&connection, &self.api_key_uuid))
+                .await
+                .context("Node1 QUIC re-auth timeout")??;
 
             let mut g = self.connection.lock().await;
             *g = connection.clone();
@@ -201,16 +187,16 @@ impl SwqosClientTrait for Node1QuicClient {
         let signature = transaction.signatures.first().copied().unwrap_or_default();
         let tx_bytes = bincode::serialize(transaction).context("Node1 QUIC: bincode serialize")?;
 
-        let (status, msg) = timeout(
-            SEND_TIMEOUT,
-            self.send_transaction_bytes(&tx_bytes),
-        )
-        .await
-        .context("Node1 QUIC send timeout")??;
+        let (status, msg) = timeout(SEND_TIMEOUT, self.send_transaction_bytes(&tx_bytes))
+            .await
+            .context("Node1 QUIC send timeout")??;
 
         if status != 200 {
             if crate::common::sdk_log::sdk_log_enabled() {
-                eprintln!(" [node1-quic] {} submit failed: status={} msg={}", trade_type, status, msg);
+                eprintln!(
+                    " [node1-quic] {} submit failed: status={} msg={}",
+                    trade_type, status, msg
+                );
             }
             anyhow::bail!("Node1 QUIC submit failed: status={} msg={}", status, msg);
         }
@@ -229,7 +215,11 @@ impl SwqosClientTrait for Node1QuicClient {
             }
             Err(e) => {
                 if crate::common::sdk_log::sdk_log_enabled() {
-                    eprintln!(" [node1-quic] {} confirmation failed: {:?}", trade_type, start.elapsed());
+                    eprintln!(
+                        " [node1-quic] {} confirmation failed: {:?}",
+                        trade_type,
+                        start.elapsed()
+                    );
                 }
                 Err(e)
             }

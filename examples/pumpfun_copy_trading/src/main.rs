@@ -2,7 +2,10 @@
 //!
 //! 收到 PumpFun 买卖事件后，用事件中的参数（含 is_cashback_coin）构造交易并执行一次买+卖。
 
-use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use sol_parser_sdk::grpc::{
     AccountFilter, ClientConfig, EventType, EventTypeFilter, OrderMode, Protocol,
@@ -16,7 +19,10 @@ use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
-    trading::{core::params::{PumpFunParams, DexParamEnum}, factory::DexType},
+    trading::{
+        core::params::{DexParamEnum, PumpFunParams},
+        factory::DexType,
+    },
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
@@ -65,7 +71,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         if let Some(event) = queue.pop() {
             let run = match &event {
-                DexEvent::PumpFunBuy(e) | DexEvent::PumpFunSell(e) | DexEvent::PumpFunBuyExactSolIn(e) => {
+                DexEvent::PumpFunBuy(e)
+                | DexEvent::PumpFunSell(e)
+                | DexEvent::PumpFunBuyExactSolIn(e) => {
                     if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
                         Some(e.clone())
                     } else {
@@ -102,16 +110,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
-    let rpc_url = std::env::var("RPC_URL").unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
+    let rpc_url = std::env::var("RPC_URL")
+        .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment);
     Ok(SolanaTrade::new(Arc::new(payer), trade_config).await)
 }
 
-async fn pumpfun_copy_trade(
-    e: sol_parser_sdk::core::events::PumpFunTradeEvent,
-) -> AnyResult<()> {
+async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) -> AnyResult<()> {
     let client = create_solana_trade_client().await?;
     let mint_pubkey = e.mint;
     let slippage_basis_points = Some(100u64);

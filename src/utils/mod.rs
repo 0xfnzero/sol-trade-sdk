@@ -14,7 +14,8 @@ impl TradingClient {
 
     #[inline]
     pub async fn get_payer_sol_balance(&self) -> Result<u64, anyhow::Error> {
-        trading::common::utils::get_sol_balance(&self.infrastructure.rpc, &self.payer.pubkey()).await
+        trading::common::utils::get_sol_balance(&self.infrastructure.rpc, &self.payer.pubkey())
+            .await
     }
 
     #[inline]
@@ -28,7 +29,12 @@ impl TradingClient {
 
     #[inline]
     pub async fn get_payer_token_balance(&self, mint: &Pubkey) -> Result<u64, anyhow::Error> {
-        trading::common::utils::get_token_balance(&self.infrastructure.rpc, &self.payer.pubkey(), mint).await
+        trading::common::utils::get_token_balance(
+            &self.infrastructure.rpc,
+            &self.payer.pubkey(),
+            mint,
+        )
+        .await
     }
 
     /// 使用与交易一致的 ATA 推导（含 seed 优化）查询 payer 某 mint 的余额；卖出前查余额应使用此接口并传入池的 base_token_program，否则若使用 seed ATA 会查错账户。
@@ -65,11 +71,22 @@ impl TradingClient {
         receive_wallet: &Pubkey,
         amount: u64,
     ) -> Result<(), anyhow::Error> {
-        trading::common::utils::transfer_sol(&self.infrastructure.rpc, payer, receive_wallet, amount).await
+        trading::common::utils::transfer_sol(
+            &self.infrastructure.rpc,
+            payer,
+            receive_wallet,
+            amount,
+        )
+        .await
     }
 
     #[inline]
     pub async fn close_token_account(&self, mint: &Pubkey) -> Result<(), anyhow::Error> {
-        trading::common::utils::close_token_account(&self.infrastructure.rpc, self.payer.as_ref(), mint).await
+        trading::common::utils::close_token_account(
+            &self.infrastructure.rpc,
+            self.payer.as_ref(),
+            mint,
+        )
+        .await
     }
 }
