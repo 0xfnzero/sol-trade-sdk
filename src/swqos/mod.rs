@@ -7,6 +7,7 @@ pub mod flashblock;
 pub mod helius;
 pub mod jito;
 pub mod lightspeed;
+pub mod lunarlander;
 pub mod nextblock;
 pub mod node1;
 pub mod node1_quic;
@@ -31,12 +32,13 @@ use crate::{
     constants::swqos::{
         SWQOS_ENDPOINTS_ASTRALANE, SWQOS_ENDPOINTS_ASTRALANE_QUIC, SWQOS_ENDPOINTS_BLOCKRAZOR,
         SWQOS_ENDPOINTS_BLOCKRAZOR_GRPC, SWQOS_ENDPOINTS_BLOX, SWQOS_ENDPOINTS_FLASHBLOCK,
-        SWQOS_ENDPOINTS_HELIUS, SWQOS_ENDPOINTS_JITO, SWQOS_ENDPOINTS_NEXTBLOCK,
-        SWQOS_ENDPOINTS_NODE1, SWQOS_ENDPOINTS_NODE1_QUIC, SWQOS_ENDPOINTS_SOYAS,
-        SWQOS_ENDPOINTS_SPEEDLANDING, SWQOS_ENDPOINTS_STELLIUM, SWQOS_ENDPOINTS_TEMPORAL,
-        SWQOS_ENDPOINTS_ZERO_SLOT, SWQOS_MIN_TIP_ASTRALANE, SWQOS_MIN_TIP_BLOCKRAZOR,
-        SWQOS_MIN_TIP_BLOXROUTE, SWQOS_MIN_TIP_DEFAULT, SWQOS_MIN_TIP_FLASHBLOCK,
-        SWQOS_MIN_TIP_HELIUS, SWQOS_MIN_TIP_JITO, SWQOS_MIN_TIP_LIGHTSPEED,
+        SWQOS_ENDPOINTS_HELIUS, SWQOS_ENDPOINTS_JITO, SWQOS_ENDPOINTS_LUNARLANDER,
+        SWQOS_ENDPOINTS_LUNARLANDER_QUIC, SWQOS_ENDPOINTS_NEXTBLOCK, SWQOS_ENDPOINTS_NODE1,
+        SWQOS_ENDPOINTS_NODE1_QUIC, SWQOS_ENDPOINTS_SOYAS, SWQOS_ENDPOINTS_SPEEDLANDING,
+        SWQOS_ENDPOINTS_STELLIUM, SWQOS_ENDPOINTS_TEMPORAL, SWQOS_ENDPOINTS_ZERO_SLOT,
+        SWQOS_MIN_TIP_ASTRALANE, SWQOS_MIN_TIP_BLOCKRAZOR, SWQOS_MIN_TIP_BLOXROUTE,
+        SWQOS_MIN_TIP_DEFAULT, SWQOS_MIN_TIP_FLASHBLOCK, SWQOS_MIN_TIP_HELIUS,
+        SWQOS_MIN_TIP_JITO, SWQOS_MIN_TIP_LIGHTSPEED, SWQOS_MIN_TIP_LUNARLANDER,
         SWQOS_MIN_TIP_NEXTBLOCK, SWQOS_MIN_TIP_NODE1, SWQOS_MIN_TIP_SOYAS,
         SWQOS_MIN_TIP_SPEEDLANDING, SWQOS_MIN_TIP_STELLIUM, SWQOS_MIN_TIP_TEMPORAL,
         SWQOS_MIN_TIP_ZERO_SLOT,
@@ -44,10 +46,10 @@ use crate::{
     swqos::{
         astralane::AstralaneClient, blockrazor::BlockRazorClient, bloxroute::BloxrouteClient,
         flashblock::FlashBlockClient, helius::HeliusClient, jito::JitoClient,
-        lightspeed::LightspeedClient, nextblock::NextBlockClient, node1::Node1Client,
-        node1_quic::Node1QuicClient, solana_rpc::SolRpcClient, soyas::SoyasClient,
-        speedlanding::SpeedlandingClient, stellium::StelliumClient, temporal::TemporalClient,
-        zeroslot::ZeroSlotClient,
+        lightspeed::LightspeedClient, lunarlander::LunarLanderClient,
+        nextblock::NextBlockClient, node1::Node1Client, node1_quic::Node1QuicClient,
+        solana_rpc::SolRpcClient, soyas::SoyasClient, speedlanding::SpeedlandingClient,
+        stellium::StelliumClient, temporal::TemporalClient, zeroslot::ZeroSlotClient,
     },
 };
 
@@ -111,6 +113,7 @@ pub enum SwqosType {
     Soyas,
     Speedlanding,
     Helius,
+    LunarLander,
     Default,
 }
 
@@ -133,6 +136,7 @@ impl SwqosType {
             Self::Soyas => "Soyas",
             Self::Speedlanding => "Speedlanding",
             Self::Helius => "Helius",
+            Self::LunarLander => "LunarLander",
             Self::Default => "Default",
         }
     }
@@ -153,6 +157,7 @@ impl SwqosType {
             Self::Soyas,
             Self::Speedlanding,
             Self::Helius,
+            Self::LunarLander,
             Self::Default,
         ]
     }
@@ -194,6 +199,7 @@ pub trait SwqosClientTrait {
             SwqosType::Soyas => SWQOS_MIN_TIP_SOYAS,
             SwqosType::Speedlanding => SWQOS_MIN_TIP_SPEEDLANDING,
             SwqosType::Helius => SWQOS_MIN_TIP_HELIUS,
+            SwqosType::LunarLander => SWQOS_MIN_TIP_LUNARLANDER,
             SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
         }
     }
@@ -246,6 +252,10 @@ pub enum SwqosConfig {
     /// Helius Sender: dual routing to validators and Jito. API key optional (custom TPS only).
     /// (api_key, region, custom_url, swqos_only). swqos_only: None => false (min tip 0.0002 SOL); Some(true) => SWQOS-only (min tip 0.000005 SOL, much lower).
     Helius(String, SwqosRegion, Option<String>, Option<bool>),
+    /// Lunar Lander (HelloMoon): binary tx via HTTP POST /send-bin or QUIC (port 16888).
+    /// (api_key, region, custom_url, transport). transport=None => HTTP; Some(Quic) => QUIC.
+    /// Minimum tip: 0.001 SOL. Apply for API key: https://docs.hellomoon.io/reference/lunar-lander
+    LunarLander(String, SwqosRegion, Option<String>, Option<SwqosTransport>),
 }
 
 impl SwqosConfig {
@@ -266,6 +276,7 @@ impl SwqosConfig {
             SwqosConfig::Soyas(_, _, _) => SwqosType::Soyas,
             SwqosConfig::Speedlanding(_, _, _) => SwqosType::Speedlanding,
             SwqosConfig::Helius(_, _, _, _) => SwqosType::Helius,
+            SwqosConfig::LunarLander(_, _, _, _) => SwqosType::LunarLander,
         }
     }
 
@@ -294,6 +305,7 @@ impl SwqosConfig {
             SwqosType::Soyas => SWQOS_ENDPOINTS_SOYAS[region as usize].to_string(),
             SwqosType::Speedlanding => SWQOS_ENDPOINTS_SPEEDLANDING[region as usize].to_string(),
             SwqosType::Helius => SWQOS_ENDPOINTS_HELIUS[region as usize].to_string(),
+            SwqosType::LunarLander => SWQOS_ENDPOINTS_LUNARLANDER[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
         }
     }
@@ -332,6 +344,14 @@ impl SwqosConfig {
                     SWQOS_ENDPOINTS_ASTRALANE_QUIC[region as usize].to_string()
                 } else {
                     SWQOS_ENDPOINTS_ASTRALANE[region as usize].to_string()
+                }
+            }
+            SwqosType::LunarLander => {
+                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                if use_quic {
+                    SWQOS_ENDPOINTS_LUNARLANDER_QUIC[region as usize].to_string()
+                } else {
+                    SWQOS_ENDPOINTS_LUNARLANDER[region as usize].to_string()
                 }
             }
             _ => Self::get_endpoint(swqos_type, region, url),
@@ -459,6 +479,23 @@ impl SwqosConfig {
                 let helius_client =
                     HeliusClient::new(rpc_url.clone(), endpoint, api_key_opt, swqos_only);
                 Ok(Arc::new(helius_client))
+            }
+            SwqosConfig::LunarLander(api_key, region, url, transport) => {
+                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                if use_quic {
+                    let quic_endpoint = url.unwrap_or_else(|| {
+                        SWQOS_ENDPOINTS_LUNARLANDER_QUIC[region as usize].to_string()
+                    });
+                    let lunarlander_client =
+                        LunarLanderClient::new_quic(rpc_url.clone(), &quic_endpoint, api_key)
+                            .await?;
+                    Ok(Arc::new(lunarlander_client))
+                } else {
+                    let endpoint = SwqosConfig::get_endpoint(SwqosType::LunarLander, region, url);
+                    let lunarlander_client =
+                        LunarLanderClient::new(rpc_url.clone(), endpoint, api_key);
+                    Ok(Arc::new(lunarlander_client))
+                }
             }
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(endpoint, commitment);

@@ -369,6 +369,47 @@ pub const SWQOS_ENDPOINTS_HELIUS: [&str; 8] = [
     "https://sender.helius-rpc.com/fast",
 ];
 
+/// Lunar Lander (HelloMoon) tip accounts.
+/// Apply for API key: https://docs.hellomoon.io/reference/lunar-lander
+pub const LUNARLANDER_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("moon17L6BgxXRX5uHKudAmqVF96xia9h8ygcmG2sL3F"),
+    pubkey!("moon26Sek222Md7ZydcAGxoKG832DK36CkLrS3PQY4c"),
+    pubkey!("moon7fwyajcVstMoBnVy7UBcTx87SBtNoGGAaH2Cb8V"),
+    pubkey!("moonBtH9HvLHjLqi9ivyrMVKgFUsSfrz9BwQ9khhn1u"),
+    pubkey!("moonCJg8476LNFLptX1qrK8PdRsA1HD1R6XWyu9MB93"),
+    pubkey!("moonF2sz7qwAtdETnrgxNbjonnhGGjd6r4W4UC9284s"),
+    pubkey!("moonKfftMiGSak3cezvhEqvkPSzwrmQxQHXuspC96yj"),
+    pubkey!("moonQBUKBpkifLcTd78bfxxt4PYLwmJ5admLW6cBBs8"),
+    pubkey!("moonXwpKwoVkMegt5Bc776cSW793X1irL5hHV1vJ3JA"),
+    pubkey!("moonZ6u9E2fgk6eWd82621eLPHt9zuJuYECXAYjMY1C"),
+];
+
+/// Lunar Lander HTTP endpoints. Binary tx via POST /send-bin with x-api-key header.
+/// Region order: NewYork, Frankfurt, Amsterdam, SLC, Tokyo, London, LosAngeles, Default.
+pub const SWQOS_ENDPOINTS_LUNARLANDER: [&str; 8] = [
+    "http://nyc-1.prod.lunar-lander.hellomoon.io",
+    "http://fra-1.prod.lunar-lander.hellomoon.io",
+    "http://ams-1.prod.lunar-lander.hellomoon.io",
+    "http://ash-2.prod.lunar-lander.hellomoon.io", // SLC → Ashburn
+    "http://tyo-1.prod.lunar-lander.hellomoon.io",
+    "http://fra-1.prod.lunar-lander.hellomoon.io", // London → Frankfurt
+    "http://nyc-1.prod.lunar-lander.hellomoon.io", // LA → NYC
+    "http://nyc-1.prod.lunar-lander.hellomoon.io", // Default → NYC
+];
+
+/// Lunar Lander QUIC endpoints (direct, port 16888). Auth via client cert CN = API key.
+/// ALPN: b"lunar-lander-tpu". Fire-and-forget unidirectional streams.
+pub const SWQOS_ENDPOINTS_LUNARLANDER_QUIC: [&str; 8] = [
+    "nyc-1.prod.lunar-lander.hellomoon.io:16888",
+    "fra-1.prod.lunar-lander.hellomoon.io:16888",
+    "ams-1.prod.lunar-lander.hellomoon.io:16888",
+    "ash-2.prod.lunar-lander.hellomoon.io:16888", // SLC → Ashburn
+    "tyo-1.prod.lunar-lander.hellomoon.io:16888",
+    "fra-1.prod.lunar-lander.hellomoon.io:16888", // London → Frankfurt
+    "nyc-1.prod.lunar-lander.hellomoon.io:16888", // LA → NYC
+    "nyc-1.prod.lunar-lander.hellomoon.io:16888", // Default → NYC
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
@@ -387,3 +428,4 @@ pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires mini
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
+pub const SWQOS_MIN_TIP_LUNARLANDER: f64 = 0.001;

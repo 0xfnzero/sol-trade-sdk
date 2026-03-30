@@ -108,6 +108,7 @@ arc-swap = "1.7"
 sha2 = "0.10"
 tonic-prost = "0.14.2"
 quinn = { version = "0.11", default-features = false, features = ["rustls"] }
+lunar-lander-quic-client = "0.1"
 rcgen = "0.13"
 uuid = "1.11"
 
