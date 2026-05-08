@@ -33,7 +33,7 @@ pub struct PumpFunParams {
     /// `Some(PDA(["creator-vault", fee_sharing_config]))` when pump-fees `SharingConfig` is **Active**; set by `from_mint_by_rpc` / [`refresh_fee_sharing_creator_vault_from_rpc`](Self::refresh_fee_sharing_creator_vault_from_rpc).
     pub fee_sharing_creator_vault_if_active: Option<Pubkey>,
     /// SPL Token or Token-2022 program id owning the **mint** (from gRPC / parser / cache).
-    /// **`Pubkey::default()`**：ix 构建时使用 SDK 默认 **Token-2022**（与多数 Pump.fun 新发一致）；显式传入 Legacy 或 Token-2022 id 可覆盖该默认值。
+    /// **`Pubkey::default()`**：ix 构建时使用 SDK 默认 **Token Program (legacy)**；create_v2 代币需显式传入 `TOKEN_PROGRAM_2022`。
     pub token_program: Pubkey,
     /// Whether to close token account when selling, only effective during sell operations
     pub close_token_account_when_sell: Option<bool>,

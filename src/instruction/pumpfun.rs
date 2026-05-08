@@ -34,7 +34,7 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
 fn effective_pump_mint_token_program(protocol_params: &PumpFunParams) -> Pubkey {
     let tp = protocol_params.token_program;
     if tp == Pubkey::default() {
-        TOKEN_PROGRAM_2022
+        crate::constants::TOKEN_PROGRAM // legacy SPL Token — safe default; Token-2022 must be explicit
     } else {
         tp
     }
