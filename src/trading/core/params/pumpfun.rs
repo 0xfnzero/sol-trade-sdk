@@ -170,19 +170,7 @@ impl PumpFunParams {
         let account =
             crate::instruction::utils::pumpfun::fetch_bonding_curve_account(rpc, mint).await?;
         let mint_account = rpc.get_account(&mint).await?;
-        let bonding_curve = BondingCurveAccount {
-            discriminator: 0,
-            account: account.1,
-            virtual_token_reserves: account.0.virtual_token_reserves,
-            virtual_sol_reserves: account.0.virtual_sol_reserves,
-            real_token_reserves: account.0.real_token_reserves,
-            real_sol_reserves: account.0.real_sol_reserves,
-            token_total_supply: account.0.token_total_supply,
-            complete: account.0.complete,
-            creator: account.0.creator,
-            is_mayhem_mode: account.0.is_mayhem_mode,
-            is_cashback_coin: account.0.is_cashback_coin,
-        };
+        let bonding_curve = account.0.clone();
         let associated_bonding_curve = get_associated_token_address_with_program_id(
             &bonding_curve.account,
             mint,
@@ -200,7 +188,7 @@ impl PumpFunParams {
         .or_else(|| crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator))
         .unwrap_or_default();
         Ok(Self {
-            bonding_curve: Arc::new(bonding_curve),
+            bonding_curve,
             associated_bonding_curve: associated_bonding_curve,
             observed_trade_creator: None,
             creator_vault,

@@ -172,6 +172,13 @@ pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_SOL_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 
+/// `buy_v2` — unified SOL/USDC quote interface ([pump-public-docs](https://github.com/pump-fun/pump-public-docs)).
+pub const BUY_V2_DISCRIMINATOR: [u8; 8] = [184, 23, 238, 97, 103, 197, 211, 61];
+/// `sell_v2`
+pub const SELL_V2_DISCRIMINATOR: [u8; 8] = [93, 246, 130, 60, 231, 233, 64, 178];
+/// `buy_exact_quote_in_v2` (native SOL spend for SOL-paired coins when `quote_mint` is WSOL)
+pub const BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR: [u8; 8] = [194, 171, 28, 70, 104, 77, 91, 47];
+
 pub const EXTEND_ACCOUNT_DISCRIMINATOR: [u8; 8] = [234, 102, 194, 203, 150, 72, 62, 229];
 
 pub const SHARING_CONFIG_ACCOUNT_DISCRIMINATOR: [u8; 8] = [216, 74, 9, 0, 56, 140, 93, 75];
@@ -276,6 +283,17 @@ pub fn get_protocol_extra_fee_recipient_random() -> Pubkey {
     *global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS
         .choose(&mut rand::rng())
         .unwrap_or(&global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS[0])
+}
+
+/// Buyback fee recipient (#8 / `buyback_fee_recipient`) — same static pool as protocol extra / pump-public-docs buyback list.
+#[inline]
+pub fn pump_fun_buyback_fee_recipient_meta_random() -> AccountMeta {
+    let pubkey = get_protocol_extra_fee_recipient_random();
+    AccountMeta {
+        pubkey,
+        is_signer: false,
+        is_writable: true,
+    }
 }
 
 #[inline]
@@ -516,9 +534,9 @@ pub async fn fetch_bonding_curve_account(
         return Err(anyhow!("Bonding curve not found"));
     }
 
-    let bonding_curve =
-        solana_sdk::borsh1::try_from_slice_unchecked::<BondingCurveAccount>(&account.data[8..])
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize bonding curve account: {}", e))?;
+    let mut bonding_curve = BondingCurveAccount::decode_from_chain_account_data(account.data.as_slice())
+        .map_err(|e| anyhow::anyhow!("Failed to decode bonding curve account: {}", e))?;
+    bonding_curve.account = bonding_curve_pda;
 
     Ok((Arc::new(bonding_curve), bonding_curve_pda))
 }
@@ -540,6 +558,9 @@ mod tests {
         assert_eq!(BUY_DISCRIMINATOR.len(), 8);
         assert_eq!(BUY_EXACT_SOL_IN_DISCRIMINATOR.len(), 8);
         assert_eq!(SELL_DISCRIMINATOR.len(), 8);
+        assert_eq!(BUY_V2_DISCRIMINATOR.len(), 8);
+        assert_eq!(SELL_V2_DISCRIMINATOR.len(), 8);
+        assert_eq!(BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR.len(), 8);
     }
 
     #[test]

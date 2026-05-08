@@ -10,9 +10,10 @@
 //!
 //! - `discriminator`: Unique identifier for the bonding curve
 //! - `virtual_token_reserves`: Virtual token reserves used for price calculations
-//! - `virtual_sol_reserves`: Virtual SOL reserves used for price calculations
+//! - `virtual_sol_reserves`: Virtual **quote** reserves (historical name; lamports for SOL-paired coins)
 //! - `real_token_reserves`: Actual token reserves available for trading
-//! - `real_sol_reserves`: Actual SOL reserves available for trading
+//! - `real_sol_reserves`: Actual **quote** reserves on the curve (historical name)
+//! - `quote_mint`: Quote mint from on-chain layout (`Pubkey::default` = legacy SOL-paired; pass WSOL mint in `buy_v2` / `sell_v2`)
 //! - `token_total_supply`: Total supply of tokens
 //! - `complete`: Whether the bonding curve is complete/finalized
 //!
@@ -25,7 +26,7 @@
 //! - `get_final_market_cap_sol`: Calculates the final market cap in SOL after all tokens are sold
 //! - `get_buy_out_price`: Calculates the price to buy out all remaining tokens
 
-use borsh::BorshDeserialize;
+use anyhow::{anyhow, Context};
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
@@ -36,13 +37,11 @@ use crate::instruction::utils::pumpfun::global_constants::{
 use crate::instruction::utils::pumpfun::{get_bonding_curve_pda, get_creator_vault_pda};
 
 /// Represents the global configuration account for token pricing and fees
-#[derive(Debug, Clone, Serialize, Deserialize, Default, BorshDeserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BondingCurveAccount {
-    /// Unique identifier for the bonding curve
-    #[borsh(skip)]
+    /// Unique identifier for the bonding curve (unused on-chain decode path)
     pub discriminator: u64,
-    /// Account address
-    #[borsh(skip)]
+    /// Bonding curve PDA address (filled by RPC helpers)
     pub account: Pubkey,
     /// Virtual token reserves used for price calculations
     pub virtual_token_reserves: u64,
@@ -62,9 +61,69 @@ pub struct BondingCurveAccount {
     pub is_mayhem_mode: bool,
     /// Whether this coin has cashback enabled (creator fee redirected to users)
     pub is_cashback_coin: bool,
+    /// On-chain `quote_mint` (post bonding-curve upgrade). `Pubkey::default()` means legacy SOL quote (use wrapped SOL in `*_v2` instructions).
+    pub quote_mint: Pubkey,
 }
 
+/// Payload after the 8-byte Anchor account discriminator (`account.data[8..]`).
+const BC_PAYLOAD_MIN_LEGACY: usize = 5 * 8 + 1 + 32 + 1 + 1;
+
 impl BondingCurveAccount {
+    /// Decode bonding curve account data (`full_account.data`, including 8-byte disc prefix).
+    pub fn decode_from_chain_account_data(data: &[u8]) -> anyhow::Result<Self> {
+        if data.len() < 8 + BC_PAYLOAD_MIN_LEGACY {
+            return Err(anyhow!(
+                "bonding curve account too short: {} bytes",
+                data.len()
+            ));
+        }
+        let payload = &data[8..];
+        Self::decode_payload(payload)
+    }
+
+    fn decode_payload(payload: &[u8]) -> anyhow::Result<Self> {
+        if payload.len() < BC_PAYLOAD_MIN_LEGACY {
+            return Err(anyhow!(
+                "bonding curve payload too short: {}",
+                payload.len()
+            ));
+        }
+        let virtual_token_reserves =
+            u64::from_le_bytes(payload[0..8].try_into().map_err(|_| anyhow!("vt"))?);
+        let virtual_sol_reserves =
+            u64::from_le_bytes(payload[8..16].try_into().map_err(|_| anyhow!("vs"))?);
+        let real_token_reserves =
+            u64::from_le_bytes(payload[16..24].try_into().map_err(|_| anyhow!("rt"))?);
+        let real_sol_reserves =
+            u64::from_le_bytes(payload[24..32].try_into().map_err(|_| anyhow!("rs"))?);
+        let token_total_supply =
+            u64::from_le_bytes(payload[32..40].try_into().map_err(|_| anyhow!("tts"))?);
+        let complete = payload[40] != 0;
+        let creator =
+            Pubkey::try_from(&payload[41..73]).context("creator pubkey")?;
+        let is_mayhem_mode = payload[73] != 0;
+        let is_cashback_coin = payload[74] != 0;
+        let quote_mint = if payload.len() >= BC_PAYLOAD_MIN_LEGACY + 32 {
+            Pubkey::try_from(&payload[75..107]).context("quote_mint")?
+        } else {
+            Pubkey::default()
+        };
+        Ok(Self {
+            discriminator: 0,
+            account: Pubkey::default(),
+            virtual_token_reserves,
+            virtual_sol_reserves,
+            real_token_reserves,
+            real_sol_reserves,
+            token_total_supply,
+            complete,
+            creator,
+            is_mayhem_mode,
+            is_cashback_coin,
+            quote_mint,
+        })
+    }
+
     /// When building from event/parser data (e.g. sol-parser-sdk), pass the token's cashback flag
     /// so that sell instructions include the correct remaining accounts. From RPC use `from_mint_by_rpc` instead.
     pub fn from_dev_trade(
@@ -93,6 +152,7 @@ impl BondingCurveAccount {
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
+            quote_mint: Pubkey::default(),
         }
     }
 
@@ -126,6 +186,7 @@ impl BondingCurveAccount {
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
+            quote_mint: Pubkey::default(),
         }
     }
 
