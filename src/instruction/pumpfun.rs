@@ -12,7 +12,7 @@ use crate::{
     instruction::pumpfun_ix_data::{
         encode_pumpfun_buy_exact_quote_in_v2_ix_data, encode_pumpfun_buy_exact_sol_in_ix_data,
         encode_pumpfun_buy_ix_data, encode_pumpfun_buy_v2_ix_data,
-        encode_pumpfun_sell_ix_data, encode_pumpfun_sell_v2_ix_data, TRACK_VOLUME_TRUE,
+        encode_pumpfun_sell_ix_data, encode_pumpfun_sell_v2_ix_data,
     },
     instruction::utils::pumpfun::{
         accounts, get_bonding_curve_pda, get_bonding_curve_v2_pda,
@@ -230,15 +230,16 @@ impl InstructionBuilder for PumpFunInstructionBuilder {
         }
 
         // ── Legacy buy path ──
+        let track_volume_val = if bonding_curve.is_cashback_coin { 1u8 } else { 0u8 };
         let buy_data = if params.use_exact_sol_amount.unwrap_or(true) {
             let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
             encode_pumpfun_buy_exact_sol_in_ix_data(
                 lamports_in,
                 min_tokens_out,
-                TRACK_VOLUME_TRUE,
+                track_volume_val,
             )
         } else {
-            encode_pumpfun_buy_ix_data(buy_token_amount, max_sol_cost, TRACK_VOLUME_TRUE)
+            encode_pumpfun_buy_ix_data(buy_token_amount, max_sol_cost, track_volume_val)
         };
 
         let bonding_curve_v2 = get_bonding_curve_v2_pda(&params.output_mint).ok_or_else(|| {
