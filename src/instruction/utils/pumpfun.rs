@@ -106,6 +106,19 @@ pub const PROTOCOL_EXTRA_FEE_RECIPIENTS: [Pubkey; 8] = [
     pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
     pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
 ];
+
+/// Buyback fee recipients (v2 account #9 in buy_v2/sell_v2).
+/// Selected randomly — distinct from main fee recipients.
+pub const BUYBACK_FEE_RECIPIENTS: [Pubkey; 8] = [
+    pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM"),
+    pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz"),
+    pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP"),
+    pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY"),
+    pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz"),
+    pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX"),
+    pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ"),
+    pubkey!("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"),
+];
 }
 
 
@@ -171,6 +184,12 @@ pub const PUMP_BONDING_CURVE_MIN_DATA_LEN: usize = 151;
 pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_SOL_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
+/// buy_v2: unified buy with quote_mint support (SOL + USDC), 27 fixed accounts, 2 args (no track_volume)
+pub const BUY_V2_DISCRIMINATOR: [u8; 8] = [184, 23, 238, 97, 103, 197, 211, 61];
+/// sell_v2: unified sell with quote_mint support (SOL + USDC), 26 fixed accounts, 2 args
+pub const SELL_V2_DISCRIMINATOR: [u8; 8] = [93, 246, 130, 60, 231, 233, 64, 178];
+/// buy_exact_quote_in_v2: spend exact quote amount for min tokens out (SOL + USDC), 27 fixed accounts, 2 args
+pub const BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR: [u8; 8] = [194, 171, 28, 70, 104, 77, 91, 47];
 
 pub const EXTEND_ACCOUNT_DISCRIMINATOR: [u8; 8] = [234, 102, 194, 203, 150, 72, 62, 229];
 
@@ -276,6 +295,20 @@ pub fn get_protocol_extra_fee_recipient_random() -> Pubkey {
     *global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS
         .choose(&mut rand::rng())
         .unwrap_or(&global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS[0])
+}
+
+/// Random buyback fee recipient from static pool (v2 account #9 in buy_v2/sell_v2).
+#[inline]
+pub fn get_buyback_fee_recipient_random() -> Pubkey {
+    *global_constants::BUYBACK_FEE_RECIPIENTS
+        .choose(&mut rand::rng())
+        .unwrap_or(&global_constants::BUYBACK_FEE_RECIPIENTS[0])
+}
+
+/// Quote token program id for a given quote_mint (both WSOL and USDC use the legacy Token Program).
+#[inline]
+pub fn get_quote_token_program(_quote_mint: &Pubkey) -> Pubkey {
+    crate::constants::TOKEN_PROGRAM
 }
 
 #[inline]

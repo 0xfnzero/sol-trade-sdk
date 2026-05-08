@@ -14,6 +14,10 @@ use std::sync::Arc;
 /// `fee_sharing_config_pda(mint)` (see [`fetch_fee_sharing_creator_vault_if_active`](crate::instruction::utils::pumpfun::fetch_fee_sharing_creator_vault_if_active)).
 /// **Buy/sell**：`creator_vault` 及（若可得）**`tradeEvent` / CPI 日志中的 `creator`** 优先于陈旧的曲线快照；
 /// ix 组装与链下询价见 [`Self::effective_creator_for_trade`]、[`crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing`]。
+///
+/// **V2 instructions**: Set `use_v2_ix = true` to use `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`
+/// with unified 27/26-account layout. Required for USDC-paired coins (`quote_mint != WSOL`).
+/// For SOL-paired coins, legacy instructions still work and are the default.
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
@@ -36,6 +40,12 @@ pub struct PumpFunParams {
     /// Fee recipient for buy/sell account #2. Set from sol-parser-sdk (`tradeEvent.feeRecipient` / 同笔 create_v2+buy 回填的 `observed_fee_recipient`)；热路径不查 RPC。
     /// `Pubkey::default()` 时按 mayhem 从静态池随机（与 npm 静态池一致，可能落后于主网 Global）。
     pub fee_recipient: Pubkey,
+    /// Quote mint for v2 instructions (default: `So11111111111111111111111111111111111111112` for SOL-paired).
+    /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
+    pub quote_mint: Pubkey,
+    /// Whether to use v2 instructions (`buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`).
+    /// Default `false` for backward compatibility. Must be `true` for USDC-paired coins.
+    pub use_v2_ix: bool,
 }
 
 impl PumpFunParams {
@@ -53,6 +63,8 @@ impl PumpFunParams {
             token_program: token_program,
             close_token_account_when_sell: Some(close_token_account_when_sell),
             fee_recipient: Pubkey::default(),
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -103,6 +115,8 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -159,6 +173,8 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -208,6 +224,8 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
             fee_recipient: Pubkey::default(),
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         })
     }
 
@@ -242,6 +260,15 @@ impl PumpFunParams {
             self.creator_vault = v;
         }
         Ok(self)
+    }
+
+    /// Sets `quote_mint` and enables v2 instructions. Required for USDC-paired coins.
+    /// For SOL-paired coins, pass `WSOL_TOKEN_ACCOUNT` or leave default.
+    #[inline]
+    pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
+        self.quote_mint = quote_mint;
+        self.use_v2_ix = quote_mint != Pubkey::default();
+        self
     }
 
     /// Updates the cached `creator_vault` field only. Buy/sell ix use [`Self::effective_creator_for_trade`] + resolve.

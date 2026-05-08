@@ -74,7 +74,7 @@ This SDK is available in multiple languages:
 
 ## ✨ Features
 
-1. **PumpFun Trading**: Support for `buy` and `sell` operations
+1. **PumpFun Trading**: Support for `buy`, `sell`, `buy_exact_sol_in`, and the new unified `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` instructions (SOL + USDC)
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
 3. **Bonk Trading**: Support for Bonk trading operations
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
@@ -356,6 +356,43 @@ For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_au
 
 - **sol-parser-sdk**: Instruction parser sets them from accounts 17 and 18; the account filler also fills them when the event comes from logs. Use `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` with the buy/sell event `e`.
 - **solana-streamer**: Instruction parser sets them from `accounts.get(17)` and `accounts.get(18)`. Use the same `from_trade` with the event’s `coin_creator_vault_ata` and `coin_creator_vault_authority`.
+
+### Pump.fun Bonding Curve v2 (buy_v2 / sell_v2 / buy_exact_quote_in_v2)
+
+Pump.fun has upgraded the Bonding Curve contract with **unified v2 instructions** that support both SOL-paired and USDC-paired coins through a single fixed account layout. The legacy `buy`/`sell`/`buy_exact_sol_in` instructions continue to work for SOL-paired coins and remain the default.
+
+**Key changes in v2 instructions:**
+- `quote_mint` parameter — pass wrapped SOL (`So11111111111111111111111111111111111111112`) for SOL-paired, or USDC mint for USDC-paired
+- 27 fixed accounts (buy) / 26 fixed accounts (sell) — **no optional accounts**
+- `buyback_fee_recipient`, `sharing_config`, and 6 `associated_quote_*` ATAs are now mandatory
+- Same pricing and cost as legacy instructions for SOL-paired coins
+
+**Using v2 instructions:**
+
+Set `quote_mint` on your `PumpFunParams`. The SDK automatically switches to `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` discriminators with the 27/26-account layout:
+
+```rust
+use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+use sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
+
+// SOL-paired coin — use wrapped SOL mint
+let params = PumpFunParams::from_trade(/* ... */)
+    .with_quote_mint(WSOL_TOKEN_ACCOUNT);
+
+// USDC-paired coin (coming soon — requires v2)
+let params = PumpFunParams::from_trade(/* ... */)
+    .with_quote_mint(USDC_TOKEN_ACCOUNT);
+
+// Then trade as usual
+client.buy(buy_params).await?;
+client.sell(sell_params).await?;
+```
+
+| Quote Mint | `use_v2_ix` | Instruction Used | Notes |
+|-----------|-------------|-----------------|-------|
+| Not set (default) | `false` | Legacy `buy`/`sell`/`buy_exact_sol_in` | Backward compatible, SOL-only |
+| `WSOL_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL-paired, unified layout |
+| `USDC_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC-paired (requires v2) |
 
 ## 🛡️ MEV Protection Services
 
