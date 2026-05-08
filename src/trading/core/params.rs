@@ -122,6 +122,10 @@ impl std::fmt::Debug for SwapParams {
 /// `PDA(["creator-vault", bonding_curve.creator])` derived from [`BondingCurveAccount::creator`].
 /// Keep `bonding_curve.creator` in sync with chain (gRPC / RPC); stale `creator_vault` in this struct
 /// does not affect ix building.
+///
+/// **V2 instructions**: Set `use_v2_ix = true` to use `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`
+/// instructions with unified account layout. Required for USDC-paired coins (`quote_mint != WSOL`).
+/// For SOL-paired coins, legacy instructions still work and are the default.
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
@@ -134,6 +138,12 @@ pub struct PumpFunParams {
     /// Fee recipient for buy/sell account #2. Set from sol-parser-sdk (`tradeEvent.feeRecipient` / 同笔 create_v2+buy 回填的 `observed_fee_recipient`)；热路径不查 RPC。
     /// `Pubkey::default()` 时按 mayhem 从静态池随机（与 npm 静态池一致，可能落后于主网 Global）。
     pub fee_recipient: Pubkey,
+    /// Quote mint for v2 instructions (default: `So11111111111111111111111111111111111111112` for SOL-paired).
+    /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
+    pub quote_mint: Pubkey,
+    /// Whether to use v2 instructions (`buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`).
+    /// Default `false` for backward compatibility. Must be `true` for USDC-paired coins.
+    pub use_v2_ix: bool,
 }
 
 impl PumpFunParams {
@@ -149,6 +159,8 @@ impl PumpFunParams {
             token_program: token_program,
             close_token_account_when_sell: Some(close_token_account_when_sell),
             fee_recipient: Pubkey::default(),
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -197,6 +209,8 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -254,6 +268,8 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         }
     }
 
@@ -291,7 +307,18 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
             fee_recipient: Pubkey::default(),
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
         })
+    }
+
+    /// Sets `quote_mint` and enables v2 instructions. Required for USDC-paired coins.
+    /// For SOL-paired coins, pass `WSOL_TOKEN_ACCOUNT` or leave default.
+    #[inline]
+    pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
+        self.quote_mint = quote_mint;
+        self.use_v2_ix = quote_mint != Pubkey::default();
+        self
     }
 
     /// Updates the cached `creator_vault` field only. Buy/sell ix use [`BondingCurveAccount::creator`].

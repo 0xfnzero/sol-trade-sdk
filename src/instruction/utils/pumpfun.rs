@@ -149,6 +149,19 @@ pub mod global_constants {
         pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
         pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
     ];
+
+    /// Buyback fee recipients (v2 account #9 in buy_v2/sell_v2).
+    /// Selected randomly from this pool — distinct from main fee recipients.
+    pub const BUYBACK_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM"),
+        pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz"),
+        pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP"),
+        pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY"),
+        pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz"),
+        pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX"),
+        pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ"),
+        pubkey!("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"),
+    ];
 }
 
 /// Constants related to program accounts and authorities
@@ -218,6 +231,12 @@ pub mod accounts {
 pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_SOL_IN_DISCRIMINATOR: [u8; 8] = [56, 252, 116, 8, 158, 223, 205, 95];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
+/// buy_v2: unified buy with quote_mint support (SOL + USDC), 27 fixed accounts
+pub const BUY_V2_DISCRIMINATOR: [u8; 8] = [184, 23, 238, 97, 103, 197, 211, 61];
+/// sell_v2: unified sell with quote_mint support (SOL + USDC), 26 fixed accounts
+pub const SELL_V2_DISCRIMINATOR: [u8; 8] = [93, 246, 130, 60, 231, 233, 64, 178];
+/// buy_exact_quote_in_v2: spend exact quote amount for min tokens out (SOL + USDC), 27 fixed accounts
+pub const BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR: [u8; 8] = [194, 171, 28, 70, 104, 77, 91, 47];
 
 /// Check if a pubkey is one of the Mayhem fee recipients
 #[inline]
@@ -277,6 +296,41 @@ pub fn get_protocol_extra_fee_recipient_random() -> Pubkey {
     *global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS
         .choose(&mut rand::rng())
         .unwrap_or(&global_constants::PROTOCOL_EXTRA_FEE_RECIPIENTS[0])
+}
+
+/// Resolve the effective quote_mint for a bonding curve.
+///
+/// - If `is_sol_paired` or `bonding_curve.quote_mint == Pubkey::default()` → wrapped SOL (`So1111...12`)
+/// - Otherwise → the bonding curve's quote_mint (e.g. USDC)
+#[inline]
+pub fn resolve_quote_mint(
+    _bonding_curve: &BondingCurveAccount,
+    override_quote_mint: Option<Pubkey>,
+) -> Pubkey {
+    if let Some(qm) = override_quote_mint {
+        if qm != Pubkey::default() {
+            return qm;
+        }
+    }
+    // Legacy bonding curves have no quote_mint field; default() means SOL-paired
+    crate::constants::WSOL_TOKEN_ACCOUNT
+}
+
+/// Random buyback fee recipient from static pool (used as account #9 in buy_v2/sell_v2).
+#[inline]
+pub fn get_buyback_fee_recipient_random() -> Pubkey {
+    *global_constants::BUYBACK_FEE_RECIPIENTS
+        .choose(&mut rand::rng())
+        .unwrap_or(&global_constants::BUYBACK_FEE_RECIPIENTS[0])
+}
+
+/// Get the quote token program for a given quote_mint.
+/// SOL → Token Program; USDC → Token Program.
+/// Both use the legacy SPL Token Program on mainnet.
+#[inline]
+pub fn get_quote_token_program(_quote_mint: &Pubkey) -> Pubkey {
+    // Both WSOL and USDC use the legacy Token Program
+    crate::constants::TOKEN_PROGRAM
 }
 
 /// 账户 #2 fee recipient：优先使用 gRPC/ShredStream 解析值（同笔 create_v2+buy 的 `observed_fee_recipient` 或 `tradeEvent.feeRecipient`）；未提供时按 mayhem 从静态池随机。

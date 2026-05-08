@@ -74,7 +74,7 @@
 
 ## ✨ 项目特性
 
-1. **PumpFun 交易**: 支持`购买`、`卖出`功能
+1. **PumpFun 交易**: 支持 `buy`、`sell`、`buy_exact_sol_in` 以及全新的统一化 `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` 指令（SOL + USDC）
 2. **PumpSwap 交易**: 支持 PumpSwap 池的交易操作
 3. **Bonk 交易**: 支持 Bonk 的交易操作
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
@@ -351,6 +351,52 @@ SDK 不会在每次卖出时通过 RPC 拉取 creator_vault（以避免延迟）
 
 - **sol-parser-sdk**：指令解析从账户 17、18 写入；若事件来自日志，账户填充器也会从指令补全。用 `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` 即可。
 - **solana-streamer**：指令解析从 `accounts.get(17)`、`accounts.get(18)` 写入。同样用事件的 `coin_creator_vault_ata`、`coin_creator_vault_authority` 调用 `from_trade`。
+
+### Pump.fun Bonding Curve v2（buy_v2 / sell_v2 / buy_exact_quote_in_v2）
+
+Pump.fun 已升级 Bonding Curve 合约，推出**统一化 v2 指令**，通过固定账户布局同时支持 SOL 和 USDC 配对币。旧版 `buy`/`sell`/`buy_exact_sol_in` 仍可用于 SOL 配对币，且保持为默认选项。
+
+**v2 指令关键变化：**
+- 新增 `quote_mint` 参数 — SOL 配对传包装 SOL（`So11111111111111111111111111111111111111112`），USDC 配对传 USDC mint
+- 27 个固定账户（buy）/ 26 个固定账户（sell）— **无可选账户**
+- `buyback_fee_recipient`、`sharing_config` 和 6 个 `associated_quote_*` ATA 变为强制账户
+- SOL 配对币的报价和成本与旧版一致，无额外开销
+
+**使用方式：**
+
+设置 `PumpFunParams` 的 `quote_mint` 即可，SDK 会自动切换到 v2 discriminator 和新账户布局：
+
+```rust
+use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+use sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
+
+// SOL 配对币（旧 bonding curve — 传包装 SOL mint）
+let params = PumpFunParams::from_trade(
+    bonding_curve, associated_bonding_curve, mint, creator, creator_vault,
+    virtual_token_reserves, virtual_sol_reserves,
+    real_token_reserves, real_sol_reserves,
+    close_token_account_when_sell, fee_recipient, token_program,
+    is_cashback_coin, mayhem_mode,
+).with_quote_mint(WSOL_TOKEN_ACCOUNT); // 自动启用 use_v2_ix
+
+// USDC 配对币（即将开放 — 必须使用 v2）
+let params = PumpFunParams::from_trade(/* ... */)
+    .with_quote_mint(USDC_TOKEN_ACCOUNT);
+
+// 从 RPC 获取参数（链上 quote_mint 可用时自动识别）
+let params = PumpFunParams::from_mint_by_rpc(&rpc, &mint).await?
+    .with_quote_mint(WSOL_TOKEN_ACCOUNT);
+
+// 之后正常交易
+client.buy(buy_params).await?;
+client.sell(sell_params).await?;
+```
+
+| quote_mint | use_v2_ix | 实际使用的指令 | 说明 |
+|-----------|-------------|---------|------|
+| 未设置（默认） | `false` | 旧版 `buy`/`sell`/`buy_exact_sol_in` | 向后兼容，仅 SOL |
+| `WSOL_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL 配对，统一布局 |
+| `USDC_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC 配对（必须使用 v2） |
 
 ## 🛡️ MEV 保护服务
 
