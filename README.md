@@ -53,6 +53,7 @@
   - [🔍 Address Lookup Tables](#-address-lookup-tables)
   - [🔍 Nonce Cache](#-nonce-cache)
 - [💰 Cashback Support (PumpFun / PumpSwap)](#-cashback-support-pumpfun--pumpswap)
+- [🔄 PumpFun V1 vs V2 Instructions](#-pumpfun-v1-vs-v2-instructions)
 - [🛡️ MEV Protection Services](#️-mev-protection-services)
 - [📁 Project Structure](#-project-structure)
 - [📄 License](#-license)
@@ -145,6 +146,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .check_min_tip(false)               // default: false - filter SWQOS below min tip
     // .swqos_cores_from_end(false)        // default: false - bind SWQOS to last N CPU cores
     // .mev_protection(false)              // default: false - MEV (Astralane QUIC :9000 or HTTP mev-protect / BlockRazor)
+    // .use_pumpfun_v2(false)             // default: false - V1 (18 accounts); set true for V2 (27 accounts, quote_mint) when PumpFun deploys V2
     .build();
 
 // Create TradingClient
@@ -347,49 +349,58 @@ Some PumpFun coins use **Creator Rewards Sharing**, so the on-chain `creator_vau
 
 The SDK does not fetch creator_vault from RPC on every sell (to avoid latency); pass the up-to-date vault from gRPC/events when available.
 
-#### PumpSwap: coin_creator_vault from events (no RPC)
+#### PumpFun V1 vs V2 Instructions
 
-For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_authority` are required in buy/sell instructions. Both are available from parsed events without RPC:
+PumpFun has two instruction sets for bonding-curve trading:
 
-- **sol-parser-sdk**: Instruction parser sets them from accounts 17 and 18; the account filler also fills them when the event comes from logs. Use `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` with the buy/sell event `e`.
-- **solana-streamer**: Instruction parser sets them from `accounts.get(17)` and `accounts.get(18)`. Use the same `from_trade` with the event’s `coin_creator_vault_ata` and `coin_creator_vault_authority`.
+| | V1 (default) | V2 (opt-in) |
+|---|---|---|
+| Instructions | `buy` / `buy_exact_sol_in` / `sell` | `buy_v2` / `buy_exact_quote_in_v2` / `sell_v2` |
+| Account metas | 18 | 27 |
+| Quote mint | SOL only (legacy) | SOL or USDC (via `quote_mint` field) |
+| Transaction size | Smaller (fits `PACKET_DATA_SIZE` without LUT) | Larger (requires LUT for most transactions) |
 
-### Pump.fun Bonding Curve v2 (buy_v2 / sell_v2 / buy_exact_quote_in_v2)
-
-Pump.fun has upgraded the Bonding Curve contract with **unified v2 instructions** that support both SOL-paired and USDC-paired coins through a single fixed account layout. The legacy `buy`/`sell`/`buy_exact_sol_in` instructions continue to work for SOL-paired coins and remain the default.
+**Default: V1** (`use_pumpfun_v2 = false`). The SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table.
 
 **Key changes in v2 instructions:**
-- `quote_mint` parameter — pass wrapped SOL (`So11111111111111111111111111111111111111112`) for SOL-paired, or USDC mint for USDC-paired
+- `quote_mint` parameter — pass wrapped SOL for SOL-paired, or USDC mint for USDC-paired
 - 27 fixed accounts (buy) / 26 fixed accounts (sell) — **no optional accounts**
 - `buyback_fee_recipient`, `sharing_config`, and 6 `associated_quote_*` ATAs are now mandatory
 - Same pricing and cost as legacy instructions for SOL-paired coins
 
-**Using v2 instructions:**
+**How to enable V2:**
 
-Set `quote_mint` on your `PumpFunParams`. The SDK automatically switches to `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` discriminators with the 27/26-account layout:
+**Method 1 — Global runtime flag** (recommended when PumpFun officially deploys V2 on mainnet):
+
+```rust
+let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
+    .use_pumpfun_v2(true)  // Switch all PumpFun trades to V2 instructions (27 accounts)
+    .build();
+```
+
+**Method 2 — Per-trade via `quote_mint`** (for USDC-paired coins or mixed V1/V2 scenarios):
 
 ```rust
 use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
 use sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
 
-// SOL-paired coin — use wrapped SOL mint
+// SOL-paired coin with v2 layout
 let params = PumpFunParams::from_trade(/* ... */)
     .with_quote_mint(WSOL_TOKEN_ACCOUNT);
 
-// USDC-paired coin (coming soon — requires v2)
+// USDC-paired coin (requires v2)
 let params = PumpFunParams::from_trade(/* ... */)
     .with_quote_mint(USDC_TOKEN_ACCOUNT);
-
-// Then trade as usual
-client.buy(buy_params).await?;
-client.sell(sell_params).await?;
 ```
 
-| Quote Mint | `use_v2_ix` | Instruction Used | Notes |
-|-----------|-------------|-----------------|-------|
-| Not set (default) | `false` | Legacy `buy`/`sell`/`buy_exact_sol_in` | Backward compatible, SOL-only |
-| `WSOL_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL-paired, unified layout |
-| `USDC_TOKEN_ACCOUNT` | `true` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC-paired (requires v2) |
+> **Note**: V2 transactions with ATA creation + durable nonce may exceed `PACKET_DATA_SIZE`. Enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
+
+#### PumpSwap: coin_creator_vault from events (no RPC)
+
+For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_authority` are required in buy/sell instructions. Both are available from parsed events without RPC:
+
+- **sol-parser-sdk**: Instruction parser sets them from accounts 17 and 18; the account filler also fills them when the event comes from logs. Use `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` with the buy/sell event `e`.
+- **solana-streamer**: Instruction parser sets them from `accounts.get(17)` and `accounts.get(18)`. Use the same `from_trade` with the event's `coin_creator_vault_ata` and `coin_creator_vault_authority`.
 
 ## 🛡️ MEV Protection Services
 

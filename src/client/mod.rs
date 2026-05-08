@@ -303,6 +303,8 @@ pub struct TradingClient {
     pub log_enabled: bool,
     /// Whether to check minimum tip per SWQOS (from TradeConfig.check_min_tip). Default false for lower latency.
     pub check_min_tip: bool,
+    /// Use PumpFun V2 instructions (buy_v2 / sell_v2, 27-account metas). Default false.
+    pub use_pumpfun_v2: bool,
 }
 
 static INSTANCE: Mutex<Option<Arc<TradingClient>>> = Mutex::new(None);
@@ -323,6 +325,7 @@ impl Clone for TradingClient {
             effective_core_ids: self.effective_core_ids.clone(),
             log_enabled: self.log_enabled,
             check_min_tip: self.check_min_tip,
+            use_pumpfun_v2: self.use_pumpfun_v2,
         }
     }
 }
@@ -457,6 +460,7 @@ impl TradingClient {
             effective_core_ids,
             log_enabled: true,
             check_min_tip: false,
+            use_pumpfun_v2: false,
         }
     }
 
@@ -503,6 +507,7 @@ impl TradingClient {
             effective_core_ids,
             log_enabled: true,
             check_min_tip: false,
+            use_pumpfun_v2: false,
         }
     }
 
@@ -682,6 +687,7 @@ impl TradingClient {
             effective_core_ids: infrastructure.effective_core_ids.clone(),
             log_enabled: trade_config.log_enabled,
             check_min_tip: trade_config.check_min_tip,
+            use_pumpfun_v2: trade_config.use_pumpfun_v2,
         };
 
         let mut current = INSTANCE.lock();
@@ -860,6 +866,7 @@ impl TradingClient {
             check_min_tip: self.check_min_tip,
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: params.use_exact_sol_amount,
+            use_pumpfun_v2: self.use_pumpfun_v2,
         };
 
         let swap_result = executor.swap(buy_params).await;
@@ -967,6 +974,7 @@ impl TradingClient {
             check_min_tip: self.check_min_tip,
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: None,
+            use_pumpfun_v2: self.use_pumpfun_v2,
         };
 
         let swap_result = executor.swap(sell_params).await;

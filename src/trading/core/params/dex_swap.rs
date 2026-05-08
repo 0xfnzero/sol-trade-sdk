@@ -97,6 +97,10 @@ pub struct SwapParams {
     /// When Some(false), uses regular buy instruction where slippage is applied to SOL/quote input.
     /// This option only applies to PumpFun and PumpSwap DEXes; it is ignored for other DEXes.
     pub use_exact_sol_amount: Option<bool>,
+    /// Use PumpFun V2 instructions (buy_v2 / sell_v2 / buy_exact_quote_in_v2, 27-account metas, quote_mint support).
+    /// Default: `false` — uses V1 instructions (18-account metas, legacy SOL-paired).
+    /// Set to `true` when PumpFun officially deploys V2 on mainnet. Until then, keep `false` for smaller transaction size.
+    pub use_pumpfun_v2: bool,
 }
 
 impl SwapParams {

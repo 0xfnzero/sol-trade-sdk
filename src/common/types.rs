@@ -95,6 +95,10 @@ pub struct TradeConfig {
     /// (Astralane QUIC `:9000` or Plain/Binary HTTP `mev-protect=true`, BlockRazor sandwichMitigation)
     /// use their MEV-protected endpoints/modes. Default false (no MEV protection, lower latency).
     pub mev_protection: bool,
+    /// Use PumpFun V2 instructions (buy_v2 / sell_v2, 27-account metas, quote_mint support).
+    /// Default: `false` — uses V1 instructions (18-account metas, legacy SOL-paired, smaller transaction).
+    /// Set to `true` when PumpFun officially deploys V2 on mainnet.
+    pub use_pumpfun_v2: bool,
 }
 
 impl TradeConfig {
@@ -149,6 +153,7 @@ pub struct TradeConfigBuilder {
     check_min_tip: bool,
     swqos_cores_from_end: bool,
     mev_protection: bool,
+    use_pumpfun_v2: bool,
 }
 
 impl TradeConfigBuilder {
@@ -163,6 +168,7 @@ impl TradeConfigBuilder {
             check_min_tip: false,
             swqos_cores_from_end: false,
             mev_protection: false,
+            use_pumpfun_v2: false,
         }
     }
 
@@ -208,6 +214,14 @@ impl TradeConfigBuilder {
         self
     }
 
+    /// Use PumpFun V2 instructions (`buy_v2` / `sell_v2`, 27-account metas, `quote_mint` support).
+    /// Default: `false` (V1 — 18-account metas, legacy SOL-paired, smaller transaction).
+    /// Set to `true` when PumpFun officially deploys V2 on mainnet.
+    pub fn use_pumpfun_v2(mut self, v: bool) -> Self {
+        self.use_pumpfun_v2 = v;
+        self
+    }
+
     /// Consume the builder and produce a [`TradeConfig`].
     pub fn build(self) -> TradeConfig {
         TradeConfig {
@@ -220,6 +234,7 @@ impl TradeConfigBuilder {
             check_min_tip: self.check_min_tip,
             swqos_cores_from_end: self.swqos_cores_from_end,
             mev_protection: self.mev_protection,
+            use_pumpfun_v2: self.use_pumpfun_v2,
         }
     }
 }
