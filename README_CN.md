@@ -81,7 +81,7 @@
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 5. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
 6. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
-7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane 等服务
+7. **多种 MEV 保护**: 支持 Jito、Temporal、FlashBlock、BlockRazor、Astralane、SpeedLanding 等服务
 8. **并发交易**: 同时使用多个 MEV 服务发送交易，最快的成功，其他失败
 9. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 10. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
@@ -131,15 +131,12 @@ let commitment = CommitmentConfig::processed();
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::FlashBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::BlockRazor("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     // Astralane：第4个参数为 AstralaneTransport — Binary（默认）、Plain（/iris）或 Quic
     SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None), // Binary /irisb
-    SwqosConfig::Astralane(
-        "your_astralane_api_key".to_string(),
-        SwqosRegion::Frankfurt,
-        None,
-        Some(AstralaneTransport::Quic),
-    ), // QUIC
+    SwqosConfig::SpeedLanding("your api_token".to_string(), SwqosRegion::Frankfurt, None),
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -266,7 +263,7 @@ let jito_config = SwqosConfig::Jito(
 );
 
 // 使用默认区域端点（第三个参数为 None）
-let bloxroute_config = SwqosConfig::Bloxroute(
+let temporal_config = SwqosConfig::Temporal(
     "your_api_token".to_string(),
     SwqosRegion::NewYork, // 将使用该区域的默认端点
     None // 没有自定义 URL，使用 SwqosRegion
@@ -399,13 +396,11 @@ client.sell(sell_params).await?;
 可以通过官网申请密钥：[社区官网](https://fnzero.dev/swqos)
 
 - **Jito**: 高性能区块空间
-- **ZeroSlot**: 零延迟交易
 - **Temporal**: 时间敏感交易
-- **Bloxroute**: 区块链网络加速
 - **FlashBlock**: 高速交易执行，支持 API 密钥认证
 - **BlockRazor**: 高速交易执行，支持 API 密钥认证
-- **Node1**: 高速交易执行，支持 API 密钥认证
-- **Astralane**: 区块链网络加速（Binary/Plain HTTP 与 QUIC，见 [Astralane](#astralanebinary--plain--quic)）
+- **Astralane**: 区块链网络加速（Binary/Plain HTTP 与 QUIC）
+- **SpeedLanding**: 高速交易执行，支持 API 密钥认证
 
 ## 📁 项目结构
 

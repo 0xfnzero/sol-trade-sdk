@@ -130,15 +130,12 @@ let commitment = CommitmentConfig::processed();
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
     SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Bloxroute("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::FlashBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::BlockRazor("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     // Astralane: 4th param = AstralaneTransport — Binary (default), Plain (/iris), or Quic
     SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None), // Binary HTTP /irisb
-    SwqosConfig::Astralane(
-        "your_astralane_api_key".to_string(),
-        SwqosRegion::Frankfurt,
-        None,
-        Some(AstralaneTransport::Quic),
-    ), // QUIC
+    SwqosConfig::SpeedLanding("your api_token".to_string(), SwqosRegion::Frankfurt, None),
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -266,7 +263,7 @@ let jito_config = SwqosConfig::Jito(
 );
 
 // Using default regional endpoint (third parameter is None)
-let bloxroute_config = SwqosConfig::Bloxroute(
+let temporal_config = SwqosConfig::Temporal(
     "your_api_token".to_string(),
     SwqosRegion::NewYork, // Will use the default endpoint for this region
     None // No custom URL, uses SwqosRegion
@@ -399,13 +396,11 @@ client.sell(sell_params).await?;
 You can apply for a key through the official website: [Community Website](https://fnzero.dev/swqos)
 
 - **Jito**: High-performance block space
-- **ZeroSlot**: Zero-latency transactions
 - **Temporal**: Time-sensitive transactions
-- **Bloxroute**: Blockchain network acceleration
 - **FlashBlock**: High-speed transaction execution with API key authentication
 - **BlockRazor**: High-speed transaction execution with API key authentication
-- **Node1**: High-speed transaction execution with API key authentication 
-- **Astralane**: Blockchain network acceleration (Binary/Plain HTTP and QUIC; see [Astralane](#astralane-binary--plain--quic) above)
+- **Astralane**: Blockchain network acceleration (Binary/Plain HTTP and QUIC)
+- **SpeedLanding**: High-speed transaction execution with API key authentication
 
 ## 📁 Project Structure
 
