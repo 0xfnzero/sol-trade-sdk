@@ -226,6 +226,7 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     use crate::instruction::pumpfun_ix_data::encode_pumpfun_sell_ix_data;
     use crate::instruction::utils::pumpfun::{
         get_bonding_curve_v2_pda, get_protocol_extra_fee_recipient_random,
+        is_phantom_default_creator_vault,
     };
 
     let protocol_params = params
@@ -246,19 +247,29 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     let slippage_bp = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
 
     let bonding_curve = &protocol_params.bonding_curve;
-    let creator = protocol_params.effective_creator_for_trade();
-    let creator_vault_account = resolve_creator_vault_for_ix_with_fee_sharing(
-        &creator,
-        protocol_params.creator_vault,
-        &params.input_mint,
-        protocol_params.fee_sharing_creator_vault_if_active,
-    )
-    .ok_or_else(|| {
-        anyhow!(
-            "creator_vault PDA derivation failed (creator={})",
-            creator
+
+    // 卖出时：优先信任观测到的 creator_vault（来自 gRPC / pump fee 事件）。
+    // 不要通过 effective_creator 推导覆盖，避免 creator 被修改后推导出错 → Anchor 2006。
+    let creator_vault_account = if protocol_params.creator_vault != Pubkey::default()
+        && !is_phantom_default_creator_vault(&protocol_params.creator_vault)
+    {
+        protocol_params.creator_vault
+    } else {
+        resolve_creator_vault_for_ix_with_fee_sharing(
+            &bonding_curve.creator,
+            protocol_params.creator_vault,
+            &params.input_mint,
+            protocol_params.fee_sharing_creator_vault_if_active,
         )
-    })?;
+        .ok_or_else(|| {
+            anyhow!(
+                "creator_vault PDA derivation failed (curve_creator={})",
+                bonding_curve.creator
+            )
+        })?
+    };
+
+    let creator = protocol_params.effective_creator_for_trade();
 
     let sol_amount = get_sell_sol_amount_from_token_amount(
         bonding_curve.virtual_token_reserves as u128,
@@ -569,6 +580,7 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     use crate::instruction::pumpfun_ix_data::encode_pumpfun_sell_v2_ix_data;
     use crate::instruction::utils::pumpfun::{
         get_buyback_fee_recipient_random, get_fee_sharing_config_pda,
+        is_phantom_default_creator_vault,
     };
 
     let protocol_params = params
@@ -589,19 +601,29 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     let slippage_bp = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
 
     let bonding_curve = &protocol_params.bonding_curve;
-    let creator = protocol_params.effective_creator_for_trade();
-    let creator_vault_account = resolve_creator_vault_for_ix_with_fee_sharing(
-        &creator,
-        protocol_params.creator_vault,
-        &params.input_mint,
-        protocol_params.fee_sharing_creator_vault_if_active,
-    )
-    .ok_or_else(|| {
-        anyhow!(
-            "creator_vault PDA derivation failed (creator={})",
-            creator
+
+    // 卖出时：优先信任观测到的 creator_vault（来自 gRPC / pump fee 事件）。
+    // 不要通过 effective_creator 推导覆盖，避免 creator 被修改后推导出错 → Anchor 2006。
+    let creator_vault_account = if protocol_params.creator_vault != Pubkey::default()
+        && !is_phantom_default_creator_vault(&protocol_params.creator_vault)
+    {
+        protocol_params.creator_vault
+    } else {
+        resolve_creator_vault_for_ix_with_fee_sharing(
+            &bonding_curve.creator,
+            protocol_params.creator_vault,
+            &params.input_mint,
+            protocol_params.fee_sharing_creator_vault_if_active,
         )
-    })?;
+        .ok_or_else(|| {
+            anyhow!(
+                "creator_vault PDA derivation failed (curve_creator={})",
+                bonding_curve.creator
+            )
+        })?
+    };
+
+    let creator = protocol_params.effective_creator_for_trade();
 
     let sol_amount = get_sell_sol_amount_from_token_amount(
         bonding_curve.virtual_token_reserves as u128,
