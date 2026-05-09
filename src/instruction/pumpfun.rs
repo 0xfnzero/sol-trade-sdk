@@ -328,7 +328,7 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
         accounts::FEE_PROGRAM_META,
     ];
 
-    if bonding_curve.is_mayhem_mode {
+    if bonding_curve.is_cashback_coin {
         metas.push(AccountMeta::new(user_volume_accumulator, false));
     }
 
