@@ -48,12 +48,11 @@ impl SpeedlandingClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         // Speedlanding QUIC：与官方一致使用 `solana_tls_utils::new_dummy_x509_certificate`（Ed25519 dummy cert）+ SNI `speed-landing`。
-        let keypair = Keypair::try_from_base58_string(api_key.trim()).map_err(|e| {
-            anyhow::anyhow!(
-                "Speedlanding api_token 无法解析为 Solana keypair base58（用于 mTLS）；请确认粘贴的是机器人提供的密钥而非其它字符串: {}",
-                e
-            )
-        })?;
+        let keypair_bytes = bs58::decode(api_key.trim())
+            .into_vec()
+            .map_err(|e| anyhow::anyhow!("Speedlanding api_token base58 解码失败（mTLS 用）: {}", e))?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice())
+            .map_err(|e| anyhow::anyhow!("Speedlanding api_token 无法解析为 Solana keypair（mTLS 用）: {}", e))?;
         let (cert, key) = new_dummy_x509_certificate(&keypair);
         let mut crypto = rustls::ClientConfig::builder()
             .dangerous()

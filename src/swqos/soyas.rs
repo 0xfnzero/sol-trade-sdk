@@ -103,12 +103,11 @@ pub struct SoyasClient {
 impl SoyasClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
-        let keypair = Keypair::try_from_base58_string(api_key.trim()).map_err(|e| {
-            anyhow::anyhow!(
-                "Soyas api_token 无法解析为 Solana keypair base58（QUIC mTLS 用）: {}",
-                e
-            )
-        })?;
+        let keypair_bytes = bs58::decode(api_key.trim())
+            .into_vec()
+            .map_err(|e| anyhow::anyhow!("Soyas api_token base58 解码失败（QUIC mTLS 用）: {}", e))?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice())
+            .map_err(|e| anyhow::anyhow!("Soyas api_token 无法解析为 Solana keypair（QUIC mTLS 用）: {}", e))?;
         let (cert, key) = generate_client_tls_credentials(&keypair)?;
         let mut crypto = rustls::ClientConfig::builder()
             .dangerous()
