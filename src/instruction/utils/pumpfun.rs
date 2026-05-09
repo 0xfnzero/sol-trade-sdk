@@ -545,7 +545,11 @@ pub async fn fetch_bonding_curve_account(
         return Err(anyhow!("Bonding curve not found"));
     }
 
-    let mut bonding_curve = BondingCurveAccount::try_from_slice(&account.data[8..])
+    // Use `deserialize` instead of `try_from_slice` so that extra trailing bytes
+    // (from on-chain schema additions like new fields) are silently ignored.
+    // `try_from_slice` requires the entire slice to be consumed, causing
+    // "Not all bytes read" when the account has been extended.
+    let mut bonding_curve = BondingCurveAccount::deserialize(&mut &account.data[8..])
         .map_err(|e| anyhow::anyhow!("Failed to decode bonding curve account: {}", e))?;
     bonding_curve.account = bonding_curve_pda;
 
