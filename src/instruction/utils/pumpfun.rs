@@ -752,4 +752,13 @@ mod tests {
             m.pubkey
         );
     }
+
+    #[test]
+    fn pump_fee_meta_uses_observed_standard_fee_for_standard_ix() {
+        let fee = global_constants::PUMPFUN_AMM_FEE_7;
+        let m = pump_fun_fee_recipient_meta(fee, false);
+        assert_eq!(m.pubkey, fee);
+        assert!(m.is_writable);
+        assert!(!m.is_signer);
+    }
 }

@@ -57,7 +57,7 @@ Pump 校验 `creator_vault` 必须满足程序的 **PDAs seeds**（与 bonding c
 |------|------|
 | **优先事件** | 使用 gRPC / 解析器里的 **`tradeEvent.feeRecipient`** 或同笔 **create_v2 + buy** 观测到的 fee recipient。 |
 | **纠偏** | `PumpFunParams::from_trade` 会对 `mayhem_mode` 与 `fee_recipient` 做池一致性纠偏；发单前若事件缺省，可走 `pump_fun_fee_recipient_meta`（按 `is_mayhem_mode` 从静态池选）。 |
-| **提交前清空** | 若你明确希望与 npm / 官方 SDK 一致的「按池随机」，可在业务层 **`fee_recipient = default`**，由 builder 再走静态池（与 README 中的 Cashback/Mayhem 说明一致）。 |
+| **提交前保留观测值** | 不要无条件把已观测的 `fee_recipient` 清成 default；否则会退回 SDK 内置静态池，静态池若落后于主网 Global 授权，仍可能触发 6000。只有缺少观测值时才让 builder 兜底。 |
 
 ---
 
