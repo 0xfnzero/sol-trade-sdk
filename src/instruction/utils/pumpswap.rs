@@ -6,9 +6,14 @@ use crate::{
     instruction::utils::pumpswap_types::{pool_decode, Pool},
 };
 use anyhow::anyhow;
+use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use rand::seq::IndexedRandom;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tracing::warn;
 
 // Pool account sizes moved to find_by_base_mint/find_by_quote_mint (POOL_DATA_LEN_SPL, POOL_DATA_LEN_T22)
 
@@ -175,22 +180,180 @@ pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_QUOTE_IN_DISCRIMINATOR: [u8; 8] = [198, 46, 21, 82, 180, 217, 232, 112];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 
+const PUMPSWAP_GLOBAL_CONFIG_TTL: Duration = Duration::from_secs(90);
+const PUMPSWAP_GLOBAL_CONFIG_RPC_TIMEOUT: Duration = Duration::from_millis(180);
+
+const PUBKEY_LEN: usize = 32;
+const U64_LEN: usize = 8;
+const U8_LEN: usize = 1;
+const BOOL_LEN: usize = 1;
+const GLOBAL_CONFIG_DISCRIMINATOR_LEN: usize = 8;
+
+#[derive(Clone, Debug)]
+pub struct GlobalConfig {
+    pub protocol_fee_recipients: [Pubkey; 8],
+    pub reserved_fee_recipient: Pubkey,
+    pub reserved_fee_recipients: [Pubkey; 7],
+    pub buyback_fee_recipients: [Pubkey; 8],
+}
+
+#[derive(Clone)]
+struct CachedGlobalConfig {
+    fetched_at: Instant,
+    config: GlobalConfig,
+}
+
+static GLOBAL_CONFIG_CACHE: Lazy<RwLock<Option<CachedGlobalConfig>>> =
+    Lazy::new(|| RwLock::new(None));
+
+fn read_pubkey(data: &[u8], offset: usize) -> Option<Pubkey> {
+    let bytes = data.get(offset..offset + PUBKEY_LEN)?;
+    Some(Pubkey::new_from_array(bytes.try_into().ok()?))
+}
+
+fn read_pubkey_array<const N: usize>(data: &[u8], offset: usize) -> Option<[Pubkey; N]> {
+    let mut keys = [Pubkey::default(); N];
+    for (i, key) in keys.iter_mut().enumerate() {
+        *key = read_pubkey(data, offset + i * PUBKEY_LEN)?;
+    }
+    Some(keys)
+}
+
+fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
+    let mut offset = GLOBAL_CONFIG_DISCRIMINATOR_LEN;
+    offset += PUBKEY_LEN; // admin
+    offset += U64_LEN * 2; // lp_fee_basis_points + protocol_fee_basis_points
+    offset += U8_LEN; // disable_flags
+
+    let protocol_fee_recipients = read_pubkey_array::<8>(data, offset)?;
+    offset += PUBKEY_LEN * 8;
+    offset += U64_LEN; // coin_creator_fee_basis_points
+    offset += PUBKEY_LEN; // admin_set_coin_creator_authority
+    offset += PUBKEY_LEN; // whitelist_pda
+
+    let reserved_fee_recipient = read_pubkey(data, offset)?;
+    offset += PUBKEY_LEN;
+    offset += BOOL_LEN; // mayhem_mode_enabled
+
+    let reserved_fee_recipients = read_pubkey_array::<7>(data, offset)?;
+    offset += PUBKEY_LEN * 7;
+    offset += BOOL_LEN; // is_cashback_enabled
+
+    let buyback_fee_recipients = read_pubkey_array::<8>(data, offset)?;
+
+    Some(GlobalConfig {
+        protocol_fee_recipients,
+        reserved_fee_recipient,
+        reserved_fee_recipients,
+        buyback_fee_recipients,
+    })
+}
+
+async fn refresh_global_config_once(rpc: &SolanaRpcClient) -> Option<GlobalConfig> {
+    let account = match tokio::time::timeout(
+        PUMPSWAP_GLOBAL_CONFIG_RPC_TIMEOUT,
+        rpc.get_account(&accounts::GLOBAL_ACCOUNT),
+    )
+    .await
+    {
+        Ok(Ok(account)) => account,
+        Ok(Err(e)) => {
+            warn!(target: "pumpswap_global_config", "PumpSwap GlobalConfig 读取失败: {}", e);
+            return None;
+        }
+        Err(_) => {
+            warn!(
+                target: "pumpswap_global_config",
+                timeout_ms = PUMPSWAP_GLOBAL_CONFIG_RPC_TIMEOUT.as_millis(),
+                "PumpSwap GlobalConfig 读取超时"
+            );
+            return None;
+        }
+    };
+
+    let Some(config) = decode_global_config(&account.data) else {
+        warn!(
+            target: "pumpswap_global_config",
+            data_len = account.data.len(),
+            "PumpSwap GlobalConfig 解析失败"
+        );
+        return None;
+    };
+
+    *GLOBAL_CONFIG_CACHE.write() =
+        Some(CachedGlobalConfig { fetched_at: Instant::now(), config: config.clone() });
+    Some(config)
+}
+
+pub async fn warm_pumpswap_global_config(rpc: Option<&Arc<SolanaRpcClient>>) {
+    let Some(rpc) = rpc else {
+        return;
+    };
+    let stale = GLOBAL_CONFIG_CACHE
+        .read()
+        .as_ref()
+        .map(|c| c.fetched_at.elapsed() > PUMPSWAP_GLOBAL_CONFIG_TTL)
+        .unwrap_or(true);
+    if stale {
+        let _ = refresh_global_config_once(rpc.as_ref()).await;
+    }
+}
+
+fn cached_global_config() -> Option<GlobalConfig> {
+    let guard = GLOBAL_CONFIG_CACHE.read();
+    let cached = guard.as_ref()?;
+    (cached.fetched_at.elapsed() <= PUMPSWAP_GLOBAL_CONFIG_TTL).then(|| cached.config.clone())
+}
+
+fn choose_nonzero(keys: &[Pubkey]) -> Option<Pubkey> {
+    let mut valid = [Pubkey::default(); 8];
+    let mut len = 0;
+    for key in keys.iter().copied() {
+        if key == Pubkey::default() || len == valid.len() {
+            continue;
+        }
+        valid[len] = key;
+        len += 1;
+    }
+    valid[..len].choose(&mut rand::rng()).copied()
+}
+
 /// Returns a random Mayhem fee recipient and its AccountMeta (pump-public-docs: use any one randomly).
 #[inline]
 pub fn get_mayhem_fee_recipient_random() -> (Pubkey, AccountMeta) {
-    let recipient = *accounts::MAYHEM_FEE_RECIPIENTS
-        .choose(&mut rand::rng())
-        .unwrap_or(&accounts::MAYHEM_FEE_RECIPIENTS[0]);
+    let recipient = cached_global_config()
+        .and_then(|config| {
+            let mut pool = [Pubkey::default(); 8];
+            pool[0] = config.reserved_fee_recipient;
+            pool[1..].copy_from_slice(&config.reserved_fee_recipients);
+            choose_nonzero(&pool)
+        })
+        .unwrap_or_else(|| {
+            *accounts::MAYHEM_FEE_RECIPIENTS
+                .choose(&mut rand::rng())
+                .unwrap_or(&accounts::MAYHEM_FEE_RECIPIENTS[0])
+        });
     let meta = AccountMeta { pubkey: recipient, is_signer: false, is_writable: false };
     (recipient, meta)
+}
+
+#[inline]
+pub fn get_protocol_fee_recipient_random() -> Pubkey {
+    cached_global_config()
+        .and_then(|config| choose_nonzero(&config.protocol_fee_recipients))
+        .unwrap_or(accounts::FEE_RECIPIENT)
 }
 
 /// Random entry from [`accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS`] (readonly; paired with [`fee_recipient_ata`] as last account).
 #[inline]
 pub fn get_protocol_extra_fee_recipient_random() -> Pubkey {
-    *accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS
-        .choose(&mut rand::rng())
-        .unwrap_or(&accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS[0])
+    cached_global_config()
+        .and_then(|config| choose_nonzero(&config.buyback_fee_recipients))
+        .unwrap_or_else(|| {
+            *accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS
+                .choose(&mut rand::rng())
+                .unwrap_or(&accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS[0])
+        })
 }
 
 /// Pool v2 PDA (seeds: ["pool-v2", base_mint]). Required at end of buy/sell/buy_exact_quote_in accounts.
@@ -331,23 +494,21 @@ async fn get_program_accounts_both_sizes(
     memcmp_offset: usize,
     mint: &Pubkey,
 ) -> Result<Vec<(Pubkey, solana_sdk::account::Account)>, anyhow::Error> {
-    let make_config = |data_size: u64| {
-        solana_rpc_client_api::config::RpcProgramAccountsConfig {
-            filters: Some(vec![
-                solana_rpc_client_api::filter::RpcFilterType::DataSize(data_size),
-                solana_rpc_client_api::filter::RpcFilterType::Memcmp(
-                    solana_client::rpc_filter::Memcmp::new_base58_encoded(memcmp_offset, mint.as_ref()),
-                ),
-            ]),
-            account_config: solana_rpc_client_api::config::RpcAccountInfoConfig {
-                encoding: Some(UiAccountEncoding::Base64),
-                data_slice: None,
-                commitment: None,
-                min_context_slot: None,
-            },
-            with_context: None,
-            sort_results: None,
-        }
+    let make_config = |data_size: u64| solana_rpc_client_api::config::RpcProgramAccountsConfig {
+        filters: Some(vec![
+            solana_rpc_client_api::filter::RpcFilterType::DataSize(data_size),
+            solana_rpc_client_api::filter::RpcFilterType::Memcmp(
+                solana_client::rpc_filter::Memcmp::new_base58_encoded(memcmp_offset, mint.as_ref()),
+            ),
+        ]),
+        account_config: solana_rpc_client_api::config::RpcAccountInfoConfig {
+            encoding: Some(UiAccountEncoding::Base64),
+            data_slice: None,
+            commitment: None,
+            min_context_slot: None,
+        },
+        with_context: None,
+        sort_results: None,
     };
     let program_id = accounts::AMM_PROGRAM;
     #[allow(deprecated)]
@@ -360,7 +521,9 @@ async fn get_program_accounts_both_sizes(
     Ok(all)
 }
 
-fn decode_pool_accounts(accounts: Vec<(Pubkey, solana_sdk::account::Account)>) -> Vec<(Pubkey, Pool)> {
+fn decode_pool_accounts(
+    accounts: Vec<(Pubkey, solana_sdk::account::Account)>,
+) -> Vec<(Pubkey, Pool)> {
     accounts
         .into_iter()
         .filter_map(|(addr, acc)| {
@@ -439,12 +602,16 @@ pub async fn find_by_mint(
     }
 
     // 3. Fallback: getProgramAccounts by base_mint / quote_mint (with 3s timeout to avoid blocking)
-    match tokio::time::timeout(std::time::Duration::from_secs(3), find_by_base_mint(rpc, mint)).await {
+    match tokio::time::timeout(std::time::Duration::from_secs(3), find_by_base_mint(rpc, mint))
+        .await
+    {
         Ok(Ok((address, pool))) => return Ok((address, pool)),
         Ok(Err(e)) => diag.push(format!("getProgramAccounts(base_mint): {}", e)),
         Err(_) => diag.push("getProgramAccounts(base_mint): timed out (3s)".into()),
     }
-    match tokio::time::timeout(std::time::Duration::from_secs(3), find_by_quote_mint(rpc, mint)).await {
+    match tokio::time::timeout(std::time::Duration::from_secs(3), find_by_quote_mint(rpc, mint))
+        .await
+    {
         Ok(Ok((address, pool))) => return Ok((address, pool)),
         Ok(Err(e)) => diag.push(format!("getProgramAccounts(quote_mint): {}", e)),
         Err(_) => diag.push("getProgramAccounts(quote_mint): timed out (3s)".into()),
@@ -452,11 +619,7 @@ pub async fn find_by_mint(
 
     let diag_str = diag.join("; ");
     eprintln!("[find_by_mint] {} failed: {}", mint, diag_str);
-    Err(anyhow!(
-        "No pool found for mint {}. diag: {}",
-        mint,
-        diag_str
-    ))
+    Err(anyhow!("No pool found for mint {}. diag: {}", mint, diag_str))
 }
 
 pub async fn get_token_balances(

@@ -6,8 +6,9 @@ use crate::{
     },
     instruction::utils::pumpswap::{
         accounts, fee_recipient_ata, get_mayhem_fee_recipient_random, get_pool_v2_pda,
-        get_protocol_extra_fee_recipient_random, get_user_volume_accumulator_pda,
-        get_user_volume_accumulator_quote_ata, get_user_volume_accumulator_wsol_ata,
+        get_protocol_extra_fee_recipient_random, get_protocol_fee_recipient_random,
+        get_user_volume_accumulator_pda, get_user_volume_accumulator_quote_ata,
+        get_user_volume_accumulator_wsol_ata, warm_pumpswap_global_config,
     },
     trading::{
         common::wsol_manager,
@@ -31,6 +32,7 @@ pub struct PumpSwapInstructionBuilder;
 #[async_trait::async_trait]
 impl InstructionBuilder for PumpSwapInstructionBuilder {
     async fn build_buy_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
+        warm_pumpswap_global_config(params.rpc.as_ref()).await;
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -131,13 +133,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
         } else {
-            (accounts::FEE_RECIPIENT, accounts::FEE_RECIPIENT_META)
+            let recipient = get_protocol_fee_recipient_random();
+            (recipient, AccountMeta::new_readonly(recipient, false))
         };
-        let fee_recipient_ata = if is_mayhem_mode {
-            fee_recipient_ata(fee_recipient, crate::constants::WSOL_TOKEN_ACCOUNT)
-        } else {
-            fee_recipient_ata(fee_recipient, quote_mint)
-        };
+        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
 
         // ========================================
         // Build instructions
@@ -148,13 +147,12 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             // Determine wrap amount based on instruction type:
             // - buy_exact_quote_in: program spends exactly input_amount, wrap input_amount
             // - buy: program may spend up to max_quote, wrap max_quote
-            let wrap_amount = if quote_is_wsol_or_usdc
-                && params.use_exact_sol_amount.unwrap_or(true)
-            {
-                params.input_amount.unwrap_or(0)
-            } else {
-                sol_amount
-            };
+            let wrap_amount =
+                if quote_is_wsol_or_usdc && params.use_exact_sol_amount.unwrap_or(true) {
+                    params.input_amount.unwrap_or(0)
+                } else {
+                    sol_amount
+                };
             instructions
                 .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), wrap_amount));
         }
@@ -261,6 +259,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
     }
 
     async fn build_sell_instructions(&self, params: &SwapParams) -> Result<Vec<Instruction>> {
+        warm_pumpswap_global_config(params.rpc.as_ref()).await;
         // ========================================
         // Parameter validation and basic data preparation
         // ========================================
@@ -346,13 +345,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
         } else {
-            (accounts::FEE_RECIPIENT, accounts::FEE_RECIPIENT_META)
+            let recipient = get_protocol_fee_recipient_random();
+            (recipient, AccountMeta::new_readonly(recipient, false))
         };
-        let fee_recipient_ata = if is_mayhem_mode {
-            fee_recipient_ata(fee_recipient, crate::constants::WSOL_TOKEN_ACCOUNT)
-        } else {
-            fee_recipient_ata(fee_recipient, quote_mint)
-        };
+        let fee_recipient_ata = fee_recipient_ata(fee_recipient, quote_mint);
 
         let user_base_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(

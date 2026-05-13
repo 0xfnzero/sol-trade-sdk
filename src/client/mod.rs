@@ -248,6 +248,8 @@ impl TradingInfrastructure {
             (cap, Arc::new(ids))
         };
 
+        crate::instruction::utils::pumpswap::warm_pumpswap_global_config(Some(&rpc)).await;
+
         Self {
             rpc,
             swqos_clients: Arc::new(swqos_clients),
