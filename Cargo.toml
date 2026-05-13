@@ -8,7 +8,7 @@ authors = [
     "wei <1415121722@qq.com>",
 ]
 repository = "https://github.com/0xfnzero/sol-trade-sdk"
-description = "Rust SDK to interact with the dex trade Solana program."
+description = "A high-performance Rust SDK for Solana DEX trading."
 license = "MIT"
 keywords = ["solana", "memecoins", "pumpfun", "pumpswap", "raydium"]
 readme = "README.md"
