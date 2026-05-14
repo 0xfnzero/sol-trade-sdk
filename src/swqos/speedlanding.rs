@@ -48,11 +48,12 @@ impl SpeedlandingClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         // Speedlanding QUIC：与官方一致使用 `solana_tls_utils::new_dummy_x509_certificate`（Ed25519 dummy cert）+ SNI `speed-landing`。
-        let keypair_bytes = bs58::decode(api_key.trim())
-            .into_vec()
-            .map_err(|e| anyhow::anyhow!("Speedlanding api_token base58 解码失败（mTLS 用）: {}", e))?;
-        let keypair = Keypair::try_from(keypair_bytes.as_slice())
-            .map_err(|e| anyhow::anyhow!("Speedlanding api_token 无法解析为 Solana keypair（mTLS 用）: {}", e))?;
+        let keypair_bytes = bs58::decode(api_key.trim()).into_vec().map_err(|e| {
+            anyhow::anyhow!("Speedlanding api_token base58 解码失败（mTLS 用）: {}", e)
+        })?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice()).map_err(|e| {
+            anyhow::anyhow!("Speedlanding api_token 无法解析为 Solana keypair（mTLS 用）: {}", e)
+        })?;
         let (cert, key) = new_dummy_x509_certificate(&keypair);
         let mut crypto = rustls::ClientConfig::builder()
             .dangerous()
@@ -111,11 +112,8 @@ impl SpeedlandingClient {
         let _guard = self.reconnect.lock().await;
         let current = self.connection.load_full();
         if current.close_reason().is_some() {
-            let connecting = self.endpoint.connect_with(
-                self.client_config.clone(),
-                self.addr,
-                SPEED_SERVER,
-            )?;
+            let connecting =
+                self.endpoint.connect_with(self.client_config.clone(), self.addr, SPEED_SERVER)?;
             let connection = timeout(CONNECT_TIMEOUT, connecting)
                 .await
                 .context("Speedlanding QUIC reconnect timeout")?
@@ -169,7 +167,11 @@ impl SwqosClientTrait for SpeedlandingClient {
         match send_result.context("Speedlanding QUIC send timeout") {
             Ok(Ok(())) => {
                 // 提交结果与「详细耗时/SDK 开关」无关，便于确认当前通道确实在执行
-                crate::common::sdk_log::log_swqos_submitted("Speedlanding", trade_type, start_time.elapsed());
+                crate::common::sdk_log::log_swqos_submitted(
+                    "Speedlanding",
+                    trade_type,
+                    start_time.elapsed(),
+                );
             }
             Ok(Err(e)) => {
                 crate::common::sdk_log::log_swqos_submission_failed(

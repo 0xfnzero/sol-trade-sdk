@@ -14,6 +14,7 @@
 use anyhow::{anyhow, Result};
 use crossbeam_queue::ArrayQueue;
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 use solana_hash::Hash;
 use solana_message::AddressLookupTableAccount;
 use solana_sdk::{
@@ -21,7 +22,6 @@ use solana_sdk::{
 };
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::{
     str::FromStr,
@@ -187,11 +187,7 @@ fn ensure_dedicated_pool(
         .map(|all_ids| {
             sender_thread_cores
                 .map(|indices| {
-                    indices
-                        .iter()
-                        .take(n)
-                        .filter_map(|&i| all_ids.get(i).cloned())
-                        .collect()
+                    indices.iter().take(n).filter_map(|&i| all_ids.get(i).cloned()).collect()
                 })
                 .unwrap_or_else(|| all_ids.into_iter().take(n).collect())
         })
@@ -416,8 +412,7 @@ impl ResultCollector {
         }
         // 「不等待链上确认」仍会等各 SWQOS 的 HTTP 回包；主循环在收齐或触达 `timeout_secs` 后结束。
         // 若主窗口到时仍有未回包通道，晚到的 TaskResult 若立刻 drain 会丢签名——仅在该路径上拉长 grace。
-        let all_submitted =
-            self.completed_count.load(Ordering::Acquire) >= self.total_tasks;
+        let all_submitted = self.completed_count.load(Ordering::Acquire) >= self.total_tasks;
         if all_submitted {
             // 全数已登记：仅留极短 settle，避免极端情况下最后一笔与计数可见性竞态。
             tokio::time::sleep(Duration::from_millis(35)).await;
@@ -472,11 +467,8 @@ pub async fn execute_parallel(
     let instructions = Arc::new(instructions);
 
     // One get_strategies call per batch (avoid N calls in loop).
-    let gas_fee_configs = gas_fee_strategy.get_strategies(if is_buy {
-        TradeType::Buy
-    } else {
-        TradeType::Sell
-    });
+    let gas_fee_configs =
+        gas_fee_strategy.get_strategies(if is_buy { TradeType::Buy } else { TradeType::Sell });
     let mut task_configs = Vec::with_capacity(swqos_clients.len() * 3);
     for (i, swqos_client) in swqos_clients.iter().enumerate() {
         if !with_tip && !matches!(swqos_client.get_swqos_type(), SwqosType::Default) {
@@ -589,18 +581,12 @@ pub async fn execute_parallel(
     if !wait_transaction_confirmed {
         // submit_timeout_secs 为「等齐各 SWQOS HTTP 应答」的上限；收齐后会立刻进入短 settle，不会睡满整段秒数。
         // `wait_for_all_submitted` 仅在未收齐时追加长 grace，避免过早 drain 丢晚到签名。
-        let ret = collector
-            .wait_for_all_submitted(submit_timeout_secs)
-            .await
-            .unwrap_or((
-                false,
-                vec![],
-                Some(anyhow!(
-                    "No SWQOS result within grace window (primary {}s)",
-                    submit_timeout_secs
-                )),
-                vec![],
-            ));
+        let ret = collector.wait_for_all_submitted(submit_timeout_secs).await.unwrap_or((
+            false,
+            vec![],
+            Some(anyhow!("No SWQOS result within grace window (primary {}s)", submit_timeout_secs)),
+            vec![],
+        ));
         let (success, signatures, last_error, submit_timings) = ret;
         return Ok((success, signatures, last_error, submit_timings));
     }

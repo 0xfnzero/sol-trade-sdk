@@ -30,17 +30,16 @@ use crate::{
     constants::swqos::{
         SWQOS_ENDPOINTS_ASTRALANE_BINARY, SWQOS_ENDPOINTS_ASTRALANE_PLAIN,
         SWQOS_ENDPOINTS_ASTRALANE_QUIC, SWQOS_ENDPOINTS_ASTRALANE_QUIC_MEV,
-        SWQOS_ENDPOINTS_BLOCKRAZOR,
-        SWQOS_ENDPOINTS_BLOCKRAZOR_GRPC, SWQOS_ENDPOINTS_BLOX, SWQOS_ENDPOINTS_FLASHBLOCK,
-        SWQOS_ENDPOINTS_HELIUS, SWQOS_ENDPOINTS_JITO, SWQOS_ENDPOINTS_NEXTBLOCK,
-        SWQOS_ENDPOINTS_NODE1, SWQOS_ENDPOINTS_NODE1_QUIC, SWQOS_ENDPOINTS_SOYAS,
-        SWQOS_ENDPOINTS_SPEEDLANDING, SWQOS_ENDPOINTS_STELLIUM, SWQOS_ENDPOINTS_TEMPORAL,
-        SWQOS_ENDPOINTS_ZERO_SLOT, SWQOS_MIN_TIP_ASTRALANE, SWQOS_MIN_TIP_BLOCKRAZOR,
-        SWQOS_MIN_TIP_BLOXROUTE, SWQOS_MIN_TIP_DEFAULT, SWQOS_MIN_TIP_FLASHBLOCK,
-        SWQOS_MIN_TIP_HELIUS, SWQOS_MIN_TIP_JITO, SWQOS_MIN_TIP_LIGHTSPEED,
-        SWQOS_MIN_TIP_NEXTBLOCK, SWQOS_MIN_TIP_NODE1, SWQOS_MIN_TIP_SOYAS,
-        SWQOS_MIN_TIP_SPEEDLANDING, SWQOS_MIN_TIP_STELLIUM, SWQOS_MIN_TIP_TEMPORAL,
-        SWQOS_MIN_TIP_ZERO_SLOT,
+        SWQOS_ENDPOINTS_BLOCKRAZOR, SWQOS_ENDPOINTS_BLOCKRAZOR_GRPC, SWQOS_ENDPOINTS_BLOX,
+        SWQOS_ENDPOINTS_FLASHBLOCK, SWQOS_ENDPOINTS_HELIUS, SWQOS_ENDPOINTS_JITO,
+        SWQOS_ENDPOINTS_NEXTBLOCK, SWQOS_ENDPOINTS_NODE1, SWQOS_ENDPOINTS_NODE1_QUIC,
+        SWQOS_ENDPOINTS_SOYAS, SWQOS_ENDPOINTS_SPEEDLANDING, SWQOS_ENDPOINTS_STELLIUM,
+        SWQOS_ENDPOINTS_TEMPORAL, SWQOS_ENDPOINTS_ZERO_SLOT, SWQOS_MIN_TIP_ASTRALANE,
+        SWQOS_MIN_TIP_BLOCKRAZOR, SWQOS_MIN_TIP_BLOXROUTE, SWQOS_MIN_TIP_DEFAULT,
+        SWQOS_MIN_TIP_FLASHBLOCK, SWQOS_MIN_TIP_HELIUS, SWQOS_MIN_TIP_JITO,
+        SWQOS_MIN_TIP_LIGHTSPEED, SWQOS_MIN_TIP_NEXTBLOCK, SWQOS_MIN_TIP_NODE1,
+        SWQOS_MIN_TIP_SOYAS, SWQOS_MIN_TIP_SPEEDLANDING, SWQOS_MIN_TIP_STELLIUM,
+        SWQOS_MIN_TIP_TEMPORAL, SWQOS_MIN_TIP_ZERO_SLOT,
     },
     swqos::{
         astralane::AstralaneClient, blockrazor::BlockRazorClient, bloxroute::BloxrouteClient,
@@ -411,15 +410,30 @@ impl SwqosConfig {
             SwqosConfig::BlockRazor(auth_token, region, url, transport) => {
                 // BlockRazor: transport=None 或 transport=Grpc 时使用 gRPC，transport=Http 时使用 HTTP
                 let use_http = transport.map_or(false, |t| t == SwqosTransport::Http);
-                let endpoint = SwqosConfig::get_endpoint_with_transport(SwqosType::BlockRazor, region, url, transport, mev_protection);
+                let endpoint = SwqosConfig::get_endpoint_with_transport(
+                    SwqosType::BlockRazor,
+                    region,
+                    url,
+                    transport,
+                    mev_protection,
+                );
                 if use_http {
-                    let blockrazor_client =
-                        BlockRazorClient::new_http(rpc_url.clone(), endpoint.to_string(), auth_token, mev_protection);
+                    let blockrazor_client = BlockRazorClient::new_http(
+                        rpc_url.clone(),
+                        endpoint.to_string(),
+                        auth_token,
+                        mev_protection,
+                    );
                     Ok(Arc::new(blockrazor_client))
                 } else {
                     // 使用 gRPC 模式（默认或用户明确指定了 gRPC）
-                    let blockrazor_client =
-                        BlockRazorClient::new_grpc(rpc_url.clone(), endpoint.to_string(), auth_token, mev_protection).await?;
+                    let blockrazor_client = BlockRazorClient::new_grpc(
+                        rpc_url.clone(),
+                        endpoint.to_string(),
+                        auth_token,
+                        mev_protection,
+                    )
+                    .await?;
                     Ok(Arc::new(blockrazor_client))
                 }
             }

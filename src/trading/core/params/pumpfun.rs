@@ -5,7 +5,6 @@ use crate::instruction::utils::pumpfun::reconcile_mayhem_mode_for_trade;
 use solana_sdk::pubkey::Pubkey;
 use std::sync::Arc;
 
-
 /// PumpFun protocol specific parameters
 /// Configuration parameters specific to PumpFun trading protocol.
 ///
@@ -96,16 +95,19 @@ impl PumpFunParams {
             is_mayhem_mode,
             is_cashback_coin,
         );
-        let creator_vault_resolved = crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
-            &bonding_curve_account.creator,
-            creator_vault,
-            &mint,
-            None,
-        )
-        .or_else(|| {
-            crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve_account.creator)
-        })
-        .unwrap_or_default();
+        let creator_vault_resolved =
+            crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
+                &bonding_curve_account.creator,
+                creator_vault,
+                &mint,
+                None,
+            )
+            .or_else(|| {
+                crate::instruction::utils::pumpfun::get_creator_vault_pda(
+                    &bonding_curve_account.creator,
+                )
+            })
+            .unwrap_or_default();
         Self {
             bonding_curve: Arc::new(bonding_curve_account),
             associated_bonding_curve: associated_bonding_curve,
@@ -154,16 +156,17 @@ impl PumpFunParams {
             is_mayhem_mode,
             is_cashback_coin,
         );
-        let creator_vault_resolved = crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
-            &bonding_curve.creator,
-            creator_vault,
-            &mint,
-            None,
-        )
-        .or_else(|| {
-            crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator)
-        })
-        .unwrap_or_default();
+        let creator_vault_resolved =
+            crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
+                &bonding_curve.creator,
+                creator_vault,
+                &mint,
+                None,
+            )
+            .or_else(|| {
+                crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator)
+            })
+            .unwrap_or_default();
         Self {
             bonding_curve: Arc::new(bonding_curve),
             associated_bonding_curve: associated_bonding_curve,
@@ -205,16 +208,21 @@ impl PumpFunParams {
             &mint_account.owner,
         );
         let fee_sharing_creator_vault_if_active =
-            crate::instruction::utils::pumpfun::fetch_fee_sharing_creator_vault_if_active(rpc, mint)
-                .await?;
-        let creator_vault = crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
-            &bonding_curve.creator,
-            Pubkey::default(),
-            mint,
-            fee_sharing_creator_vault_if_active,
-        )
-        .or_else(|| crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator))
-        .unwrap_or_default();
+            crate::instruction::utils::pumpfun::fetch_fee_sharing_creator_vault_if_active(
+                rpc, mint,
+            )
+            .await?;
+        let creator_vault =
+            crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
+                &bonding_curve.creator,
+                Pubkey::default(),
+                mint,
+                fee_sharing_creator_vault_if_active,
+            )
+            .or_else(|| {
+                crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator)
+            })
+            .unwrap_or_default();
         Ok(Self {
             bonding_curve: Arc::new(bonding_curve),
             associated_bonding_curve: associated_bonding_curve,
@@ -246,8 +254,10 @@ impl PumpFunParams {
         mint: &Pubkey,
     ) -> Result<Self, anyhow::Error> {
         self.fee_sharing_creator_vault_if_active =
-            crate::instruction::utils::pumpfun::fetch_fee_sharing_creator_vault_if_active(rpc, mint)
-                .await?;
+            crate::instruction::utils::pumpfun::fetch_fee_sharing_creator_vault_if_active(
+                rpc, mint,
+            )
+            .await?;
         let c = self.effective_creator_for_trade();
         if let Some(v) =
             crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(

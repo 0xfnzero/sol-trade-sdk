@@ -12,172 +12,165 @@ use solana_sdk::{
 };
 use std::sync::Arc;
 
-
 // --- seeds -------------------------------------------------------------
 
 pub mod seeds {
 
-/// Seed for bonding curve PDAs (`["bonding-curve", mint]`).
-pub const BONDING_CURVE_SEED: &[u8] = b"bonding-curve";
-/// Seed for bonding curve v2 PDA (`["bonding-curve-v2", mint]`).
-pub const BONDING_CURVE_V2_SEED: &[u8] = b"bonding-curve-v2";
-/// Creator vault PDA seeds prefix (`["creator-vault", authority]`).
-pub const CREATOR_VAULT_SEED: &[u8] = b"creator-vault";
-/// Metadata PDA seeds prefix.
-pub const METADATA_SEED: &[u8] = b"metadata";
-/// User volume accumulator for cashback / bonding-curve UX.
-pub const USER_VOLUME_ACCUMULATOR_SEED: &[u8] = b"user_volume_accumulator";
-/// Global volume accumulator.
-pub const GLOBAL_VOLUME_ACCUMULATOR_SEED: &[u8] = b"global_volume_accumulator";
-pub const FEE_CONFIG_SEED: &[u8] = b"fee_config";
-/// `feeSharingConfig` PDA under pump-fees (`feeSharingConfigPda`).
-pub const SHARING_CONFIG_SEED: &[u8] = b"sharing-config";
+    /// Seed for bonding curve PDAs (`["bonding-curve", mint]`).
+    pub const BONDING_CURVE_SEED: &[u8] = b"bonding-curve";
+    /// Seed for bonding curve v2 PDA (`["bonding-curve-v2", mint]`).
+    pub const BONDING_CURVE_V2_SEED: &[u8] = b"bonding-curve-v2";
+    /// Creator vault PDA seeds prefix (`["creator-vault", authority]`).
+    pub const CREATOR_VAULT_SEED: &[u8] = b"creator-vault";
+    /// Metadata PDA seeds prefix.
+    pub const METADATA_SEED: &[u8] = b"metadata";
+    /// User volume accumulator for cashback / bonding-curve UX.
+    pub const USER_VOLUME_ACCUMULATOR_SEED: &[u8] = b"user_volume_accumulator";
+    /// Global volume accumulator.
+    pub const GLOBAL_VOLUME_ACCUMULATOR_SEED: &[u8] = b"global_volume_accumulator";
+    pub const FEE_CONFIG_SEED: &[u8] = b"fee_config";
+    /// `feeSharingConfig` PDA under pump-fees (`feeSharingConfigPda`).
+    pub const SHARING_CONFIG_SEED: &[u8] = b"sharing-config";
 }
-
 
 pub mod global_constants {
 
+    use solana_sdk::{pubkey, pubkey::Pubkey};
 
-use solana_sdk::{pubkey, pubkey::Pubkey};
+    pub const INITIAL_VIRTUAL_TOKEN_RESERVES: u64 = 1_073_000_000_000_000;
+    pub const INITIAL_VIRTUAL_SOL_RESERVES: u64 = 30_000_000_000;
+    pub const INITIAL_REAL_TOKEN_RESERVES: u64 = 793_100_000_000_000;
+    pub const TOKEN_TOTAL_SUPPLY: u64 = 1_000_000_000_000_000;
+    pub const FEE_BASIS_POINTS: u64 = 95;
+    pub const ENABLE_MIGRATE: bool = false;
+    pub const POOL_MIGRATION_FEE: u64 = 15_000_001;
+    pub const CREATOR_FEE: u64 = 30;
+    pub const SCALE: u64 = 1_000_000;
+    pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
+    pub const COMPLETION_LAMPORTS: u64 = 85 * LAMPORTS_PER_SOL;
 
-pub const INITIAL_VIRTUAL_TOKEN_RESERVES: u64 = 1_073_000_000_000_000;
-pub const INITIAL_VIRTUAL_SOL_RESERVES: u64 = 30_000_000_000;
-pub const INITIAL_REAL_TOKEN_RESERVES: u64 = 793_100_000_000_000;
-pub const TOKEN_TOTAL_SUPPLY: u64 = 1_000_000_000_000_000;
-pub const FEE_BASIS_POINTS: u64 = 95;
-pub const ENABLE_MIGRATE: bool = false;
-pub const POOL_MIGRATION_FEE: u64 = 15_000_001;
-pub const CREATOR_FEE: u64 = 30;
-pub const SCALE: u64 = 1_000_000;
-pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
-pub const COMPLETION_LAMPORTS: u64 = 85 * LAMPORTS_PER_SOL;
+    pub const FEE_RECIPIENT: Pubkey = pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
+    pub const FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: FEE_RECIPIENT,
+            is_signer: false,
+            is_writable: true,
+        };
 
-pub const FEE_RECIPIENT: Pubkey = pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
-pub const FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: FEE_RECIPIENT,
-        is_signer: false,
-        is_writable: true,
-    };
+    pub const MAYHEM_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS"),
+        pubkey!("4budycTjhs9fD6xw62VBducVTNgMgJJ5BgtKq7mAZwn6"),
+        pubkey!("8SBKzEQU4nLSzcwF4a74F2iaUDQyTfjGndn6qUWBnrpR"),
+        pubkey!("4UQeTP1T39KZ9Sfxzo3WR5skgsaP6NZa87BAkuazLEKH"),
+        pubkey!("8sNeir4QsLsJdYpc9RZacohhK1Y5FLU3nC5LXgYB4aa6"),
+        pubkey!("Fh9HmeLNUMVCvejxCtCL2DbYaRyBFVJ5xrWkLnMH6fdk"),
+        pubkey!("463MEnMeGyJekNZFQSTUABBEbLnvMTALbT6ZmsxAbAdq"),
+        pubkey!("6AUH3WEHucYZyC61hqpqYUWVto5qA5hjHuNQ32GNnNxA"),
+    ];
+    pub const MAYHEM_FEE_RECIPIENT: Pubkey = MAYHEM_FEE_RECIPIENTS[0];
+    pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: MAYHEM_FEE_RECIPIENT,
+            is_signer: false,
+            is_writable: true,
+        };
 
-pub const MAYHEM_FEE_RECIPIENTS: [Pubkey; 8] = [
-    pubkey!("GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS"),
-    pubkey!("4budycTjhs9fD6xw62VBducVTNgMgJJ5BgtKq7mAZwn6"),
-    pubkey!("8SBKzEQU4nLSzcwF4a74F2iaUDQyTfjGndn6qUWBnrpR"),
-    pubkey!("4UQeTP1T39KZ9Sfxzo3WR5skgsaP6NZa87BAkuazLEKH"),
-    pubkey!("8sNeir4QsLsJdYpc9RZacohhK1Y5FLU3nC5LXgYB4aa6"),
-    pubkey!("Fh9HmeLNUMVCvejxCtCL2DbYaRyBFVJ5xrWkLnMH6fdk"),
-    pubkey!("463MEnMeGyJekNZFQSTUABBEbLnvMTALbT6ZmsxAbAdq"),
-    pubkey!("6AUH3WEHucYZyC61hqpqYUWVto5qA5hjHuNQ32GNnNxA"),
-];
-pub const MAYHEM_FEE_RECIPIENT: Pubkey = MAYHEM_FEE_RECIPIENTS[0];
-pub const MAYHEM_FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: MAYHEM_FEE_RECIPIENT,
-        is_signer: false,
-        is_writable: true,
-    };
+    pub const GLOBAL_ACCOUNT: Pubkey = pubkey!("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf");
+    pub const GLOBAL_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: GLOBAL_ACCOUNT,
+            is_signer: false,
+            is_writable: false,
+        };
 
-pub const GLOBAL_ACCOUNT: Pubkey = pubkey!("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf");
-pub const GLOBAL_ACCOUNT_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: GLOBAL_ACCOUNT,
-        is_signer: false,
-        is_writable: false,
-    };
+    pub const AUTHORITY: Pubkey = pubkey!("FFWtrEQ4B4PKQoVuHYzZq8FabGkVatYzDpEVHsK5rrhF");
+    pub const WITHDRAW_AUTHORITY: Pubkey = pubkey!("39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg");
 
-pub const AUTHORITY: Pubkey = pubkey!("FFWtrEQ4B4PKQoVuHYzZq8FabGkVatYzDpEVHsK5rrhF");
-pub const WITHDRAW_AUTHORITY: Pubkey = pubkey!("39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg");
+    pub const PUMPFUN_AMM_FEE_1: Pubkey = pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ");
+    pub const PUMPFUN_AMM_FEE_2: Pubkey = pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX");
+    pub const PUMPFUN_AMM_FEE_3: Pubkey = pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz");
+    pub const PUMPFUN_AMM_FEE_4: Pubkey = pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY");
+    pub const PUMPFUN_AMM_FEE_5: Pubkey = pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
+    pub const PUMPFUN_AMM_FEE_6: Pubkey = pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz");
+    pub const PUMPFUN_AMM_FEE_7: Pubkey = pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP");
 
-pub const PUMPFUN_AMM_FEE_1: Pubkey = pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ");
-pub const PUMPFUN_AMM_FEE_2: Pubkey = pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX");
-pub const PUMPFUN_AMM_FEE_3: Pubkey = pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz");
-pub const PUMPFUN_AMM_FEE_4: Pubkey = pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY");
-pub const PUMPFUN_AMM_FEE_5: Pubkey = pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
-pub const PUMPFUN_AMM_FEE_6: Pubkey = pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz");
-pub const PUMPFUN_AMM_FEE_7: Pubkey = pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP");
+    pub const PROTOCOL_EXTRA_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"),
+        pubkey!("9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"),
+        pubkey!("GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL"),
+        pubkey!("3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR"),
+        pubkey!("5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"),
+        pubkey!("EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL"),
+        pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
+        pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
+    ];
 
-pub const PROTOCOL_EXTRA_FEE_RECIPIENTS: [Pubkey; 8] = [
-    pubkey!("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"),
-    pubkey!("9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"),
-    pubkey!("GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL"),
-    pubkey!("3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR"),
-    pubkey!("5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"),
-    pubkey!("EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL"),
-    pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
-    pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
-];
-
-/// Buyback fee recipients (v2 account #9 in buy_v2/sell_v2).
-/// 对应官方 FEE_RECIPIENTS.md "Buyback (Applies to All)" 池，与主 fee_recipient 池互斥。
-pub const BUYBACK_FEE_RECIPIENTS: [Pubkey; 8] = [
-    pubkey!("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"),
-    pubkey!("9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"),
-    pubkey!("GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL"),
-    pubkey!("3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR"),
-    pubkey!("5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"),
-    pubkey!("EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL"),
-    pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
-    pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
-];
+    /// Buyback fee recipients (v2 account #9 in buy_v2/sell_v2).
+    /// 对应官方 FEE_RECIPIENTS.md "Buyback (Applies to All)" 池，与主 fee_recipient 池互斥。
+    pub const BUYBACK_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"),
+        pubkey!("9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"),
+        pubkey!("GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL"),
+        pubkey!("3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR"),
+        pubkey!("5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"),
+        pubkey!("EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL"),
+        pubkey!("5eHhjP8JaYkz83CWwvGU2uMUXefd3AazWGx4gpcuEEYD"),
+        pubkey!("A7hAgCzFw14fejgCp387JUJRMNyz4j89JKnhtKU8piqW"),
+    ];
 }
-
 
 pub mod accounts {
 
+    use solana_sdk::{pubkey, pubkey::Pubkey};
 
-use solana_sdk::{pubkey, pubkey::Pubkey};
+    pub const PUMPFUN: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+    pub const MPL_TOKEN_METADATA: Pubkey = pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+    pub const EVENT_AUTHORITY: Pubkey = pubkey!("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1");
+    pub const ASSOCIATED_TOKEN_PROGRAM: Pubkey =
+        pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    pub const AMM_PROGRAM: Pubkey = pubkey!("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8");
+    pub const FEE_PROGRAM: Pubkey = pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
+    pub const GLOBAL_VOLUME_ACCUMULATOR: Pubkey =
+        pubkey!("Hq2wp8uJ9jCPsYgNHex8RtqdvMPfVGoYwjvF1ATiwn2Y");
+    pub const FEE_CONFIG: Pubkey = pubkey!("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt");
 
-pub const PUMPFUN: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
-pub const MPL_TOKEN_METADATA: Pubkey = pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-pub const EVENT_AUTHORITY: Pubkey = pubkey!("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1");
-pub const ASSOCIATED_TOKEN_PROGRAM: Pubkey =
-    pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
-pub const AMM_PROGRAM: Pubkey = pubkey!("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8");
-pub const FEE_PROGRAM: Pubkey = pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
-pub const GLOBAL_VOLUME_ACCUMULATOR: Pubkey =
-    pubkey!("Hq2wp8uJ9jCPsYgNHex8RtqdvMPfVGoYwjvF1ATiwn2Y");
-pub const FEE_CONFIG: Pubkey = pubkey!("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt");
+    pub const PUMPFUN_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: PUMPFUN,
+            is_signer: false,
+            is_writable: false,
+        };
 
-pub const PUMPFUN_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: PUMPFUN,
-        is_signer: false,
-        is_writable: false,
-    };
+    pub const EVENT_AUTHORITY_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: EVENT_AUTHORITY,
+            is_signer: false,
+            is_writable: false,
+        };
 
-pub const EVENT_AUTHORITY_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: EVENT_AUTHORITY,
-        is_signer: false,
-        is_writable: false,
-    };
+    pub const FEE_PROGRAM_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: FEE_PROGRAM,
+            is_signer: false,
+            is_writable: false,
+        };
 
-pub const FEE_PROGRAM_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: FEE_PROGRAM,
-        is_signer: false,
-        is_writable: false,
-    };
+    pub const GLOBAL_VOLUME_ACCUMULATOR_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: GLOBAL_VOLUME_ACCUMULATOR,
+            is_signer: false,
+            is_writable: true,
+        };
 
-pub const GLOBAL_VOLUME_ACCUMULATOR_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: GLOBAL_VOLUME_ACCUMULATOR,
-        is_signer: false,
-        is_writable: true,
-    };
-
-pub const FEE_CONFIG_META: solana_sdk::instruction::AccountMeta =
-    solana_sdk::instruction::AccountMeta {
-        pubkey: FEE_CONFIG,
-        is_signer: false,
-        is_writable: false,
-    };
+    pub const FEE_CONFIG_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: FEE_CONFIG,
+            is_signer: false,
+            is_writable: false,
+        };
 }
 
-
 // --- Anchor / layout constants ---------------------------------------
-
 
 /// Minimum bonding curve account data length (`sdk.ts` `BONDING_CURVE_NEW_SIZE`).
 pub const PUMP_BONDING_CURVE_MIN_DATA_LEN: usize = 151;
@@ -198,7 +191,6 @@ pub const EXTEND_ACCOUNT_DISCRIMINATOR: [u8; 8] = [234, 102, 194, 203, 150, 72, 
 pub const SHARING_CONFIG_ACCOUNT_DISCRIMINATOR: [u8; 8] = [216, 74, 9, 0, 56, 140, 93, 75];
 
 pub(crate) const SHARING_CONFIG_STATUS_ACTIVE: u8 = 1;
-
 
 // --- Fee recipient pools -----------------------------------------------
 
@@ -263,11 +255,7 @@ pub fn get_mayhem_fee_recipient_meta_random() -> AccountMeta {
     let recipient = *global_constants::MAYHEM_FEE_RECIPIENTS
         .choose(&mut rand::rng())
         .unwrap_or(&global_constants::MAYHEM_FEE_RECIPIENTS[0]);
-    AccountMeta {
-        pubkey: recipient,
-        is_signer: false,
-        is_writable: true,
-    }
+    AccountMeta { pubkey: recipient, is_signer: false, is_writable: true }
 }
 
 #[inline]
@@ -282,14 +270,8 @@ pub fn get_standard_fee_recipient_meta_random() -> AccountMeta {
         global_constants::PUMPFUN_AMM_FEE_6,
         global_constants::PUMPFUN_AMM_FEE_7,
     ];
-    let recipient = *POOL
-        .choose(&mut rand::rng())
-        .unwrap_or(&global_constants::FEE_RECIPIENT);
-    AccountMeta {
-        pubkey: recipient,
-        is_signer: false,
-        is_writable: true,
-    }
+    let recipient = *POOL.choose(&mut rand::rng()).unwrap_or(&global_constants::FEE_RECIPIENT);
+    AccountMeta { pubkey: recipient, is_signer: false, is_writable: true }
 }
 
 #[inline]
@@ -308,15 +290,14 @@ pub fn get_buyback_fee_recipient_random() -> Pubkey {
 }
 
 #[inline]
-pub fn pump_fun_fee_recipient_meta(observed_fee_recipient: Pubkey, is_mayhem_mode: bool) -> AccountMeta {
+pub fn pump_fun_fee_recipient_meta(
+    observed_fee_recipient: Pubkey,
+    is_mayhem_mode: bool,
+) -> AccountMeta {
     let trust_observation = observed_fee_recipient != Pubkey::default()
         && fee_recipient_ok_for_bonding_curve_mode(&observed_fee_recipient, is_mayhem_mode);
     if trust_observation {
-        AccountMeta {
-            pubkey: observed_fee_recipient,
-            is_signer: false,
-            is_writable: true,
-        }
+        AccountMeta { pubkey: observed_fee_recipient, is_signer: false, is_writable: true }
     } else if is_mayhem_mode {
         get_mayhem_fee_recipient_meta_random()
     } else {
@@ -343,7 +324,6 @@ pub fn extend_bonding_curve_account_instruction(
         ],
     )
 }
-
 
 // --- Cached PDAs + creator_vault resolve ------------------------------
 
@@ -496,7 +476,6 @@ pub fn get_buy_price(
     s_u64.min(real_token_reserves)
 }
 
-
 // --- RPC -------------------------------------------------------------
 
 #[inline]
@@ -522,9 +501,7 @@ pub async fn fetch_fee_sharing_creator_vault_if_active(
         return Ok(None);
     }
     let mint_on_chain = Pubkey::new_from_array(
-        d[11..43]
-            .try_into()
-            .map_err(|_| anyhow!("SharingConfig mint slice"))?,
+        d[11..43].try_into().map_err(|_| anyhow!("SharingConfig mint slice"))?,
     );
     if mint_on_chain != *mint {
         return Ok(None);
@@ -556,13 +533,10 @@ pub async fn fetch_bonding_curve_account(
     Ok((Arc::new(bonding_curve), bonding_curve_pda))
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::{
-        global_constants,
-        phantom_default_creator_vault, pump_fun_fee_recipient_meta,
+        global_constants, phantom_default_creator_vault, pump_fun_fee_recipient_meta,
         reconcile_mayhem_mode_for_trade, resolve_creator_vault_for_ix,
         resolve_creator_vault_for_ix_with_fee_sharing, *,
     };
@@ -650,12 +624,8 @@ mod tests {
         let sharing_pk = get_fee_sharing_config_pda(&mint).unwrap();
         let vs = get_creator_vault_pda(&sharing_pk).unwrap();
         assert_ne!(v_derived, vs);
-        let resolved = resolve_creator_vault_for_ix_with_fee_sharing(
-            &creator,
-            v_derived,
-            &mint,
-            Some(vs),
-        );
+        let resolved =
+            resolve_creator_vault_for_ix_with_fee_sharing(&creator, v_derived, &mint, Some(vs));
         assert_eq!(
             resolved,
             Some(v_derived),
@@ -671,8 +641,7 @@ mod tests {
         let vs = get_creator_vault_pda(&sharing_pk).unwrap();
         let creator_vault = get_creator_vault_pda(&creator).unwrap();
         assert_ne!(vs, creator_vault);
-        let resolved =
-            resolve_creator_vault_for_ix_with_fee_sharing(&creator, vs, &mint, Some(vs));
+        let resolved = resolve_creator_vault_for_ix_with_fee_sharing(&creator, vs, &mint, Some(vs));
         assert_eq!(
             resolved,
             Some(vs),

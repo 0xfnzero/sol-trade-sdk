@@ -20,10 +20,7 @@ pub fn close_account(
     let mut accounts = Vec::with_capacity(3 + signer_pubkeys.len());
     accounts.push(AccountMeta::new(*account_pubkey, false));
     accounts.push(AccountMeta::new(*destination_pubkey, false));
-    accounts.push(AccountMeta::new_readonly(
-        *owner_pubkey,
-        signer_pubkeys.is_empty(),
-    ));
+    accounts.push(AccountMeta::new_readonly(*owner_pubkey, signer_pubkeys.is_empty()));
     for signer_pubkey in signer_pubkeys.iter() {
         accounts.push(AccountMeta::new_readonly(**signer_pubkey, true));
     }

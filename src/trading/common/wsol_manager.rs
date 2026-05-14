@@ -7,7 +7,7 @@ use crate::common::{
     spl_token::close_account,
 };
 use smallvec::SmallVec;
-use solana_sdk::{instruction::Instruction, instruction::AccountMeta, pubkey::Pubkey};
+use solana_sdk::{instruction::AccountMeta, instruction::Instruction, pubkey::Pubkey};
 use solana_system_interface::instruction as system_instruction;
 
 #[inline]

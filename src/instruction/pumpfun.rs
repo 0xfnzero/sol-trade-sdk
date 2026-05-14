@@ -1,9 +1,8 @@
 //! Pump.fun bonding-curve swap ix assembly ([`SwapParams`](crate::trading::core::params::SwapParams)).
 //!
 //! Runtime flag: set `SwapParams.use_pumpfun_v2 = true` to use `buy_v2` / `sell_v2` /
-//! `buy_exact_quote_in_v2` (27-account metas, quote_mint support).
-//! Default (`false`) uses V1 instructions (18-account metas, legacy SOL-paired).
-//! PumpFun V2 is NOT live on mainnet yet — keep `false` until officially deployed.
+//! `buy_exact_quote_in_v2` (27/26-account unified metas, quote_mint support).
+//! Default (`false`) keeps the smaller legacy SOL-paired instruction layout for latency.
 
 use crate::{
     common::spl_token::close_account,
@@ -15,11 +14,9 @@ use crate::{
 };
 use crate::{
     instruction::utils::pumpfun::{
-        accounts, get_bonding_curve_pda,
-        get_user_volume_accumulator_pda,
-        pump_fun_fee_recipient_meta,
-        resolve_creator_vault_for_ix_with_fee_sharing,
+        accounts, get_bonding_curve_pda, get_user_volume_accumulator_pda,
         global_constants::{self},
+        pump_fun_fee_recipient_meta, resolve_creator_vault_for_ix_with_fee_sharing,
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -31,7 +28,10 @@ use solana_sdk::instruction::AccountMeta;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
 
 #[inline]
-fn effective_pump_mint_token_program(protocol_params: &PumpFunParams) -> Pubkey {
+fn effective_pump_mint_token_program(mint: &Pubkey, protocol_params: &PumpFunParams) -> Pubkey {
+    if mint.to_string().ends_with("pump") {
+        return TOKEN_PROGRAM_2022;
+    }
     let tp = protocol_params.token_program;
     if tp == Pubkey::default() {
         TOKEN_PROGRAM_2022
@@ -106,12 +106,7 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
         &params.output_mint,
         protocol_params.fee_sharing_creator_vault_if_active,
     )
-    .ok_or_else(|| {
-        anyhow!(
-            "creator_vault PDA derivation failed (creator={})",
-            creator
-        )
-    })?;
+    .ok_or_else(|| anyhow!("creator_vault PDA derivation failed (creator={})", creator))?;
 
     let buy_token_amount = match params.fixed_output_amount {
         Some(amount) => amount,
@@ -131,7 +126,7 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let token_program = effective_pump_mint_token_program(protocol_params);
+    let token_program = effective_pump_mint_token_program(&params.output_mint, protocol_params);
     let token_program_meta = if token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -174,11 +169,7 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     let track_volume_val = if bonding_curve.is_cashback_coin { 1u8 } else { 0u8 };
     let buy_data = if params.use_exact_sol_amount.unwrap_or(true) {
         let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
-        encode_pumpfun_buy_exact_sol_in_ix_data(
-            lamports_in,
-            min_tokens_out,
-            track_volume_val,
-        )
+        encode_pumpfun_buy_exact_sol_in_ix_data(lamports_in, min_tokens_out, track_volume_val)
     } else {
         encode_pumpfun_buy_ix_data(buy_token_amount, max_sol_cost, track_volume_val)
     };
@@ -208,16 +199,9 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
         accounts::FEE_PROGRAM_META,
     ];
     metas.push(AccountMeta::new_readonly(bonding_curve_v2, false));
-    metas.push(AccountMeta::new(
-        get_protocol_extra_fee_recipient_random(),
-        false,
-    ));
+    metas.push(AccountMeta::new(get_protocol_extra_fee_recipient_random(), false));
 
-    instructions.push(Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &buy_data,
-        metas,
-    ));
+    instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &buy_data, metas));
 
     Ok(instructions)
 }
@@ -262,10 +246,7 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
             protocol_params.fee_sharing_creator_vault_if_active,
         )
         .ok_or_else(|| {
-            anyhow!(
-                "creator_vault PDA derivation failed (curve_creator={})",
-                bonding_curve.creator
-            )
+            anyhow!("creator_vault PDA derivation failed (curve_creator={})", bonding_curve.creator)
         })?
     };
 
@@ -288,7 +269,7 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let token_program = effective_pump_mint_token_program(protocol_params);
+    let token_program = effective_pump_mint_token_program(&params.input_mint, protocol_params);
     let token_program_meta = if token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -344,19 +325,11 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     }
 
     metas.push(AccountMeta::new_readonly(bonding_curve_v2, false));
-    metas.push(AccountMeta::new(
-        get_protocol_extra_fee_recipient_random(),
-        false,
-    ));
+    metas.push(AccountMeta::new(get_protocol_extra_fee_recipient_random(), false));
 
-    instructions.push(Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &sell_data,
-        metas,
-    ));
+    instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &sell_data, metas));
 
-    if protocol_params.close_token_account_when_sell.unwrap_or(false)
-        || params.close_input_mint_ata
+    if protocol_params.close_token_account_when_sell.unwrap_or(false) || params.close_input_mint_ata
     {
         instructions.push(close_account(
             &token_program,
@@ -403,12 +376,7 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         &params.output_mint,
         protocol_params.fee_sharing_creator_vault_if_active,
     )
-    .ok_or_else(|| {
-        anyhow!(
-            "creator_vault PDA derivation failed (creator={})",
-            creator
-        )
-    })?;
+    .ok_or_else(|| anyhow!("creator_vault PDA derivation failed (creator={})", creator))?;
 
     let buy_token_amount = match params.fixed_output_amount {
         Some(amount) => amount,
@@ -428,7 +396,8 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let base_token_program = effective_pump_mint_token_program(protocol_params);
+    let base_token_program =
+        effective_pump_mint_token_program(&params.output_mint, protocol_params);
     let base_token_program_meta = if base_token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -490,10 +459,9 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
             &quote_token_program,
         );
 
-    let sharing_config =
-        get_fee_sharing_config_pda(&params.output_mint).ok_or_else(|| {
-            anyhow!("sharing_config PDA derivation failed for mint {}", params.output_mint)
-        })?;
+    let sharing_config = get_fee_sharing_config_pda(&params.output_mint).ok_or_else(|| {
+        anyhow!("sharing_config PDA derivation failed for mint {}", params.output_mint)
+    })?;
 
     let user_volume_accumulator = get_user_volume_accumulator_pda(&params.payer.pubkey())
         .ok_or_else(|| anyhow!("user_volume_accumulator PDA derivation failed"))?;
@@ -567,11 +535,7 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         accounts::PUMPFUN_META,
     ];
 
-    instructions.push(Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &buy_data,
-        metas,
-    ));
+    instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &buy_data, metas));
 
     Ok(instructions)
 }
@@ -616,10 +580,7 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
             protocol_params.fee_sharing_creator_vault_if_active,
         )
         .ok_or_else(|| {
-            anyhow!(
-                "creator_vault PDA derivation failed (curve_creator={})",
-                bonding_curve.creator
-            )
+            anyhow!("creator_vault PDA derivation failed (curve_creator={})", bonding_curve.creator)
         })?
     };
 
@@ -642,7 +603,7 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let base_token_program = effective_pump_mint_token_program(protocol_params);
+    let base_token_program = effective_pump_mint_token_program(&params.input_mint, protocol_params);
     let base_token_program_meta = if base_token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -762,14 +723,9 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         accounts::PUMPFUN_META,
     ];
 
-    instructions.push(Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &sell_data,
-        metas,
-    ));
+    instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &sell_data, metas));
 
-    if protocol_params.close_token_account_when_sell.unwrap_or(false)
-        || params.close_input_mint_ata
+    if protocol_params.close_token_account_when_sell.unwrap_or(false) || params.close_input_mint_ata
     {
         instructions.push(close_account(
             &base_token_program,
@@ -796,18 +752,90 @@ pub fn claim_cashback_pumpfun_instruction(payer: &Pubkey) -> Option<Instruction>
         AccountMeta::new(user_volume_accumulator, false),
         crate::constants::SYSTEM_PROGRAM_META,
     ];
-    let ix = Instruction::new_with_bytes(
-        accounts::PUMPFUN,
-        &CLAIM_CASHBACK_DISCRIMINATOR,
-        ix_accounts,
-    );
+    let ix =
+        Instruction::new_with_bytes(accounts::PUMPFUN, &CLAIM_CASHBACK_DISCRIMINATOR, ix_accounts);
     Some(ix)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{instruction::pumpfun_ix_data, trading::core::params::PumpFunParams};
+    use crate::{
+        common::{bonding_curve::BondingCurveAccount, GasFeeStrategy},
+        constants::TOKEN_PROGRAM,
+        trading::core::params::{DexParamEnum, PumpFunParams, SwapParams},
+    };
+    use solana_sdk::signature::Keypair;
+    use std::sync::Arc;
+
+    fn pump_mint() -> Pubkey {
+        "E3JvmGcGFDzhu2Cnxyeq5BRvN7HH9JZUsfAUh2v8pump".parse().unwrap()
+    }
+
+    fn swap_params_for_buy(mint: Pubkey, token_program: Pubkey) -> SwapParams {
+        let bonding_curve =
+            crate::instruction::utils::pumpfun::get_bonding_curve_pda(&mint).unwrap();
+        let creator = Pubkey::new_unique();
+        let creator_vault =
+            crate::instruction::utils::pumpfun::get_creator_vault_pda(&creator).unwrap();
+        let bc = BondingCurveAccount {
+            account: bonding_curve,
+            virtual_token_reserves: global_constants::INITIAL_VIRTUAL_TOKEN_RESERVES,
+            virtual_sol_reserves: global_constants::INITIAL_VIRTUAL_SOL_RESERVES,
+            real_token_reserves: global_constants::INITIAL_REAL_TOKEN_RESERVES,
+            creator,
+            ..Default::default()
+        };
+        let params = PumpFunParams {
+            bonding_curve: Arc::new(bc),
+            associated_bonding_curve: Pubkey::default(),
+            observed_trade_creator: Some(creator),
+            creator_vault,
+            fee_sharing_creator_vault_if_active: None,
+            token_program,
+            close_token_account_when_sell: None,
+            fee_recipient: global_constants::FEE_RECIPIENT,
+            quote_mint: Pubkey::default(),
+            use_v2_ix: false,
+        };
+
+        SwapParams {
+            rpc: None,
+            payer: Arc::new(Keypair::new()),
+            trade_type: crate::swqos::TradeType::Buy,
+            input_mint: crate::constants::SOL_TOKEN_ACCOUNT,
+            input_token_program: None,
+            output_mint: mint,
+            output_token_program: None,
+            input_amount: Some(10_000_000),
+            slippage_basis_points: Some(300),
+            address_lookup_table_account: None,
+            recent_blockhash: None,
+            wait_tx_confirmed: false,
+            protocol_params: DexParamEnum::PumpFun(params),
+            open_seed_optimize: true,
+            swqos_clients: Arc::new(Vec::new()),
+            middleware_manager: None,
+            durable_nonce: None,
+            with_tip: true,
+            create_input_mint_ata: false,
+            close_input_mint_ata: false,
+            create_output_mint_ata: true,
+            close_output_mint_ata: false,
+            fixed_output_amount: None,
+            gas_fee_strategy: GasFeeStrategy::new(),
+            simulate: false,
+            log_enabled: false,
+            use_dedicated_sender_threads: false,
+            sender_thread_cores: None,
+            max_sender_concurrency: 0,
+            effective_core_ids: Arc::new(Vec::new()),
+            check_min_tip: false,
+            grpc_recv_us: None,
+            use_exact_sol_amount: Some(true),
+            use_pumpfun_v2: false,
+        }
+    }
 
     #[test]
     fn test_claim_cashback_instruction() {
@@ -815,5 +843,17 @@ mod tests {
         let ix = claim_cashback_pumpfun_instruction(&payer).unwrap();
         assert_eq!(ix.accounts.len(), 3);
         assert_eq!(ix.accounts[0].pubkey, payer);
+    }
+
+    #[test]
+    fn pump_suffix_buy_forces_token_2022_even_with_legacy_cached_program() {
+        crate::common::seed::set_default_rents();
+        let params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        let instructions = build_buy_v1(&params).unwrap();
+
+        assert_eq!(instructions.len(), 3);
+        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[2].accounts.len(), 18);
     }
 }

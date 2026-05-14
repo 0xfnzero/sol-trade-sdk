@@ -95,9 +95,8 @@ pub struct TradeConfig {
     /// (Astralane QUIC `:9000` or Plain/Binary HTTP `mev-protect=true`, BlockRazor sandwichMitigation)
     /// use their MEV-protected endpoints/modes. Default false (no MEV protection, lower latency).
     pub mev_protection: bool,
-    /// Use PumpFun V2 instructions (buy_v2 / sell_v2, 27-account metas, quote_mint support).
-    /// Default: `false` — uses V1 instructions (18-account metas, legacy SOL-paired, smaller transaction).
-    /// Set to `true` when PumpFun officially deploys V2 on mainnet.
+    /// Use PumpFun V2 instructions (buy_v2 / sell_v2, 27/26-account metas, quote_mint support).
+    /// Default: `false` keeps legacy SOL-paired instructions for smaller transactions; V2 is the official future-proof interface.
     pub use_pumpfun_v2: bool,
 }
 

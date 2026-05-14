@@ -1,10 +1,9 @@
 use anyhow::Result;
 use solana_hash::Hash;
-use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey,
-    signature::Keypair, signature::Signature,
-};
 use solana_message::AddressLookupTableAccount;
+use solana_sdk::{
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signature::Signature,
+};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
@@ -13,6 +12,7 @@ use std::{
 use tracing::{info, trace, warn};
 
 use super::{params::SwapParams, traits::InstructionBuilder};
+use crate::swqos::SwqosType;
 use crate::swqos::TradeType;
 use crate::{
     common::{nonce_cache::DurableNonceInfo, GasFeeStrategy, SolanaRpcClient},
@@ -26,7 +26,6 @@ use crate::{
     trading::MiddlewareManager,
 };
 use once_cell::sync::Lazy;
-use crate::swqos::{ SwqosType};
 
 /// Global syscall bypass manager (reserved for future time/IO optimizations).
 /// 全局系统调用绕过管理器（预留，后续可接入时间/IO 等优化）。
@@ -234,10 +233,7 @@ impl TradeExecutor for GenericTradeExecutor {
                 );
             }
 
-
-
             Ok((ok, signatures, err, submit_timings))
-
         };
 
         result
@@ -368,8 +364,20 @@ mod tests {
         let before_submit_ms = 15.67;
         let w = 12usize; // same as crate::common::sdk_log::SWQOS_LABEL_WIDTH
         println!("\n--- 1. 构建指令耗时 / 提交前耗时（各打印一次，统一 ms，保留 4 位小数）---\n");
-        println!(" [SDK][{:width$}] {} build_instructions: {:.4} ms", "-", dir, build_ms, width = w);
-        println!(" [SDK][{:width$}] {} before_submit: {:.4} ms", "-", dir, before_submit_ms, width = w);
+        println!(
+            " [SDK][{:width$}] {} build_instructions: {:.4} ms",
+            "-",
+            dir,
+            build_ms,
+            width = w
+        );
+        println!(
+            " [SDK][{:width$}] {} before_submit: {:.4} ms",
+            "-",
+            dir,
+            before_submit_ms,
+            width = w
+        );
 
         println!("\n--- 2. 每个 SWQOS 独立耗时：submit_done=起点→该通道提交完成, confirmed=该通道提交→链上确认, total=起点→链上确认 ---\n");
         for (swqos_type, submit_ms, confirmed_ms, total_ms) in [
@@ -388,7 +396,9 @@ mod tests {
             );
         }
 
-        println!("\n--- 3. 不等待链上确认时：每行 total = 该通道 submit_done（提交完成总耗时）---\n");
+        println!(
+            "\n--- 3. 不等待链上确认时：每行 total = 该通道 submit_done（提交完成总耗时）---\n"
+        );
         for (swqos_type, submit_ms, total_ms) in
             [(SwqosType::Jito, 44.20, 44.20), (SwqosType::Helius, 51.80, 51.80)]
         {
@@ -403,8 +413,20 @@ mod tests {
         }
 
         println!("\n--- 4. Simulate 模式（build/before_submit 仍从 grpc_recv_us 起算）---\n");
-        println!(" [SDK][{:width$}] {} build_instructions: {:.4} ms", "-", dir, build_ms, width = w);
-        println!(" [SDK][{:width$}] {} before_submit: {:.4} ms", "-", dir, before_submit_ms, width = w);
+        println!(
+            " [SDK][{:width$}] {} build_instructions: {:.4} ms",
+            "-",
+            dir,
+            build_ms,
+            width = w
+        );
+        println!(
+            " [SDK][{:width$}] {} before_submit: {:.4} ms",
+            "-",
+            dir,
+            before_submit_ms,
+            width = w
+        );
         println!(" [SDK][{:width$}] {} simulate (dry-run): {:.4} ms", "-", dir, 8.50, width = w);
         println!(" [SDK][{:width$}] {} total: {:.4} ms", "-", dir, 36.51, width = w);
         println!();

@@ -34,10 +34,7 @@ fn extract_swqos_error_message(s: &str) -> String {
     // Try parse as JSON only when input looks like JSON (avoid parsing long non-JSON strings)
     if s.starts_with('{') {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
-            let obj = v
-                .get("error")
-                .and_then(|e| e.as_object())
-                .or_else(|| v.as_object());
+            let obj = v.get("error").and_then(|e| e.as_object()).or_else(|| v.as_object());
             if let Some(o) = obj {
                 if let Some(m) = o.get("message").and_then(|x| x.as_str()) {
                     return m.to_string();
@@ -69,11 +66,7 @@ pub fn set_sdk_log_enabled(enabled: bool) {
 
 /// Aligned log: ` [Soyas        ] Buy submitted: 13.936 µs`. Call only when sdk_log_enabled().
 #[inline]
-pub fn log_swqos_submitted(
-    provider: &str,
-    trade_type: impl fmt::Display,
-    elapsed: Duration,
-) {
+pub fn log_swqos_submitted(provider: &str, trade_type: impl fmt::Display, elapsed: Duration) {
     println!(
         " [{:width$}] {} submitted: {}",
         provider,

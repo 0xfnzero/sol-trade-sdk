@@ -77,9 +77,7 @@ impl AstralaneQuicClient {
             "lit.gateway.astralane.io" => {
                 vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::new(84, 32, 97, 47)), port)]
             }
-            _ => {
-                Vec::new()
-            }
+            _ => Vec::new(),
         }
     }
 
@@ -132,8 +130,8 @@ impl AstralaneQuicClient {
     /// Generates a self-signed TLS certificate with the API key as the Common Name (CN).
     pub async fn connect(server_addr: &str, api_key: &str) -> Result<Self> {
         let _ = rustls::crypto::ring::default_provider().install_default();
-        let candidates = Self::resolve_server_candidates(server_addr)
-            .context("Invalid server address")?;
+        let candidates =
+            Self::resolve_server_candidates(server_addr).context("Invalid server address")?;
         let addr = candidates[0];
 
         info!("[astralane-quic] Building TLS config (CN = api_key)");
@@ -167,7 +165,8 @@ impl AstralaneQuicClient {
             }
         }
         let connection = connection_opt.ok_or_else(|| {
-            last_err.unwrap_or_else(|| anyhow::anyhow!("Failed to connect to Astralane QUIC server"))
+            last_err
+                .unwrap_or_else(|| anyhow::anyhow!("Failed to connect to Astralane QUIC server"))
         })?;
 
         info!("[astralane-quic] Connected at {}", selected_addr);
@@ -203,7 +202,8 @@ impl AstralaneQuicClient {
                 }
             }
         }
-        Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Failed to reconnect to Astralane QUIC server")))
+        Err(last_err
+            .unwrap_or_else(|| anyhow::anyhow!("Failed to reconnect to Astralane QUIC server")))
     }
 
     /// Send a single bincode-serialized `VersionedTransaction`.

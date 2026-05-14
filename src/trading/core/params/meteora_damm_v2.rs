@@ -41,9 +41,8 @@ impl MeteoraDammV2Params {
     ) -> Result<Self, anyhow::Error> {
         let pool_data =
             crate::instruction::utils::meteora_damm_v2::fetch_pool(rpc, pool_address).await?;
-        let mint_accounts = rpc
-            .get_multiple_accounts(&[pool_data.token_a_mint, pool_data.token_b_mint])
-            .await?;
+        let mint_accounts =
+            rpc.get_multiple_accounts(&[pool_data.token_a_mint, pool_data.token_b_mint]).await?;
         let token_a_program = mint_accounts
             .get(0)
             .and_then(|a| a.as_ref())

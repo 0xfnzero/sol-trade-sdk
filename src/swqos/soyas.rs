@@ -73,13 +73,14 @@ impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
 }
 
 /// TLS 客户端证书：ECDSA P-256 + CN=钱包公钥（与 Speedlanding / Astralane QUIC 策略一致）。
-fn generate_client_tls_credentials(keypair: &Keypair) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>)> {
+fn generate_client_tls_credentials(
+    keypair: &Keypair,
+) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>)> {
     let tls_key = RcgenKeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
     let mut cert_params = CertificateParams::new(vec![])?;
-    cert_params.distinguished_name.push(
-        rcgen::DnType::CommonName,
-        rcgen::DnValue::Utf8String(keypair.pubkey().to_string()),
-    );
+    cert_params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, rcgen::DnValue::Utf8String(keypair.pubkey().to_string()));
     let cert = cert_params.self_signed(&tls_key)?;
     let cert_der = CertificateDer::from(cert.der().to_vec());
     let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(tls_key.serialize_der()));
@@ -103,11 +104,12 @@ pub struct SoyasClient {
 impl SoyasClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
-        let keypair_bytes = bs58::decode(api_key.trim())
-            .into_vec()
-            .map_err(|e| anyhow::anyhow!("Soyas api_token base58 解码失败（QUIC mTLS 用）: {}", e))?;
-        let keypair = Keypair::try_from(keypair_bytes.as_slice())
-            .map_err(|e| anyhow::anyhow!("Soyas api_token 无法解析为 Solana keypair（QUIC mTLS 用）: {}", e))?;
+        let keypair_bytes = bs58::decode(api_key.trim()).into_vec().map_err(|e| {
+            anyhow::anyhow!("Soyas api_token base58 解码失败（QUIC mTLS 用）: {}", e)
+        })?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice()).map_err(|e| {
+            anyhow::anyhow!("Soyas api_token 无法解析为 Solana keypair（QUIC mTLS 用）: {}", e)
+        })?;
         let (cert, key) = generate_client_tls_credentials(&keypair)?;
         let mut crypto = rustls::ClientConfig::builder()
             .dangerous()
@@ -175,13 +177,23 @@ impl SwqosClientTrait for SoyasClient {
         let connection = self.connection.load_full();
         if Self::try_send_bytes(&connection, &serialized_tx).await.is_err() {
             if crate::common::sdk_log::sdk_log_enabled() {
-                    crate::common::sdk_log::log_swqos_submission_failed("Soyas", trade_type, start_time.elapsed(), "reconnecting");
-                }
+                crate::common::sdk_log::log_swqos_submission_failed(
+                    "Soyas",
+                    trade_type,
+                    start_time.elapsed(),
+                    "reconnecting",
+                );
+            }
             self.reconnect().await?;
             let connection = self.connection.load_full();
             if let Err(e) = Self::try_send_bytes(&connection, &serialized_tx).await {
                 if crate::common::sdk_log::sdk_log_enabled() {
-                    crate::common::sdk_log::log_swqos_submission_failed("Soyas", trade_type, start_time.elapsed(), &e);
+                    crate::common::sdk_log::log_swqos_submission_failed(
+                        "Soyas",
+                        trade_type,
+                        start_time.elapsed(),
+                        &e,
+                    );
                 }
                 return Err(e.into());
             }
@@ -195,14 +207,26 @@ impl SwqosClientTrait for SoyasClient {
             Err(e) => {
                 if crate::common::sdk_log::sdk_log_enabled() {
                     println!(" signature: {:?}", signature);
-                    println!(" [{:width$}] {} confirmation failed: {:?}", "Soyas", trade_type, start_time.elapsed(), width = crate::common::sdk_log::SWQOS_LABEL_WIDTH);
+                    println!(
+                        " [{:width$}] {} confirmation failed: {:?}",
+                        "Soyas",
+                        trade_type,
+                        start_time.elapsed(),
+                        width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+                    );
                 }
                 return Err(e);
             }
         }
         if wait_confirmation && crate::common::sdk_log::sdk_log_enabled() {
             println!(" signature: {:?}", signature);
-            println!(" [{:width$}] {} confirmed: {:?}", "Soyas", trade_type, start_time.elapsed(), width = crate::common::sdk_log::SWQOS_LABEL_WIDTH);
+            println!(
+                " [{:width$}] {} confirmed: {:?}",
+                "Soyas",
+                trade_type,
+                start_time.elapsed(),
+                width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+            );
         }
         Ok(())
     }

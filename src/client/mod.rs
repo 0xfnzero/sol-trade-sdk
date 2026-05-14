@@ -3,6 +3,7 @@
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::sdk_log;
 use crate::common::GasFeeStrategy;
+use crate::common::SolanaRpcClient;
 use crate::common::{InfrastructureConfig, TradeConfig};
 #[cfg(feature = "perf-trace")]
 use crate::constants::trade::trade::DEFAULT_SLIPPAGE;
@@ -25,7 +26,6 @@ use crate::trading::factory::DexType;
 use crate::trading::MiddlewareManager;
 use crate::trading::SwapParams;
 use crate::trading::TradeFactory;
-use crate::common::SolanaRpcClient;
 use parking_lot::Mutex;
 use rustls::crypto::{ring::default_provider, CryptoProvider};
 use solana_sdk::hash::Hash;
@@ -112,7 +112,9 @@ impl TradingInfrastructure {
 
         // Initialize rent cache (with timeout so slow RPC doesn't block forever)
         const RENT_UPDATE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
-        match tokio::time::timeout(RENT_UPDATE_TIMEOUT, crate::common::seed::update_rents(&rpc)).await {
+        match tokio::time::timeout(RENT_UPDATE_TIMEOUT, crate::common::seed::update_rents(&rpc))
+            .await
+        {
             Ok(Ok(())) => {}
             Ok(Err(e)) => {
                 if sdk_log::sdk_log_enabled() {
@@ -218,15 +220,9 @@ impl TradingInfrastructure {
         }
 
         if !swqos_clients.is_empty() {
-            let labels: Vec<&str> = swqos_clients
-                .iter()
-                .map(|c| c.get_swqos_type().as_str())
-                .collect();
-            eprintln!(
-                "ℹ️  SWQOS 通道已就绪: {} 条 → [{}]",
-                swqos_clients.len(),
-                labels.join(", ")
-            );
+            let labels: Vec<&str> =
+                swqos_clients.iter().map(|c| c.get_swqos_type().as_str()).collect();
+            eprintln!("ℹ️  SWQOS 通道已就绪: {} 条 → [{}]", swqos_clients.len(), labels.join(", "));
         }
 
         let swqos_count = swqos_clients.len();
@@ -735,7 +731,8 @@ impl TradingClient {
             Some(v) => {
                 self.use_dedicated_sender_threads = true;
                 let cap = v.len().min(self.max_sender_concurrency);
-                self.sender_thread_cores = Some(Arc::new(if cap < v.len() { v[..cap].to_vec() } else { v }));
+                self.sender_thread_cores =
+                    Some(Arc::new(if cap < v.len() { v[..cap].to_vec() } else { v }));
             }
         }
         self
@@ -798,7 +795,10 @@ impl TradingClient {
     pub async fn buy(
         &self,
         params: TradeBuyParams,
-    ) -> Result<(bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>), anyhow::Error> {
+    ) -> Result<
+        (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
+        anyhow::Error,
+    > {
         if params.recent_blockhash.is_none() && params.durable_nonce.is_none() {
             return Err(anyhow::anyhow!(
                 "Must provide either recent_blockhash or durable_nonce for buy (required for transaction validity)"
@@ -872,8 +872,9 @@ impl TradingClient {
         };
 
         let swap_result = executor.swap(buy_params).await;
-        let result =
-            swap_result.map(|(success, sigs, err, timings)| (success, sigs, err.map(TradeError::from), timings));
+        let result = swap_result.map(|(success, sigs, err, timings)| {
+            (success, sigs, err.map(TradeError::from), timings)
+        });
         result
     }
 
@@ -906,7 +907,10 @@ impl TradingClient {
     pub async fn sell(
         &self,
         params: TradeSellParams,
-    ) -> Result<(bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>), anyhow::Error> {
+    ) -> Result<
+        (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
+        anyhow::Error,
+    > {
         #[cfg(feature = "perf-trace")]
         if sdk_log::sdk_log_enabled() && params.slippage_basis_points.is_none() {
             debug!(
@@ -980,8 +984,9 @@ impl TradingClient {
         };
 
         let swap_result = executor.swap(sell_params).await;
-        let result =
-            swap_result.map(|(success, sigs, err, timings)| (success, sigs, err.map(TradeError::from), timings));
+        let result = swap_result.map(|(success, sigs, err, timings)| {
+            (success, sigs, err.map(TradeError::from), timings)
+        });
         result
     }
 
@@ -1016,7 +1021,10 @@ impl TradingClient {
         mut params: TradeSellParams,
         amount_token: u64,
         percent: u64,
-    ) -> Result<(bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>), anyhow::Error> {
+    ) -> Result<
+        (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
+        anyhow::Error,
+    > {
         if percent == 0 || percent > 100 {
             return Err(anyhow::anyhow!("Percentage must be between 1 and 100"));
         }

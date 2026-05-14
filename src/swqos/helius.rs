@@ -107,7 +107,10 @@ impl HeliusClient {
             if crate::common::sdk_log::sdk_log_enabled() {
                 eprintln!(
                     " [helius] {} submission failed after {:?} status={} body={}",
-                    trade_type, start_time.elapsed(), status, response_text
+                    trade_type,
+                    start_time.elapsed(),
+                    status,
+                    response_text
                 );
             }
             return Err(anyhow::anyhow!(
@@ -124,15 +127,29 @@ impl HeliusClient {
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
                 if crate::common::sdk_log::sdk_log_enabled() {
-                    crate::common::sdk_log::log_swqos_submission_failed("helius", trade_type, start_time.elapsed(), err_msg);
+                    crate::common::sdk_log::log_swqos_submission_failed(
+                        "helius",
+                        trade_type,
+                        start_time.elapsed(),
+                        err_msg,
+                    );
                 }
                 return Err(anyhow::anyhow!("Helius Sender error: {}", err_msg));
             }
             if response_json.get("result").is_some() && crate::common::sdk_log::sdk_log_enabled() {
-                crate::common::sdk_log::log_swqos_submitted("helius", trade_type, start_time.elapsed());
+                crate::common::sdk_log::log_swqos_submitted(
+                    "helius",
+                    trade_type,
+                    start_time.elapsed(),
+                );
             }
         } else if crate::common::sdk_log::sdk_log_enabled() {
-            crate::common::sdk_log::log_swqos_submission_failed("helius", trade_type, start_time.elapsed(), response_text);
+            crate::common::sdk_log::log_swqos_submission_failed(
+                "helius",
+                trade_type,
+                start_time.elapsed(),
+                response_text,
+            );
         }
 
         match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
@@ -152,7 +169,13 @@ impl HeliusClient {
         }
         if wait_confirmation && crate::common::sdk_log::sdk_log_enabled() {
             println!(" signature: {:?}", signature);
-            println!(" [{:width$}] {} confirmed: {:?}", "helius", trade_type, start_time.elapsed(), width = crate::common::sdk_log::SWQOS_LABEL_WIDTH);
+            println!(
+                " [{:width$}] {} confirmed: {:?}",
+                "helius",
+                trade_type,
+                start_time.elapsed(),
+                width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+            );
         }
         Ok(())
     }

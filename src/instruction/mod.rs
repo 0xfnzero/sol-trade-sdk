@@ -1,9 +1,9 @@
 pub mod bonk;
 pub mod meteora_damm_v2;
-pub(crate) mod pumpfun_ix_data;
-pub(crate) mod pumpswap_ix_data;
 pub mod pumpfun;
+pub(crate) mod pumpfun_ix_data;
 pub mod pumpswap;
+pub(crate) mod pumpswap_ix_data;
 pub mod raydium_amm_v4;
 pub mod raydium_cpmm;
 pub mod utils;

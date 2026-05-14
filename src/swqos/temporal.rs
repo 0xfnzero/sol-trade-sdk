@@ -209,12 +209,26 @@ impl TemporalClient {
 
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
-                crate::common::sdk_log::log_swqos_submitted("nozomi", trade_type, start_time.elapsed());
+                crate::common::sdk_log::log_swqos_submitted(
+                    "nozomi",
+                    trade_type,
+                    start_time.elapsed(),
+                );
             } else if let Some(_error) = response_json.get("error") {
-                crate::common::sdk_log::log_swqos_submission_failed("nozomi", trade_type, start_time.elapsed(), _error);
+                crate::common::sdk_log::log_swqos_submission_failed(
+                    "nozomi",
+                    trade_type,
+                    start_time.elapsed(),
+                    _error,
+                );
             }
         } else {
-            crate::common::sdk_log::log_swqos_submission_failed("nozomi", trade_type, start_time.elapsed(), response_text);
+            crate::common::sdk_log::log_swqos_submission_failed(
+                "nozomi",
+                trade_type,
+                start_time.elapsed(),
+                response_text,
+            );
         }
 
         let start_time: Instant = Instant::now();
@@ -232,7 +246,13 @@ impl TemporalClient {
         }
         if wait_confirmation {
             println!(" signature: {:?}", signature);
-            println!(" [{:width$}] {} confirmed: {:?}", "nozomi", trade_type, start_time.elapsed(), width = crate::common::sdk_log::SWQOS_LABEL_WIDTH);
+            println!(
+                " [{:width$}] {} confirmed: {:?}",
+                "nozomi",
+                trade_type,
+                start_time.elapsed(),
+                width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+            );
         }
 
         Ok(())

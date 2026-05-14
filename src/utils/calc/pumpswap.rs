@@ -13,11 +13,8 @@ pub(crate) fn creator_side_fee_basis_points(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
 ) -> u64 {
-    let creator_bps = if *coin_creator == Pubkey::default() {
-        0
-    } else {
-        COIN_CREATOR_FEE_BASIS_POINTS
-    };
+    let creator_bps =
+        if *coin_creator == Pubkey::default() { 0 } else { COIN_CREATOR_FEE_BASIS_POINTS };
     creator_bps.saturating_add(cashback_fee_basis_points)
 }
 

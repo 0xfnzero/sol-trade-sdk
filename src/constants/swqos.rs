@@ -212,7 +212,7 @@ pub const SWQOS_ENDPOINTS_ZERO_SLOT: [&str; 10] = [
     "http://de2.0slot.trade", // Use de2 for TSW, and de1 for OVH
     "http://ams.0slot.trade",
     "http://ams.0slot.trade", // Dublin: 无 IE 专用；在已公布 EU 点中选距爱尔兰最近的 ams（相对 de2 等）
-    "http://la.0slot.trade", // SLC: no UT PoP; nearest US-West published host
+    "http://la.0slot.trade",  // SLC: no UT PoP; nearest US-West published host
     "http://jp.0slot.trade",
     "http://jp.0slot.trade", // SG: 无本地 PoP；已公布 APAC 仅 jp，为表中离新加坡最近的大圆距离
     "http://ams.0slot.trade", // London: 无 UK 专用；已公布 EU 点中 ams 距伦敦最近之一
@@ -252,11 +252,11 @@ pub const SWQOS_ENDPOINTS_NODE1: [&str; 10] = [
     "http://fra.node1.me",
     "http://ams.node1.me",
     "http://lon.node1.me", // Dublin: 已公布中英爱区域用 lon（地理上近爱尔兰）
-    "http://ny.node1.me", // SLC: 已公布美国仅 ny；美西无 PoP，受可用区限制复用美东
+    "http://ny.node1.me",  // SLC: 已公布美国仅 ny；美西无 PoP，受可用区限制复用美东
     "http://tk.node1.me",
     "http://tk.node1.me", // SG: 已公布 APAC 仅 tk；地理上为表中离 SG 最近
     "http://lon.node1.me",
-    "http://ny.node1.me", // LosAngeles: 同上，美国仅 ny 入口
+    "http://ny.node1.me",  // LosAngeles: 同上，美国仅 ny 入口
     "http://fra.node1.me", // Default: 非地理区域；与 QUIC 对齐为 EU 枢纽
 ];
 
@@ -359,7 +359,7 @@ pub const SWQOS_ENDPOINTS_ASTRALANE_QUIC: [&str; 10] = [
     "fr.gateway.astralane.io:7000",
     "ams.gateway.astralane.io:7000",
     "ams.gateway.astralane.io:7000", // Dublin: 同 HTTP
-    "la.gateway.astralane.io:7000", // SLC: 美西 la 为最近已公布美区入口
+    "la.gateway.astralane.io:7000",  // SLC: 美西 la 为最近已公布美区入口
     "jp.gateway.astralane.io:7000",
     "sg.gateway.astralane.io:7000",
     "ams.gateway.astralane.io:7000", // London: 同 HTTP
@@ -503,12 +503,10 @@ mod tests {
     #[test]
     fn node1_http_host_matches_quic_without_port() {
         for i in 0..10 {
-            let http_host = SWQOS_ENDPOINTS_NODE1[i]
-                .strip_prefix("http://")
-                .expect("NODE1 HTTP URL");
-            let quic_host = SWQOS_ENDPOINTS_NODE1_QUIC[i]
-                .strip_suffix(":16666")
-                .expect("NODE1 QUIC endpoint");
+            let http_host =
+                SWQOS_ENDPOINTS_NODE1[i].strip_prefix("http://").expect("NODE1 HTTP URL");
+            let quic_host =
+                SWQOS_ENDPOINTS_NODE1_QUIC[i].strip_suffix(":16666").expect("NODE1 QUIC endpoint");
             assert_eq!(http_host, quic_host, "Node1 HTTP vs QUIC host mismatch at index {}", i);
         }
     }

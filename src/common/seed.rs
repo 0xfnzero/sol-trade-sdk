@@ -94,8 +94,15 @@ pub fn create_associated_token_account_use_seed(
     let len = 165;
     // 🔧 修复：create_account_with_seed 的第3个参数必须是 payer（与第92行生成地址时使用的 base 一致）
     // 否则创建的账户地址与 ata_like 不匹配，导致 initializeAccount3 失败
-    let create_acc =
-        system_instruction::create_account_with_seed(payer, &ata_like, payer, seed, rent, len, token_program);
+    let create_acc = system_instruction::create_account_with_seed(
+        payer,
+        &ata_like,
+        payer,
+        seed,
+        rent,
+        len,
+        token_program,
+    );
 
     let init_acc = if is_2022_token {
         crate::common::spl_token_2022::initialize_account3(&token_program, &ata_like, mint, owner)?
