@@ -77,3 +77,38 @@ pub fn amm_info_decode(data: &[u8]) -> Option<AmmInfo> {
     }
     borsh::from_slice::<AmmInfo>(&data[..AMM_INFO_SIZE]).ok()
 }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+pub struct MarketState {
+    pub padding: [u8; 5],
+    pub account_flags: u64,
+    pub own_address: Pubkey,
+    pub vault_signer_nonce: u64,
+    pub coin_mint: Pubkey,
+    pub pc_mint: Pubkey,
+    pub serum_coin_vault_account: Pubkey,
+    pub coin_deposits_total: u64,
+    pub coin_fees_accrued: u64,
+    pub serum_pc_vault_account: Pubkey,
+    pub pc_deposits_total: u64,
+    pub pc_fees_accrued: u64,
+    pub pc_dust_threshold: u64,
+    pub request_queue: Pubkey,
+    pub serum_event_queue: Pubkey,
+    pub serum_bids: Pubkey,
+    pub serum_asks: Pubkey,
+    pub coin_lot_size: u64,
+    pub pc_lot_size: u64,
+    pub fee_rate_bps: u64,
+    pub referrer_rebate_accrued: u64,
+    pub padding2: [u8; 7],
+}
+
+pub const MARKET_STATE_SIZE: usize = 388;
+
+pub fn market_state_decode(data: &[u8]) -> Option<MarketState> {
+    if data.len() < MARKET_STATE_SIZE {
+        return None;
+    }
+    borsh::from_slice::<MarketState>(&data[..MARKET_STATE_SIZE]).ok()
+}

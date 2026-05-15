@@ -49,7 +49,7 @@ impl Default for SyscallBypassConfig {
 
 pub struct SyscallBatchProcessor {
     pending_calls: crossbeam_queue::ArrayQueue<SyscallRequest>,
-    _executor: tokio::runtime::Handle,
+    _executor: Option<tokio::runtime::Handle>,
     batch_stats: CachePadded<AtomicU64>,
 }
 
@@ -94,6 +94,7 @@ pub struct FastTimeProvider {
     /// 上次更新时间
     last_update: CachePadded<AtomicU64>,
     /// 启用vDSO
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     vdso_enabled: bool,
 }
 
@@ -121,6 +122,7 @@ impl FastTimeProvider {
     /// 🚀 超快速获取当前时间 - 绕过系统调用
     #[inline(always)]
     pub fn fast_now_nanos(&self) -> u64 {
+        #[cfg(target_os = "linux")]
         if self.vdso_enabled {
             // 使用vDSO快速获取时间
             return self.vdso_time_nanos();
@@ -140,6 +142,7 @@ impl FastTimeProvider {
 
     /// vDSO时间获取
     #[inline(always)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     fn vdso_time_nanos(&self) -> u64 {
         #[cfg(target_os = "linux")]
         {
@@ -371,7 +374,7 @@ impl SyscallBatchProcessor {
     /// 创建系统调用批处理器
     pub fn new(batch_size: usize) -> Result<Self> {
         let pending_calls = crossbeam_queue::ArrayQueue::new(batch_size * 10);
-        let executor = tokio::runtime::Handle::current();
+        let executor = tokio::runtime::Handle::try_current().ok();
 
         tracing::info!(target: "sol_trade_sdk","🚀 Syscall batch processor created with batch size: {}", batch_size);
 

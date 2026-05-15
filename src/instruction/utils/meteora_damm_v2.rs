@@ -16,6 +16,7 @@ pub mod accounts {
 
     pub const AUTHORITY: Pubkey = pubkey!("HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC");
     pub const METEORA_DAMM_V2: Pubkey = pubkey!("cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG");
+    pub const SYSVAR_INSTRUCTIONS: Pubkey = pubkey!("Sysvar1nstructions1111111111111111111111111");
 
     // META
 
@@ -32,9 +33,20 @@ pub mod accounts {
             is_signer: false,
             is_writable: false,
         };
+
+    pub const SYSVAR_INSTRUCTIONS_META: solana_sdk::instruction::AccountMeta =
+        solana_sdk::instruction::AccountMeta {
+            pubkey: SYSVAR_INSTRUCTIONS,
+            is_signer: false,
+            is_writable: false,
+        };
 }
 
 pub const SWAP_DISCRIMINATOR: &[u8] = &[248, 198, 158, 145, 225, 117, 135, 200];
+pub const SWAP2_DISCRIMINATOR: &[u8] = &[65, 75, 63, 76, 235, 91, 91, 136];
+pub const SWAP_MODE_EXACT_IN: u8 = 0;
+pub const SWAP_MODE_PARTIAL_FILL: u8 = 1;
+pub const SWAP_MODE_EXACT_OUT: u8 = 2;
 
 pub async fn fetch_pool(
     rpc: &SolanaRpcClient,

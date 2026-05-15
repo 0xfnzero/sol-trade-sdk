@@ -172,10 +172,17 @@ impl SIMDMemoryOps {
     unsafe fn memcmp_small(a: *const u8, b: *const u8, len: usize) -> bool {
         match len {
             1 => *a == *b,
-            2 => *(a as *const u16) == *(b as *const u16),
-            3 => *(a as *const u16) == *(b as *const u16) && *a.add(2) == *b.add(2),
-            4 => *(a as *const u32) == *(b as *const u32),
-            5..=8 => *(a as *const u64) == *(b as *const u64),
+            2 => ptr::read_unaligned(a as *const u16) == ptr::read_unaligned(b as *const u16),
+            3 => {
+                ptr::read_unaligned(a as *const u16) == ptr::read_unaligned(b as *const u16)
+                    && *a.add(2) == *b.add(2)
+            }
+            4 => ptr::read_unaligned(a as *const u32) == ptr::read_unaligned(b as *const u32),
+            5..=7 => {
+                ptr::read_unaligned(a as *const u32) == ptr::read_unaligned(b as *const u32)
+                    && (4..len).all(|i| *a.add(i) == *b.add(i))
+            }
+            8 => ptr::read_unaligned(a as *const u64) == ptr::read_unaligned(b as *const u64),
             _ => unreachable!(),
         }
     }

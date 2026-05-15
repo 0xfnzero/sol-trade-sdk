@@ -164,7 +164,7 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
         trade_info.protocol_fee_recipient,
         pool_data.coin_creator,
         pool_data.is_cashback_coin,
-        trade_info.cashback_fee_basis_points,
+        0,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
         || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
@@ -195,7 +195,7 @@ async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> A
         trade_info.protocol_fee_recipient,
         pool_data.coin_creator,
         pool_data.is_cashback_coin,
-        trade_info.cashback_fee_basis_points,
+        0,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
         || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
@@ -235,7 +235,7 @@ async fn pumpswap_trade_with_grpc(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpSwap(params.clone()),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: is_sol,
         close_input_token_ata: is_sol,
         create_mint_ata: true,
@@ -244,7 +244,6 @@ async fn pumpswap_trade_with_grpc(
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     client.buy(buy_params).await?;
@@ -277,7 +276,7 @@ async fn pumpswap_trade_with_grpc(
         with_tip: false,
         extension_params: DexParamEnum::PumpSwap(params.clone()),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: is_sol,
         close_output_token_ata: is_sol,
         close_mint_token_ata: false,

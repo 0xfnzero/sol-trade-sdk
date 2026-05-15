@@ -36,7 +36,7 @@ type FnvHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 use crate::{
     common::nonce_cache::DurableNonceInfo,
-    common::{GasFeeStrategy, SolanaRpcClient},
+    common::GasFeeStrategy,
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::core::params::SenderConcurrencyConfig,
     trading::{common::build_transaction, MiddlewareManager},
@@ -51,7 +51,6 @@ const SWQOS_DEDICATED_DEFAULT_THREADS: usize = 18;
 struct SwqosSharedContext {
     payer: Arc<Keypair>,
     instructions: Arc<Vec<Instruction>>,
-    rpc: Option<Arc<SolanaRpcClient>>,
     address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
@@ -88,7 +87,6 @@ async fn run_one_swqos_job(job: SwqosJob) {
 
     let transaction = match build_transaction(
         &s.payer,
-        s.rpc.as_ref(),
         job.unit_limit,
         job.unit_price,
         s.instructions.as_ref(),
@@ -101,9 +99,7 @@ async fn run_one_swqos_job(job: SwqosJob) {
         &job.tip_account,
         tip_amount,
         s.durable_nonce.as_ref(),
-    )
-    .await
-    {
+    ) {
         Ok(tx) => tx,
         Err(e) => {
             s.collector.submit(TaskResult {
@@ -436,7 +432,6 @@ impl ResultCollector {
 pub async fn execute_parallel(
     swqos_clients: &[Arc<SwqosClient>],
     payer: Arc<Keypair>,
-    rpc: Option<&Arc<SolanaRpcClient>>,
     instructions: Vec<Instruction>,
     address_lookup_table_account: Option<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
@@ -471,10 +466,10 @@ pub async fn execute_parallel(
         gas_fee_strategy.get_strategies(if is_buy { TradeType::Buy } else { TradeType::Sell });
     let mut task_configs = Vec::with_capacity(swqos_clients.len() * 3);
     for (i, swqos_client) in swqos_clients.iter().enumerate() {
-        if !with_tip && !matches!(swqos_client.get_swqos_type(), SwqosType::Default) {
+        let swqos_type = swqos_client.get_swqos_type();
+        if !with_tip && !matches!(swqos_type, SwqosType::Default) {
             continue;
         }
-        let swqos_type = swqos_client.get_swqos_type();
         let check_tip = with_tip && !matches!(swqos_type, SwqosType::Default) && check_min_tip;
         let min_tip = if check_tip { swqos_client.min_tip_sol() } else { 0.0 };
         for config in &gas_fee_configs {
@@ -513,7 +508,6 @@ pub async fn execute_parallel(
     let shared = Arc::new(SwqosSharedContext {
         payer,
         instructions,
-        rpc: rpc.cloned(),
         address_lookup_table_account,
         recent_blockhash,
         durable_nonce,

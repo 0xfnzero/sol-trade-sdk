@@ -13,10 +13,16 @@ use crate::{
     },
 };
 use crate::{
-    instruction::utils::pumpfun::{
-        accounts, get_bonding_curve_pda, get_user_volume_accumulator_pda,
-        global_constants::{self},
-        pump_fun_fee_recipient_meta, resolve_creator_vault_for_ix_with_fee_sharing,
+    instruction::{
+        token_account_setup::{
+            push_close_wsol_if_needed, push_create_or_wrap_user_token_account,
+            push_create_user_token_account,
+        },
+        utils::pumpfun::{
+            accounts, get_bonding_curve_pda, get_user_volume_accumulator_pda,
+            global_constants::{self},
+            pump_fun_fee_recipient_meta, resolve_creator_vault_for_ix_with_fee_sharing,
+        },
     },
     utils::calc::{
         common::{calculate_with_slippage_buy, calculate_with_slippage_sell},
@@ -28,10 +34,7 @@ use solana_sdk::instruction::AccountMeta;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
 
 #[inline]
-fn effective_pump_mint_token_program(mint: &Pubkey, protocol_params: &PumpFunParams) -> Pubkey {
-    if mint.to_string().ends_with("pump") {
-        return TOKEN_PROGRAM_2022;
-    }
+fn effective_pump_mint_token_program(_mint: &Pubkey, protocol_params: &PumpFunParams) -> Pubkey {
     let tp = protocol_params.token_program;
     if tp == Pubkey::default() {
         TOKEN_PROGRAM_2022
@@ -108,19 +111,6 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
     )
     .ok_or_else(|| anyhow!("creator_vault PDA derivation failed (creator={})", creator))?;
 
-    let buy_token_amount = match params.fixed_output_amount {
-        Some(amount) => amount,
-        None => get_buy_token_amount_from_sol_amount(
-            bonding_curve.virtual_token_reserves as u128,
-            bonding_curve.virtual_sol_reserves as u128,
-            bonding_curve.real_token_reserves as u128,
-            creator,
-            lamports_in,
-        ),
-    };
-
-    let max_sol_cost = calculate_with_slippage_buy(lamports_in, slippage_bp);
-
     let bonding_curve_addr = get_bonding_curve_pda(&params.output_mint).ok_or_else(|| {
         anyhow!("bonding_curve PDA derivation failed for mint {}", params.output_mint)
     })?;
@@ -167,11 +157,23 @@ fn build_buy_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
 
     // ── Legacy buy path ──
     let track_volume_val = if bonding_curve.is_cashback_coin { 1u8 } else { 0u8 };
-    let buy_data = if params.use_exact_sol_amount.unwrap_or(true) {
-        let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
-        encode_pumpfun_buy_exact_sol_in_ix_data(lamports_in, min_tokens_out, track_volume_val)
+    let buy_data = if let Some(token_amount) = params.fixed_output_amount {
+        encode_pumpfun_buy_ix_data(token_amount, lamports_in, track_volume_val)
     } else {
-        encode_pumpfun_buy_ix_data(buy_token_amount, max_sol_cost, track_volume_val)
+        let buy_token_amount = get_buy_token_amount_from_sol_amount(
+            bonding_curve.virtual_token_reserves as u128,
+            bonding_curve.virtual_sol_reserves as u128,
+            bonding_curve.real_token_reserves as u128,
+            creator,
+            lamports_in,
+        );
+        if params.use_exact_sol_amount.unwrap_or(true) {
+            let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
+            encode_pumpfun_buy_exact_sol_in_ix_data(lamports_in, min_tokens_out, track_volume_val)
+        } else {
+            let max_sol_cost = calculate_with_slippage_buy(lamports_in, slippage_bp);
+            encode_pumpfun_buy_ix_data(buy_token_amount, max_sol_cost, track_volume_val)
+        }
     };
 
     let fee_recipient_meta =
@@ -250,18 +252,17 @@ fn build_sell_v1(params: &SwapParams) -> Result<Vec<Instruction>> {
         })?
     };
 
-    let creator = protocol_params.effective_creator_for_trade();
-
-    let sol_amount = get_sell_sol_amount_from_token_amount(
-        bonding_curve.virtual_token_reserves as u128,
-        bonding_curve.virtual_sol_reserves as u128,
-        creator,
-        token_amount,
-    );
-
-    let min_sol_output = match params.fixed_output_amount {
-        Some(fixed) => fixed,
-        None => calculate_with_slippage_sell(sol_amount, slippage_bp),
+    let min_sol_output = if let Some(fixed) = params.fixed_output_amount {
+        fixed
+    } else {
+        let creator = protocol_params.effective_creator_for_trade();
+        let sol_amount = get_sell_sol_amount_from_token_amount(
+            bonding_curve.virtual_token_reserves as u128,
+            bonding_curve.virtual_sol_reserves as u128,
+            creator,
+            token_amount,
+        );
+        calculate_with_slippage_sell(sol_amount, slippage_bp)
     };
 
     let bonding_curve_addr = get_bonding_curve_pda(&params.input_mint).ok_or_else(|| {
@@ -378,19 +379,6 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     )
     .ok_or_else(|| anyhow!("creator_vault PDA derivation failed (creator={})", creator))?;
 
-    let buy_token_amount = match params.fixed_output_amount {
-        Some(amount) => amount,
-        None => get_buy_token_amount_from_sol_amount(
-            bonding_curve.virtual_token_reserves as u128,
-            bonding_curve.virtual_sol_reserves as u128,
-            bonding_curve.real_token_reserves as u128,
-            creator,
-            lamports_in,
-        ),
-    };
-
-    let max_sol_cost = calculate_with_slippage_buy(lamports_in, slippage_bp);
-
     let bonding_curve_addr = get_bonding_curve_pda(&params.output_mint).ok_or_else(|| {
         anyhow!("bonding_curve PDA derivation failed for mint {}", params.output_mint)
     })?;
@@ -472,7 +460,7 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
             &quote_token_program,
         );
 
-    let mut instructions = Vec::with_capacity(4);
+    let mut instructions = Vec::with_capacity(6);
 
     if params.create_output_mint_ata {
         instructions.extend(
@@ -486,24 +474,35 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         );
     }
 
+    let (buy_data, quote_amount_to_fund) = if let Some(token_amount) = params.fixed_output_amount {
+        (encode_pumpfun_buy_v2_ix_data(token_amount, lamports_in), lamports_in)
+    } else {
+        let buy_token_amount = get_buy_token_amount_from_sol_amount(
+            bonding_curve.virtual_token_reserves as u128,
+            bonding_curve.virtual_sol_reserves as u128,
+            bonding_curve.real_token_reserves as u128,
+            creator,
+            lamports_in,
+        );
+        if params.use_exact_sol_amount.unwrap_or(true) {
+            let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
+            (encode_pumpfun_buy_exact_quote_in_v2_ix_data(lamports_in, min_tokens_out), lamports_in)
+        } else {
+            let max_sol_cost = calculate_with_slippage_buy(lamports_in, slippage_bp);
+            (encode_pumpfun_buy_v2_ix_data(buy_token_amount, max_sol_cost), max_sol_cost)
+        }
+    };
+
     if params.create_input_mint_ata {
-        instructions.extend(
-            crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
-                &params.payer.pubkey(),
-                &params.payer.pubkey(),
-                &quote_mint,
-                &quote_token_program,
-                params.open_seed_optimize,
-            ),
+        push_create_or_wrap_user_token_account(
+            &mut instructions,
+            &params.payer.pubkey(),
+            &quote_mint,
+            &quote_token_program,
+            quote_amount_to_fund,
+            params.open_seed_optimize,
         );
     }
-
-    let buy_data = if params.use_exact_sol_amount.unwrap_or(true) {
-        let min_tokens_out = calculate_with_slippage_sell(buy_token_amount, slippage_bp);
-        encode_pumpfun_buy_exact_quote_in_v2_ix_data(lamports_in, min_tokens_out)
-    } else {
-        encode_pumpfun_buy_v2_ix_data(buy_token_amount, max_sol_cost)
-    };
 
     let metas: Vec<AccountMeta> = vec![
         global_constants::GLOBAL_ACCOUNT_META,
@@ -536,6 +535,10 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
     ];
 
     instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, &buy_data, metas));
+
+    if params.close_input_mint_ata {
+        push_close_wsol_if_needed(&mut instructions, &params.payer.pubkey(), &quote_mint);
+    }
 
     Ok(instructions)
 }
@@ -584,18 +587,17 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         })?
     };
 
-    let creator = protocol_params.effective_creator_for_trade();
-
-    let sol_amount = get_sell_sol_amount_from_token_amount(
-        bonding_curve.virtual_token_reserves as u128,
-        bonding_curve.virtual_sol_reserves as u128,
-        creator,
-        token_amount,
-    );
-
-    let min_sol_output = match params.fixed_output_amount {
-        Some(fixed) => fixed,
-        None => calculate_with_slippage_sell(sol_amount, slippage_bp),
+    let min_sol_output = if let Some(fixed) = params.fixed_output_amount {
+        fixed
+    } else {
+        let creator = protocol_params.effective_creator_for_trade();
+        let sol_amount = get_sell_sol_amount_from_token_amount(
+            bonding_curve.virtual_token_reserves as u128,
+            bonding_curve.virtual_sol_reserves as u128,
+            creator,
+            token_amount,
+        );
+        calculate_with_slippage_sell(sol_amount, slippage_bp)
     };
 
     let bonding_curve_addr = get_bonding_curve_pda(&params.input_mint).ok_or_else(|| {
@@ -678,17 +680,15 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
             &quote_token_program,
         );
 
-    let mut instructions = Vec::with_capacity(3);
+    let mut instructions = Vec::with_capacity(4);
 
     if params.create_output_mint_ata {
-        instructions.extend(
-            crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
-                &params.payer.pubkey(),
-                &params.payer.pubkey(),
-                &quote_mint,
-                &quote_token_program,
-                params.open_seed_optimize,
-            ),
+        push_create_user_token_account(
+            &mut instructions,
+            &params.payer.pubkey(),
+            &quote_mint,
+            &quote_token_program,
+            params.open_seed_optimize,
         );
     }
 
@@ -734,6 +734,10 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
             &params.payer.pubkey(),
             &[&params.payer.pubkey()],
         )?);
+    }
+
+    if params.close_output_mint_ata {
+        push_close_wsol_if_needed(&mut instructions, &params.payer.pubkey(), &quote_mint);
     }
 
     Ok(instructions)
@@ -846,14 +850,122 @@ mod tests {
     }
 
     #[test]
-    fn pump_suffix_buy_forces_token_2022_even_with_legacy_cached_program() {
+    fn pump_suffix_buy_respects_explicit_legacy_token_program() {
         crate::common::seed::set_default_rents();
         let params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         let instructions = build_buy_v1(&params).unwrap();
 
         assert_eq!(instructions.len(), 3);
-        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM_2022);
-        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM);
         assert_eq!(instructions[2].accounts.len(), 18);
+        assert_eq!(instructions[2].data.len(), 25);
+    }
+
+    #[test]
+    fn pumpfun_v1_fixed_output_uses_buy_with_max_input_budget() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        params.fixed_output_amount = Some(42);
+        params.use_exact_sol_amount = Some(true);
+
+        let instructions = build_buy_v1(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::BUY_DISCRIMINATOR);
+        assert_eq!(ix.data.len(), 25);
+        assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
+        assert_eq!(
+            u64::from_le_bytes(ix.data[16..24].try_into().unwrap()),
+            params.input_amount.unwrap()
+        );
+        assert_eq!(ix.data[24], 0);
+    }
+
+    #[test]
+    fn pumpfun_v2_fixed_output_uses_buy_with_max_input_budget() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        params.fixed_output_amount = Some(42);
+        params.use_exact_sol_amount = Some(true);
+
+        let instructions = build_buy_v2(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR);
+        assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
+        assert_eq!(
+            u64::from_le_bytes(ix.data[16..24].try_into().unwrap()),
+            params.input_amount.unwrap()
+        );
+    }
+
+    #[test]
+    fn pumpfun_v2_regular_buy_wraps_max_quote_budget() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        params.create_input_mint_ata = true;
+        params.use_exact_sol_amount = Some(false);
+
+        let instructions = build_buy_v2(&params).unwrap();
+        let transfer_ix = &instructions[1];
+        let system_ix = bincode::deserialize::<
+            solana_system_interface::instruction::SystemInstruction,
+        >(&transfer_ix.data)
+        .unwrap();
+        let expected = crate::utils::calc::common::calculate_with_slippage_buy(
+            params.input_amount.unwrap(),
+            params.slippage_basis_points.unwrap(),
+        );
+
+        match system_ix {
+            solana_system_interface::instruction::SystemInstruction::Transfer { lamports } => {
+                assert_eq!(lamports, expected);
+            }
+            other => panic!("unexpected system instruction: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn pumpfun_v1_sell_fixed_output_uses_min_sol_directly() {
+        let mint = pump_mint();
+        let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = mint;
+        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+        params.fixed_output_amount = Some(42);
+
+        let instructions = build_sell_v1(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::SELL_DISCRIMINATOR);
+        assert_eq!(ix.data.len(), 24);
+        assert_eq!(
+            u64::from_le_bytes(ix.data[8..16].try_into().unwrap()),
+            params.input_amount.unwrap()
+        );
+        assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 42);
+    }
+
+    #[test]
+    fn pumpfun_v2_sell_fixed_output_uses_min_sol_directly() {
+        let mint = pump_mint();
+        let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = mint;
+        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+        params.fixed_output_amount = Some(42);
+
+        let instructions = build_sell_v2(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::SELL_V2_DISCRIMINATOR);
+        assert_eq!(ix.data.len(), 24);
+        assert_eq!(
+            u64::from_le_bytes(ix.data[8..16].try_into().unwrap()),
+            params.input_amount.unwrap()
+        );
+        assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 42);
     }
 }

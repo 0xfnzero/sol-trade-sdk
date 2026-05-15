@@ -362,7 +362,8 @@ pub struct TradeBuyParams {
     pub create_mint_ata: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
-    /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
+    /// Optional fixed output token amount. On exact-out capable DEXes this uses
+    /// the exact-out instruction and treats `input_token_amount` as max input.
     pub fixed_output_token_amount: Option<u64>,
     /// Gas fee strategy
     pub gas_fee_strategy: GasFeeStrategy,
@@ -413,7 +414,8 @@ pub struct TradeSellParams {
     pub close_mint_token_ata: bool,
     /// Durable nonce information
     pub durable_nonce: Option<DurableNonceInfo>,
-    /// Optional fixed output token amount (If this value is set, it will be directly assigned to the output amount instead of being calculated)
+    /// Optional fixed output token amount. On exact-out capable DEXes this uses
+    /// the exact-out instruction and treats `input_token_amount` as max input.
     pub fixed_output_token_amount: Option<u64>,
     /// Gas fee strategy
     pub gas_fee_strategy: GasFeeStrategy,

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use super::nonce_manager::{add_nonce_instruction, get_transaction_blockhash};
 use crate::{
-    common::{nonce_cache::DurableNonceInfo, SolanaRpcClient},
+    common::nonce_cache::DurableNonceInfo,
     trading::{
         core::transaction_pool::{acquire_builder, release_builder},
         MiddlewareManager,
@@ -26,11 +26,10 @@ fn sol_f64_to_lamports(sol: f64) -> u64 {
     (lamports.min(u64::MAX as f64)).round() as u64
 }
 
-/// Build standard RPC transaction (worker hot path).
-/// Takes Arc/refs only; one Vec allocation (with_capacity), extend_from_slice for business_instructions, no extra clone of payer/rpc/middleware.
-pub async fn build_transaction(
+/// Build signed transaction (worker hot path, no RPC).
+/// Takes Arc/refs only; one Vec allocation (with_capacity), extend_from_slice for business_instructions, no extra clone of payer/middleware.
+pub fn build_transaction(
     payer: &Arc<Keypair>,
-    _rpc: Option<&Arc<SolanaRpcClient>>,
     unit_limit: u32,
     unit_price: u64,
     business_instructions: &[Instruction],
@@ -74,10 +73,9 @@ pub async fn build_transaction(
         protocol_name,
         is_buy,
     )
-    .await
 }
 
-async fn build_versioned_transaction(
+fn build_versioned_transaction(
     payer: &Arc<Keypair>,
     instructions: Vec<Instruction>,
     address_lookup_table_account: Option<&AddressLookupTableAccount>,

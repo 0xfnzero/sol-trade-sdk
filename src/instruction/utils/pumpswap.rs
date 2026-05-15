@@ -11,7 +11,10 @@ use parking_lot::RwLock;
 use rand::seq::IndexedRandom;
 use solana_account_decoder::UiAccountEncoding;
 use solana_sdk::{instruction::AccountMeta, pubkey::Pubkey};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::{Duration, Instant};
 use tracing::warn;
 
@@ -205,6 +208,7 @@ struct CachedGlobalConfig {
 
 static GLOBAL_CONFIG_CACHE: Lazy<RwLock<Option<CachedGlobalConfig>>> =
     Lazy::new(|| RwLock::new(None));
+static GLOBAL_CONFIG_REFRESH_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
 
 fn read_pubkey(data: &[u8], offset: usize) -> Option<Pubkey> {
     let bytes = data.get(offset..offset + PUBKEY_LEN)?;
@@ -294,8 +298,12 @@ pub async fn warm_pumpswap_global_config(rpc: Option<&Arc<SolanaRpcClient>>) {
         .as_ref()
         .map(|c| c.fetched_at.elapsed() > PUMPSWAP_GLOBAL_CONFIG_TTL)
         .unwrap_or(true);
-    if stale {
-        let _ = refresh_global_config_once(rpc.as_ref()).await;
+    if stale && !GLOBAL_CONFIG_REFRESH_IN_FLIGHT.swap(true, Ordering::AcqRel) {
+        let rpc = Arc::clone(rpc);
+        tokio::spawn(async move {
+            let _ = refresh_global_config_once(rpc.as_ref()).await;
+            GLOBAL_CONFIG_REFRESH_IN_FLIGHT.store(false, Ordering::Release);
+        });
     }
 }
 

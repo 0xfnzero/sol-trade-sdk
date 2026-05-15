@@ -160,7 +160,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::RaydiumCpmm(buy_params),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: is_wsol,
         close_input_token_ata: is_wsol,
         create_mint_ata: true,
@@ -169,7 +169,6 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     client.buy(buy_params).await?;
@@ -201,7 +200,7 @@ async fn raydium_cpmm_copy_trade_with_grpc(trade_info: RaydiumCpmmSwapEvent) -> 
         with_tip: false,
         extension_params: DexParamEnum::RaydiumCpmm(sell_params),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: is_wsol,
         close_output_token_ata: is_wsol,
         close_mint_token_ata: false,

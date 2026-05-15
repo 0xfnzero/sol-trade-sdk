@@ -12,6 +12,11 @@ pub struct MeteoraDammV2Params {
     pub token_b_mint: Pubkey,
     pub token_a_program: Pubkey,
     pub token_b_program: Pubkey,
+    pub referral_token_account: Option<Pubkey>,
+    /// `swap2` mode: 0 exact-in, 1 partial-fill (recommended default), 2 exact-out.
+    pub swap_mode: u8,
+    /// Include the instructions sysvar remaining account when the pool's rate limiter applies.
+    pub include_rate_limiter_sysvar: bool,
 }
 
 impl MeteoraDammV2Params {
@@ -32,7 +37,25 @@ impl MeteoraDammV2Params {
             token_b_mint,
             token_a_program,
             token_b_program,
+            referral_token_account: None,
+            swap_mode: crate::instruction::utils::meteora_damm_v2::SWAP_MODE_PARTIAL_FILL,
+            include_rate_limiter_sysvar: false,
         }
+    }
+
+    pub fn with_referral_token_account(mut self, referral_token_account: Pubkey) -> Self {
+        self.referral_token_account = Some(referral_token_account);
+        self
+    }
+
+    pub fn with_swap_mode(mut self, swap_mode: u8) -> Self {
+        self.swap_mode = swap_mode;
+        self
+    }
+
+    pub fn with_rate_limiter_sysvar(mut self, include: bool) -> Self {
+        self.include_rate_limiter_sysvar = include;
+        self
     }
 
     pub async fn from_pool_address_by_rpc(
@@ -61,6 +84,9 @@ impl MeteoraDammV2Params {
             token_b_mint: pool_data.token_b_mint,
             token_a_program,
             token_b_program,
+            referral_token_account: None,
+            swap_mode: crate::instruction::utils::meteora_damm_v2::SWAP_MODE_PARTIAL_FILL,
+            include_rate_limiter_sysvar: false,
         })
     }
 }

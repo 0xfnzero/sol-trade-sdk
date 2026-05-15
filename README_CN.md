@@ -108,14 +108,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.8" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.9" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "4.0.8"
+sol-trade-sdk = "4.0.9"
 ```
 
 ## 🛠️ 使用示例
@@ -446,4 +446,3 @@ MIT 许可证
 3. 注意滑点设置避免交易失败
 4. 监控余额和交易费用
 5. 遵循相关法律法规
-

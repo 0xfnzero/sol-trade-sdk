@@ -103,7 +103,7 @@ async fn test_middleware() -> AnyResult<()> {
                 .await?,
         ),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: true,
         create_mint_ata: true,
@@ -112,7 +112,6 @@ async fn test_middleware() -> AnyResult<()> {
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     client.buy(buy_params).await?;

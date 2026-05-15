@@ -1,8 +1,14 @@
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
-    instruction::utils::bonk::{
-        accounts, get_pool_pda, get_vault_pda, BUY_EXECT_IN_DISCRIMINATOR,
-        SELL_EXECT_IN_DISCRIMINATOR,
+    instruction::{
+        token_account_setup::{
+            push_close_wsol_if_needed, push_create_or_wrap_user_token_account,
+            push_create_user_token_account,
+        },
+        utils::bonk::{
+            accounts, get_pool_pda, get_vault_pda, BUY_EXECT_IN_DISCRIMINATOR,
+            BUY_EXECT_OUT_DISCRIMINATOR, SELL_EXECT_IN_DISCRIMINATOR, SELL_EXECT_OUT_DISCRIMINATOR,
+        },
     },
     trading::core::{
         params::{BonkParams, SwapParams},
@@ -55,6 +61,11 @@ impl InstructionBuilder for BonkInstructionBuilder {
             accounts::GLOBAL_CONFIG_META
         };
 
+        let quote_mint = if usd1_pool {
+            crate::constants::USD1_TOKEN_ACCOUNT
+        } else {
+            crate::constants::WSOL_TOKEN_ACCOUNT
+        };
         let quote_token_mint = if usd1_pool {
             crate::constants::USD1_TOKEN_ACCOUNT_META
         } else {
@@ -88,11 +99,7 @@ impl InstructionBuilder for BonkInstructionBuilder {
         let user_quote_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                if usd1_pool {
-                    &crate::constants::USD1_TOKEN_ACCOUNT
-                } else {
-                    &crate::constants::WSOL_TOKEN_ACCOUNT
-                },
+                &quote_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -103,11 +110,7 @@ impl InstructionBuilder for BonkInstructionBuilder {
             protocol_params.base_vault
         };
         let quote_vault_account = if protocol_params.quote_vault == Pubkey::default() {
-            if usd1_pool {
-                get_vault_pda(&pool_state, &crate::constants::USD1_TOKEN_ACCOUNT).unwrap()
-            } else {
-                get_vault_pda(&pool_state, &crate::constants::WSOL_TOKEN_ACCOUNT).unwrap()
-            }
+            get_vault_pda(&pool_state, &quote_mint).unwrap()
         } else {
             protocol_params.quote_vault
         };
@@ -117,9 +120,15 @@ impl InstructionBuilder for BonkInstructionBuilder {
         // ========================================
         let mut instructions = Vec::with_capacity(6);
 
-        if params.create_input_mint_ata && !usd1_pool {
-            instructions
-                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), amount_in));
+        if params.create_input_mint_ata {
+            push_create_or_wrap_user_token_account(
+                &mut instructions,
+                &params.payer.pubkey(),
+                &quote_mint,
+                &crate::constants::TOKEN_PROGRAM,
+                amount_in,
+                params.open_seed_optimize,
+            );
         }
 
         if params.create_output_mint_ata {
@@ -135,12 +144,18 @@ impl InstructionBuilder for BonkInstructionBuilder {
         }
 
         let mut data = [0u8; 32];
-        data[..8].copy_from_slice(&BUY_EXECT_IN_DISCRIMINATOR);
-        data[8..16].copy_from_slice(&amount_in.to_le_bytes());
-        data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        if let Some(amount_out) = params.fixed_output_amount {
+            data[..8].copy_from_slice(&BUY_EXECT_OUT_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_out.to_le_bytes());
+            data[16..24].copy_from_slice(&amount_in.to_le_bytes());
+        } else {
+            data[..8].copy_from_slice(&BUY_EXECT_IN_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
+            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        }
         data[24..32].copy_from_slice(&share_fee_rate.to_le_bytes());
 
-        let accounts: [AccountMeta; 18] = [
+        let accounts: [AccountMeta; 15] = [
             AccountMeta::new(params.payer.pubkey(), true), // Payer (signer)
             accounts::AUTHORITY_META,                      // Authority (readonly)
             global_config,                                 // Global Config (readonly)
@@ -156,15 +171,12 @@ impl InstructionBuilder for BonkInstructionBuilder {
             crate::constants::TOKEN_PROGRAM_META, // Quote Token Program (readonly)
             accounts::EVENT_AUTHORITY_META,       // Event Authority (readonly)
             accounts::BONK_META,                  // Program (readonly)
-            crate::constants::SYSTEM_PROGRAM_META, // System Program (readonly)
-            AccountMeta::new(protocol_params.platform_associated_account, false), // Platform Associated Account
-            AccountMeta::new(protocol_params.creator_associated_account, false), // Creator Associated Account
         ];
 
         instructions.push(Instruction::new_with_bytes(accounts::BONK, &data, accounts.to_vec()));
 
         if params.close_input_mint_ata {
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
+            push_close_wsol_if_needed(&mut instructions, &params.payer.pubkey(), &quote_mint);
         }
 
         Ok(instructions)
@@ -203,6 +215,11 @@ impl InstructionBuilder for BonkInstructionBuilder {
             accounts::GLOBAL_CONFIG_META
         };
 
+        let quote_mint = if usd1_pool {
+            crate::constants::USD1_TOKEN_ACCOUNT
+        } else {
+            crate::constants::WSOL_TOKEN_ACCOUNT
+        };
         let quote_token_mint = if usd1_pool {
             crate::constants::USD1_TOKEN_ACCOUNT_META
         } else {
@@ -235,11 +252,7 @@ impl InstructionBuilder for BonkInstructionBuilder {
         let user_quote_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
                 &params.payer.pubkey(),
-                if usd1_pool {
-                    &crate::constants::USD1_TOKEN_ACCOUNT
-                } else {
-                    &crate::constants::WSOL_TOKEN_ACCOUNT
-                },
+                &quote_mint,
                 &crate::constants::TOKEN_PROGRAM,
                 params.open_seed_optimize,
             );
@@ -250,11 +263,7 @@ impl InstructionBuilder for BonkInstructionBuilder {
             protocol_params.base_vault
         };
         let quote_vault_account = if protocol_params.quote_vault == Pubkey::default() {
-            if usd1_pool {
-                get_vault_pda(&pool_state, &crate::constants::USD1_TOKEN_ACCOUNT).unwrap()
-            } else {
-                get_vault_pda(&pool_state, &crate::constants::WSOL_TOKEN_ACCOUNT).unwrap()
-            }
+            get_vault_pda(&pool_state, &quote_mint).unwrap()
         } else {
             protocol_params.quote_vault
         };
@@ -262,19 +271,31 @@ impl InstructionBuilder for BonkInstructionBuilder {
         // ========================================
         // Build instructions
         // ========================================
-        let mut instructions = Vec::with_capacity(3);
+        let mut instructions = Vec::with_capacity(4);
 
-        if params.close_output_mint_ata && !usd1_pool {
-            instructions.extend(crate::trading::common::create_wsol_ata(&params.payer.pubkey()));
+        if params.create_output_mint_ata {
+            push_create_user_token_account(
+                &mut instructions,
+                &params.payer.pubkey(),
+                &quote_mint,
+                &crate::constants::TOKEN_PROGRAM,
+                params.open_seed_optimize,
+            );
         }
 
         let mut data = [0u8; 32];
-        data[..8].copy_from_slice(&SELL_EXECT_IN_DISCRIMINATOR);
-        data[8..16].copy_from_slice(&amount.to_le_bytes());
-        data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        if let Some(amount_out) = params.fixed_output_amount {
+            data[..8].copy_from_slice(&SELL_EXECT_OUT_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_out.to_le_bytes());
+            data[16..24].copy_from_slice(&amount.to_le_bytes());
+        } else {
+            data[..8].copy_from_slice(&SELL_EXECT_IN_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount.to_le_bytes());
+            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        }
         data[24..32].copy_from_slice(&share_fee_rate.to_le_bytes());
 
-        let accounts: [AccountMeta; 18] = [
+        let accounts: [AccountMeta; 15] = [
             AccountMeta::new(params.payer.pubkey(), true), // Payer (signer)
             accounts::AUTHORITY_META,                      // Authority (readonly)
             global_config,                                 // Global Config (readonly)
@@ -290,15 +311,12 @@ impl InstructionBuilder for BonkInstructionBuilder {
             crate::constants::TOKEN_PROGRAM_META, // Quote Token Program (readonly)
             accounts::EVENT_AUTHORITY_META,       // Event Authority (readonly)
             accounts::BONK_META,                  // Program (readonly)
-            crate::constants::SYSTEM_PROGRAM_META, // System Program (readonly)
-            AccountMeta::new(protocol_params.platform_associated_account, false), // Platform Associated Account
-            AccountMeta::new(protocol_params.creator_associated_account, false), // Creator Associated Account
         ];
 
         instructions.push(Instruction::new_with_bytes(accounts::BONK, &data, accounts.to_vec()));
 
         if params.close_output_mint_ata {
-            instructions.extend(crate::trading::common::close_wsol(&params.payer.pubkey()));
+            push_close_wsol_if_needed(&mut instructions, &params.payer.pubkey(), &quote_mint);
         }
         if params.close_input_mint_ata {
             instructions.push(crate::common::spl_token::close_account(
@@ -311,5 +329,113 @@ impl InstructionBuilder for BonkInstructionBuilder {
         }
 
         Ok(instructions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{common::GasFeeStrategy, swqos::TradeType, trading::core::params::DexParamEnum};
+    use solana_sdk::{pubkey::Pubkey, signature::Keypair};
+    use std::sync::Arc;
+
+    fn pk(seed: u8) -> Pubkey {
+        Pubkey::new_from_array([seed; 32])
+    }
+
+    fn bonk_params() -> BonkParams {
+        BonkParams {
+            mint_token_program: crate::constants::TOKEN_PROGRAM,
+            platform_config: pk(8),
+            platform_associated_account: pk(9),
+            creator_associated_account: pk(10),
+            global_config: accounts::GLOBAL_CONFIG,
+            ..Default::default()
+        }
+    }
+
+    fn swap_params(trade_type: TradeType) -> SwapParams {
+        SwapParams {
+            rpc: None,
+            payer: Arc::new(Keypair::new()),
+            trade_type,
+            input_mint: pk(3),
+            input_token_program: None,
+            output_mint: pk(3),
+            output_token_program: None,
+            input_amount: Some(100_000),
+            slippage_basis_points: Some(100),
+            address_lookup_table_account: None,
+            recent_blockhash: None,
+            wait_tx_confirmed: false,
+            protocol_params: DexParamEnum::Bonk(bonk_params()),
+            open_seed_optimize: true,
+            swqos_clients: Arc::new(Vec::new()),
+            middleware_manager: None,
+            durable_nonce: None,
+            with_tip: false,
+            create_input_mint_ata: false,
+            close_input_mint_ata: false,
+            create_output_mint_ata: false,
+            close_output_mint_ata: false,
+            fixed_output_amount: Some(42),
+            gas_fee_strategy: GasFeeStrategy::new(),
+            simulate: true,
+            log_enabled: false,
+            use_dedicated_sender_threads: false,
+            sender_thread_cores: None,
+            max_sender_concurrency: 0,
+            effective_core_ids: Arc::new(Vec::new()),
+            check_min_tip: false,
+            grpc_recv_us: None,
+            use_exact_sol_amount: None,
+            use_pumpfun_v2: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn bonk_buy_uses_exact_out_when_fixed_output_is_set() {
+        let instructions = BonkInstructionBuilder
+            .build_buy_instructions(&swap_params(TradeType::Buy))
+            .await
+            .unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(ix.accounts.len(), 15);
+        assert_eq!(ix.accounts[14].pubkey, accounts::BONK);
+        assert_eq!(&ix.data[..8], BUY_EXECT_OUT_DISCRIMINATOR);
+        assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
+        assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 100_000);
+    }
+
+    #[tokio::test]
+    async fn bonk_sell_uses_exact_out_when_fixed_output_is_set() {
+        let instructions = BonkInstructionBuilder
+            .build_sell_instructions(&swap_params(TradeType::Sell))
+            .await
+            .unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(ix.accounts.len(), 15);
+        assert_eq!(ix.accounts[14].pubkey, accounts::BONK);
+        assert_eq!(&ix.data[..8], SELL_EXECT_OUT_DISCRIMINATOR);
+        assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
+        assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 100_000);
+    }
+
+    #[tokio::test]
+    async fn bonk_usd1_buy_create_input_builds_usd1_ata_not_wsol_wrap() {
+        let mut params = swap_params(TradeType::Buy);
+        if let DexParamEnum::Bonk(protocol_params) = &mut params.protocol_params {
+            protocol_params.global_config = accounts::USD1_GLOBAL_CONFIG;
+        }
+        params.create_input_mint_ata = true;
+        params.open_seed_optimize = false;
+
+        let instructions = BonkInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let create_ix = instructions.first().unwrap();
+
+        assert_eq!(create_ix.program_id, crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID);
+        assert_eq!(create_ix.accounts[3].pubkey, crate::constants::USD1_TOKEN_ACCOUNT);
     }
 }

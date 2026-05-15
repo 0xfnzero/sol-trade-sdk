@@ -1,6 +1,8 @@
 use crate::{
     common::SolanaRpcClient,
-    instruction::utils::raydium_amm_v4_types::{amm_info_decode, AmmInfo},
+    instruction::utils::raydium_amm_v4_types::{
+        amm_info_decode, market_state_decode, AmmInfo, MarketState,
+    },
 };
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
@@ -39,4 +41,26 @@ pub async fn fetch_amm_info(rpc: &SolanaRpcClient, amm: Pubkey) -> Result<AmmInf
     let amm_info =
         amm_info_decode(&amm_info).ok_or_else(|| anyhow!("Failed to decode amm info"))?;
     Ok(amm_info)
+}
+
+pub async fn fetch_market_state(
+    rpc: &SolanaRpcClient,
+    market: Pubkey,
+) -> Result<MarketState, anyhow::Error> {
+    let market_data = rpc.get_account_data(&market).await?;
+    market_state_decode(&market_data).ok_or_else(|| anyhow!("Failed to decode market state"))
+}
+
+pub fn derive_serum_vault_signer(
+    serum_program: &Pubkey,
+    serum_market: &Pubkey,
+    vault_signer_nonce: u64,
+) -> Result<Pubkey, anyhow::Error> {
+    let nonce = vault_signer_nonce.to_le_bytes();
+    Pubkey::create_program_address(&[serum_market.as_ref(), &nonce], serum_program)
+        .or_else(|_| {
+            let legacy_nonce = [vault_signer_nonce as u8];
+            Pubkey::create_program_address(&[serum_market.as_ref(), &legacy_nonce], serum_program)
+        })
+        .map_err(|err| anyhow!("Failed to derive Serum vault signer: {}", err))
 }

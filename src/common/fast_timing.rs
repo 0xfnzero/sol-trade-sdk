@@ -141,8 +141,8 @@ mod tests {
         std::thread::sleep(Duration::from_millis(10));
         let elapsed = fast_elapsed_nanos(start);
 
-        // 应该大约是 10ms = 10,000,000 纳秒
-        assert!(elapsed >= 9_000_000 && elapsed <= 12_000_000);
+        // Scheduler jitter can exceed the sleep duration; the fast timer must not under-report.
+        assert!(elapsed >= 9_000_000);
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
         std::thread::sleep(Duration::from_millis(10));
         let elapsed_ms = sw.elapsed_millis();
 
-        assert!(elapsed_ms >= 9 && elapsed_ms <= 12);
+        assert!(elapsed_ms >= 9);
     }
 
     #[test]

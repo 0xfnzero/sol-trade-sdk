@@ -162,7 +162,6 @@ impl TradeExecutor for GenericTradeExecutor {
         let result = execute_parallel(
             params.swqos_clients.as_slice(),
             params.payer,
-            params.rpc.as_ref(),
             final_instructions,
             params.address_lookup_table_account,
             params.recent_blockhash,
@@ -282,7 +281,6 @@ async fn simulate_transaction(
 
     let transaction = build_transaction(
         &payer,
-        Some(&rpc),
         unit_limit,
         unit_price,
         &instructions,
@@ -295,8 +293,7 @@ async fn simulate_transaction(
         &Pubkey::default(),
         tip,
         durable_nonce.as_ref(),
-    )
-    .await?;
+    )?;
 
     // Simulate the transaction
     use solana_commitment_config::CommitmentConfig;

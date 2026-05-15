@@ -75,6 +75,8 @@ pub struct SwapParams {
     pub close_input_mint_ata: bool,
     pub create_output_mint_ata: bool,
     pub close_output_mint_ata: bool,
+    /// Fixed output amount. For protocols with exact-out instructions this selects exact-out
+    /// semantics and treats `input_amount` as the maximum input budget.
     pub fixed_output_amount: Option<u64>,
     pub gas_fee_strategy: GasFeeStrategy,
     pub simulate: bool,

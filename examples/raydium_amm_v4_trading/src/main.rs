@@ -8,10 +8,7 @@ use sol_trade_sdk::{
     },
     SolanaTrade,
 };
-use sol_trade_sdk::{
-    common::TradeConfig, instruction::utils::raydium_amm_v4::fetch_amm_info,
-    trading::common::get_multi_token_balances, TradeTokenType,
-};
+use sol_trade_sdk::{common::TradeConfig, TradeTokenType};
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
@@ -131,29 +128,16 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
-    let amm_info = fetch_amm_info(&client.infrastructure.rpc, trade_info.amm).await?;
-    let (coin_reserve, pc_reserve) = get_multi_token_balances(
-        &client.infrastructure.rpc,
-        &amm_info.token_coin,
-        &amm_info.token_pc,
-    )
-    .await?;
-    let mint_pubkey = if amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
-        || amm_info.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
+    let params =
+        RaydiumAmmV4Params::from_amm_address_by_rpc(&client.infrastructure.rpc, trade_info.amm)
+            .await?;
+    let mint_pubkey = if params.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+        || params.pc_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
     {
-        amm_info.coin_mint
+        params.coin_mint
     } else {
-        amm_info.pc_mint
+        params.pc_mint
     };
-    let params = RaydiumAmmV4Params::new(
-        trade_info.amm,
-        amm_info.coin_mint,
-        amm_info.pc_mint,
-        amm_info.token_coin,
-        amm_info.token_pc,
-        coin_reserve,
-        pc_reserve,
-    );
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -161,8 +145,8 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     // Buy tokens
     println!("Buying tokens from Raydium_amm_v4...");
     let input_token_amount = 100_000;
-    let is_wsol = amm_info.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
-        || amm_info.coin_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+    let is_wsol = params.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+        || params.coin_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
         input_token_type: if is_wsol { TradeTokenType::WSOL } else { TradeTokenType::USDC },
@@ -172,7 +156,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::RaydiumAmmV4(params),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: is_wsol,
         close_input_token_ata: is_wsol,
         create_mint_ata: true,
@@ -181,7 +165,6 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     client.buy(buy_params).await?;
@@ -215,7 +198,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         with_tip: false,
         extension_params: DexParamEnum::RaydiumAmmV4(params),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: is_wsol,
         close_output_token_ata: is_wsol,
         close_mint_token_ata: false,

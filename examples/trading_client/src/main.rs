@@ -47,7 +47,7 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
         SwqosConfig::Temporal("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::FlashBlock("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
         SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
-        SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
+        SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
         SwqosConfig::Astralane(
             "your_api_token".to_string(),
             SwqosRegion::Frankfurt,

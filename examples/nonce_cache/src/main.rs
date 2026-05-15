@@ -163,7 +163,7 @@ async fn pumpfun_copy_trade_with_grpc(
             Some(trade_info.mayhem_mode),
         )),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: true,
@@ -172,7 +172,6 @@ async fn pumpfun_copy_trade_with_grpc(
         gas_fee_strategy: gas_fee_strategy.clone(),
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     client.buy(buy_params).await?;

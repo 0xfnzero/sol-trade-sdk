@@ -627,7 +627,7 @@ async fn handle_buy_pumpfun(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpFun(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
@@ -636,11 +636,10 @@ async fn handle_buy_pumpfun(
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully bought tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -684,7 +683,7 @@ async fn handle_buy_pumpswap(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::PumpSwap(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
@@ -693,11 +692,10 @@ async fn handle_buy_pumpswap(
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully bought tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -741,7 +739,7 @@ async fn handle_buy_bonk(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::Bonk(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
@@ -750,11 +748,10 @@ async fn handle_buy_bonk(
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully bought tokens from Bonk!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -802,7 +799,7 @@ async fn handle_buy_raydium_v4(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::RaydiumAmmV4(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
@@ -811,11 +808,10 @@ async fn handle_buy_raydium_v4(
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully bought tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -864,7 +860,7 @@ async fn handle_buy_raydium_cpmm(
         recent_blockhash: Some(recent_blockhash),
         extension_params: DexParamEnum::RaydiumCpmm(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_input_token_ata: true,
         close_input_token_ata: false,
         create_mint_ata: create_mint_ata,
@@ -873,11 +869,10 @@ async fn handle_buy_raydium_cpmm(
         gas_fee_strategy: gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
-        use_pumpfun_v2: false,
         grpc_recv_us: None,
     };
     match client.buy(buy_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully bought tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1035,7 +1030,7 @@ async fn handle_sell_pumpfun(
         with_tip: false,
         extension_params: DexParamEnum::PumpFun(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
@@ -1047,7 +1042,7 @@ async fn handle_sell_pumpfun(
     };
 
     match client.sell(sell_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully sold tokens from PumpFun!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1094,7 +1089,7 @@ async fn handle_sell_pumpswap(
         with_tip: false,
         extension_params: DexParamEnum::PumpSwap(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
@@ -1105,7 +1100,7 @@ async fn handle_sell_pumpswap(
         grpc_recv_us: None,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully sold tokens from PumpSwap!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1153,7 +1148,7 @@ async fn handle_sell_bonk(
         with_tip: false,
         extension_params: DexParamEnum::Bonk(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
@@ -1164,7 +1159,7 @@ async fn handle_sell_bonk(
         grpc_recv_us: None,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully sold tokens from Bonk!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1215,7 +1210,7 @@ async fn handle_sell_raydium_v4(
         with_tip: false,
         extension_params: DexParamEnum::RaydiumAmmV4(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
@@ -1226,7 +1221,7 @@ async fn handle_sell_raydium_v4(
         grpc_recv_us: None,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully sold tokens from Raydium V4!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }
@@ -1278,7 +1273,7 @@ async fn handle_sell_raydium_cpmm(
         with_tip: false,
         extension_params: DexParamEnum::RaydiumCpmm(param),
         address_lookup_table_account: None,
-        wait_transaction_confirmed: true,
+        wait_tx_confirmed: true,
         create_output_token_ata: true,
         close_output_token_ata: false,
         close_mint_token_ata: false,
@@ -1289,7 +1284,7 @@ async fn handle_sell_raydium_cpmm(
         grpc_recv_us: None,
     };
     match client.sell(sell_params).await {
-        Ok((_, signature, _)) => {
+        Ok((_, signature, _, _)) => {
             println!("   ✅ Successfully sold tokens from Raydium CPMM!");
             println!("   ✅ Transaction Signature: {:?}", signature);
         }

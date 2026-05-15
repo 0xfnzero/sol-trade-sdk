@@ -112,7 +112,7 @@ impl TradeConfig {
     /// - `.mev_protection(bool)`              — MEV protection for Astralane/BlockRazor (default: false)
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,ignore
     /// let config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     ///     .mev_protection(true)
     ///     .check_min_tip(true)

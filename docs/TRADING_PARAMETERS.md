@@ -35,7 +35,7 @@ The `TradeBuyParams` struct contains all parameters required for executing buy o
 | `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
 | `create_mint_ata` | `bool` | ✅ | Whether to create token mint ATA |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
-| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. On exact-out capable DEXes, this uses the exact-out instruction and treats input_token_amount as the max input budget (required for Meteora DAMM V2) |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
 | `simulate` | `bool` | ✅ | Whether to simulate the transaction instead of executing it. When true, the transaction will be simulated via RPC to validate and show detailed logs, compute units consumed, and potential errors without actually submitting to the blockchain |
 
@@ -67,7 +67,7 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce information containing nonce account and current nonce value |
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Gas fee strategy instance for controlling transaction fees and priorities |
-| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. If set, this value will be directly assigned to the output amount instead of being calculated (required for Meteora DAMM V2) |
+| `fixed_output_token_amount` | `Option<u64>` | ❌ | Optional fixed output token amount. On exact-out capable DEXes, this uses the exact-out instruction and treats input_token_amount as the max input budget (required for Meteora DAMM V2) |
 | `simulate` | `bool` | ✅ | Whether to simulate the transaction instead of executing it. When true, the transaction will be simulated via RPC to validate and show detailed logs, compute units consumed, and potential errors without actually submitting to the blockchain |
 
 

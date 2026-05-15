@@ -288,7 +288,10 @@ impl OptimizationFlags {
             "+popcnt".to_string(),
         ];
 
-        #[cfg(not(target_arch = "x86_64"))]
+        #[cfg(target_arch = "aarch64")]
+        let target_features = vec!["+neon".to_string()];
+
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         let target_features = vec![];
         Self {
             opt_level: OptLevel::Aggressive,
