@@ -1,14 +1,16 @@
-# IDL sources
+# IDL files
 
-Bitquery IDLs synced from `bitquery/solana-idl-lib` commit `f804b17`.
+Supported DEX IDLs are stored directly in this directory. The files below were
+synced from `bitquery/solana-idl-lib` commit `f804b17` and written to the SDK's
+canonical local filenames.
 
-| SDK protocol | Root IDL | Bitquery source |
+| SDK protocol | Local IDL | Source path |
 | --- | --- | --- |
-| Bonk / Raydium Launchpad | `bonk.json` | `bitquery/raydium/launchpad.json` |
-| Raydium CPMM | `raydium_cpmm.json` | `bitquery/raydium/raydium_cp.json` |
-| Raydium AMM v4 | `raydium_amm_v4.json` | `bitquery/raydium/raydium_amm.json` |
-| Meteora DAMM v2 | `meteora_damm_v2.json` | `bitquery/meteora/cp_amm_016.json` |
-| PumpFun | `pump.json` | `bitquery/pumpfun/pump.json` |
-| PumpSwap | `pump_amm.json` | `bitquery/pumpswap/amm.json` |
+| Bonk / Raydium Launchpad | `bonk.json` | `raydium/launchpad.json` |
+| Raydium CPMM | `raydium_cpmm.json` | `raydium/raydium_cp.json` |
+| Raydium AMM v4 | `raydium_amm_v4.json` | `raydium/raydium_amm.json` |
+| Meteora DAMM v2 | `meteora_damm_v2.json` | `meteora/cp_amm_016.json` |
+| PumpFun | `pump.json` | `pumpfun/pump.json` |
+| PumpSwap | `pump_amm.json` | `pumpswap/amm.json` |
 
-The root PumpFun/PumpSwap IDLs remain the newer local copies used for cashback and v2 instruction parity. The Bitquery snapshots are kept under `idl/bitquery/` for source comparison.
+No separate source snapshot tree is kept in the repository.
