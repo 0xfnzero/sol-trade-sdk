@@ -35,8 +35,8 @@ use fnv::FnvHasher;
 type FnvHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 use crate::{
-    common::nonce_cache::DurableNonceInfo,
-    common::GasFeeStrategy,
+    common::gas_fee_strategy::{GasFeeStrategyType, GasFeeStrategyValue},
+    common::{nonce_cache::DurableNonceInfo, GasFeeStrategy, SwqosSubmitTiming},
     swqos::{SwqosClient, SwqosType, TradeType},
     trading::core::params::SenderConcurrencyConfig,
     trading::{common::build_transaction, MiddlewareManager},
@@ -71,6 +71,7 @@ struct SwqosJob {
     tip_account: Arc<Pubkey>,
     swqos_client: Arc<SwqosClient>,
     swqos_type: SwqosType,
+    strategy_type: GasFeeStrategyType,
     core_id: Option<core_affinity::CoreId>,
     use_affinity: bool,
 }
@@ -107,6 +108,7 @@ async fn run_one_swqos_job(job: SwqosJob) {
                 signature: Signature::default(),
                 error: Some(e),
                 swqos_type: job.swqos_type,
+                strategy_type: job.strategy_type,
                 landed_on_chain: false,
                 submit_done_us: crate::common::clock::now_micros(),
             });
@@ -136,6 +138,7 @@ async fn run_one_swqos_job(job: SwqosJob) {
         signature: sig,
         error: err,
         swqos_type: job.swqos_type,
+        strategy_type: job.strategy_type,
         landed_on_chain,
         submit_done_us: crate::common::clock::now_micros(),
     });
@@ -153,33 +156,31 @@ async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>, notify: Arc<Notify>
 
 static SWQOS_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
 static SWQOS_NOTIFY: OnceCell<Arc<Notify>> = OnceCell::new();
-static SWQOS_WORKERS_STARTED: AtomicBool = AtomicBool::new(false);
+static SWQOS_WORKER_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Dedicated OS-thread sender pool. Queue and notify are in OnceCell so hot path never takes a lock after init.
 static DEDICATED_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
 static DEDICATED_NOTIFY: OnceCell<Arc<Notify>> = OnceCell::new();
+static DEDICATED_WORKER_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// JoinHandles kept so dedicated threads are not detached; only touched during init under lock.
 static DEDICATED_INIT: Mutex<Option<Vec<std::thread::JoinHandle<()>>>> = Mutex::new(None);
 
-fn ensure_dedicated_pool(
+fn desired_dedicated_workers(
     sender_thread_cores: Option<&[usize]>,
     max_sender_concurrency: usize,
-) -> (Arc<ArrayQueue<SwqosJob>>, Arc<Notify>) {
-    if let (Some(q), Some(n)) = (DEDICATED_QUEUE.get(), DEDICATED_NOTIFY.get()) {
-        return (q.clone(), n.clone());
-    }
-    let mut guard = DEDICATED_INIT.lock();
-    if let (Some(q), Some(n)) = (DEDICATED_QUEUE.get(), DEDICATED_NOTIFY.get()) {
-        return (q.clone(), n.clone());
-    }
-    let n = sender_thread_cores
+) -> usize {
+    sender_thread_cores
         .map(|v| v.len().min(max_sender_concurrency))
         .unwrap_or_else(|| SWQOS_DEDICATED_DEFAULT_THREADS.min(max_sender_concurrency))
         .min(32)
-        .max(1);
-    let queue = Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP));
-    let notify = Arc::new(Notify::new());
-    let core_ids: Vec<core_affinity::CoreId> = core_affinity::get_core_ids()
+        .max(1)
+}
+
+fn dedicated_core_ids(
+    sender_thread_cores: Option<&[usize]>,
+    n: usize,
+) -> Vec<core_affinity::CoreId> {
+    core_affinity::get_core_ids()
         .map(|all_ids| {
             sender_thread_cores
                 .map(|indices| {
@@ -187,9 +188,83 @@ fn ensure_dedicated_pool(
                 })
                 .unwrap_or_else(|| all_ids.into_iter().take(n).collect())
         })
-        .unwrap_or_default();
-    let mut handles = Vec::with_capacity(n);
-    for i in 0..n {
+        .unwrap_or_default()
+}
+
+fn ensure_dedicated_pool(
+    sender_thread_cores: Option<&[usize]>,
+    max_sender_concurrency: usize,
+) -> (Arc<ArrayQueue<SwqosJob>>, Arc<Notify>) {
+    let target_workers = desired_dedicated_workers(sender_thread_cores, max_sender_concurrency);
+    if let (Some(q), Some(n)) = (DEDICATED_QUEUE.get(), DEDICATED_NOTIFY.get()) {
+        if DEDICATED_WORKER_COUNT.load(Ordering::Acquire) >= target_workers {
+            return (q.clone(), n.clone());
+        }
+        ensure_dedicated_worker_count(q.clone(), n.clone(), sender_thread_cores, target_workers);
+        return (q.clone(), n.clone());
+    }
+    let mut guard = DEDICATED_INIT.lock();
+    if let (Some(q), Some(n)) = (DEDICATED_QUEUE.get(), DEDICATED_NOTIFY.get()) {
+        if DEDICATED_WORKER_COUNT.load(Ordering::Acquire) < target_workers {
+            ensure_dedicated_worker_count_locked(
+                q.clone(),
+                n.clone(),
+                sender_thread_cores,
+                target_workers,
+                &mut guard,
+            );
+        }
+        return (q.clone(), n.clone());
+    }
+    let queue = Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP));
+    let notify = Arc::new(Notify::new());
+    let _ = DEDICATED_QUEUE.set(queue.clone());
+    let _ = DEDICATED_NOTIFY.set(notify.clone());
+    *guard = Some(Vec::with_capacity(target_workers));
+    ensure_dedicated_worker_count_locked(
+        queue.clone(),
+        notify.clone(),
+        sender_thread_cores,
+        target_workers,
+        &mut guard,
+    );
+    (queue, notify)
+}
+
+fn ensure_dedicated_worker_count(
+    queue: Arc<ArrayQueue<SwqosJob>>,
+    notify: Arc<Notify>,
+    sender_thread_cores: Option<&[usize]>,
+    target_workers: usize,
+) {
+    if DEDICATED_WORKER_COUNT.load(Ordering::Acquire) >= target_workers {
+        return;
+    }
+    let mut guard = DEDICATED_INIT.lock();
+    ensure_dedicated_worker_count_locked(
+        queue,
+        notify,
+        sender_thread_cores,
+        target_workers,
+        &mut guard,
+    );
+}
+
+fn ensure_dedicated_worker_count_locked(
+    queue: Arc<ArrayQueue<SwqosJob>>,
+    notify: Arc<Notify>,
+    sender_thread_cores: Option<&[usize]>,
+    target_workers: usize,
+    guard: &mut Option<Vec<std::thread::JoinHandle<()>>>,
+) {
+    let current = DEDICATED_WORKER_COUNT.load(Ordering::Acquire);
+    if current >= target_workers {
+        return;
+    }
+    let core_ids = dedicated_core_ids(sender_thread_cores, target_workers);
+    let handles = guard.get_or_insert_with(Vec::new);
+    handles.reserve(target_workers.saturating_sub(current));
+    for i in current..target_workers {
         let queue = queue.clone();
         let notify = notify.clone();
         let core_id = core_ids.get(i).cloned();
@@ -205,19 +280,23 @@ fn ensure_dedicated_pool(
         });
         handles.push(handle);
     }
-    let _ = DEDICATED_QUEUE.set(queue.clone());
-    let _ = DEDICATED_NOTIFY.set(notify.clone());
-    *guard = Some(handles);
-    (queue, notify)
+    DEDICATED_WORKER_COUNT.store(target_workers, Ordering::Release);
 }
 
 fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>, max_sender_concurrency: usize) {
-    if SWQOS_WORKERS_STARTED.swap(true, Ordering::AcqRel) {
+    let n = SWQOS_POOL_WORKERS.min(max_sender_concurrency).max(1);
+    let mut current = SWQOS_WORKER_COUNT.load(Ordering::Acquire);
+    while current < n {
+        match SWQOS_WORKER_COUNT.compare_exchange(current, n, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => break,
+            Err(actual) => current = actual,
+        }
+    }
+    if current >= n {
         return;
     }
-    let n = SWQOS_POOL_WORKERS.min(max_sender_concurrency).max(1);
     let notify = SWQOS_NOTIFY.get_or_init(|| Arc::new(Notify::new())).clone();
-    for _ in 0..n {
+    for _ in current..n {
         tokio::spawn(swqos_worker_loop(queue.clone(), notify.clone()));
     }
 }
@@ -228,6 +307,7 @@ struct TaskResult {
     signature: Signature,
     error: Option<anyhow::Error>,
     swqos_type: SwqosType,
+    strategy_type: GasFeeStrategyType,
     landed_on_chain: bool,
     /// Microsecond timestamp when this task finished (SWQOS returned); for per-SWQOS event→submit timing.
     submit_done_us: i64,
@@ -295,7 +375,7 @@ impl ResultCollector {
 
     async fn wait_for_success(
         &self,
-    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
         let start = Instant::now();
         let timeout = std::time::Duration::from_secs(5);
         let poll_interval = std::time::Duration::from_millis(1000);
@@ -307,7 +387,7 @@ impl ResultCollector {
                 let mut submit_timings = Vec::new();
                 while let Some(result) = self.results.pop() {
                     signatures.push(result.signature);
-                    submit_timings.push((result.swqos_type, result.submit_done_us));
+                    submit_timings.push(result.submit_timing());
                     if result.success {
                         has_success = true;
                     }
@@ -325,7 +405,7 @@ impl ResultCollector {
                 let mut submit_timings = Vec::new();
                 while let Some(result) = self.results.pop() {
                     signatures.push(result.signature);
-                    submit_timings.push((result.swqos_type, result.submit_done_us));
+                    submit_timings.push(result.submit_timing());
                     // Prefer the error from the tx that actually landed
                     if result.landed_on_chain && result.error.is_some() {
                         landed_error = result.error;
@@ -344,7 +424,7 @@ impl ResultCollector {
                 let mut submit_timings = Vec::new();
                 while let Some(result) = self.results.pop() {
                     signatures.push(result.signature);
-                    submit_timings.push((result.swqos_type, result.submit_done_us));
+                    submit_timings.push(result.submit_timing());
                     if result.success {
                         any_success = true;
                     }
@@ -367,7 +447,7 @@ impl ResultCollector {
 
     fn get_first(
         &self,
-    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
         let mut signatures = Vec::new();
         let mut has_success = false;
         let mut last_error = None;
@@ -375,7 +455,7 @@ impl ResultCollector {
 
         while let Some(result) = self.results.pop() {
             signatures.push(result.signature);
-            submit_timings.push((result.swqos_type, result.submit_done_us));
+            submit_timings.push(result.submit_timing());
             if result.success {
                 has_success = true;
             }
@@ -396,7 +476,7 @@ impl ResultCollector {
     async fn wait_for_all_submitted(
         &self,
         timeout_secs: u64,
-    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
         let start = Instant::now();
         let primary = Duration::from_secs(timeout_secs);
         let poll_interval = Duration::from_millis(2);
@@ -410,8 +490,7 @@ impl ResultCollector {
         // 若主窗口到时仍有未回包通道，晚到的 TaskResult 若立刻 drain 会丢签名——仅在该路径上拉长 grace。
         let all_submitted = self.completed_count.load(Ordering::Acquire) >= self.total_tasks;
         if all_submitted {
-            // 全数已登记：仅留极短 settle，避免极端情况下最后一笔与计数可见性竞态。
-            tokio::time::sleep(Duration::from_millis(35)).await;
+            tokio::task::yield_now().await;
         } else {
             tokio::time::sleep(Duration::from_millis(600)).await;
             while self.completed_count.load(Ordering::Acquire) < self.total_tasks {
@@ -424,6 +503,63 @@ impl ResultCollector {
         }
         self.get_first()
     }
+}
+
+type GasFeeConfig = (SwqosType, GasFeeStrategyType, GasFeeStrategyValue);
+
+#[derive(Debug, Clone, Copy)]
+struct SwqosTaskConfig {
+    task_ordinal: usize,
+    swqos_index: usize,
+    gas_fee_config: GasFeeConfig,
+}
+
+impl TaskResult {
+    #[inline]
+    fn submit_timing(&self) -> SwqosSubmitTiming {
+        SwqosSubmitTiming {
+            swqos_type: self.swqos_type,
+            strategy_type: self.strategy_type,
+            submit_done_us: self.submit_done_us,
+        }
+    }
+}
+
+fn select_swqos_task_configs(
+    swqos_types: &[SwqosType],
+    gas_fee_configs: &[GasFeeConfig],
+    with_tip: bool,
+    check_min_tip: bool,
+    min_tip_by_swqos: impl Fn(SwqosType) -> f64,
+) -> Vec<SwqosTaskConfig> {
+    let mut task_configs = Vec::with_capacity(swqos_types.len() * 3);
+    for (i, swqos_type) in swqos_types.iter().copied().enumerate() {
+        if !with_tip && !matches!(swqos_type, SwqosType::Default) {
+            continue;
+        }
+        let check_tip = with_tip && !matches!(swqos_type, SwqosType::Default) && check_min_tip;
+        let min_tip = if check_tip { min_tip_by_swqos(swqos_type) } else { 0.0 };
+        for config in gas_fee_configs {
+            if config.0 != swqos_type {
+                continue;
+            }
+            if check_tip && config.2.tip < min_tip {
+                if crate::common::sdk_log::sdk_log_enabled() {
+                    println!(
+                        "⚠️ Config filtered: {:?} tip {} is below minimum required {}",
+                        config.0, config.2.tip, min_tip
+                    );
+                }
+                continue;
+            }
+            task_configs.push(SwqosTaskConfig {
+                task_ordinal: task_configs.len(),
+                swqos_index: i,
+                gas_fee_config: *config,
+            });
+        }
+    }
+    task_configs
 }
 
 /// Execute trade on multiple SWQOS clients in parallel; returns success flag, all signatures, and last error.
@@ -445,7 +581,7 @@ pub async fn execute_parallel(
     use_dedicated_sender_threads: bool,
     sender_config: SenderConcurrencyConfig,
     check_min_tip: bool,
-) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)> {
+) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
     if swqos_clients.is_empty() {
         return Err(anyhow!("swqos_clients is empty"));
     }
@@ -464,43 +600,32 @@ pub async fn execute_parallel(
     // One get_strategies call per batch (avoid N calls in loop).
     let gas_fee_configs =
         gas_fee_strategy.get_strategies(if is_buy { TradeType::Buy } else { TradeType::Sell });
-    let mut task_configs = Vec::with_capacity(swqos_clients.len() * 3);
-    for (i, swqos_client) in swqos_clients.iter().enumerate() {
-        let swqos_type = swqos_client.get_swqos_type();
-        if !with_tip && !matches!(swqos_type, SwqosType::Default) {
-            continue;
-        }
-        let check_tip = with_tip && !matches!(swqos_type, SwqosType::Default) && check_min_tip;
-        let min_tip = if check_tip { swqos_client.min_tip_sol() } else { 0.0 };
-        for config in &gas_fee_configs {
-            if config.0 != swqos_type {
-                continue;
-            }
-            if check_tip {
-                if config.2.tip < min_tip && crate::common::sdk_log::sdk_log_enabled() {
-                    println!(
-                        "⚠️ Config filtered: {:?} tip {} is below minimum required {}",
-                        config.0, config.2.tip, min_tip
-                    );
-                }
-                if config.2.tip < min_tip {
-                    continue;
-                }
-            }
-            task_configs.push((i, swqos_client.clone(), *config));
-        }
-    }
+    let swqos_types: Vec<SwqosType> =
+        swqos_clients.iter().map(|swqos| swqos.get_swqos_type()).collect();
+    let selected_task_configs = select_swqos_task_configs(
+        &swqos_types,
+        &gas_fee_configs,
+        with_tip,
+        check_min_tip,
+        |swqos_type| {
+            swqos_clients
+                .iter()
+                .find(|swqos| swqos.get_swqos_type() == swqos_type)
+                .map(|swqos| swqos.min_tip_sol())
+                .unwrap_or(0.0)
+        },
+    );
 
-    if task_configs.is_empty() {
+    if selected_task_configs.is_empty() {
         return Err(anyhow!("No available gas fee strategy configs"));
     }
 
-    if is_buy && task_configs.len() > 1 && durable_nonce.is_none() {
+    if is_buy && selected_task_configs.len() > 1 && durable_nonce.is_none() {
         return Err(anyhow!("Multiple swqos transactions require durable_nonce to be set.",));
     }
 
     // Task preparation completed: one shared context (clone once per batch), then minimal per-task data.
-    let channel_count = task_configs.len().max(1);
+    let channel_count = selected_task_configs.len().max(1);
     let collector = Arc::new(ResultCollector::new(channel_count));
     // 上限最多 5s：单路卡死时才会等满；若所有通道在窗口内回完，主循环会提前结束（不睡满秒数）。
     let submit_timeout_secs: u64 =
@@ -534,10 +659,15 @@ pub async fn execute_parallel(
         let effective_core_ids = sender_config.effective_core_ids.as_slice();
         let core_len = effective_core_ids.len().max(1);
         let mut tip_cache: FnvHashMap<*const (), Arc<Pubkey>> =
-            FnvHashMap::with_capacity_and_hasher(task_configs.len(), BuildHasherDefault::default());
-        for (i, swqos_client, gas_fee_strategy_config) in task_configs {
-            let core_id = effective_core_ids.get(i % core_len).copied();
+            FnvHashMap::with_capacity_and_hasher(
+                selected_task_configs.len(),
+                BuildHasherDefault::default(),
+            );
+        for task_config in selected_task_configs {
+            let swqos_client = swqos_clients[task_config.swqos_index].clone();
+            let core_id = effective_core_ids.get(task_config.task_ordinal % core_len).copied();
             let swqos_type = swqos_client.get_swqos_type();
+            let gas_fee_strategy_config = task_config.gas_fee_config;
             let key = Arc::as_ptr(&swqos_client) as *const ();
             let tip_account = match tip_cache.get(&key) {
                 Some(t) => t.clone(),
@@ -561,10 +691,21 @@ pub async fn execute_parallel(
                 tip_account,
                 swqos_client,
                 swqos_type,
+                strategy_type: gas_fee_strategy_config.1,
                 core_id,
                 use_affinity: !effective_core_ids.is_empty(),
             };
-            let _ = queue.push(job);
+            if let Err(job) = queue.push(job) {
+                shared.collector.submit(TaskResult {
+                    success: false,
+                    signature: Signature::default(),
+                    error: Some(anyhow!("SWQOS sender queue is full")),
+                    swqos_type: job.swqos_type,
+                    strategy_type: job.strategy_type,
+                    landed_on_chain: false,
+                    submit_done_us: crate::common::clock::now_micros(),
+                });
+            }
         }
     }
 
@@ -590,5 +731,75 @@ pub async fn execute_parallel(
         Ok((success, signatures, last_error, submit_timings))
     } else {
         Err(anyhow!("All transactions failed"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn value(cu_price: u64, tip: f64) -> GasFeeStrategyValue {
+        GasFeeStrategyValue { cu_limit: 100_000, cu_price, tip }
+    }
+
+    #[test]
+    fn select_task_configs_keeps_two_fee_lanes_per_swqos() {
+        let swqos_types = [SwqosType::Jito, SwqosType::Helius];
+        let configs = [
+            (SwqosType::Jito, GasFeeStrategyType::LowTipHighCuPrice, value(400_000, 0.002)),
+            (SwqosType::Jito, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.005)),
+            (SwqosType::Helius, GasFeeStrategyType::LowTipHighCuPrice, value(400_000, 0.002)),
+            (SwqosType::Helius, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.005)),
+        ];
+
+        let selected = select_swqos_task_configs(&swqos_types, &configs, true, false, |_| 0.0);
+
+        assert_eq!(selected.len(), 4);
+        assert_eq!(
+            selected.iter().filter(|task| task.gas_fee_config.0 == SwqosType::Jito).count(),
+            2
+        );
+        assert_eq!(
+            selected.iter().filter(|task| task.gas_fee_config.0 == SwqosType::Helius).count(),
+            2
+        );
+        assert_eq!(
+            selected.iter().map(|task| task.task_ordinal).collect::<Vec<_>>(),
+            vec![0, 1, 2, 3]
+        );
+        assert_eq!(
+            selected.iter().map(|task| task.swqos_index).collect::<Vec<_>>(),
+            vec![0, 0, 1, 1]
+        );
+    }
+
+    #[test]
+    fn select_task_configs_applies_min_tip_per_lane() {
+        let swqos_types = [SwqosType::Jito];
+        let configs = [
+            (SwqosType::Jito, GasFeeStrategyType::LowTipHighCuPrice, value(400_000, 0.0001)),
+            (SwqosType::Jito, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.005)),
+        ];
+
+        let selected = select_swqos_task_configs(&swqos_types, &configs, true, true, |_| 0.001);
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].gas_fee_config.1, GasFeeStrategyType::HighTipLowCuPrice);
+    }
+
+    #[test]
+    fn select_task_configs_without_tip_keeps_default_priority_fee_only() {
+        let swqos_types = [SwqosType::Jito, SwqosType::Default];
+        let configs = [
+            (SwqosType::Jito, GasFeeStrategyType::LowTipHighCuPrice, value(400_000, 0.002)),
+            (SwqosType::Default, GasFeeStrategyType::Normal, value(700_000, 0.0)),
+        ];
+
+        let selected = select_swqos_task_configs(&swqos_types, &configs, false, false, |_| 0.0);
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].gas_fee_config.0, SwqosType::Default);
+        assert_eq!(selected[0].gas_fee_config.2.cu_price, 700_000);
+        assert_eq!(selected[0].gas_fee_config.2.tip, 0.0);
     }
 }

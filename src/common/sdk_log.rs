@@ -84,7 +84,7 @@ pub fn print_sdk_timing_block(
     start_us: Option<i64>,
     build_end_us: Option<i64>,
     before_submit_us: Option<i64>,
-    submit_timings: &[(crate::swqos::SwqosType, i64)],
+    submit_timings: &[crate::common::SwqosSubmitTiming],
     confirm_us: Option<i64>,
 ) {
     println!();
@@ -112,13 +112,14 @@ pub fn print_sdk_timing_block(
     }
     if let Some(confirm_done_us) = confirm_us {
         let total_ms = (confirm_done_us - start_us) as f64 / 1000.0;
-        for (swqos_type, submit_done_us) in submit_timings {
-            let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
-            let confirmed_ms = (confirm_done_us - *submit_done_us).max(0) as f64 / 1000.0;
+        for timing in submit_timings {
+            let submit_ms = (timing.submit_done_us - start_us).max(0) as f64 / 1000.0;
+            let confirmed_ms = (confirm_done_us - timing.submit_done_us).max(0) as f64 / 1000.0;
             println!(
-                " [SDK][{:width$}] {} submit_done: {:.4} ms, confirmed: {:.4} ms, total: {:.4} ms",
-                swqos_type.as_str(),
+                " [SDK][{:width$}] {} {} submit_done: {:.4} ms, confirmed: {:.4} ms, total: {:.4} ms",
+                timing.swqos_type.as_str(),
                 dir,
+                timing.strategy_type.as_str(),
                 submit_ms,
                 confirmed_ms,
                 total_ms,
@@ -126,12 +127,13 @@ pub fn print_sdk_timing_block(
             );
         }
     } else {
-        for (swqos_type, submit_done_us) in submit_timings {
-            let submit_ms = (*submit_done_us - start_us).max(0) as f64 / 1000.0;
+        for timing in submit_timings {
+            let submit_ms = (timing.submit_done_us - start_us).max(0) as f64 / 1000.0;
             println!(
-                " [SDK][{:width$}] {} submit_done: {:.4} ms, confirmed: -, total: {:.4} ms",
-                swqos_type.as_str(),
+                " [SDK][{:width$}] {} {} submit_done: {:.4} ms, confirmed: -, total: {:.4} ms",
+                timing.swqos_type.as_str(),
                 dir,
+                timing.strategy_type.as_str(),
                 submit_ms,
                 submit_ms,
                 width = SWQOS_LABEL_WIDTH

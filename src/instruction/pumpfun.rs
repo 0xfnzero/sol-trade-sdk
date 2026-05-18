@@ -34,13 +34,20 @@ use solana_sdk::instruction::AccountMeta;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
 
 #[inline]
-fn effective_pump_mint_token_program(_mint: &Pubkey, protocol_params: &PumpFunParams) -> Pubkey {
+fn is_pump_suffix_mint(mint: &Pubkey) -> bool {
+    mint.to_string().ends_with("pump")
+}
+
+#[inline]
+fn effective_pump_mint_token_program(mint: &Pubkey, protocol_params: &PumpFunParams) -> Pubkey {
     let tp = protocol_params.token_program;
-    if tp == Pubkey::default() {
-        TOKEN_PROGRAM_2022
-    } else {
-        tp
+    if tp == Pubkey::default() || tp == TOKEN_PROGRAM_2022 {
+        return TOKEN_PROGRAM_2022;
     }
+    if is_pump_suffix_mint(mint) {
+        return TOKEN_PROGRAM_2022;
+    }
+    tp
 }
 
 /// Resolve quote mint and its token program from PumpFunParams.
@@ -766,7 +773,7 @@ mod tests {
     use super::*;
     use crate::{
         common::{bonding_curve::BondingCurveAccount, GasFeeStrategy},
-        constants::TOKEN_PROGRAM,
+        constants::{TOKEN_PROGRAM, TOKEN_PROGRAM_2022},
         trading::core::params::{DexParamEnum, PumpFunParams, SwapParams},
     };
     use solana_sdk::signature::Keypair;
@@ -850,15 +857,25 @@ mod tests {
     }
 
     #[test]
-    fn pump_suffix_buy_respects_explicit_legacy_token_program() {
+    fn pump_suffix_buy_forces_token_2022_even_when_params_legacy() {
         crate::common::seed::set_default_rents();
         let params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         let instructions = build_buy_v1(&params).unwrap();
 
         assert_eq!(instructions.len(), 3);
-        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM);
+        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM_2022);
         assert_eq!(instructions[2].accounts.len(), 18);
         assert_eq!(instructions[2].data.len(), 25);
+    }
+
+    #[test]
+    fn non_pump_buy_respects_explicit_legacy_token_program() {
+        crate::common::seed::set_default_rents();
+        let params = swap_params_for_buy(Pubkey::new_unique(), TOKEN_PROGRAM);
+        let instructions = build_buy_v1(&params).unwrap();
+
+        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM);
     }
 
     #[test]

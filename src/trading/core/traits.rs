@@ -1,4 +1,4 @@
-use crate::swqos::SwqosType;
+use crate::common::SwqosSubmitTiming;
 use crate::trading::SwapParams;
 use anyhow::Result;
 use solana_sdk::{instruction::Instruction, signature::Signature};
@@ -12,7 +12,7 @@ pub trait TradeExecutor: Send + Sync {
     async fn swap(
         &self,
         params: SwapParams,
-    ) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<(SwqosType, i64)>)>;
+    ) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)>;
     /// 获取协议名称
     fn protocol_name(&self) -> &'static str;
 }

@@ -1,6 +1,6 @@
 use crate::swqos::{SwqosType, TradeType};
 use arc_swap::ArcSwap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -13,6 +13,15 @@ pub enum GasFeeStrategyType {
 impl GasFeeStrategyType {
     pub fn values() -> Vec<Self> {
         vec![Self::Normal, Self::LowTipHighCuPrice, Self::HighTipLowCuPrice]
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Normal => "Normal",
+            Self::LowTipHighCuPrice => "LowTipHighCuPrice",
+            Self::HighTipLowCuPrice => "HighTipLowCuPrice",
+        }
     }
 }
 
@@ -66,6 +75,33 @@ impl GasFeeStrategy {
                 sell_tip,
             );
         }
+        self.set(
+            SwqosType::Default,
+            TradeType::Buy,
+            GasFeeStrategyType::Normal,
+            buy_cu_limit,
+            buy_cu_price,
+            0.0,
+        );
+        self.set(
+            SwqosType::Default,
+            TradeType::Sell,
+            GasFeeStrategyType::Normal,
+            sell_cu_limit,
+            sell_cu_price,
+            0.0,
+        );
+    }
+
+    /// 设置 Default/RPC 的优先费-only 策略。Default 没有 relay tip account，
+    /// 但仍应携带 ComputeBudget 优先费。
+    pub fn set_default_rpc_fee_strategy(
+        &self,
+        buy_cu_limit: u32,
+        sell_cu_limit: u32,
+        buy_cu_price: u64,
+        sell_cu_price: u64,
+    ) {
         self.set(
             SwqosType::Default,
             TradeType::Buy,
@@ -271,7 +307,7 @@ impl GasFeeStrategy {
     ) -> Vec<(SwqosType, GasFeeStrategyType, GasFeeStrategyValue)> {
         let strategies = self.strategies.load();
         let mut result = Vec::new();
-        let mut swqos_types = std::collections::HashSet::new();
+        let mut swqos_types = HashSet::new();
         for (swqos_type, t_type, _) in strategies.keys() {
             if *t_type == trade_type {
                 swqos_types.insert(*swqos_type);
@@ -298,10 +334,17 @@ impl GasFeeStrategy {
     /// 动态更新买入小费（保持其他参数不变）
     /// Dynamically update buy tip (keep other parameters unchanged)
     pub fn update_buy_tip(&self, buy_tip: f64) {
+        self.update_buy_tip_for_strategy(GasFeeStrategyType::Normal, buy_tip);
+    }
+
+    /// 动态更新指定买入策略的小费（保持其他参数不变）。
+    /// Dynamic updates should generally target Normal only; updating all strategies would
+    /// collapse the low-tip/high-tip dual-lane spread into the same tip.
+    pub fn update_buy_tip_for_strategy(&self, strategy_type: GasFeeStrategyType, buy_tip: f64) {
         self.strategies.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
-            for ((_swqos_type, trade_type, _strategy_type), value) in new_map.iter_mut() {
-                if *trade_type == TradeType::Buy {
+            for ((_swqos_type, trade_type, s_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Buy && *s_type == strategy_type {
                     value.tip = buy_tip;
                 }
             }
@@ -312,10 +355,15 @@ impl GasFeeStrategy {
     /// 动态更新卖出小费（保持其他参数不变）
     /// Dynamically update sell tip (keep other parameters unchanged)
     pub fn update_sell_tip(&self, sell_tip: f64) {
+        self.update_sell_tip_for_strategy(GasFeeStrategyType::Normal, sell_tip);
+    }
+
+    /// 动态更新指定卖出策略的小费（保持其他参数不变）。
+    pub fn update_sell_tip_for_strategy(&self, strategy_type: GasFeeStrategyType, sell_tip: f64) {
         self.strategies.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
-            for ((_swqos_type, trade_type, _strategy_type), value) in new_map.iter_mut() {
-                if *trade_type == TradeType::Sell {
+            for ((_swqos_type, trade_type, s_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Sell && *s_type == strategy_type {
                     value.tip = sell_tip;
                 }
             }
@@ -326,10 +374,19 @@ impl GasFeeStrategy {
     /// 动态更新买入优先费（保持其他参数不变）
     /// Dynamically update buy compute unit price (keep other parameters unchanged)
     pub fn update_buy_cu_price(&self, buy_cu_price: u64) {
+        self.update_buy_cu_price_for_strategy(GasFeeStrategyType::Normal, buy_cu_price);
+    }
+
+    /// 动态更新指定买入策略的优先费（保持其他参数不变）。
+    pub fn update_buy_cu_price_for_strategy(
+        &self,
+        strategy_type: GasFeeStrategyType,
+        buy_cu_price: u64,
+    ) {
         self.strategies.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
-            for ((_swqos_type, trade_type, _strategy_type), value) in new_map.iter_mut() {
-                if *trade_type == TradeType::Buy {
+            for ((_swqos_type, trade_type, s_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Buy && *s_type == strategy_type {
                     value.cu_price = buy_cu_price;
                 }
             }
@@ -340,10 +397,19 @@ impl GasFeeStrategy {
     /// 动态更新卖出优先费（保持其他参数不变）
     /// Dynamically update sell compute unit price (keep other parameters unchanged)
     pub fn update_sell_cu_price(&self, sell_cu_price: u64) {
+        self.update_sell_cu_price_for_strategy(GasFeeStrategyType::Normal, sell_cu_price);
+    }
+
+    /// 动态更新指定卖出策略的优先费（保持其他参数不变）。
+    pub fn update_sell_cu_price_for_strategy(
+        &self,
+        strategy_type: GasFeeStrategyType,
+        sell_cu_price: u64,
+    ) {
         self.strategies.rcu(|current_map| {
             let mut new_map = (**current_map).clone();
-            for ((_swqos_type, trade_type, _strategy_type), value) in new_map.iter_mut() {
-                if *trade_type == TradeType::Sell {
+            for ((_swqos_type, trade_type, s_type), value) in new_map.iter_mut() {
+                if *trade_type == TradeType::Sell && *s_type == strategy_type {
                     value.cu_price = sell_cu_price;
                 }
             }
@@ -363,5 +429,108 @@ impl GasFeeStrategy {
         for strategy in self.get_strategies(TradeType::Sell) {
             println!("[sell] - {:?}", strategy);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn find_strategy(
+        strategies: &[(SwqosType, GasFeeStrategyType, GasFeeStrategyValue)],
+        swqos_type: SwqosType,
+        strategy_type: GasFeeStrategyType,
+    ) -> GasFeeStrategyValue {
+        strategies
+            .iter()
+            .find(|(s, t, _)| *s == swqos_type && *t == strategy_type)
+            .map(|(_, _, v)| *v)
+            .expect("strategy exists")
+    }
+
+    #[test]
+    fn high_low_fee_strategy_expands_two_lanes_per_swqos() {
+        let strategy = GasFeeStrategy::new();
+
+        strategy.set_high_low_fee_strategies(
+            &[SwqosType::Jito, SwqosType::Helius],
+            TradeType::Buy,
+            100_000,
+            180_000,
+            400_000,
+            0.002,
+            0.005,
+        );
+
+        let strategies = strategy.get_strategies(TradeType::Buy);
+        assert_eq!(strategies.len(), 4);
+
+        for swqos_type in [SwqosType::Jito, SwqosType::Helius] {
+            let low_tip_high_cu =
+                find_strategy(&strategies, swqos_type, GasFeeStrategyType::LowTipHighCuPrice);
+            assert_eq!(low_tip_high_cu.cu_limit, 100_000);
+            assert_eq!(low_tip_high_cu.cu_price, 400_000);
+            assert_eq!(low_tip_high_cu.tip, 0.002);
+
+            let high_tip_low_cu =
+                find_strategy(&strategies, swqos_type, GasFeeStrategyType::HighTipLowCuPrice);
+            assert_eq!(high_tip_low_cu.cu_limit, 100_000);
+            assert_eq!(high_tip_low_cu.cu_price, 180_000);
+            assert_eq!(high_tip_low_cu.tip, 0.005);
+        }
+    }
+
+    #[test]
+    fn dynamic_updates_do_not_collapse_dual_lane_fees() {
+        let strategy = GasFeeStrategy::new();
+
+        strategy.set_high_low_fee_strategy(
+            SwqosType::Jito,
+            TradeType::Buy,
+            100_000,
+            180_000,
+            400_000,
+            0.002,
+            0.005,
+        );
+
+        strategy.update_buy_tip(0.009);
+        strategy.update_buy_cu_price(999_999);
+
+        let strategies = strategy.get_strategies(TradeType::Buy);
+        let low_tip_high_cu =
+            find_strategy(&strategies, SwqosType::Jito, GasFeeStrategyType::LowTipHighCuPrice);
+        let high_tip_low_cu =
+            find_strategy(&strategies, SwqosType::Jito, GasFeeStrategyType::HighTipLowCuPrice);
+
+        assert_eq!(low_tip_high_cu.cu_price, 400_000);
+        assert_eq!(low_tip_high_cu.tip, 0.002);
+        assert_eq!(high_tip_low_cu.cu_price, 180_000);
+        assert_eq!(high_tip_low_cu.tip, 0.005);
+    }
+
+    #[test]
+    fn default_rpc_strategy_uses_priority_fee_without_tip() {
+        let strategy = GasFeeStrategy::new();
+
+        strategy.set_default_rpc_fee_strategy(100_000, 90_000, 700_000, 800_000);
+
+        let buy = find_strategy(
+            &strategy.get_strategies(TradeType::Buy),
+            SwqosType::Default,
+            GasFeeStrategyType::Normal,
+        );
+        assert_eq!(buy.cu_limit, 100_000);
+        assert_eq!(buy.cu_price, 700_000);
+        assert_eq!(buy.tip, 0.0);
+
+        let sell = find_strategy(
+            &strategy.get_strategies(TradeType::Sell),
+            SwqosType::Default,
+            GasFeeStrategyType::Normal,
+        );
+        assert_eq!(sell.cu_limit, 90_000);
+        assert_eq!(sell.cu_price, 800_000);
+        assert_eq!(sell.tip, 0.0);
     }
 }

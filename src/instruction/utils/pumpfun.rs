@@ -212,7 +212,7 @@ pub fn is_amm_fee_recipient(pubkey: &Pubkey) -> bool {
 
 #[inline]
 pub fn is_standard_bonding_fee_recipient(pubkey: &Pubkey) -> bool {
-    *pubkey == global_constants::FEE_RECIPIENT || is_amm_fee_recipient(pubkey)
+    *pubkey == global_constants::FEE_RECIPIENT
 }
 
 #[inline]
@@ -242,11 +242,12 @@ pub fn reconcile_mayhem_mode_for_trade(
 #[inline]
 pub fn fee_recipient_ok_for_bonding_curve_mode(pk: &Pubkey, is_mayhem_mode: bool) -> bool {
     let is_m = is_mayhem_fee_recipient(pk);
+    let is_amm = is_amm_fee_recipient(pk);
     let is_s = is_standard_bonding_fee_recipient(pk);
     if is_mayhem_mode {
-        !(is_s && !is_m)
+        is_m || (!is_s && !is_amm && *pk != Pubkey::default())
     } else {
-        !(is_m && !is_s)
+        is_s || (!is_m && !is_amm && *pk != Pubkey::default())
     }
 }
 
@@ -260,18 +261,10 @@ pub fn get_mayhem_fee_recipient_meta_random() -> AccountMeta {
 
 #[inline]
 pub fn get_standard_fee_recipient_meta_random() -> AccountMeta {
-    const POOL: &[Pubkey] = &[
-        global_constants::FEE_RECIPIENT,
-        global_constants::PUMPFUN_AMM_FEE_1,
-        global_constants::PUMPFUN_AMM_FEE_2,
-        global_constants::PUMPFUN_AMM_FEE_3,
-        global_constants::PUMPFUN_AMM_FEE_4,
-        global_constants::PUMPFUN_AMM_FEE_5,
-        global_constants::PUMPFUN_AMM_FEE_6,
-        global_constants::PUMPFUN_AMM_FEE_7,
-    ];
-    let recipient = *POOL.choose(&mut rand::rng()).unwrap_or(&global_constants::FEE_RECIPIENT);
-    AccountMeta { pubkey: recipient, is_signer: false, is_writable: true }
+    // Historical name kept for API compatibility. Do not randomize across static AMM fee
+    // recipients for bonding-curve buy/sell; stale AMM protocol fee accounts can fail
+    // Pump.fun authorization with error 6000 when Global has rotated.
+    AccountMeta { pubkey: global_constants::FEE_RECIPIENT, is_signer: false, is_writable: true }
 }
 
 #[inline]
@@ -707,12 +700,12 @@ mod tests {
 
     #[test]
     fn reconcile_mayhem_prefers_fee_when_log_says_true_but_fee_is_standard_pool() {
-        let fee = global_constants::PUMPFUN_AMM_FEE_4;
+        let fee = global_constants::FEE_RECIPIENT;
         assert!(!reconcile_mayhem_mode_for_trade(Some(true), &fee));
     }
 
     #[test]
-    fn pump_fee_meta_rejects_standard_fee_when_building_mayhem_ix() {
+    fn pump_fee_meta_rejects_amm_fee_when_building_mayhem_ix() {
         let fee = global_constants::PUMPFUN_AMM_FEE_4;
         let m = pump_fun_fee_recipient_meta(fee, true);
         assert!(
@@ -723,10 +716,27 @@ mod tests {
     }
 
     #[test]
-    fn pump_fee_meta_uses_observed_standard_fee_for_standard_ix() {
-        let fee = global_constants::PUMPFUN_AMM_FEE_7;
+    fn pump_fee_meta_uses_observed_non_amm_fee_for_standard_ix() {
+        let fee = Pubkey::new_unique();
         let m = pump_fun_fee_recipient_meta(fee, false);
         assert_eq!(m.pubkey, fee);
+        assert!(m.is_writable);
+        assert!(!m.is_signer);
+    }
+
+    #[test]
+    fn pump_fee_meta_rejects_amm_fee_for_standard_ix() {
+        let fee = global_constants::PUMPFUN_AMM_FEE_7;
+        let m = pump_fun_fee_recipient_meta(fee, false);
+        assert_eq!(m.pubkey, global_constants::FEE_RECIPIENT);
+        assert!(m.is_writable);
+        assert!(!m.is_signer);
+    }
+
+    #[test]
+    fn pump_fee_meta_default_standard_uses_main_fee_recipient() {
+        let m = pump_fun_fee_recipient_meta(Pubkey::default(), false);
+        assert_eq!(m.pubkey, global_constants::FEE_RECIPIENT);
         assert!(m.is_writable);
         assert!(!m.is_signer);
     }

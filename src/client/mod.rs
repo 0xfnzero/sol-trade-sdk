@@ -14,6 +14,7 @@ use crate::constants::WSOL_TOKEN_ACCOUNT;
 use crate::swqos::common::TradeError;
 use crate::swqos::SwqosClient;
 use crate::swqos::SwqosConfig;
+use crate::swqos::SwqosType;
 use crate::swqos::TradeType;
 use crate::trading::core::params::BonkParams;
 use crate::trading::core::params::DexParamEnum;
@@ -83,7 +84,7 @@ pub struct TradingInfrastructure {
     pub swqos_clients: Arc<Vec<Arc<SwqosClient>>>,
     /// Configuration used to create this infrastructure
     pub config: InfrastructureConfig,
-    /// Precomputed at init: min(swqos_clients.len(), 2/3 * num_cores). Not computed on trade hot path.
+    /// Precomputed at init: min(max SWQOS submit lanes, 2/3 * num_cores). Not computed on trade hot path.
     pub max_sender_concurrency: usize,
     /// Precomputed at init: first max_sender_concurrency CoreIds for job affinity. Empty if no cores. Not computed on trade hot path.
     pub effective_core_ids: Arc<Vec<core_affinity::CoreId>>,
@@ -225,11 +226,21 @@ impl TradingInfrastructure {
             eprintln!("ℹ️  SWQOS 通道已就绪: {} 条 → [{}]", swqos_clients.len(), labels.join(", "));
         }
 
-        let swqos_count = swqos_clients.len();
+        let max_submit_lanes = swqos_clients
+            .iter()
+            .map(|client| {
+                if matches!(client.get_swqos_type(), SwqosType::Default) {
+                    1usize
+                } else {
+                    2usize
+                }
+            })
+            .sum::<usize>()
+            .max(1);
         let (max_sender_concurrency, effective_core_ids) = {
             let num_cores = core_affinity::get_core_ids().map(|c| c.len()).unwrap_or(0);
             let max_by_cores = (num_cores * 2 / 3).max(1);
-            let cap = swqos_count.min(max_by_cores).max(1);
+            let cap = max_submit_lanes.min(max_by_cores).max(1);
             let ids = core_affinity::get_core_ids()
                 .map(|all| {
                     let v: Vec<_> = all.into_iter().collect();
@@ -713,7 +724,7 @@ impl TradingClient {
 
     /// **Advanced.** Use dedicated OS threads for sender pool (and optionally pin to cores).  
     /// By default the SDK uses a shared tokio pool; this can reduce scheduling contention when sending many txs.  
-    /// Concurrency and core count are capped internally (≤ swqos count, ≤ 2/3 of CPU cores).  
+    /// Concurrency and core count are capped internally (≤ max submit lanes, ≤ 2/3 of CPU cores).
     /// - `None`: keep default (shared tokio pool).  
     /// - `Some(vec![])`: dedicated threads with default count, no core pinning.  
     /// - `Some(indices)`: dedicated threads pinned to those core indices (trimmed to cap).  
@@ -875,7 +886,11 @@ impl TradingClient {
 
         let swap_result = executor.swap(buy_params).await;
         let result = swap_result.map(|(success, sigs, err, timings)| {
-            (success, sigs, err.map(TradeError::from), timings)
+            let legacy_timings = timings
+                .into_iter()
+                .map(|timing| (timing.swqos_type, timing.submit_done_us))
+                .collect();
+            (success, sigs, err.map(TradeError::from), legacy_timings)
         });
         result
     }
@@ -987,7 +1002,11 @@ impl TradingClient {
 
         let swap_result = executor.swap(sell_params).await;
         let result = swap_result.map(|(success, sigs, err, timings)| {
-            (success, sigs, err.map(TradeError::from), timings)
+            let legacy_timings = timings
+                .into_iter()
+                .map(|timing| (timing.swqos_type, timing.submit_done_us))
+                .collect();
+            (success, sigs, err.map(TradeError::from), legacy_timings)
         });
         result
     }

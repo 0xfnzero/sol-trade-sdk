@@ -1,4 +1,5 @@
-use crate::swqos::SwqosConfig;
+use crate::common::GasFeeStrategyType;
+use crate::swqos::{SwqosConfig, SwqosType};
 use solana_commitment_config::CommitmentConfig;
 use std::hash::{Hash, Hasher};
 
@@ -74,6 +75,13 @@ impl PartialEq for InfrastructureConfig {
 }
 
 impl Eq for InfrastructureConfig {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SwqosSubmitTiming {
+    pub swqos_type: SwqosType,
+    pub strategy_type: GasFeeStrategyType,
+    pub submit_done_us: i64,
+}
 
 #[derive(Debug, Clone)]
 pub struct TradeConfig {
