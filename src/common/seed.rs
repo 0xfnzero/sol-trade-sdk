@@ -1,5 +1,4 @@
 use crate::common::SolanaRpcClient;
-use anyhow::anyhow;
 use fnv::FnvHasher;
 use once_cell::sync::Lazy;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -50,6 +49,26 @@ async fn fetch_rent_for_token_account(
     Ok(client.get_minimum_balance_for_rent_exemption(165).await?)
 }
 
+#[inline]
+fn derive_seed_from_mint(mint: &Pubkey) -> String {
+    // Keep the legacy 8-hex seed stable. Changing this derivation changes the token account
+    // address and can strand balances created by earlier buys.
+    let mut hasher = FnvHasher::default();
+    hasher.write(mint.as_ref());
+    let hash = hasher.finish();
+    let v = (hash & 0xFFFF_FFFF) as u32;
+    let mut seed = String::with_capacity(8);
+    for i in 0..8 {
+        let nibble = ((v >> (28 - i * 4)) & 0xF) as u8;
+        let byte = match nibble {
+            0..=9 => b'0' + nibble,
+            _ => b'a' + (nibble - 10),
+        };
+        seed.push(byte as char);
+    }
+    seed
+}
+
 pub fn create_associated_token_account_use_seed(
     payer: &Pubkey,
     owner: &Pubkey,
@@ -63,33 +82,23 @@ pub fn create_associated_token_account_use_seed(
     let rent = if is_2022_token {
         let v = SPL_TOKEN_2022_RENT.load(Ordering::Relaxed);
         if v == u64::MAX {
-            return Err(anyhow!("Rent not initialized"));
+            DEFAULT_TOKEN_ACCOUNT_RENT
+        } else {
+            v
         }
-        v
     } else {
         let v = SPL_TOKEN_RENT.load(Ordering::Relaxed);
         if v == u64::MAX {
-            return Err(anyhow!("Rent not initialized"));
+            DEFAULT_TOKEN_ACCOUNT_RENT
+        } else {
+            v
         }
-        v
     };
 
-    let mut buf = [0u8; 8];
-    let mut hasher = FnvHasher::default();
-    hasher.write(mint.as_ref());
-    let hash = hasher.finish();
-    let v = (hash & 0xFFFF_FFFF) as u32;
-    for i in 0..8 {
-        let nibble = ((v >> (28 - i * 4)) & 0xF) as u8;
-        buf[i] = match nibble {
-            0..=9 => b'0' + nibble,
-            _ => b'a' + (nibble - 10),
-        };
-    }
-    let seed = unsafe { std::str::from_utf8_unchecked(&buf) };
+    let seed = derive_seed_from_mint(mint);
     // 🔧 修复：使用传入的 token_program 生成地址（支持 Token 和 Token-2022）
     // 买入和卖出只要都使用事件中的 token_program，地址自然一致
-    let ata_like = Pubkey::create_with_seed(payer, seed, token_program)?;
+    let ata_like = Pubkey::create_with_seed(payer, &seed, token_program)?;
 
     let len = 165;
     // 🔧 修复：create_account_with_seed 的第3个参数必须是 payer（与第92行生成地址时使用的 base 一致）
@@ -98,7 +107,7 @@ pub fn create_associated_token_account_use_seed(
         payer,
         &ata_like,
         payer,
-        seed,
+        &seed,
         rent,
         len,
         token_program,
@@ -118,21 +127,9 @@ pub fn get_associated_token_address_with_program_id_use_seed(
     token_mint_address: &Pubkey,
     token_program_id: &Pubkey,
 ) -> Result<Pubkey, anyhow::Error> {
-    let mut buf = [0u8; 8];
-    let mut hasher = FnvHasher::default();
-    hasher.write(token_mint_address.as_ref());
-    let hash = hasher.finish();
-    let v = (hash & 0xFFFF_FFFF) as u32;
-    for i in 0..8 {
-        let nibble = ((v >> (28 - i * 4)) & 0xF) as u8;
-        buf[i] = match nibble {
-            0..=9 => b'0' + nibble,
-            _ => b'a' + (nibble - 10),
-        };
-    }
-    let seed = unsafe { std::str::from_utf8_unchecked(&buf) };
+    let seed = derive_seed_from_mint(token_mint_address);
     // 🔧 修复：使用传入的 token_program_id 生成地址（支持 Token 和 Token-2022）
     // 买入和卖出只要都使用事件中的 token_program_id，地址自然一致
-    let ata_like = Pubkey::create_with_seed(wallet_address, seed, token_program_id)?;
+    let ata_like = Pubkey::create_with_seed(wallet_address, &seed, token_program_id)?;
     Ok(ata_like)
 }

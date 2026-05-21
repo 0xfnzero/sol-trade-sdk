@@ -32,12 +32,13 @@ pub struct PumpFunParams {
     /// `Some(PDA(["creator-vault", fee_sharing_config]))` when pump-fees `SharingConfig` is **Active**; set by `from_mint_by_rpc` / [`refresh_fee_sharing_creator_vault_from_rpc`](Self::refresh_fee_sharing_creator_vault_from_rpc).
     pub fee_sharing_creator_vault_if_active: Option<Pubkey>,
     /// SPL Token or Token-2022 program id owning the **mint** (from gRPC / parser / cache).
-    /// **`Pubkey::default()`**：ix 构建时使用 SDK 默认 **Token-2022**（与多数 Pump.fun 新发一致）；显式传入 Legacy 或 Token-2022 id 可覆盖该默认值。
+    /// **`Pubkey::default()`**：ix 构建时使用 SDK 默认 **Token-2022**（与多数 Pump.fun 新发一致）。
+    /// 显式传入 Legacy 或 Token-2022 id 时严格按该值组装，不再用 mint 字符串后缀猜测。
     pub token_program: Pubkey,
     /// Whether to close token account when selling, only effective during sell operations
     pub close_token_account_when_sell: Option<bool>,
     /// Fee recipient for buy/sell account #2. Set from sol-parser-sdk (`tradeEvent.feeRecipient` / 同笔 create_v2+buy 回填的 `observed_fee_recipient`)；热路径不查 RPC。
-    /// `Pubkey::default()` 时按 mayhem 从静态池随机（与 npm 静态池一致，可能落后于主网 Global）。
+    /// `Pubkey::default()` 时只能使用 SDK 静态 fallback，可能落后于主网 Global；交易热路径应优先传入 gRPC / parser 观测值。
     pub fee_recipient: Pubkey,
     /// Quote mint for v2 instructions (default: `So11111111111111111111111111111111111111112` for SOL-paired).
     /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.

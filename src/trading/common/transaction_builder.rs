@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use solana_hash::Hash;
 use solana_message::AddressLookupTableAccount;
 use solana_sdk::{
@@ -93,19 +94,19 @@ fn build_versioned_transaction(
     // 使用预分配的交易构建器以降低延迟
     let mut builder = acquire_builder();
 
-    let versioned_msg = builder.build_zero_alloc(
+    let build_result = builder.build_zero_alloc(
         &payer.pubkey(),
         &full_instructions,
         address_lookup_table_account,
         blockhash,
     );
+    release_builder(builder);
+    let versioned_msg = build_result?;
 
     let msg_bytes = versioned_msg.serialize();
-    let signature = payer.as_ref().try_sign_message(&msg_bytes).expect("sign failed");
+    let signature =
+        payer.as_ref().try_sign_message(&msg_bytes).map_err(|e| anyhow!("sign failed: {e}"))?;
     let tx = VersionedTransaction { signatures: vec![signature], message: versioned_msg };
-
-    // 归还构建器到池
-    release_builder(builder);
 
     Ok(tx)
 }

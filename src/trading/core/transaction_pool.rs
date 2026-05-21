@@ -17,6 +17,7 @@ const PARALLEL_SENDER_COUNT: usize = 18;
 /// 启动时预填充数量，必须 >= PARALLEL_SENDER_COUNT，否则 18 路并发 build 会触发分配或争抢
 const TX_BUILDER_POOL_PREFILL: usize = 64;
 
+use anyhow::Result;
 use crossbeam_queue::ArrayQueue;
 use once_cell::sync::Lazy;
 use solana_message::AddressLookupTableAccount;
@@ -82,7 +83,7 @@ impl PreallocatedTxBuilder {
         instructions: &[Instruction],
         address_lookup_table_account: Option<&AddressLookupTableAccount>,
         recent_blockhash: Hash,
-    ) -> VersionedMessage {
+    ) -> Result<VersionedMessage> {
         self.reset();
         self.instructions.extend_from_slice(instructions);
 
@@ -92,14 +93,13 @@ impl PreallocatedTxBuilder {
                 &self.instructions,
                 std::slice::from_ref(alt),
                 recent_blockhash,
-            )
-            .expect("v0 message compile failed");
-            VersionedMessage::V0(message)
+            )?;
+            Ok(VersionedMessage::V0(message))
         } else {
             // ✅ 没有查找表，使用 Legacy 消息（兼容所有 RPC）
             let message =
                 Message::new_with_blockhash(&self.instructions, Some(payer), &recent_blockhash);
-            VersionedMessage::Legacy(message)
+            Ok(VersionedMessage::Legacy(message))
         }
     }
 }

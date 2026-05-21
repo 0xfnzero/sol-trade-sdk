@@ -1,21 +1,9 @@
-// Note: sol_to_lamports moved to solana_native_token crate in 3.x
-// Using manual conversion: 1 SOL = 1_000_000_000 lamports
 use solana_sdk::pubkey::Pubkey;
-
-fn sol_to_lamports(sol: f64) -> u64 {
-    (sol * 1_000_000_000.0) as u64
-}
 
 use crate::{
     instruction::utils::pumpfun::global_constants::{CREATOR_FEE, FEE_BASIS_POINTS},
     utils::calc::common::compute_fee,
 };
-
-/// Converts SOL string to lamports (wrapper for sol_to_lamports)
-#[inline]
-fn sol_str_to_lamports(sol: &str) -> Option<u64> {
-    sol.parse::<f64>().ok().map(|s| sol_to_lamports(s))
-}
 
 /// Calculates the amount of tokens that can be purchased with a given SOL amount
 /// using the bonding curve formula.
@@ -54,26 +42,21 @@ pub fn get_buy_token_amount_from_sol_amount(
 
     let input_amount = amount_128
         .checked_mul(10_000)
-        .unwrap()
-        .checked_div(total_fee_basis_points_128 + 10_000)
-        .unwrap();
+        .and_then(|v| v.checked_div(total_fee_basis_points_128 + 10_000))
+        .unwrap_or(0);
 
-    let denominator = virtual_sol_reserves + input_amount;
-
-    let mut tokens_received =
-        input_amount.checked_mul(virtual_token_reserves).unwrap().checked_div(denominator).unwrap();
-
-    tokens_received = tokens_received.min(real_token_reserves);
-
-    if tokens_received <= 100 * 1_000_000_u128 {
-        tokens_received = if amount > sol_str_to_lamports("0.01").unwrap_or(0) {
-            25547619 * 1_000_000_u128
-        } else {
-            255476 * 1_000_000_u128
-        };
+    let Some(denominator) = virtual_sol_reserves.checked_add(input_amount) else { return 0 };
+    if denominator == 0 {
+        return 0;
     }
 
-    tokens_received as u64
+    let tokens_received = input_amount
+        .checked_mul(virtual_token_reserves)
+        .and_then(|v| v.checked_div(denominator))
+        .unwrap_or(0)
+        .min(real_token_reserves);
+
+    tokens_received.min(u64::MAX as u128) as u64
 }
 
 /// Calculates the amount of SOL that will be received when selling a given token amount

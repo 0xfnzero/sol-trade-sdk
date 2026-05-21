@@ -4,7 +4,7 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use std::sync::Arc;
+use std::{hash::Hash, sync::Arc};
 
 use crate::common::{
     spl_associated_token_account::get_associated_token_address_with_program_id,
@@ -20,6 +20,22 @@ static COMPILE_TIME_HASH: CompileTimeOptimizedEventProcessor =
 const MAX_PDA_CACHE_SIZE: usize = 100_000;
 const MAX_ATA_CACHE_SIZE: usize = 100_000;
 const MAX_INSTRUCTION_CACHE_SIZE: usize = 100_000;
+
+#[inline]
+fn prune_cache<K, V>(cache: &DashMap<K, V>, max_size: usize)
+where
+    K: Eq + Hash + Clone,
+{
+    let len = cache.len();
+    if len <= max_size {
+        return;
+    }
+    let remove_count = (len - max_size).max(max_size / 16).min(len);
+    let keys: Vec<K> = cache.iter().take(remove_count).map(|entry| entry.key().clone()).collect();
+    for key in keys {
+        cache.remove(&key);
+    }
+}
 
 // --------------------- Instruction Cache ---------------------
 
@@ -66,7 +82,10 @@ where
     };
 
     // Lock-free cache lookup with entry API
-    INSTRUCTION_CACHE.entry(cache_key).or_insert_with(|| Arc::new(compute_fn())).clone()
+    let instructions =
+        INSTRUCTION_CACHE.entry(cache_key).or_insert_with(|| Arc::new(compute_fn())).clone();
+    prune_cache(&INSTRUCTION_CACHE, MAX_INSTRUCTION_CACHE_SIZE);
+    instructions
 }
 
 // --------------------- Associated Token Account ---------------------
@@ -106,8 +125,26 @@ pub fn _create_associated_token_account_idempotent_fast(
         use_seed,
     };
 
-    // Only use seed if the mint address is not wSOL or SOL
-    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
+    let build_standard_create = || {
+        let associated_token_address =
+            get_associated_token_address_with_program_id_fast(owner, mint, token_program);
+        vec![Instruction {
+            program_id: crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID,
+            accounts: vec![
+                AccountMeta::new(*payer, true), // Payer (signer, writable)
+                AccountMeta::new(associated_token_address, false), // ATA address (writable, non-signer)
+                AccountMeta::new_readonly(*owner, false), // Token account owner (readonly, non-signer)
+                AccountMeta::new_readonly(*mint, false), // Token mint address (readonly, non-signer)
+                crate::constants::SYSTEM_PROGRAM_META,
+                AccountMeta::new_readonly(*token_program, false), // Token program (readonly, non-signer)
+            ],
+            data: vec![1],
+        }]
+    };
+
+    // Only use seed if the mint address is not wSOL or SOL.
+    // Seed accounts are deterministic token accounts, not ATAs; callers must ensure they are not
+    // recreating an existing seeded account. Fall back to idempotent ATA if seed assembly fails.
     let arc_instructions = if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
@@ -117,29 +154,18 @@ pub fn _create_associated_token_account_idempotent_fast(
         // Use cache to get instruction
         get_cached_instructions(cache_key, || {
             super::seed::create_associated_token_account_use_seed(payer, owner, mint, token_program)
-                .unwrap()
+                .unwrap_or_else(|err| {
+                    tracing::warn!(
+                        "seed token account setup failed for mint {}: {}; fallback to idempotent ATA",
+                        mint,
+                        err
+                    );
+                    build_standard_create()
+                })
         })
     } else {
         // Use cache to get instruction
-        get_cached_instructions(cache_key, || {
-            // Get Associated Token Address using cache
-            let associated_token_address =
-                get_associated_token_address_with_program_id_fast(owner, mint, token_program);
-            // Create Associated Token Account instruction
-            // Reference implementation of spl_associated_token_account::instruction::create_associated_token_account
-            vec![Instruction {
-                program_id: crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID,
-                accounts: vec![
-                    AccountMeta::new(*payer, true), // Payer (signer, writable)
-                    AccountMeta::new(associated_token_address, false), // ATA address (writable, non-signer)
-                    AccountMeta::new_readonly(*owner, false), // Token account owner (readonly, non-signer)
-                    AccountMeta::new_readonly(*mint, false), // Token mint address (readonly, non-signer)
-                    crate::constants::SYSTEM_PROGRAM_META,
-                    AccountMeta::new_readonly(*token_program, false), // Token program (readonly, non-signer)
-                ],
-                data: vec![1],
-            }]
-        })
+        get_cached_instructions(cache_key, build_standard_create)
     };
 
     // 🚀 性能优化：尝试零开销解包 Arc，如果引用计数=1则直接移出，否则克隆
@@ -183,6 +209,7 @@ where
 
     if let Some(pda) = pda_result {
         PDA_CACHE.insert(cache_key, pda);
+        prune_cache(&PDA_CACHE, MAX_PDA_CACHE_SIZE);
     }
 
     pda_result
@@ -265,7 +292,18 @@ fn _get_associated_token_address_with_program_id_fast(
             token_mint_address,
             token_program_id,
         )
-        .unwrap()
+        .unwrap_or_else(|err| {
+            tracing::warn!(
+                "seed token account address failed for mint {}: {}; fallback to ATA",
+                token_mint_address,
+                err
+            );
+            get_associated_token_address_with_program_id(
+                wallet_address,
+                token_mint_address,
+                token_program_id,
+            )
+        })
     } else {
         get_associated_token_address_with_program_id(
             wallet_address,
@@ -276,6 +314,7 @@ fn _get_associated_token_address_with_program_id_fast(
 
     // Store computation result in cache (lock-free)
     ATA_CACHE.insert(cache_key, ata);
+    prune_cache(&ATA_CACHE, MAX_ATA_CACHE_SIZE);
 
     ata
 }

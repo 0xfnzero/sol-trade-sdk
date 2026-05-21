@@ -471,8 +471,31 @@ impl ResultCollector {
         }
     }
 
+    /// Fast submit mode for callers that do not wait for on-chain confirmation.
+    /// Return as soon as one route accepts, a landed failure consumes the nonce, all routes finish,
+    /// or a short submit window expires. Slow HTTP routes continue in worker tasks but no longer
+    /// block post-buy monitoring / sell scheduling.
+    async fn wait_for_first_submitted(
+        &self,
+        timeout: Duration,
+    ) -> Option<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
+        let start = Instant::now();
+        let poll_interval = Duration::from_millis(1);
+        loop {
+            if self.success_flag.load(Ordering::Acquire)
+                || self.landed_failed_flag.load(Ordering::Acquire)
+                || self.completed_count.load(Ordering::Acquire) >= self.total_tasks
+                || start.elapsed() >= timeout
+            {
+                return self.get_first();
+            }
+            tokio::time::sleep(poll_interval).await;
+        }
+    }
+
     /// 等待全部任务完成（不等待链上确认），然后收集并返回所有签名。用于「多路提交」时返回多笔签名。
     /// 轮询间隔 2ms，避免 50ms 间隔在最后一笔返回时多等几十 ms 拉高 submit 耗时。
+    #[allow(dead_code)]
     async fn wait_for_all_submitted(
         &self,
         timeout_secs: u64,
@@ -627,9 +650,6 @@ pub async fn execute_parallel(
     // Task preparation completed: one shared context (clone once per batch), then minimal per-task data.
     let channel_count = selected_task_configs.len().max(1);
     let collector = Arc::new(ResultCollector::new(channel_count));
-    // 上限最多 5s：单路卡死时才会等满；若所有通道在窗口内回完，主循环会提前结束（不睡满秒数）。
-    let submit_timeout_secs: u64 =
-        (3u64 + (channel_count.min(16) as u64).div_ceil(2).min(6)).clamp(3, 5);
     let shared = Arc::new(SwqosSharedContext {
         payer,
         instructions,
@@ -714,12 +734,10 @@ pub async fn execute_parallel(
     // All jobs enqueued (no spawn on hot path)
 
     if !wait_transaction_confirmed {
-        // submit_timeout_secs 为「等齐各 SWQOS HTTP 应答」的上限；收齐后会立刻进入短 settle，不会睡满整段秒数。
-        // `wait_for_all_submitted` 仅在未收齐时追加长 grace，避免过早 drain 丢晚到签名。
-        let ret = collector.wait_for_all_submitted(submit_timeout_secs).await.unwrap_or((
+        let ret = collector.wait_for_first_submitted(Duration::from_millis(500)).await.unwrap_or((
             false,
             vec![],
-            Some(anyhow!("No SWQOS result within grace window (primary {}s)", submit_timeout_secs)),
+            Some(anyhow!("No SWQOS result within fast submit window")),
             vec![],
         ));
         let (success, signatures, last_error, submit_timings) = ret;
