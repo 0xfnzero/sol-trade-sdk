@@ -152,7 +152,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .check_min_tip(false)               // default: false - filter SWQOS below min tip
     // .swqos_cores_from_end(false)        // default: false - bind SWQOS to last N CPU cores
     // .mev_protection(false)              // default: false - MEV (Astralane QUIC :9000 or HTTP mev-protect / BlockRazor)
-    // .use_pumpfun_v2(false)             // default: false - V1 (18 accounts); set true for V2 (27 accounts, quote_mint) when PumpFun deploys V2
+    // .use_pumpfun_v2(true)              // PumpFun V2 (27 accounts, quote_mint); required for USDC-paired PumpFun coins
     .build();
 
 // Create TradingClient
@@ -376,7 +376,7 @@ PumpFun has two instruction sets for bonding-curve trading:
 
 **How to enable V2:**
 
-**Method 1 — Global runtime flag** (recommended when PumpFun officially deploys V2 on mainnet):
+**Method 1 — Global runtime flag** (recommended for `TradingClient`; required for USDC-paired coins):
 
 ```rust
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -384,7 +384,9 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     .build();
 ```
 
-**Method 2 — Per-trade via `quote_mint`** (for USDC-paired coins or mixed V1/V2 scenarios):
+**Method 2 — Set the quote mint on `PumpFunParams`**:
+
+When using the high-level `TradingClient`, keep `.use_pumpfun_v2(true)` enabled in `TradeConfig` and set `quote_mint` on the PumpFun params to select the pair:
 
 ```rust
 use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
@@ -398,6 +400,8 @@ let params = PumpFunParams::from_trade(/* ... */)
 let params = PumpFunParams::from_trade(/* ... */)
     .with_quote_mint(USDC_TOKEN_ACCOUNT);
 ```
+
+`with_quote_mint(...)` also marks the params as V2-capable for lower-level instruction builders, but the high-level `TradingClient` uses the client-level `use_pumpfun_v2` runtime flag when choosing V1 vs V2.
 
 > **Note**: V2 transactions with ATA creation + durable nonce may exceed `PACKET_DATA_SIZE`. Enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
 

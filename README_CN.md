@@ -152,6 +152,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .check_min_tip(false)               // 默认: false - 过滤低于最低小费的 SWQOS
     // .swqos_cores_from_end(false)        // 默认: false - 将 SWQOS 绑定到末尾 N 个 CPU 核心
     // .mev_protection(false)              // 默认: false - MEV（Astralane QUIC :9000 或 HTTP mev-protect / BlockRazor）
+    // .use_pumpfun_v2(true)               // PumpFun V2（27 个账户，quote_mint）；USDC 配对 PumpFun 币必须开启
     .build();
 
 // 创建 TradingClient
@@ -372,7 +373,15 @@ Pump.fun 已升级 Bonding Curve 合约，推出**统一化 v2 指令**，通过
 
 **使用方式：**
 
-设置 `PumpFunParams` 的 `quote_mint` 即可，SDK 会自动切换到 v2 discriminator 和新账户布局：
+高层 `TradingClient` 需要先在 `TradeConfig` 开启 PumpFun V2；USDC 配对币必须开启：
+
+```rust
+let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
+    .use_pumpfun_v2(true)
+    .build();
+```
+
+然后在 `PumpFunParams` 设置 `quote_mint` 来选择 SOL/USDC 配对：
 
 ```rust
 use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
@@ -390,6 +399,8 @@ let params = PumpFunParams::from_trade(/* ... */)
 client.buy(buy_params).await?;
 client.sell(sell_params).await?;
 ```
+
+`with_quote_mint(...)` 会把参数标记为可使用 V2，底层 instruction builder 可据此走 V2；但高层 `TradingClient` 选择 V1/V2 时使用的是 client 级别的 `use_pumpfun_v2` 运行时开关。
 
 | quote_mint | use_v2_ix | 实际使用的指令 | 说明 |
 |-----------|-------------|---------|------|
