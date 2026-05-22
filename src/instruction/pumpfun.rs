@@ -515,7 +515,7 @@ fn build_buy_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         AccountMeta::new_readonly(accounts::ASSOCIATED_TOKEN_PROGRAM, false),
         fee_recipient_meta,
         AccountMeta::new(associated_quote_fee_recipient, false),
-        AccountMeta::new_readonly(buyback_fee_recipient, false),
+        AccountMeta::new(buyback_fee_recipient, false),
         AccountMeta::new(associated_quote_buyback_fee_recipient, false),
         AccountMeta::new(bonding_curve_addr, false),
         AccountMeta::new(associated_base_bonding_curve, false),
@@ -705,7 +705,7 @@ fn build_sell_v2(params: &SwapParams) -> Result<Vec<Instruction>> {
         AccountMeta::new_readonly(accounts::ASSOCIATED_TOKEN_PROGRAM, false),
         fee_recipient_meta,
         AccountMeta::new(associated_quote_fee_recipient, false),
-        AccountMeta::new_readonly(buyback_fee_recipient, false),
+        AccountMeta::new(buyback_fee_recipient, false),
         AccountMeta::new(associated_quote_buyback_fee_recipient, false),
         AccountMeta::new(bonding_curve_addr, false),
         AccountMeta::new(associated_base_bonding_curve, false),
@@ -935,6 +935,24 @@ mod tests {
             }
             other => panic!("unexpected system instruction: {:?}", other),
         }
+    }
+
+    #[test]
+    fn pumpfun_v2_buyback_fee_recipient_is_writable() {
+        let mint = pump_mint();
+        let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+
+        let buy_ix = build_buy_v2(&params).unwrap().pop().unwrap();
+        assert!(global_constants::BUYBACK_FEE_RECIPIENTS.contains(&buy_ix.accounts[8].pubkey));
+        assert!(buy_ix.accounts[8].is_writable);
+
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = mint;
+        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        let sell_ix = build_sell_v2(&params).unwrap().pop().unwrap();
+        assert!(global_constants::BUYBACK_FEE_RECIPIENTS.contains(&sell_ix.accounts[8].pubkey));
+        assert!(sell_ix.accounts[8].is_writable);
     }
 
     #[test]
