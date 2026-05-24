@@ -401,7 +401,6 @@ mod tests {
             check_min_tip: false,
             grpc_recv_us: None,
             use_exact_sol_amount: None,
-            use_pumpfun_v2: false,
         }
     }
 

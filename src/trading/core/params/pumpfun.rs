@@ -14,9 +14,9 @@ use std::sync::Arc;
 /// **Buy/sell**：`creator_vault` 及（若可得）**`tradeEvent` / CPI 日志中的 `creator`** 优先于陈旧的曲线快照；
 /// ix 组装与链下询价见 [`Self::effective_creator_for_trade`]、[`crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing`]。
 ///
-/// **V2 instructions**: Set `use_v2_ix = true` to use `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`
-/// with unified 27/26-account layout. Required for USDC-paired coins (`quote_mint != WSOL`).
-/// For SOL-paired coins, legacy instructions still work and are the default.
+/// **V2 instructions**: The SDK selects the layout automatically from `quote_mint`.
+/// Leave `quote_mint` default for legacy SOL layout, pass WSOL/native SOL for SOL V2,
+/// or pass USDC for USDC-paired coins.
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
@@ -43,9 +43,6 @@ pub struct PumpFunParams {
     /// Quote mint for v2 instructions (default: `So11111111111111111111111111111111111111112` for SOL-paired).
     /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
     pub quote_mint: Pubkey,
-    /// Whether to use v2 instructions (`buy_v2`/`sell_v2`/`buy_exact_quote_in_v2`).
-    /// Default `false` for backward compatibility. Must be `true` for USDC-paired coins.
-    pub use_v2_ix: bool,
 }
 
 impl PumpFunParams {
@@ -64,12 +61,12 @@ impl PumpFunParams {
             close_token_account_when_sell: Some(close_token_account_when_sell),
             fee_recipient: Pubkey::default(),
             quote_mint: Pubkey::default(),
-            use_v2_ix: false,
         }
     }
 
-    /// When building from event/parser (e.g. sol-parser-sdk), pass `is_cashback_coin` from the event
-    /// so that sell instructions include the correct remaining accounts for cashback.
+    /// Build PumpFun params from a SOL-paired dev trade event. For USDC-paired dev trades,
+    /// use [`Self::from_dev_trade_with_quote_mint`] so reserve reconstruction uses the right quote mint.
+    /// Also pass `is_cashback_coin` from the event so sells include the correct remaining accounts.
     /// `mayhem_mode`: `Some` when known from Create/Trade event (`is_mayhem_mode` / `mayhem_mode`).
     /// `None` falls back to detecting Mayhem via reserved fee recipient pubkeys only (not AMM protocol fee accounts).
     pub fn from_dev_trade(
@@ -86,15 +83,51 @@ impl PumpFunParams {
         is_cashback_coin: bool,
         mayhem_mode: Option<bool>,
     ) -> Self {
-        let is_mayhem_mode = reconcile_mayhem_mode_for_trade(mayhem_mode, &fee_recipient);
-        let bonding_curve_account = BondingCurveAccount::from_dev_trade(
-            bonding_curve,
-            &mint,
+        Self::from_dev_trade_with_quote_mint(
+            mint,
             token_amount,
             max_sol_cost,
             creator,
+            bonding_curve,
+            associated_bonding_curve,
+            creator_vault,
+            close_token_account_when_sell,
+            fee_recipient,
+            token_program,
+            is_cashback_coin,
+            mayhem_mode,
+            Pubkey::default(),
+        )
+    }
+
+    /// Quote-aware constructor for PumpFun V2 pools. Use this for USDC-paired coins so
+    /// dev-trade reserve reconstruction uses the quote mint's initial virtual reserves.
+    pub fn from_dev_trade_with_quote_mint(
+        mint: Pubkey,
+        token_amount: u64,
+        max_quote_cost: u64,
+        creator: Pubkey,
+        bonding_curve: Pubkey,
+        associated_bonding_curve: Pubkey,
+        creator_vault: Pubkey,
+        close_token_account_when_sell: Option<bool>,
+        fee_recipient: Pubkey,
+        token_program: Pubkey,
+        is_cashback_coin: bool,
+        mayhem_mode: Option<bool>,
+        quote_mint: Pubkey,
+    ) -> Self {
+        let is_mayhem_mode = reconcile_mayhem_mode_for_trade(mayhem_mode, &fee_recipient);
+        let effective_quote_mint = BondingCurveAccount::normalize_quote_mint(quote_mint);
+        let bonding_curve_account = BondingCurveAccount::from_dev_trade_with_quote_mint(
+            bonding_curve,
+            &mint,
+            token_amount,
+            max_quote_cost,
+            creator,
             is_mayhem_mode,
             is_cashback_coin,
+            effective_quote_mint,
         );
         let creator_vault_resolved =
             crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
@@ -118,13 +151,18 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
-            quote_mint: Pubkey::default(),
-            use_v2_ix: false,
+            quote_mint: if quote_mint == Pubkey::default() {
+                Pubkey::default()
+            } else {
+                effective_quote_mint
+            },
         }
     }
 
-    /// When building from event/parser (e.g. sol-parser-sdk), pass `is_cashback_coin` from the event
-    /// so that sell instructions include the correct remaining accounts for cashback.
+    /// Build PumpFun params from event/parser data. Pass `quote_mint` from the event:
+    /// `Pubkey::default()` for legacy SOL layout, `WSOL_TOKEN_ACCOUNT`/native SOL for SOL V2,
+    /// and `USDC_TOKEN_ACCOUNT` for USDC V2.
+    /// Also pass `is_cashback_coin` from the event so sells include the correct remaining accounts.
     ///
     /// `mayhem_mode`:
     /// - **`Some(v)`**：优先采用 gRPC / `tradeEvent`，但与 **`fee_recipient` 所属池**（Mayhem vs 普通，见 pump-public-docs）不一致时，以 fee 地址为准纠偏，避免链上 `NotAuthorized`。
@@ -133,12 +171,13 @@ impl PumpFunParams {
         bonding_curve: Pubkey,
         associated_bonding_curve: Pubkey,
         mint: Pubkey,
+        quote_mint: Pubkey,
         creator: Pubkey,
         creator_vault: Pubkey,
         virtual_token_reserves: u64,
-        virtual_sol_reserves: u64,
+        virtual_quote_reserves: u64,
         real_token_reserves: u64,
-        real_sol_reserves: u64,
+        real_quote_reserves: u64,
         close_token_account_when_sell: Option<bool>,
         fee_recipient: Pubkey,
         token_program: Pubkey,
@@ -146,16 +185,18 @@ impl PumpFunParams {
         mayhem_mode: Option<bool>,
     ) -> Self {
         let is_mayhem_mode = reconcile_mayhem_mode_for_trade(mayhem_mode, &fee_recipient);
-        let bonding_curve = BondingCurveAccount::from_trade(
+        let effective_quote_mint = BondingCurveAccount::normalize_quote_mint(quote_mint);
+        let bonding_curve = BondingCurveAccount::from_trade_with_quote_mint(
             bonding_curve,
             mint,
             creator,
             virtual_token_reserves,
-            virtual_sol_reserves,
+            virtual_quote_reserves,
             real_token_reserves,
-            real_sol_reserves,
+            real_quote_reserves,
             is_mayhem_mode,
             is_cashback_coin,
+            effective_quote_mint,
         );
         let creator_vault_resolved =
             crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing(
@@ -177,9 +218,50 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
-            quote_mint: Pubkey::default(),
-            use_v2_ix: false,
+            quote_mint: if quote_mint == Pubkey::default() {
+                Pubkey::default()
+            } else {
+                effective_quote_mint
+            },
         }
+    }
+
+    /// Deprecated compatibility alias. Prefer [`Self::from_trade`] and pass `quote_mint` there.
+    #[deprecated(note = "use PumpFunParams::from_trade(..., quote_mint)")]
+    pub fn from_trade_with_quote_mint(
+        bonding_curve: Pubkey,
+        associated_bonding_curve: Pubkey,
+        mint: Pubkey,
+        creator: Pubkey,
+        creator_vault: Pubkey,
+        virtual_token_reserves: u64,
+        virtual_quote_reserves: u64,
+        real_token_reserves: u64,
+        real_quote_reserves: u64,
+        close_token_account_when_sell: Option<bool>,
+        fee_recipient: Pubkey,
+        token_program: Pubkey,
+        is_cashback_coin: bool,
+        mayhem_mode: Option<bool>,
+        quote_mint: Pubkey,
+    ) -> Self {
+        Self::from_trade(
+            bonding_curve,
+            associated_bonding_curve,
+            mint,
+            quote_mint,
+            creator,
+            creator_vault,
+            virtual_token_reserves,
+            virtual_quote_reserves,
+            real_token_reserves,
+            real_quote_reserves,
+            close_token_account_when_sell,
+            fee_recipient,
+            token_program,
+            is_cashback_coin,
+            mayhem_mode,
+        )
     }
 
     /// 仅 RPC 读取曲线快照；[`Self::observed_trade_creator`] 为 `None`，便于 bot 缓存合并时用粘性的 trade 日志 creator 覆盖陈旧曲线推导。
@@ -202,6 +284,7 @@ impl PumpFunParams {
             creator: account.0.creator,
             is_mayhem_mode: account.0.is_mayhem_mode,
             is_cashback_coin: account.0.is_cashback_coin,
+            quote_mint: account.0.quote_mint,
         };
         let associated_bonding_curve = get_associated_token_address_with_program_id(
             &bonding_curve.account,
@@ -224,6 +307,7 @@ impl PumpFunParams {
                 crate::instruction::utils::pumpfun::get_creator_vault_pda(&bonding_curve.creator)
             })
             .unwrap_or_default();
+        let quote_mint = bonding_curve.quote_mint;
         Ok(Self {
             bonding_curve: Arc::new(bonding_curve),
             associated_bonding_curve: associated_bonding_curve,
@@ -233,8 +317,7 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
             fee_recipient: Pubkey::default(),
-            quote_mint: Pubkey::default(),
-            use_v2_ix: false,
+            quote_mint,
         })
     }
 
@@ -273,12 +356,16 @@ impl PumpFunParams {
         Ok(self)
     }
 
-    /// Sets `quote_mint` and enables v2 instructions. Required for USDC-paired coins.
+    /// Sets `quote_mint`. The instruction builder derives V1/V2 layout from this value.
     /// For SOL-paired coins, pass `WSOL_TOKEN_ACCOUNT` or leave default.
     #[inline]
     pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
-        self.quote_mint = quote_mint;
-        self.use_v2_ix = quote_mint != Pubkey::default();
+        let effective_quote_mint = BondingCurveAccount::normalize_quote_mint(quote_mint);
+        self.quote_mint =
+            if quote_mint == Pubkey::default() { Pubkey::default() } else { effective_quote_mint };
+        if let Some(curve) = Arc::get_mut(&mut self.bonding_curve) {
+            *curve = curve.clone().with_quote_mint(effective_quote_mint);
+        }
         self
     }
 

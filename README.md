@@ -81,7 +81,7 @@ This SDK is available in multiple languages:
 
 ## ✨ Features
 
-1. **PumpFun Trading**: Support for `buy`, `sell`, `buy_exact_sol_in`, and the new unified `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` instructions (SOL + USDC)
+1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, selecting legacy or V2 on-chain instructions as needed (SOL + USDC)
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
 3. **Bonk Trading**: Support for Bonk trading operations
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
@@ -108,14 +108,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.9" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.13" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "4.0.9"
+sol-trade-sdk = "4.0.13"
 ```
 
 ## 🛠️ Usage Examples
@@ -152,7 +152,6 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .check_min_tip(false)               // default: false - filter SWQOS below min tip
     // .swqos_cores_from_end(false)        // default: false - bind SWQOS to last N CPU cores
     // .mev_protection(false)              // default: false - MEV (Astralane QUIC :9000 or HTTP mev-protect / BlockRazor)
-    // .use_pumpfun_v2(true)              // PumpFun V2 (27 accounts, quote_mint); required for USDC-paired PumpFun coins
     .build();
 
 // Create TradingClient
@@ -335,7 +334,7 @@ PumpFun and PumpSwap support **cashback** for eligible tokens: part of the tradi
 
 - **When params come from RPC**: If you use `PumpFunParams::from_mint_by_rpc` or `PumpSwapParams::from_pool_address_by_rpc` / `from_mint_by_rpc`, the SDK reads `is_cashback_coin` from chain—no extra step.
 - **When params come from event/parser**: If you build params from trade events (e.g. [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk)), you **must** pass the cashback flag into the SDK:
-  - **PumpFun**: `PumpFunParams::from_trade(..., is_cashback_coin)` and `PumpFunParams::from_dev_trade(..., is_cashback_coin)` take an `is_cashback_coin` parameter. Set it from the parsed event (e.g. CreateEvent’s `is_cashback_enabled` or BondingCurve’s `is_cashback_coin`).
+  - **PumpFun**: `PumpFunParams::from_trade(..., mint, quote_mint, creator, ..., is_cashback_coin, mayhem_mode)` and `PumpFunParams::from_dev_trade(..., is_cashback_coin)` take an `is_cashback_coin` parameter. Set it from the parsed event (e.g. CreateEvent’s `is_cashback_enabled` or BondingCurve’s `is_cashback_coin`).
   - **PumpSwap**: `PumpSwapParams` has a field `is_cashback_coin`. When constructing params manually (e.g. from pool/trade events), set it from the parsed pool or event data.
 - The **pumpfun_copy_trading** and **pumpfun_sniper_trading** examples use sol-parser-sdk for gRPC subscription and pass `e.is_cashback_coin` when building params.
 - **Claim**: Use `client.claim_cashback_pumpfun()` and `client.claim_cashback_pumpswap(...)` to claim accumulated cashback.
@@ -355,7 +354,7 @@ Some PumpFun coins use **Creator Rewards Sharing**, so the on-chain `creator_vau
 
 The SDK does not fetch creator_vault from RPC on every sell (to avoid latency); pass the up-to-date vault from gRPC/events when available.
 
-#### PumpFun V1 vs V2 Instructions
+#### PumpFun Unified Buy/Sell With V1/V2 Instructions
 
 PumpFun has two instruction sets for bonding-curve trading:
 
@@ -366,42 +365,48 @@ PumpFun has two instruction sets for bonding-curve trading:
 | Quote mint | SOL only (legacy) | SOL or USDC (via `quote_mint` field) |
 | Transaction size | Smaller (fits `PACKET_DATA_SIZE` without LUT) | Larger (requires LUT for most transactions) |
 
-**Default: V1** (`use_pumpfun_v2 = false`). The SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table.
+The SDK-side builder is version-neutral: callers use the normal buy/sell flow, and `quote_mint` selects the correct on-chain discriminator and account layout internally. There is no user-facing V2 switch required.
+
+**Default: V1**. When `quote_mint` is `Pubkey::default()`, the SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table. Passing an explicit quote mint selects V2: WSOL/native SOL for SOL-paired V2, or USDC for USDC-paired pools.
 
 **Key changes in v2 instructions:**
 - `quote_mint` parameter — pass wrapped SOL for SOL-paired, or USDC mint for USDC-paired
 - 27 fixed accounts (buy) / 26 fixed accounts (sell) — **no optional accounts**
 - `buyback_fee_recipient`, `sharing_config`, and 6 `associated_quote_*` ATAs are now mandatory
 - Same pricing and cost as legacy instructions for SOL-paired coins
+- USDC-paired coins must be bought with USDC and sell back to USDC. The SDK rejects SOL input for USDC quote pools before transaction submission.
 
-**How to enable V2:**
+**Pass `quote_mint` into `PumpFunParams::from_trade`**:
 
-**Method 1 — Global runtime flag** (recommended for `TradingClient`; required for USDC-paired coins):
-
-```rust
-let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
-    .use_pumpfun_v2(true)  // Switch all PumpFun trades to V2 instructions (27 accounts)
-    .build();
-```
-
-**Method 2 — Set the quote mint on `PumpFunParams`**:
-
-When using the high-level `TradingClient`, keep `.use_pumpfun_v2(true)` enabled in `TradeConfig` and set `quote_mint` on the PumpFun params to select the pair:
+When using event/parser data, pass the event's `quote_mint` right after `mint`. `Pubkey::default()` means the legacy SOL layout; explicit native SOL or WSOL means the SOL V2 layout; USDC means the USDC V2 layout.
 
 ```rust
-use sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
-use sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
-
-// SOL-paired coin with v2 layout
-let params = PumpFunParams::from_trade(/* ... */)
-    .with_quote_mint(WSOL_TOKEN_ACCOUNT);
-
-// USDC-paired coin (requires v2)
-let params = PumpFunParams::from_trade(/* ... */)
-    .with_quote_mint(USDC_TOKEN_ACCOUNT);
+// quote_mint is not a PDA. It is the quote SPL mint carried by parser/gRPC events:
+// - Legacy SOL pool: Pubkey::default() from log events
+// - SOL V2 pool: native SOL or WSOL from parser data
+// - USDC V2 pool: USDC mint
+let quote_mint = e.quote_mint;
+let params = PumpFunParams::from_trade(
+    e.bonding_curve,
+    e.associated_bonding_curve,
+    e.mint,
+    quote_mint,
+    e.creator,
+    e.creator_vault,
+    e.virtual_token_reserves,
+    e.virtual_quote_reserves,
+    e.real_token_reserves,
+    e.real_quote_reserves,
+    close_token_account_when_sell,
+    e.fee_recipient,
+    e.token_program,
+    e.is_cashback_coin,
+    Some(e.mayhem_mode),
+);
 ```
 
-`with_quote_mint(...)` also marks the params as V2-capable for lower-level instruction builders, but the high-level `TradingClient` uses the client-level `use_pumpfun_v2` runtime flag when choosing V1 vs V2.
+For USDC-paired coins, pass `USDC_TOKEN_ACCOUNT` as the buy `input_mint` and sell `output_mint`; SOL/WSOL is only valid for SOL-paired PumpFun curves.
+When consuming parser events, map `quoteMint`, `virtualQuoteReserves`, and `realQuoteReserves` into `PumpFunParams::from_trade(...)`; USDC pools use `4_292_000_000` as the initial virtual quote reserve.
 
 > **Note**: V2 transactions with ATA creation + durable nonce may exceed `PACKET_DATA_SIZE`. Enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
 

@@ -31,7 +31,7 @@ use solana_sdk::pubkey::Pubkey;
 
 use crate::instruction::utils::pumpfun::global_constants::{
     INITIAL_REAL_TOKEN_RESERVES, INITIAL_VIRTUAL_SOL_RESERVES, INITIAL_VIRTUAL_TOKEN_RESERVES,
-    TOKEN_TOTAL_SUPPLY,
+    INITIAL_VIRTUAL_USDC_RESERVES, TOKEN_TOTAL_SUPPLY,
 };
 use crate::instruction::utils::pumpfun::{get_bonding_curve_pda, get_creator_vault_pda};
 
@@ -62,9 +62,57 @@ pub struct BondingCurveAccount {
     pub is_mayhem_mode: bool,
     /// Whether this coin has cashback enabled (creator fee redirected to users)
     pub is_cashback_coin: bool,
+    /// Quote mint for V2 curves. Defaults to WSOL for legacy/event payloads that do not expose it.
+    pub quote_mint: Pubkey,
 }
 
 impl BondingCurveAccount {
+    #[inline]
+    pub fn normalize_quote_mint(quote_mint: Pubkey) -> Pubkey {
+        if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+            crate::constants::WSOL_TOKEN_ACCOUNT
+        } else {
+            quote_mint
+        }
+    }
+
+    #[inline]
+    pub fn effective_quote_mint(&self) -> Pubkey {
+        Self::normalize_quote_mint(self.quote_mint)
+    }
+
+    #[inline]
+    pub fn initial_virtual_quote_reserves_for_quote_mint(quote_mint: &Pubkey) -> u64 {
+        if *quote_mint == crate::constants::USDC_TOKEN_ACCOUNT {
+            INITIAL_VIRTUAL_USDC_RESERVES
+        } else {
+            INITIAL_VIRTUAL_SOL_RESERVES
+        }
+    }
+
+    #[inline]
+    pub fn virtual_quote_reserves(&self) -> u64 {
+        self.virtual_sol_reserves
+    }
+
+    #[inline]
+    pub fn real_quote_reserves(&self) -> u64 {
+        self.real_sol_reserves
+    }
+
+    #[inline]
+    pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
+        let quote_mint = Self::normalize_quote_mint(quote_mint);
+        let old_initial =
+            Self::initial_virtual_quote_reserves_for_quote_mint(&self.effective_quote_mint());
+        let new_initial = Self::initial_virtual_quote_reserves_for_quote_mint(&quote_mint);
+        if self.virtual_sol_reserves == old_initial.saturating_add(self.real_sol_reserves) {
+            self.virtual_sol_reserves = new_initial.saturating_add(self.real_sol_reserves);
+        }
+        self.quote_mint = quote_mint;
+        self
+    }
+
     /// When building from event/parser data (e.g. sol-parser-sdk), pass the token's cashback flag
     /// so that sell instructions include the correct remaining accounts. From RPC use `from_mint_by_rpc` instead.
     pub fn from_dev_trade(
@@ -76,23 +124,49 @@ impl BondingCurveAccount {
         is_mayhem_mode: bool,
         is_cashback_coin: bool,
     ) -> Self {
+        Self::from_dev_trade_with_quote_mint(
+            bonding_curve,
+            mint,
+            dev_token_amount,
+            dev_sol_amount,
+            creator,
+            is_mayhem_mode,
+            is_cashback_coin,
+            crate::constants::WSOL_TOKEN_ACCOUNT,
+        )
+    }
+
+    /// Same as [`Self::from_dev_trade`], but quote-aware for V2 pools such as USDC.
+    pub fn from_dev_trade_with_quote_mint(
+        bonding_curve: Pubkey,
+        mint: &Pubkey,
+        dev_token_amount: u64,
+        dev_quote_amount: u64,
+        creator: Pubkey,
+        is_mayhem_mode: bool,
+        is_cashback_coin: bool,
+        quote_mint: Pubkey,
+    ) -> Self {
         let account = if bonding_curve != Pubkey::default() {
             bonding_curve
         } else {
             get_bonding_curve_pda(&mint).unwrap()
         };
+        let quote_mint = Self::normalize_quote_mint(quote_mint);
         Self {
             discriminator: 0,
             account: account,
             virtual_token_reserves: INITIAL_VIRTUAL_TOKEN_RESERVES - dev_token_amount,
-            virtual_sol_reserves: INITIAL_VIRTUAL_SOL_RESERVES + dev_sol_amount,
+            virtual_sol_reserves: Self::initial_virtual_quote_reserves_for_quote_mint(&quote_mint)
+                + dev_quote_amount,
             real_token_reserves: INITIAL_REAL_TOKEN_RESERVES - dev_token_amount,
-            real_sol_reserves: dev_sol_amount,
+            real_sol_reserves: dev_quote_amount,
             token_total_supply: TOKEN_TOTAL_SUPPLY,
             complete: false,
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
+            quote_mint,
         }
     }
 
@@ -109,23 +183,52 @@ impl BondingCurveAccount {
         is_mayhem_mode: bool,
         is_cashback_coin: bool,
     ) -> Self {
+        Self::from_trade_with_quote_mint(
+            bonding_curve,
+            mint,
+            creator,
+            virtual_token_reserves,
+            virtual_sol_reserves,
+            real_token_reserves,
+            real_sol_reserves,
+            is_mayhem_mode,
+            is_cashback_coin,
+            crate::constants::WSOL_TOKEN_ACCOUNT,
+        )
+    }
+
+    /// Same as [`Self::from_trade`], but carries the V2 quote mint alongside quote reserves.
+    pub fn from_trade_with_quote_mint(
+        bonding_curve: Pubkey,
+        mint: Pubkey,
+        creator: Pubkey,
+        virtual_token_reserves: u64,
+        virtual_quote_reserves: u64,
+        real_token_reserves: u64,
+        real_quote_reserves: u64,
+        is_mayhem_mode: bool,
+        is_cashback_coin: bool,
+        quote_mint: Pubkey,
+    ) -> Self {
         let account = if bonding_curve != Pubkey::default() {
             bonding_curve
         } else {
             get_bonding_curve_pda(&mint).unwrap()
         };
+        let quote_mint = Self::normalize_quote_mint(quote_mint);
         Self {
             discriminator: 0,
             account: account,
             virtual_token_reserves: virtual_token_reserves,
-            virtual_sol_reserves: virtual_sol_reserves,
+            virtual_sol_reserves: virtual_quote_reserves,
             real_token_reserves: real_token_reserves,
-            real_sol_reserves: real_sol_reserves,
+            real_sol_reserves: real_quote_reserves,
             token_total_supply: TOKEN_TOTAL_SUPPLY,
             complete: false,
             creator: creator,
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
+            quote_mint,
         }
     }
 

@@ -1,5 +1,6 @@
-//! Pump.fun 曲线 **legacy** `buy` / `buy_exact_sol_in` / `sell` 与 **`buy_v2` / `sell_v2` / `buy_exact_quote_in_v2`**
-//! 的 instruction data 栈上编码（热路径零堆分配）。
+//! Pump.fun bonding-curve `buy` / `buy_exact_quote_in` / `sell`
+//! instruction data stack encoding. The public helper names are version-neutral;
+//! [`PumpFunIxVersion`] selects the legacy or V2 on-chain discriminator.
 //!
 //! Legacy `buy` / `buy_exact_sol_in` 与 `@pump-fun/pump-sdk` 对齐：`OptionBool` 是单字段
 //! struct（TypeScript 传 `[true]`），在 ix 参数中为 1 字节 bool，共 25 字节 ix data。
@@ -10,71 +11,90 @@ use crate::instruction::utils::pumpfun::{
     BUY_V2_DISCRIMINATOR, SELL_DISCRIMINATOR, SELL_V2_DISCRIMINATOR,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PumpFunIxVersion {
+    Legacy { track_volume: u8 },
+    V2,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PumpFunIxData {
+    Bytes25([u8; 25]),
+    Bytes24([u8; 24]),
+}
+
+impl PumpFunIxData {
+    #[inline(always)]
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Bytes25(data) => data,
+            Self::Bytes24(data) => data,
+        }
+    }
+}
+
 #[inline(always)]
-pub fn encode_pumpfun_buy_ix_data(
+pub(crate) fn encode_pumpfun_buy_ix_data(
     token_amount: u64,
-    max_sol_cost: u64,
-    track_volume_val: u8,
-) -> [u8; 25] {
-    let mut d = [0u8; 25];
-    d[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&token_amount.to_le_bytes());
-    d[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
-    d[24] = track_volume_val;
-    d
+    max_quote_cost: u64,
+    version: PumpFunIxVersion,
+) -> PumpFunIxData {
+    match version {
+        PumpFunIxVersion::Legacy { track_volume } => {
+            let mut d = [0u8; 25];
+            d[..8].copy_from_slice(&BUY_DISCRIMINATOR);
+            d[8..16].copy_from_slice(&token_amount.to_le_bytes());
+            d[16..24].copy_from_slice(&max_quote_cost.to_le_bytes());
+            d[24] = track_volume;
+            PumpFunIxData::Bytes25(d)
+        }
+        PumpFunIxVersion::V2 => {
+            let mut d = [0u8; 24];
+            d[..8].copy_from_slice(&BUY_V2_DISCRIMINATOR);
+            d[8..16].copy_from_slice(&token_amount.to_le_bytes());
+            d[16..24].copy_from_slice(&max_quote_cost.to_le_bytes());
+            PumpFunIxData::Bytes24(d)
+        }
+    }
 }
 
 #[inline(always)]
-pub fn encode_pumpfun_buy_exact_sol_in_ix_data(
-    spendable_sol_in: u64,
-    min_tokens_out: u64,
-    track_volume_val: u8,
-) -> [u8; 25] {
-    let mut d = [0u8; 25];
-    d[..8].copy_from_slice(&BUY_EXACT_SOL_IN_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&spendable_sol_in.to_le_bytes());
-    d[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
-    d[24] = track_volume_val;
-    d
-}
-
-#[inline(always)]
-pub fn encode_pumpfun_sell_ix_data(token_amount: u64, min_sol_output: u64) -> [u8; 24] {
-    let mut d = [0u8; 24];
-    d[..8].copy_from_slice(&SELL_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&token_amount.to_le_bytes());
-    d[16..24].copy_from_slice(&min_sol_output.to_le_bytes());
-    d
-}
-
-// --- v2 instruction data encoders (no track_volume arg — 2 args each, 24 bytes total) ---
-
-#[inline(always)]
-pub fn encode_pumpfun_buy_v2_ix_data(amount: u64, max_sol_cost: u64) -> [u8; 24] {
-    let mut d = [0u8; 24];
-    d[..8].copy_from_slice(&BUY_V2_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&amount.to_le_bytes());
-    d[16..24].copy_from_slice(&max_sol_cost.to_le_bytes());
-    d
-}
-
-#[inline(always)]
-pub fn encode_pumpfun_buy_exact_quote_in_v2_ix_data(
+pub(crate) fn encode_pumpfun_buy_exact_quote_in_ix_data(
     spendable_quote_in: u64,
     min_tokens_out: u64,
-) -> [u8; 24] {
-    let mut d = [0u8; 24];
-    d[..8].copy_from_slice(&BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&spendable_quote_in.to_le_bytes());
-    d[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
-    d
+    version: PumpFunIxVersion,
+) -> PumpFunIxData {
+    match version {
+        PumpFunIxVersion::Legacy { track_volume } => {
+            let mut d = [0u8; 25];
+            d[..8].copy_from_slice(&BUY_EXACT_SOL_IN_DISCRIMINATOR);
+            d[8..16].copy_from_slice(&spendable_quote_in.to_le_bytes());
+            d[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
+            d[24] = track_volume;
+            PumpFunIxData::Bytes25(d)
+        }
+        PumpFunIxVersion::V2 => {
+            let mut d = [0u8; 24];
+            d[..8].copy_from_slice(&BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR);
+            d[8..16].copy_from_slice(&spendable_quote_in.to_le_bytes());
+            d[16..24].copy_from_slice(&min_tokens_out.to_le_bytes());
+            PumpFunIxData::Bytes24(d)
+        }
+    }
 }
 
 #[inline(always)]
-pub fn encode_pumpfun_sell_v2_ix_data(token_amount: u64, min_sol_output: u64) -> [u8; 24] {
+pub(crate) fn encode_pumpfun_sell_ix_data(
+    token_amount: u64,
+    min_quote_output: u64,
+    version: PumpFunIxVersion,
+) -> PumpFunIxData {
     let mut d = [0u8; 24];
-    d[..8].copy_from_slice(&SELL_V2_DISCRIMINATOR);
+    d[..8].copy_from_slice(match version {
+        PumpFunIxVersion::Legacy { .. } => &SELL_DISCRIMINATOR,
+        PumpFunIxVersion::V2 => &SELL_V2_DISCRIMINATOR,
+    });
     d[8..16].copy_from_slice(&token_amount.to_le_bytes());
-    d[16..24].copy_from_slice(&min_sol_output.to_le_bytes());
-    d
+    d[16..24].copy_from_slice(&min_quote_output.to_le_bytes());
+    PumpFunIxData::Bytes24(d)
 }

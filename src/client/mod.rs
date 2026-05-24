@@ -312,8 +312,6 @@ pub struct TradingClient {
     pub log_enabled: bool,
     /// Whether to check minimum tip per SWQOS (from TradeConfig.check_min_tip). Default false for lower latency.
     pub check_min_tip: bool,
-    /// Use PumpFun V2 instructions (buy_v2 / sell_v2, 27-account metas). Default false.
-    pub use_pumpfun_v2: bool,
 }
 
 static INSTANCE: Mutex<Option<Arc<TradingClient>>> = Mutex::new(None);
@@ -334,7 +332,6 @@ impl Clone for TradingClient {
             effective_core_ids: self.effective_core_ids.clone(),
             log_enabled: self.log_enabled,
             check_min_tip: self.check_min_tip,
-            use_pumpfun_v2: self.use_pumpfun_v2,
         }
     }
 }
@@ -380,7 +377,7 @@ pub struct TradeBuyParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// Whether to simulate the transaction instead of executing it
     pub simulate: bool,
-    /// Use exact SOL amount instructions (buy_exact_sol_in for PumpFun, buy_exact_quote_in for PumpSwap).
+    /// Use exact quote-input buy instructions (legacy PumpFun uses SOL quote; V2/PumpSwap use generic quote).
     /// When Some(true) or None (default), the exact SOL/quote amount is spent and slippage is applied to output tokens.
     /// When Some(false), uses regular buy instruction where slippage is applied to SOL/quote input.
     /// This option only applies to PumpFun and PumpSwap DEXes; it is ignored for other DEXes.
@@ -471,7 +468,6 @@ impl TradingClient {
             effective_core_ids,
             log_enabled: true,
             check_min_tip: false,
-            use_pumpfun_v2: false,
         }
     }
 
@@ -518,7 +514,6 @@ impl TradingClient {
             effective_core_ids,
             log_enabled: true,
             check_min_tip: false,
-            use_pumpfun_v2: false,
         }
     }
 
@@ -698,7 +693,6 @@ impl TradingClient {
             effective_core_ids: infrastructure.effective_core_ids.clone(),
             log_enabled: trade_config.log_enabled,
             check_min_tip: trade_config.check_min_tip,
-            use_pumpfun_v2: trade_config.use_pumpfun_v2,
         };
 
         let mut current = INSTANCE.lock();
@@ -881,7 +875,6 @@ impl TradingClient {
             check_min_tip: self.check_min_tip,
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: params.use_exact_sol_amount,
-            use_pumpfun_v2: self.use_pumpfun_v2,
         };
 
         let swap_result = executor.swap(buy_params).await;
@@ -997,7 +990,6 @@ impl TradingClient {
             check_min_tip: self.check_min_tip,
             grpc_recv_us: params.grpc_recv_us,
             use_exact_sol_amount: None,
-            use_pumpfun_v2: self.use_pumpfun_v2,
         };
 
         let swap_result = executor.swap(sell_params).await;

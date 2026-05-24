@@ -130,6 +130,16 @@ async fn pumpfun_copy_trade_with_grpc(
 
     let client = create_solana_trade_client().await?;
     let mint_pubkey = trade_info.mint;
+    let virtual_quote_reserves = if trade_info.virtual_quote_reserves != 0 {
+        trade_info.virtual_quote_reserves
+    } else {
+        trade_info.virtual_sol_reserves
+    };
+    let real_quote_reserves = if trade_info.virtual_quote_reserves != 0 {
+        trade_info.real_quote_reserves
+    } else {
+        trade_info.real_sol_reserves
+    };
     let slippage_basis_points = Some(100);
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
@@ -154,12 +164,13 @@ async fn pumpfun_copy_trade_with_grpc(
             trade_info.bonding_curve,
             trade_info.associated_bonding_curve,
             trade_info.mint,
+            trade_info.quote_mint,
             trade_info.creator,
             trade_info.creator_vault,
             trade_info.virtual_token_reserves,
-            trade_info.virtual_sol_reserves,
+            virtual_quote_reserves,
             trade_info.real_token_reserves,
-            trade_info.real_sol_reserves,
+            real_quote_reserves,
             None,
             trade_info.fee_recipient,
             trade_info.token_program,

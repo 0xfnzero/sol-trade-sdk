@@ -128,6 +128,13 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
 async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) -> AnyResult<()> {
     let client = create_solana_trade_client().await?;
     let mint_pubkey = e.mint;
+    let virtual_quote_reserves = if e.virtual_quote_reserves != 0 {
+        e.virtual_quote_reserves
+    } else {
+        e.virtual_sol_reserves
+    };
+    let real_quote_reserves =
+        if e.virtual_quote_reserves != 0 { e.real_quote_reserves } else { e.real_sol_reserves };
     let slippage_basis_points = Some(100u64);
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
@@ -147,12 +154,13 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
             e.bonding_curve,
             e.associated_bonding_curve,
             e.mint,
+            e.quote_mint,
             e.creator,
             e.creator_vault,
             e.virtual_token_reserves,
-            e.virtual_sol_reserves,
+            virtual_quote_reserves,
             e.real_token_reserves,
-            e.real_sol_reserves,
+            real_quote_reserves,
             None,
             e.fee_recipient,
             e.token_program,
@@ -197,12 +205,13 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
             e.bonding_curve,
             e.associated_bonding_curve,
             e.mint,
+            e.quote_mint,
             e.creator,
             e.creator_vault,
             e.virtual_token_reserves,
-            e.virtual_sol_reserves,
+            virtual_quote_reserves,
             e.real_token_reserves,
-            e.real_sol_reserves,
+            real_quote_reserves,
             Some(true),
             e.fee_recipient,
             e.token_program,
