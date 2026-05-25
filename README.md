@@ -108,14 +108,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.13" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.14" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "4.0.13"
+sol-trade-sdk = "4.0.14"
 ```
 
 ## 🛠️ Usage Examples
@@ -367,7 +367,7 @@ PumpFun has two instruction sets for bonding-curve trading:
 
 The SDK-side builder is version-neutral: callers use the normal buy/sell flow, and `quote_mint` selects the correct on-chain discriminator and account layout internally. There is no user-facing V2 switch required.
 
-**Default: V1**. When `quote_mint` is `Pubkey::default()`, the SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table. Passing an explicit quote mint selects V2: WSOL/native SOL for SOL-paired V2, or USDC for USDC-paired pools.
+**Default: V1**. When `quote_mint` is `Pubkey::default()` or the Solscan SOL sentinel (`So11111111111111111111111111111111111111111`), the SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table. Passing `WSOL_TOKEN_ACCOUNT` selects SOL V2; passing USDC selects USDC V2.
 
 **Key changes in v2 instructions:**
 - `quote_mint` parameter — pass wrapped SOL for SOL-paired, or USDC mint for USDC-paired
@@ -378,12 +378,12 @@ The SDK-side builder is version-neutral: callers use the normal buy/sell flow, a
 
 **Pass `quote_mint` into `PumpFunParams::from_trade`**:
 
-When using event/parser data, pass the event's `quote_mint` right after `mint`. `Pubkey::default()` means the legacy SOL layout; explicit native SOL or WSOL means the SOL V2 layout; USDC means the USDC V2 layout.
+When using event/parser data, pass the event's `quote_mint` right after `mint`. `Pubkey::default()` and Solscan SOL (`So11111111111111111111111111111111111111111`) mean the legacy SOL layout; `WSOL_TOKEN_ACCOUNT` means SOL V2; USDC means USDC V2.
 
 ```rust
 // quote_mint is not a PDA. It is the quote SPL mint carried by parser/gRPC events:
-// - Legacy SOL pool: Pubkey::default() from log events
-// - SOL V2 pool: native SOL or WSOL from parser data
+// - Legacy SOL pool: Pubkey::default() or Solscan SOL from parser data
+// - SOL V2 pool: WSOL_TOKEN_ACCOUNT
 // - USDC V2 pool: USDC mint
 let quote_mint = e.quote_mint;
 let params = PumpFunParams::from_trade(
@@ -407,6 +407,7 @@ let params = PumpFunParams::from_trade(
 
 For USDC-paired coins, pass `USDC_TOKEN_ACCOUNT` as the buy `input_mint` and sell `output_mint`; SOL/WSOL is only valid for SOL-paired PumpFun curves.
 When consuming parser events, map `quoteMint`, `virtualQuoteReserves`, and `realQuoteReserves` into `PumpFunParams::from_trade(...)`; USDC pools use `4_292_000_000` as the initial virtual quote reserve.
+For legacy SOL events where `quote_mint` is `Pubkey::default()` or Solscan SOL, use `virtual_sol_reserves` / `real_sol_reserves` when the quote-reserve fields are absent or zero.
 
 > **Note**: V2 transactions with ATA creation + durable nonce may exceed `PACKET_DATA_SIZE`. Enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
 

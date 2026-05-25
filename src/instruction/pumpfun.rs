@@ -1,8 +1,8 @@
 //! Pump.fun bonding-curve swap ix assembly ([`SwapParams`](crate::trading::core::params::SwapParams)).
 //!
 //! The SDK selects the legacy or V2 on-chain layout from `PumpFunParams.quote_mint`.
-//! `Pubkey::default()` keeps the smaller legacy SOL layout; explicit WSOL/native SOL
-//! or USDC uses the V2 27/26-account unified metas.
+//! `Pubkey::default()` and the Solscan SOL sentinel keep the smaller legacy SOL layout;
+//! explicit WSOL or USDC uses the V2 27/26-account unified metas.
 //! Default (`false`) keeps the smaller legacy SOL-paired instruction layout for latency.
 
 use crate::{
@@ -49,7 +49,8 @@ fn effective_pump_mint_token_program(protocol_params: &PumpFunParams) -> Pubkey 
 }
 
 /// Resolve quote mint and its token program from PumpFunParams.
-/// `Pubkey::default()` means legacy SOL-paired → use WSOL mint for V2 instructions.
+/// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` means legacy SOL-paired; use WSOL mint when a
+/// downstream V2 helper needs a concrete SPL quote mint.
 #[inline]
 fn effective_quote_mint_and_token_program(protocol_params: &PumpFunParams) -> (Pubkey, Pubkey) {
     let curve_quote_mint = protocol_params.bonding_curve.effective_quote_mint();
@@ -126,7 +127,9 @@ fn should_use_v2_layout(params: &SwapParams) -> Result<bool> {
         .downcast_ref::<PumpFunParams>()
         .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
     let (quote_mint, _) = effective_quote_mint_and_token_program(protocol_params);
-    Ok(protocol_params.quote_mint != Pubkey::default() || !is_sol_quote_mint(&quote_mint))
+    let explicit_v2_quote = protocol_params.quote_mint != Pubkey::default()
+        && protocol_params.quote_mint != crate::constants::SOL_TOKEN_ACCOUNT;
+    Ok(explicit_v2_quote || !is_sol_quote_mint(&quote_mint))
 }
 
 #[inline]
@@ -1111,7 +1114,7 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_native_sol_quote_mint_normalizes_to_wsol() {
+    fn pumpfun_solscan_sol_quote_mint_keeps_legacy_layout() {
         let mint = pump_mint();
         let params = PumpFunParams::from_trade(
             Pubkey::default(),
@@ -1131,8 +1134,30 @@ mod tests {
             Some(false),
         );
 
-        assert_eq!(params.quote_mint, crate::constants::WSOL_TOKEN_ACCOUNT);
+        assert_eq!(params.quote_mint, Pubkey::default());
         assert_eq!(params.bonding_curve.quote_mint, crate::constants::WSOL_TOKEN_ACCOUNT);
+    }
+
+    #[test]
+    fn pumpfun_with_solscan_sol_quote_mint_selects_v1() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params =
+                protocol_params.clone().with_quote_mint(crate::constants::SOL_TOKEN_ACCOUNT);
+            assert_eq!(protocol_params.quote_mint, Pubkey::default());
+            assert_eq!(
+                protocol_params.bonding_curve.quote_mint,
+                crate::constants::WSOL_TOKEN_ACCOUNT
+            );
+        }
+
+        let ix = build_buy(&params).unwrap().pop().unwrap();
+        assert_eq!(
+            &ix.data[..8],
+            crate::instruction::utils::pumpfun::BUY_EXACT_SOL_IN_DISCRIMINATOR
+        );
+        assert_eq!(ix.accounts.len(), 18);
     }
 
     #[test]

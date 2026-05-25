@@ -108,14 +108,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.13" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.14" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "4.0.13"
+sol-trade-sdk = "4.0.14"
 ```
 
 ## 🛠️ 使用示例
@@ -374,10 +374,11 @@ SDK 侧调用入口保持统一：正常使用 `buy` / `sell` 流程即可，SDK
 
 **使用方式：**
 
-把事件里的 `quote_mint` 传给 `PumpFunParams::from_trade`。`quote_mint` 不是 PDA，它就是 quote SPL mint；`Pubkey::default()` 表示旧版 SOL 布局，显式 native SOL/WSOL 表示 SOL V2，USDC 表示 USDC V2：
+把事件里的 `quote_mint` 传给 `PumpFunParams::from_trade`。`quote_mint` 不是 PDA，它就是 quote SPL mint；`Pubkey::default()` 和 Solscan SOL（`So11111111111111111111111111111111111111111`）表示旧版 SOL 布局，`WSOL_TOKEN_ACCOUNT` 表示 SOL V2，USDC 表示 USDC V2：
 
 ```rust
-// SOL 池：log 事件里通常是 Pubkey::default()，parser 数据里可能是 native SOL/WSOL
+// legacy SOL 池：log 事件里可能是 Pubkey::default()，parser 数据里是 Solscan SOL sentinel
+// SOL V2 池：WSOL_TOKEN_ACCOUNT
 // USDC 池：就是 USDC mint
 let quote_mint = e.quote_mint;
 
@@ -406,11 +407,12 @@ client.sell(sell_params).await?;
 
 USDC 配对币必须用 USDC 买入、卖出也结算为 USDC；SOL/WSOL 只适用于 SOL 配对的 PumpFun 曲线。SDK 会在提交前拒绝 USDC quote 池的 SOL 输入，避免链上 6063 失败。
 消费 parser 事件时，需要把 `quoteMint`、`virtualQuoteReserves`、`realQuoteReserves` 传进 `PumpFunParams::from_trade(...)`；USDC 池初始虚拟 quote reserve 是 `4_292_000_000`。
+legacy SOL 事件里如果 `quote_mint` 是默认值或 Solscan SOL，并且 quote reserve 字段缺失/为 0，应回退使用 `virtual_sol_reserves` / `real_sol_reserves`。
 
 | quote_mint | 实际使用的指令 | 说明 |
 |-----------|---------|------|
-| 未设置（默认） | 旧版 `buy`/`sell`/`buy_exact_sol_in` | 向后兼容，仅 SOL |
-| `WSOL_TOKEN_ACCOUNT` / native SOL | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL 配对，统一布局 |
+| 未设置（默认）/ `SOL_TOKEN_ACCOUNT` (`So111...11111`) | 旧版 `buy`/`sell`/`buy_exact_sol_in` | 向后兼容，仅 SOL |
+| `WSOL_TOKEN_ACCOUNT` (`So111...11112`) | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL 配对，统一布局 |
 | `USDC_TOKEN_ACCOUNT` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC 配对（必须使用 v2） |
 
 ## 🛡️ MEV 保护服务

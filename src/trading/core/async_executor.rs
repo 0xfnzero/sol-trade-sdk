@@ -46,6 +46,7 @@ use crate::{
 const SWQOS_POOL_WORKERS: usize = 18;
 const SWQOS_QUEUE_CAP: usize = 128;
 const SWQOS_DEDICATED_DEFAULT_THREADS: usize = 18;
+const FAST_SUBMIT_RESULT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Shared across all jobs in one batch; built once, cloned as single Arc per job (minimal hot-path clone).
 struct SwqosSharedContext {
@@ -473,7 +474,7 @@ impl ResultCollector {
 
     /// Fast submit mode for callers that do not wait for on-chain confirmation.
     /// Return as soon as one route accepts, a landed failure consumes the nonce, all routes finish,
-    /// or a short submit window expires. Slow HTTP routes continue in worker tasks but no longer
+    /// or the submit result window expires. Slow HTTP routes continue in worker tasks but no longer
     /// block post-buy monitoring / sell scheduling.
     async fn wait_for_first_submitted(
         &self,
@@ -734,10 +735,10 @@ pub async fn execute_parallel(
     // All jobs enqueued (no spawn on hot path)
 
     if !wait_transaction_confirmed {
-        let ret = collector.wait_for_first_submitted(Duration::from_millis(500)).await.unwrap_or((
+        let ret = collector.wait_for_first_submitted(FAST_SUBMIT_RESULT_TIMEOUT).await.unwrap_or((
             false,
             vec![],
-            Some(anyhow!("No SWQOS result within fast submit window")),
+            Some(anyhow!("No SWQOS result within submit result window")),
             vec![],
         ));
         let (success, signatures, last_error, submit_timings) = ret;

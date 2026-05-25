@@ -15,8 +15,8 @@ use std::sync::Arc;
 /// ix 组装与链下询价见 [`Self::effective_creator_for_trade`]、[`crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing`]。
 ///
 /// **V2 instructions**: The SDK selects the layout automatically from `quote_mint`.
-/// Leave `quote_mint` default for legacy SOL layout, pass WSOL/native SOL for SOL V2,
-/// or pass USDC for USDC-paired coins.
+/// Leave `quote_mint` default, or pass the Solscan SOL sentinel (`SOL_TOKEN_ACCOUNT`), for
+/// legacy SOL layout. Pass `WSOL_TOKEN_ACCOUNT` for SOL V2, or USDC for USDC-paired coins.
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
@@ -40,12 +40,22 @@ pub struct PumpFunParams {
     /// Fee recipient for buy/sell account #2. Set from sol-parser-sdk (`tradeEvent.feeRecipient` / 同笔 create_v2+buy 回填的 `observed_fee_recipient`)；热路径不查 RPC。
     /// `Pubkey::default()` 时只能使用 SDK 静态 fallback，可能落后于主网 Global；交易热路径应优先传入 gRPC / parser 观测值。
     pub fee_recipient: Pubkey,
-    /// Quote mint for v2 instructions (default: `So11111111111111111111111111111111111111112` for SOL-paired).
+    /// Quote mint layout selector. Default and `SOL_TOKEN_ACCOUNT` use legacy SOL layout.
+    /// `WSOL_TOKEN_ACCOUNT` selects SOL v2; USDC selects USDC v2.
     /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
     pub quote_mint: Pubkey,
 }
 
 impl PumpFunParams {
+    #[inline]
+    fn quote_mint_for_layout(quote_mint: Pubkey) -> Pubkey {
+        if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+            Pubkey::default()
+        } else {
+            BondingCurveAccount::normalize_quote_mint(quote_mint)
+        }
+    }
+
     pub fn immediate_sell(
         creator_vault: Pubkey,
         token_program: Pubkey,
@@ -151,17 +161,13 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
-            quote_mint: if quote_mint == Pubkey::default() {
-                Pubkey::default()
-            } else {
-                effective_quote_mint
-            },
+            quote_mint: Self::quote_mint_for_layout(quote_mint),
         }
     }
 
     /// Build PumpFun params from event/parser data. Pass `quote_mint` from the event:
-    /// `Pubkey::default()` for legacy SOL layout, `WSOL_TOKEN_ACCOUNT`/native SOL for SOL V2,
-    /// and `USDC_TOKEN_ACCOUNT` for USDC V2.
+    /// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` for legacy SOL layout,
+    /// `WSOL_TOKEN_ACCOUNT` for SOL V2, and `USDC_TOKEN_ACCOUNT` for USDC V2.
     /// Also pass `is_cashback_coin` from the event so sells include the correct remaining accounts.
     ///
     /// `mayhem_mode`:
@@ -218,11 +224,7 @@ impl PumpFunParams {
             close_token_account_when_sell: close_token_account_when_sell,
             token_program: token_program,
             fee_recipient,
-            quote_mint: if quote_mint == Pubkey::default() {
-                Pubkey::default()
-            } else {
-                effective_quote_mint
-            },
+            quote_mint: Self::quote_mint_for_layout(quote_mint),
         }
     }
 
@@ -317,7 +319,7 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
             fee_recipient: Pubkey::default(),
-            quote_mint,
+            quote_mint: Self::quote_mint_for_layout(quote_mint),
         })
     }
 
@@ -357,15 +359,14 @@ impl PumpFunParams {
     }
 
     /// Sets `quote_mint`. The instruction builder derives V1/V2 layout from this value.
-    /// For SOL-paired coins, pass `WSOL_TOKEN_ACCOUNT` or leave default.
+    /// For legacy SOL-paired coins, pass `SOL_TOKEN_ACCOUNT` or leave default.
+    /// Pass `WSOL_TOKEN_ACCOUNT` only when you intentionally want SOL v2 layout.
     #[inline]
     pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
         let effective_quote_mint = BondingCurveAccount::normalize_quote_mint(quote_mint);
-        self.quote_mint =
-            if quote_mint == Pubkey::default() { Pubkey::default() } else { effective_quote_mint };
-        if let Some(curve) = Arc::get_mut(&mut self.bonding_curve) {
-            *curve = curve.clone().with_quote_mint(effective_quote_mint);
-        }
+        self.quote_mint = Self::quote_mint_for_layout(quote_mint);
+        let curve = Arc::make_mut(&mut self.bonding_curve);
+        *curve = curve.clone().with_quote_mint(effective_quote_mint);
         self
     }
 
