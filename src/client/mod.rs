@@ -362,6 +362,11 @@ pub struct TradeBuyParams {
     pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_tx_confirmed: bool,
+    /// Fast-submit only (`wait_tx_confirmed = false`): when true, wait for every
+    /// SWQOS route's HTTP submit response so all submitted signatures are
+    /// returned. Set to true when confirming externally against a pinned
+    /// durable nonce; defaults to false. See `SwapParams.wait_for_all_submits`.
+    pub wait_for_all_submits: bool,
     /// Whether to create input token associated token account
     pub create_input_token_ata: bool,
     /// Whether to close input token associated token account after trade
@@ -414,6 +419,11 @@ pub struct TradeSellParams {
     pub address_lookup_table_account: Option<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_tx_confirmed: bool,
+    /// Fast-submit only (`wait_tx_confirmed = false`): when true, wait for every
+    /// SWQOS route's HTTP submit response so all submitted signatures are
+    /// returned. Set to true when confirming externally against a pinned
+    /// durable nonce; defaults to false. See `SwapParams.wait_for_all_submits`.
+    pub wait_for_all_submits: bool,
     /// Whether to create output token associated token account
     pub create_output_token_ata: bool,
     /// Whether to close output token associated token account after trade
@@ -868,6 +878,7 @@ impl TradingClient {
             gas_fee_strategy: params.gas_fee_strategy,
             simulate: params.simulate,
             log_enabled: self.log_enabled,
+            wait_for_all_submits: params.wait_for_all_submits,
             use_dedicated_sender_threads: self.use_dedicated_sender_threads,
             sender_thread_cores: self.sender_thread_cores.clone(),
             max_sender_concurrency: self.max_sender_concurrency,
@@ -983,6 +994,7 @@ impl TradingClient {
             gas_fee_strategy: params.gas_fee_strategy,
             simulate: params.simulate,
             log_enabled: self.log_enabled,
+            wait_for_all_submits: params.wait_for_all_submits,
             use_dedicated_sender_threads: self.use_dedicated_sender_threads,
             sender_thread_cores: self.sender_thread_cores.clone(),
             max_sender_concurrency: self.max_sender_concurrency,

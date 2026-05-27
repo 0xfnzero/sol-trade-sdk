@@ -496,7 +496,8 @@ impl ResultCollector {
 
     /// 等待全部任务完成（不等待链上确认），然后收集并返回所有签名。用于「多路提交」时返回多笔签名。
     /// 轮询间隔 2ms，避免 50ms 间隔在最后一笔返回时多等几十 ms 拉高 submit 耗时。
-    #[allow(dead_code)]
+    /// Re-enabled via `SwapParams.wait_for_all_submits` for callers that confirm
+    /// externally against a pinned durable nonce and need every submitted sig.
     async fn wait_for_all_submitted(
         &self,
         timeout_secs: u64,
@@ -600,6 +601,7 @@ pub async fn execute_parallel(
     protocol_name: &'static str,
     is_buy: bool,
     wait_transaction_confirmed: bool,
+    wait_for_all_submits: bool,
     with_tip: bool,
     gas_fee_strategy: GasFeeStrategy,
     use_dedicated_sender_threads: bool,
@@ -735,12 +737,23 @@ pub async fn execute_parallel(
     // All jobs enqueued (no spawn on hot path)
 
     if !wait_transaction_confirmed {
-        let ret = collector.wait_for_first_submitted(FAST_SUBMIT_RESULT_TIMEOUT).await.unwrap_or((
-            false,
-            vec![],
-            Some(anyhow!("No SWQOS result within submit result window")),
-            vec![],
-        ));
+        let ret = if wait_for_all_submits {
+            collector.wait_for_all_submitted(FAST_SUBMIT_RESULT_TIMEOUT.as_secs()).await.unwrap_or(
+                (
+                    false,
+                    vec![],
+                    Some(anyhow!("No SWQOS result within submit result window")),
+                    vec![],
+                ),
+            )
+        } else {
+            collector.wait_for_first_submitted(FAST_SUBMIT_RESULT_TIMEOUT).await.unwrap_or((
+                false,
+                vec![],
+                Some(anyhow!("No SWQOS result within submit result window")),
+                vec![],
+            ))
+        };
         let (success, signatures, last_error, submit_timings) = ret;
         return Ok((success, signatures, last_error, submit_timings));
     }

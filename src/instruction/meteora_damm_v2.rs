@@ -364,6 +364,7 @@ mod tests {
             gas_fee_strategy: GasFeeStrategy::new(),
             simulate: true,
             log_enabled: false,
+            wait_for_all_submits: false,
             use_dedicated_sender_threads: false,
             sender_thread_cores: None,
             max_sender_concurrency: 0,

@@ -157,6 +157,10 @@ impl TradeExecutor for GenericTradeExecutor {
         }
 
         let need_confirm = params.wait_tx_confirmed;
+        // When the caller confirms externally (need_confirm = false) and opts in
+        // via SwapParams.wait_for_all_submits, return every route's signature so
+        // pinned-nonce confirmation can poll all of them.
+        let wait_for_all_submits = !need_confirm && params.wait_for_all_submits;
         let sender_config = params.sender_concurrency_config();
         let result = execute_parallel(
             params.swqos_clients.as_slice(),
@@ -169,6 +173,7 @@ impl TradeExecutor for GenericTradeExecutor {
             self.protocol_name,
             is_buy,
             false, // submit only here; confirmation and log timing handled below
+            wait_for_all_submits,
             if is_buy { true } else { params.with_tip },
             params.gas_fee_strategy,
             params.use_dedicated_sender_threads,

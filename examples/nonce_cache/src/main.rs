@@ -175,6 +175,7 @@ async fn pumpfun_copy_trade_with_grpc(
         )),
         address_lookup_table_account: None,
         wait_tx_confirmed: true,
+        wait_for_all_submits: false,
         create_input_token_ata: false,
         close_input_token_ata: false,
         create_mint_ata: true,
