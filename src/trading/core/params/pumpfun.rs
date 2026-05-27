@@ -33,7 +33,8 @@ pub struct PumpFunParams {
     pub fee_sharing_creator_vault_if_active: Option<Pubkey>,
     /// SPL Token or Token-2022 program id owning the **mint** (from gRPC / parser / cache).
     /// **`Pubkey::default()`**：ix 构建时使用 SDK 默认 **Token-2022**（与多数 Pump.fun 新发一致）。
-    /// 显式传入 Legacy 或 Token-2022 id 时严格按该值组装，不再用 mint 字符串后缀猜测。
+    /// `*.pump` mint 在 Pump.fun 指令构造层会强制使用 Token-2022，避免陈旧 parser/cache
+    /// 传入 legacy Token Program 后创建出 owner 不匹配的临时 token account。
     pub token_program: Pubkey,
     /// Whether to close token account when selling, only effective during sell operations
     pub close_token_account_when_sell: Option<bool>,

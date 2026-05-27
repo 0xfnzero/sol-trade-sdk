@@ -39,7 +39,10 @@ use solana_sdk::{
 };
 
 #[inline]
-fn effective_pump_mint_token_program(protocol_params: &PumpFunParams) -> Pubkey {
+fn effective_pump_mint_token_program(protocol_params: &PumpFunParams, mint: &Pubkey) -> Pubkey {
+    if mint.to_string().ends_with("pump") {
+        return TOKEN_PROGRAM_2022;
+    }
     let tp = protocol_params.token_program;
     if tp == Pubkey::default() {
         TOKEN_PROGRAM_2022
@@ -190,7 +193,7 @@ fn build_buy_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let token_program = effective_pump_mint_token_program(protocol_params);
+    let token_program = effective_pump_mint_token_program(protocol_params, &params.output_mint);
     let token_program_meta = if token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -345,7 +348,7 @@ fn build_sell_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let token_program = effective_pump_mint_token_program(protocol_params);
+    let token_program = effective_pump_mint_token_program(protocol_params, &params.input_mint);
     let token_program_meta = if token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -463,7 +466,8 @@ fn build_buy_unified(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let base_token_program = effective_pump_mint_token_program(protocol_params);
+    let base_token_program =
+        effective_pump_mint_token_program(protocol_params, &params.output_mint);
     let base_token_program_meta = if base_token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -694,7 +698,7 @@ fn build_sell_unified(params: &SwapParams) -> Result<Vec<Instruction>> {
     })?;
 
     let is_mayhem_mode = bonding_curve.is_mayhem_mode;
-    let base_token_program = effective_pump_mint_token_program(protocol_params);
+    let base_token_program = effective_pump_mint_token_program(protocol_params, &params.input_mint);
     let base_token_program_meta = if base_token_program == TOKEN_PROGRAM_2022 {
         crate::constants::TOKEN_PROGRAM_2022_META
     } else {
@@ -939,16 +943,31 @@ mod tests {
     }
 
     #[test]
-    fn pump_suffix_buy_respects_explicit_legacy_token_program() {
+    fn pump_suffix_buy_forces_token_2022_even_with_explicit_legacy_token_program() {
         crate::common::seed::set_default_rents();
         let params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         let instructions = build_buy(&params).unwrap();
 
         assert_eq!(instructions.len(), 3);
-        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM);
-        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM);
+        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM_2022);
         assert_eq!(instructions[2].accounts.len(), 18);
         assert_eq!(instructions[2].data.len(), 25);
+    }
+
+    #[test]
+    fn pump_suffix_sell_forces_token_2022_even_with_explicit_legacy_token_program() {
+        crate::common::seed::set_default_rents();
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = pump_mint();
+        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+
+        let instructions = build_sell(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(ix.accounts[9].pubkey, TOKEN_PROGRAM_2022);
     }
 
     #[test]
