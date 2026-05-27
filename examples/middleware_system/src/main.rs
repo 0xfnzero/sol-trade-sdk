@@ -104,6 +104,7 @@ async fn test_middleware() -> AnyResult<()> {
         ),
         address_lookup_table_account: None,
         wait_tx_confirmed: true,
+        wait_for_all_submits: false,
         create_input_token_ata: true,
         close_input_token_ata: true,
         create_mint_ata: true,

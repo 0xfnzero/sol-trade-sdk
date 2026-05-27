@@ -43,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         address_lookup_table_account: None,
         wait_tx_confirmed: true,
+        wait_for_all_submits: false,
         create_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
         close_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
         create_mint_ata: true,
@@ -84,6 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ),
         address_lookup_table_account: None,
         wait_tx_confirmed: true,
+        wait_for_all_submits: false,
         create_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         close_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.
         close_mint_token_ata: false,

@@ -82,6 +82,14 @@ pub struct SwapParams {
     pub simulate: bool,
     /// Whether to output SDK logs (from TradeConfig.log_enabled).
     pub log_enabled: bool,
+    /// Fast-submit only (`wait_tx_confirmed = false`): when true, wait for every
+    /// SWQOS route's HTTP submit response so all submitted signatures are
+    /// returned. Defaults to false (post-4.0.11 behaviour: return after the
+    /// first route accepts). Set to true when the caller does its own on-chain
+    /// confirmation against a pinned durable nonce — only one route's tx can
+    /// land, but the caller cannot know which in advance, so it needs every
+    /// signature to poll via `getSignatureStatuses`.
+    pub wait_for_all_submits: bool,
     /// Use dedicated sender threads (internal; set via client.with_dedicated_sender_threads()).
     pub use_dedicated_sender_threads: bool,
     /// Core indices for dedicated sender threads (from TradeConfig.sender_thread_cores). Arc avoids cloning the Vec on hot path.
