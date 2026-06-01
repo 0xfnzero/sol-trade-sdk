@@ -147,10 +147,15 @@ async fn run_one_swqos_job(job: SwqosJob) {
 
 async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>, notify: Arc<Notify>) {
     loop {
+        let notified = notify.notified();
+        tokio::pin!(notified);
+        notified.as_mut().enable();
+
         if let Some(job) = queue.pop() {
+            drop(notified);
             run_one_swqos_job(job).await;
         } else {
-            notify.notified().await;
+            notified.await;
         }
     }
 }
@@ -230,6 +235,15 @@ fn ensure_dedicated_pool(
         &mut guard,
     );
     (queue, notify)
+}
+
+/// Pre-spawn dedicated sender threads during SDK initialization, avoiding first-submit thread
+/// creation cost on the trading hot path.
+pub fn warm_dedicated_sender_pool(
+    sender_thread_cores: Option<&[usize]>,
+    max_sender_concurrency: usize,
+) {
+    let _ = ensure_dedicated_pool(sender_thread_cores, max_sender_concurrency);
 }
 
 fn ensure_dedicated_worker_count(

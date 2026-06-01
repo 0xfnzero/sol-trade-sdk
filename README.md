@@ -79,6 +79,12 @@ This SDK is available in multiple languages:
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support |
 
+## 🔖 Current Release
+
+**Rust crate:** `sol-trade-sdk = "4.0.15"`
+
+This release refreshes PumpFun V2 and USDC quote-pool handling, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
+
 ## ✨ Features
 
 1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, selecting legacy or V2 on-chain instructions as needed (SOL + USDC)
@@ -88,10 +94,11 @@ This SDK is available in multiple languages:
 5. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
 6. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
 7. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane and other services
-8. **Concurrent Trading**: Send transactions using multiple MEV services simultaneously; the fastest succeeds while others fail
+8. **Concurrent Trading**: Submit through every configured SWQoS provider plus the default RPC lane; the first accepted result can return early while slower routes continue submitting
 9. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 10. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
 11. **Shared Infrastructure**: Share expensive RPC and SWQoS clients across multiple wallets for reduced resource usage
+12. **Hot-Path RPC Boundary**: Trade execution uses caller-supplied blockhash or durable nonce and never queries RPC for blockhash, account, or balance data
 
 ## 📦 Installation
 
@@ -108,14 +115,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.14" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.15" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "4.0.14"
+sol-trade-sdk = "4.0.15"
 ```
 
 ## 🛠️ Usage Examples

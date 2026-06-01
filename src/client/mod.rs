@@ -50,6 +50,15 @@ fn validate_protocol_params(dex_type: DexType, params: &DexParamEnum) -> bool {
     }
 }
 
+#[inline]
+fn normalize_swqos_configs(rpc_url: &str, configs: &[SwqosConfig]) -> Vec<SwqosConfig> {
+    let mut out = configs.to_vec();
+    if !out.iter().any(|c| matches!(c.swqos_type(), SwqosType::Default)) {
+        out.push(SwqosConfig::Default(rpc_url.to_string()));
+    }
+    out
+}
+
 /// 按 mint 查找池地址（通用入口，根据 DEX 类型分发，仅 PumpSwap 等已实现的类型会走优化路径）。
 ///
 /// * `dex_type`：PumpSwap 时先走 PDA 再回退 getProgramAccounts，其他类型返回未实现错误。
@@ -134,8 +143,9 @@ impl TradingInfrastructure {
 
         // Create SWQOS clients with blacklist checking（QUIC 握手可能较慢，单节点超时 15s）
         const SWQOS_CLIENT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+        let swqos_configs = normalize_swqos_configs(&config.rpc_url, &config.swqos_configs);
         let mut swqos_clients: Vec<Arc<SwqosClient>> = vec![];
-        for swqos in &config.swqos_configs {
+        for swqos in &swqos_configs {
             if swqos.is_blacklisted() {
                 if sdk_log::sdk_log_enabled() {
                     warn!(target: "sol_trade_sdk", "⚠️ SWQOS {:?} is blacklisted, skipping", swqos.swqos_type());
@@ -752,6 +762,12 @@ impl TradingClient {
                     Some(Arc::new(if cap < v.len() { v[..cap].to_vec() } else { v }));
             }
         }
+        if self.use_dedicated_sender_threads {
+            crate::trading::core::async_executor::warm_dedicated_sender_pool(
+                self.sender_thread_cores.as_ref().map(|v| v.as_slice()),
+                self.max_sender_concurrency,
+            );
+        }
         self
     }
 
@@ -1261,5 +1277,30 @@ impl TradingClient {
         transaction.sign(&[&*self.payer], recent_blockhash);
         let signature = self.infrastructure.rpc.send_and_confirm_transaction(&transaction).await?;
         Ok(signature.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::swqos::SwqosRegion;
+
+    #[test]
+    fn normalize_swqos_configs_adds_default_rpc_route() {
+        let configs = vec![SwqosConfig::Jito("uuid".to_string(), SwqosRegion::Frankfurt, None)];
+        let normalized = normalize_swqos_configs("https://rpc.example", &configs);
+
+        assert_eq!(normalized.len(), 2);
+        assert!(normalized.iter().any(|c| matches!(c.swqos_type(), SwqosType::Jito)));
+        assert!(normalized.iter().any(|c| matches!(c.swqos_type(), SwqosType::Default)));
+    }
+
+    #[test]
+    fn normalize_swqos_configs_does_not_duplicate_default_rpc_route() {
+        let configs = vec![SwqosConfig::Default("https://rpc.example".to_string())];
+        let normalized = normalize_swqos_configs("https://rpc.example", &configs);
+
+        assert_eq!(normalized.len(), 1);
+        assert!(matches!(normalized[0].swqos_type(), SwqosType::Default));
     }
 }
