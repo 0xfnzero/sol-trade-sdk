@@ -81,13 +81,13 @@ This SDK is available in multiple languages:
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "4.0.16"`
+**Rust crate:** `sol-trade-sdk = "4.0.17"`
 
-This release refreshes PumpFun V2 and USDC quote-pool handling, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
+This release refreshes PumpFun V2 WSOL quote-pool handling, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
 
 ## ✨ Features
 
-1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, selecting legacy or V2 on-chain instructions as needed (SOL + USDC)
+1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, selecting legacy or V2 on-chain instructions as needed (SOL/WSOL + USDC)
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
 3. **Bonk Trading**: Support for Bonk trading operations
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
@@ -115,14 +115,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.16" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.17" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "4.0.16"
+sol-trade-sdk = "4.0.17"
 ```
 
 ## 🛠️ Usage Examples

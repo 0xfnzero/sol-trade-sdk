@@ -586,7 +586,10 @@ fn build_buy_unified(params: &SwapParams) -> Result<Vec<Instruction>> {
         }
     };
 
-    if params.create_input_mint_ata {
+    if params.create_input_mint_ata
+        || (quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            && params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT)
+    {
         push_create_or_wrap_user_token_account(
             &mut instructions,
             &params.payer.pubkey(),
@@ -1025,7 +1028,6 @@ mod tests {
     fn pumpfun_v2_regular_buy_wraps_max_quote_budget() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
-        params.create_input_mint_ata = true;
         params.use_exact_sol_amount = Some(false);
         if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
             *protocol_params =
@@ -1034,6 +1036,7 @@ mod tests {
 
         let instructions = build_buy(&params).unwrap();
         let transfer_ix = &instructions[1];
+        let buy_ix = instructions.last().unwrap();
         let system_ix = bincode::deserialize::<
             solana_system_interface::instruction::SystemInstruction,
         >(&transfer_ix.data)
@@ -1049,6 +1052,63 @@ mod tests {
             }
             other => panic!("unexpected system instruction: {:?}", other),
         }
+        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR);
+        assert_eq!(buy_ix.accounts.len(), 27);
+    }
+
+    #[test]
+    fn pumpfun_from_trade_wsol_quote_regular_buy_selects_buy_v2() {
+        let mint = pump_mint();
+        let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        params.use_exact_sol_amount = Some(false);
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params = PumpFunParams::from_trade(
+                Pubkey::default(),
+                Pubkey::default(),
+                mint,
+                crate::constants::WSOL_TOKEN_ACCOUNT,
+                protocol_params.effective_creator_for_trade(),
+                protocol_params.creator_vault,
+                protocol_params.bonding_curve.virtual_token_reserves,
+                protocol_params.bonding_curve.virtual_sol_reserves,
+                protocol_params.bonding_curve.real_token_reserves,
+                protocol_params.bonding_curve.real_sol_reserves,
+                None,
+                protocol_params.fee_recipient,
+                TOKEN_PROGRAM,
+                false,
+                Some(false),
+            );
+        }
+
+        let instructions = build_buy(&params).unwrap();
+        let buy_ix = instructions.last().unwrap();
+
+        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR);
+        assert_eq!(buy_ix.accounts.len(), 27);
+    }
+
+    #[test]
+    fn pumpfun_v2_wsol_input_does_not_auto_wrap_when_ata_create_disabled() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+        params.create_input_mint_ata = false;
+        params.use_exact_sol_amount = Some(false);
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params =
+                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+        }
+
+        let instructions = build_buy(&params).unwrap();
+
+        assert_eq!(instructions.len(), 1);
+        assert_eq!(
+            &instructions[0].data[..8],
+            crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR
+        );
+        assert_eq!(instructions[0].accounts.len(), 27);
     }
 
     #[test]
