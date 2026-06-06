@@ -1181,6 +1181,23 @@ mod tests {
     }
 
     #[test]
+    fn pumpfun_rpc_sol_sentinel_quote_mint_selects_v1() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.create_output_mint_ata = false;
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            protocol_params.quote_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+            assert_eq!(protocol_params.quote_mint, crate::constants::SOL_TOKEN_ACCOUNT);
+        }
+
+        let ix = build_buy(&params).unwrap().pop().unwrap();
+        assert_eq!(
+            &ix.data[..8],
+            crate::instruction::utils::pumpfun::BUY_EXACT_SOL_IN_DISCRIMINATOR
+        );
+        assert_eq!(ix.accounts.len(), 18);
+    }
+
+    #[test]
     fn pumpfun_v2_usdc_buy_rejects_sol_input() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.create_output_mint_ata = false;

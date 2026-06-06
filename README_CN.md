@@ -81,7 +81,7 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "4.0.15"`
+**Rust crate:** `sol-trade-sdk = "4.0.16"`
 
 本版本刷新 PumpFun V2 与 USDC quote 池处理逻辑，确保默认 RPC 提交通道会和 SWQoS 通道一起发出，快速提交结果等待窗口恢复为 5 秒，并将 Raydium CPMM fixed-output 交易对齐到链上 `swap_base_out` 指令。交易执行必须由调用方传入 `recent_blockhash` 或 durable nonce；热路径不会查询 RPC 获取 blockhash、账户或余额数据。
 
@@ -115,14 +115,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.15" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.16" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "4.0.15"
+sol-trade-sdk = "4.0.16"
 ```
 
 ## 🛠️ 使用示例

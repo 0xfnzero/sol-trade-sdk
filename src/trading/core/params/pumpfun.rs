@@ -57,6 +57,15 @@ impl PumpFunParams {
         }
     }
 
+    #[inline]
+    fn quote_mint_for_rpc_return(quote_mint: Pubkey) -> Pubkey {
+        if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+            crate::constants::SOL_TOKEN_ACCOUNT
+        } else {
+            BondingCurveAccount::normalize_quote_mint(quote_mint)
+        }
+    }
+
     pub fn immediate_sell(
         creator_vault: Pubkey,
         token_program: Pubkey,
@@ -320,7 +329,7 @@ impl PumpFunParams {
             close_token_account_when_sell: None,
             token_program: mint_account.owner,
             fee_recipient: Pubkey::default(),
-            quote_mint: Self::quote_mint_for_layout(quote_mint),
+            quote_mint: Self::quote_mint_for_rpc_return(quote_mint),
         })
     }
 
@@ -393,5 +402,34 @@ impl PumpFunParams {
     ) -> Self {
         self.fee_sharing_creator_vault_if_active = fee_sharing_creator_vault_if_active;
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rpc_return_quote_mint_normalizes_legacy_sol_to_sol_sentinel() {
+        assert_eq!(
+            PumpFunParams::quote_mint_for_rpc_return(Pubkey::default()),
+            crate::constants::SOL_TOKEN_ACCOUNT
+        );
+        assert_eq!(
+            PumpFunParams::quote_mint_for_rpc_return(crate::constants::SOL_TOKEN_ACCOUNT),
+            crate::constants::SOL_TOKEN_ACCOUNT
+        );
+    }
+
+    #[test]
+    fn rpc_return_quote_mint_keeps_real_quote_mints() {
+        assert_eq!(
+            PumpFunParams::quote_mint_for_rpc_return(crate::constants::USDC_TOKEN_ACCOUNT),
+            crate::constants::USDC_TOKEN_ACCOUNT
+        );
+        assert_eq!(
+            PumpFunParams::quote_mint_for_rpc_return(crate::constants::WSOL_TOKEN_ACCOUNT),
+            crate::constants::WSOL_TOKEN_ACCOUNT
+        );
     }
 }
