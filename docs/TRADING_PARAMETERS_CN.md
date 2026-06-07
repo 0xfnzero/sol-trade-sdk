@@ -4,14 +4,79 @@
 
 ## 📋 目录
 
+- [SimpleBuyParams / SimpleSellParams](#simplebuyparams--simplesellparams)
 - [TradeBuyParams](#tradebuyparams)
 - [TradeSellParams](#tradesellparams)
 - [参数分类](#参数分类)
 - [重要说明](#重要说明)
 
+## SimpleBuyParams / SimpleSellParams
+
+新接入优先使用 `SimpleBuyParams` 和 `SimpleSellParams`。这两个结构体描述交易意图，SDK 内部会转换成低层 `TradeBuyParams` / `TradeSellParams`。
+
+### SimpleBuyParams
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `dex_type` | `DexType` | ✅ | 使用哪个协议交易，例如 `DexType::PumpFun`。 |
+| `pay_with` | `TradeTokenType` | ✅ | 买入时用什么 quote 支付。钱包实际花原生 SOL 就传 `SOL`。PumpFun V2 的 SOL/WSOL quote 池，如果你想用原生 SOL 结算，也仍然传 `SOL`。 |
+| `mint` | `Pubkey` | ✅ | 要买入的 token mint。 |
+| `amount` | `BuyAmount` | ✅ | 买入数量语义。选择一个枚举，不再组合多个低层数量字段。 |
+| `extension_params` | `DexParamEnum` | ✅ | 协议状态参数，来自 parser/RPC 缓存，例如 `DexParamEnum::PumpFun(PumpFunParams::from_trade(...))`。 |
+| `recent_blockhash` | `Hash` | ✅，使用 `new` 时 | 非 nonce 交易使用的 recent blockhash。SDK 不会在热路径临时获取。 |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | CU price/limit 和 relay tip 配置。 |
+| `slippage_basis_points` | `Option<u64>` | ❌ | 可选滑点覆盖。`100` 表示 1%。 |
+| `account_policy` | `AccountPolicy` | ❌ | ATA 创建/关闭策略。默认 `Auto`。 |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
+| `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
+| `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `SimpleBuyParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
+| `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
+| `grpc_recv_us` | `Option<i64>` | ❌ | 上游收到事件的微秒时间戳，用于延迟追踪。 |
+
+### SimpleSellParams
+
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `dex_type` | `DexType` | ✅ | 使用哪个协议交易，例如 `DexType::PumpFun`。 |
+| `receive_as` | `TradeTokenType` | ✅ | 卖出后接收什么 quote。想收原生 SOL 就传 `SOL`。 |
+| `mint` | `Pubkey` | ✅ | 要卖出的 token mint。 |
+| `amount` | `SellAmount` | ✅ | 卖出数量语义。 |
+| `extension_params` | `DexParamEnum` | ✅ | 协议状态参数，来自 parser/RPC 缓存。 |
+| `recent_blockhash` | `Hash` | ✅，使用 `new` 时 | 非 nonce 交易使用的 recent blockhash。 |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | CU price/limit 和 relay tip 配置。 |
+| `slippage_basis_points` | `Option<u64>` | ❌ | 可选滑点覆盖。`100` 表示 1%。 |
+| `account_policy` | `AccountPolicy` | ❌ | ATA 创建/关闭策略。默认 `Auto`。 |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
+| `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
+| `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `SimpleSellParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
+| `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
+| `with_tip` | `bool` | ❌ | 卖出交易是否带 relay tip。默认 `true`，可通过 `.with_tip(false)` 关闭。 |
+| `grpc_recv_us` | `Option<i64>` | ❌ | 上游收到事件的微秒时间戳，用于延迟追踪。 |
+
+### 数量如何选择
+
+| 枚举 | 含义 | 底层映射 |
+|------|------|----------|
+| `BuyAmount::ExactInput(amount)` | 精确花费指定 quote 数量，滑点保护最小买到 token 数量。 | `input_token_amount = amount`，`use_exact_sol_amount = Some(true)` |
+| `BuyAmount::WithMaxInput { quote_amount }` | 常规 PumpFun/PumpSwap buy。SDK 估算输出，并把滑点作用在最大 quote 成本上。 | `input_token_amount = quote_amount`，`use_exact_sol_amount = Some(false)` |
+| `BuyAmount::ExactOutput { output_amount, max_input_amount }` | 精确买到指定 token 数量，并限制最多花多少 quote。 | `fixed_output_token_amount = Some(output_amount)`，`input_token_amount = max_input_amount` |
+| `SellAmount::ExactInput(amount)` | 精确卖出指定 token 数量，滑点保护最少收到 quote 数量。 | `input_token_amount = amount` |
+| `SellAmount::ExactOutput { output_amount, max_input_amount }` | 精确收到指定 quote 数量，并限制最多卖出多少 token；取决于 DEX 是否支持。 | `fixed_output_token_amount = Some(output_amount)`，`input_token_amount = max_input_amount` |
+
+### AccountPolicy
+
+| 枚举 | 行为 | 适用场景 |
+|------|------|----------|
+| `Auto` | SDK 按实际路径创建必要 ATA。买入会创建目标 token ATA；卖出接收非 SOL 时会创建输出 ATA。 | 普通应用、手动交易工具。 |
+| `HotPathMinimal` | 交易内不创建/关闭 ATA。 | Bot、狙击、套利、对交易体积敏感的路径。 |
+| `CreateMissing` | 尽量在交易内创建缺失 ATA。 | 更重视方便，不追求最小交易体积。 |
+| `AssumePrepared` | 不创建也不关闭 token account，调用方保证都已准备好。 | 高级确定性流程。 |
+
 ## TradeBuyParams
 
-`TradeBuyParams` 结构体包含在不同 DEX 协议上执行买入订单所需的所有参数。
+`TradeBuyParams` 是高级低层买入 API。新接入建议优先使用 `SimpleBuyParams`，只有需要直接控制单个 ATA flag 时再使用它。
 
 ### 基础交易参数
 

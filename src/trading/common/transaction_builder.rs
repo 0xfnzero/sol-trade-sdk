@@ -17,6 +17,8 @@ use crate::{
     },
 };
 
+const PACKET_DATA_SIZE: usize = 1232;
+
 /// Convert SOL amount (f64) to lamports without string allocation (hot path).
 #[inline(always)]
 fn sol_f64_to_lamports(sol: f64) -> u64 {
@@ -30,6 +32,75 @@ fn sol_f64_to_lamports(sol: f64) -> u64 {
 /// Build signed transaction (worker hot path, no RPC).
 /// Takes Arc/refs only; one Vec allocation (with_capacity), extend_from_slice for business_instructions, no extra clone of payer/middleware.
 pub fn build_transaction(
+    payer: &Arc<Keypair>,
+    unit_limit: u32,
+    unit_price: u64,
+    business_instructions: &[Instruction],
+    address_lookup_table_account: Option<&AddressLookupTableAccount>,
+    recent_blockhash: Option<Hash>,
+    middleware_manager: Option<&Arc<MiddlewareManager>>,
+    protocol_name: &str,
+    is_buy: bool,
+    with_tip: bool,
+    tip_account: &Pubkey,
+    tip_amount: f64,
+    durable_nonce: Option<&DurableNonceInfo>,
+) -> Result<VersionedTransaction, anyhow::Error> {
+    let transaction = build_transaction_with_compute_budget(
+        payer,
+        unit_limit,
+        unit_price,
+        business_instructions,
+        address_lookup_table_account,
+        recent_blockhash,
+        middleware_manager,
+        protocol_name,
+        is_buy,
+        with_tip,
+        tip_account,
+        tip_amount,
+        durable_nonce,
+    )?;
+
+    let serialized_len = bincode::serialized_size(&transaction)? as usize;
+    if serialized_len <= PACKET_DATA_SIZE
+        || durable_nonce.is_some()
+        || !with_tip
+        || tip_amount <= 0.0
+        || (unit_limit == 0 && unit_price == 0)
+    {
+        return Ok(transaction);
+    }
+
+    let compact_transaction = build_transaction_with_compute_budget(
+        payer,
+        0,
+        0,
+        business_instructions,
+        address_lookup_table_account,
+        recent_blockhash,
+        middleware_manager,
+        protocol_name,
+        is_buy,
+        with_tip,
+        tip_account,
+        tip_amount,
+        durable_nonce,
+    )?;
+    let compact_len = bincode::serialized_size(&compact_transaction)? as usize;
+    if compact_len <= PACKET_DATA_SIZE {
+        return Ok(compact_transaction);
+    }
+
+    Err(anyhow!(
+        "transaction too large: {} > {}; compact without compute budget is {} bytes. Use an address lookup table or pre-create token ATAs before submitting",
+        serialized_len,
+        PACKET_DATA_SIZE,
+        compact_len
+    ))
+}
+
+fn build_transaction_with_compute_budget(
     payer: &Arc<Keypair>,
     unit_limit: u32,
     unit_price: u64,

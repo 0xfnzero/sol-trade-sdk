@@ -196,40 +196,73 @@ gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 
 For detailed information about all trading parameters, see the [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
 
 ```rust
-// Import DexParamEnum for protocol-specific parameters
-use sol_trade_sdk::trading::core::params::DexParamEnum;
-
-let buy_params = sol_trade_sdk::TradeBuyParams {
-  dex_type: DexType::PumpSwap,
-  input_token_type: TradeTokenType::WSOL,
-  mint: mint_pubkey,
-  input_token_amount: buy_sol_amount,
-  slippage_basis_points: slippage_basis_points,
-  recent_blockhash: Some(recent_blockhash),
-  // Use DexParamEnum for type-safe protocol parameters (zero-overhead abstraction)
-  extension_params: DexParamEnum::PumpSwap(params.clone()),
-  address_lookup_table_account: None,
-  wait_transaction_confirmed: true,
-  create_input_token_ata: true,
-  close_input_token_ata: true,
-  create_mint_ata: true,
-  durable_nonce: None,
-  fixed_output_token_amount: None,  // Optional: specify exact output amount
-  gas_fee_strategy: gas_fee_strategy.clone(),  // Gas fee strategy configuration
-  simulate: false,  // Set to true for simulation only
-  use_exact_sol_amount: None,  // Use exact SOL input for PumpFun/PumpSwap (defaults to true)
+use sol_trade_sdk::{
+    AccountPolicy, BuyAmount, DexType, SimpleBuyParams, TradeTokenType,
+    trading::core::params::DexParamEnum,
 };
+
+let buy_params = SimpleBuyParams::new(
+    DexType::PumpFun,
+    // Token used to pay. For PumpFun V2 SOL/WSOL quote pools, keep this as SOL
+    // when you want to spend native SOL; the SDK will still use V2 accounts.
+    TradeTokenType::SOL,
+    // Mint of the meme/token you want to buy.
+    mint_pubkey,
+    // Regular PumpFun/PumpSwap buy. The SDK estimates token output and applies
+    // slippage to the maximum quote cost.
+    BuyAmount::WithMaxInput { quote_amount: buy_sol_amount },
+    // Protocol state from parser/RPC cache, for example PumpFunParams::from_trade(...).
+    DexParamEnum::PumpFun(pumpfun_params),
+    // Pass a cached recent blockhash; the SDK does not fetch it on the hot path.
+    recent_blockhash,
+    gas_fee_strategy.clone(),
+)
+// 300 = 3%.
+.slippage_basis_points(300)
+// For bots/sniping: assume ATAs are already prepared and keep the tx small.
+.account_policy(AccountPolicy::HotPathMinimal);
 ```
 
 #### 4. Execute Trading
 
 ```rust
-client.buy(buy_params).await?;
+client.buy_simple(buy_params).await?;
 ```
 
 ### ⚡ Trading Parameters
 
-For comprehensive information about all trading parameters including `TradeBuyParams` and `TradeSellParams`, see the dedicated [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
+Use `SimpleBuyParams` / `SimpleSellParams` for new integrations. They describe trading intent and hide low-level ATA flags. Most users only choose:
+
+- `pay_with` / `receive_as`: quote token direction. Use `SOL` when the wallet spends or receives native SOL. For PumpFun V2 SOL-paired pools whose quote mint is WSOL, still use `SOL` if you want native SOL settlement.
+- `amount`: trade sizing intent. Pick one enum variant instead of combining `input_token_amount`, `fixed_output_token_amount`, and `use_exact_sol_amount`.
+- `account_policy`: account creation behavior. Bots usually use `HotPathMinimal`; normal apps can keep the default `Auto`.
+
+| Parameter | Meaning | Recommendation |
+|---|---|---|
+| `BuyAmount::ExactInput(amount)` | Spend exactly this quote amount; slippage protects minimum output. | Normal swaps |
+| `BuyAmount::WithMaxInput { quote_amount }` | Regular PumpFun/PumpSwap buy with slippage applied to max quote cost. | Sniping/arbitrage |
+| `BuyAmount::ExactOutput { output_amount, max_input_amount }` | Buy an exact token amount with a max quote budget. | Exact-output workflows |
+| `SellAmount::ExactInput(amount)` | Sell exactly this token amount. | Normal sells |
+| `SellAmount::ExactOutput { output_amount, max_input_amount }` | Receive an exact quote amount while limiting token input, where the DEX supports it. | Exact-output sells |
+| `AccountPolicy::Auto` | SDK creates practical ATAs when needed. | General usage |
+| `AccountPolicy::HotPathMinimal` | Avoid ATA create/close instructions in the trade tx. | Bots, sniping, latency-sensitive flows |
+| `AccountPolicy::CreateMissing` | Include ATA creation instructions where possible. | Convenience over transaction size |
+| `AccountPolicy::AssumePrepared` | Caller prepared every required ATA. | Deterministic advanced flows |
+
+Optional builder methods:
+
+| Method | Meaning |
+|---|---|
+| `.slippage_basis_points(300)` | Set slippage. `300` means 3%. |
+| `.address_lookup_table_account(alt)` | Attach an ALT to reduce transaction size. Useful for large PumpFun V2 transactions. |
+| `.wait_tx_confirmed(true)` | Return only after confirmation. Usually disabled for fastest submit paths. |
+| `.wait_for_all_submits(true)` | In fast-submit mode, wait for all SWQoS lane responses and return all signatures. |
+| `.simulate(true)` | Build and simulate the transaction instead of sending it. |
+| `.grpc_recv_us(ts)` | Attach upstream receive timestamp for latency tracing. |
+| `SimpleBuyParams::with_durable_nonce(...)` / `SimpleSellParams::with_durable_nonce(...)` | Use durable nonce instead of `recent_blockhash`. |
+| `SimpleSellParams::with_tip(false)` | Disable relay tips for sells. Buys use the gas fee strategy/tip settings. |
+
+`TradeBuyParams` and `TradeSellParams` remain available as advanced low-level APIs. See the dedicated [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
 
 #### About ShredStream
 
@@ -240,6 +273,7 @@ Please ensure that the parameters your trading logic depends on are available in
 
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
+| Simple buy/sell parameter API | `cargo run --package simple_trading` | [examples/simple_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/simple_trading/src/main.rs) |
 | Create and configure TradingClient instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
 | Share infrastructure across multiple wallets | `cargo run --package shared_infrastructure` | [examples/shared_infrastructure](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/shared_infrastructure/src/main.rs) |
 | PumpFun token sniping trading | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |

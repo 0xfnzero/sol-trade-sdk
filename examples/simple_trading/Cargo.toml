@@ -1,0 +1,10 @@
+[package]
+name = "simple_trading"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sol-trade-sdk = { path = "../.." }
+solana-commitment-config = { version = "3.0.0", features = ["serde"] }
+solana-sdk = "3.0.0"
+tokio = { version = "1", features = ["full"] }

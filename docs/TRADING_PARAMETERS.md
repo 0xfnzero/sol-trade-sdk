@@ -4,14 +4,79 @@ This document provides a comprehensive reference for all trading parameters used
 
 ## 📋 Table of Contents
 
+- [SimpleBuyParams / SimpleSellParams](#simplebuyparams--simplesellparams)
 - [TradeBuyParams](#tradebuyparams)
 - [TradeSellParams](#tradesellparams)
 - [Parameter Categories](#parameter-categories)
 - [Important Notes](#important-notes)
 
+## SimpleBuyParams / SimpleSellParams
+
+Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the public API focused on trading intent and map to the lower-level `TradeBuyParams` / `TradeSellParams` internally.
+
+### SimpleBuyParams
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `dex_type` | `DexType` | ✅ | Protocol to trade through, for example `DexType::PumpFun`. |
+| `pay_with` | `TradeTokenType` | ✅ | Quote token used to pay for the buy. Use `SOL` when the wallet spends native SOL. For PumpFun V2 SOL/WSOL quote pools, still use `SOL` if you want native SOL settlement. |
+| `mint` | `Pubkey` | ✅ | Mint of the token being bought. |
+| `amount` | `BuyAmount` | ✅ | Buy sizing intent. Choose one enum variant instead of combining low-level amount flags. |
+| `extension_params` | `DexParamEnum` | ✅ | Protocol state from parser/RPC cache, such as `DexParamEnum::PumpFun(PumpFunParams::from_trade(...))`. |
+| `recent_blockhash` | `Hash` | ✅ for `new` | Cached recent blockhash for non-nonce transactions. The SDK does not fetch this on the hot path. |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Compute unit price/limit and relay tip configuration. |
+| `slippage_basis_points` | `Option<u64>` | ❌ | Optional slippage override. `100` means 1%. |
+| `account_policy` | `AccountPolicy` | ❌ | ATA creation/close behavior. Default is `Auto`. |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
+| `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
+| `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `SimpleBuyParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
+| `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
+| `grpc_recv_us` | `Option<i64>` | ❌ | Upstream receive timestamp in microseconds for latency tracing. |
+
+### SimpleSellParams
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `dex_type` | `DexType` | ✅ | Protocol to trade through, for example `DexType::PumpFun`. |
+| `receive_as` | `TradeTokenType` | ✅ | Quote token to receive from the sell. Use `SOL` when you want native SOL output. |
+| `mint` | `Pubkey` | ✅ | Mint of the token being sold. |
+| `amount` | `SellAmount` | ✅ | Sell sizing intent. |
+| `extension_params` | `DexParamEnum` | ✅ | Protocol state from parser/RPC cache. |
+| `recent_blockhash` | `Hash` | ✅ for `new` | Cached recent blockhash for non-nonce transactions. |
+| `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Compute unit price/limit and relay tip configuration. |
+| `slippage_basis_points` | `Option<u64>` | ❌ | Optional slippage override. `100` means 1%. |
+| `account_policy` | `AccountPolicy` | ❌ | ATA creation/close behavior. Default is `Auto`. |
+| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
+| `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
+| `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `SimpleSellParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
+| `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
+| `with_tip` | `bool` | ❌ | Whether sells include relay tips. Default is `true`; set with `.with_tip(false)`. |
+| `grpc_recv_us` | `Option<i64>` | ❌ | Upstream receive timestamp in microseconds for latency tracing. |
+
+### Amount Selection
+
+| Variant | Meaning | Low-level mapping |
+|---------|---------|-------------------|
+| `BuyAmount::ExactInput(amount)` | Spend exactly this quote amount; slippage protects minimum token output. | `input_token_amount = amount`, `use_exact_sol_amount = Some(true)` |
+| `BuyAmount::WithMaxInput { quote_amount }` | Regular PumpFun/PumpSwap buy. The SDK estimates output and applies slippage to max quote cost. | `input_token_amount = quote_amount`, `use_exact_sol_amount = Some(false)` |
+| `BuyAmount::ExactOutput { output_amount, max_input_amount }` | Buy an exact token amount while limiting max quote input. | `fixed_output_token_amount = Some(output_amount)`, `input_token_amount = max_input_amount` |
+| `SellAmount::ExactInput(amount)` | Sell exactly this token amount; slippage protects minimum quote output. | `input_token_amount = amount` |
+| `SellAmount::ExactOutput { output_amount, max_input_amount }` | Receive an exact quote amount while limiting token input, where supported. | `fixed_output_token_amount = Some(output_amount)`, `input_token_amount = max_input_amount` |
+
+### AccountPolicy
+
+| Variant | Behavior | Use when |
+|---------|----------|----------|
+| `Auto` | SDK creates practical ATAs when needed. Buy creates the target mint ATA; sell creates the output ATA for non-SOL outputs. | Normal apps and manual trading tools. |
+| `HotPathMinimal` | No ATA create/close instructions in the trade transaction. | Bots, sniping, arbitrage, and any path sensitive to transaction size. |
+| `CreateMissing` | Include ATA creation where possible. | Convenience matters more than smallest transaction size. |
+| `AssumePrepared` | Do not create or close token accounts; caller prepared everything. | Advanced deterministic flows. |
+
 ## TradeBuyParams
 
-The `TradeBuyParams` struct contains all parameters required for executing buy orders across different DEX protocols.
+`TradeBuyParams` is the advanced low-level buy API. New integrations should prefer `SimpleBuyParams` unless they need direct control over individual ATA flags.
 
 ### Basic Trading Parameters
 
