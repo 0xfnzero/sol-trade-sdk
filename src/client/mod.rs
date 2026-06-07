@@ -335,6 +335,16 @@ impl SimpleBuyParams {
         self
     }
 
+    /// Use a durable nonce instead of the recent blockhash passed to [`Self::new`].
+    ///
+    /// This clears `recent_blockhash` because nonce transactions must use the
+    /// nonce value as their transaction blockhash.
+    pub fn durable_nonce(mut self, value: DurableNonceInfo) -> Self {
+        self.durable_nonce = Some(value);
+        self.recent_blockhash = None;
+        self
+    }
+
     /// Wait for confirmation before returning.
     pub fn wait_tx_confirmed(mut self, value: bool) -> Self {
         self.wait_tx_confirmed = value;
@@ -441,6 +451,16 @@ impl SimpleSellParams {
     /// Attach an Address Lookup Table to reduce transaction size.
     pub fn address_lookup_table_account(mut self, value: AddressLookupTableAccount) -> Self {
         self.address_lookup_table_account = Some(value);
+        self
+    }
+
+    /// Use a durable nonce instead of the recent blockhash passed to [`Self::new`].
+    ///
+    /// This clears `recent_blockhash` because nonce transactions must use the
+    /// nonce value as their transaction blockhash.
+    pub fn durable_nonce(mut self, value: DurableNonceInfo) -> Self {
+        self.durable_nonce = Some(value);
+        self.recent_blockhash = None;
         self
     }
 
@@ -1911,6 +1931,33 @@ mod tests {
     }
 
     #[test]
+    fn simple_buy_builder_can_use_durable_nonce() {
+        let nonce_account = Pubkey::new_unique();
+        let nonce_hash = Hash::new_unique();
+        let durable_nonce = DurableNonceInfo {
+            nonce_account: Some(nonce_account),
+            current_nonce: Some(nonce_hash),
+        };
+
+        let simple = SimpleBuyParams::new(
+            DexType::PumpFun,
+            TradeTokenType::SOL,
+            Pubkey::new_unique(),
+            BuyAmount::ExactInput(10_000),
+            dummy_pumpfun_params(),
+            Hash::new_unique(),
+            GasFeeStrategy::new(),
+        )
+        .durable_nonce(durable_nonce.clone());
+
+        let low: TradeBuyParams = simple.into();
+
+        assert!(low.recent_blockhash.is_none());
+        assert_eq!(low.durable_nonce.as_ref().and_then(|n| n.nonce_account), Some(nonce_account));
+        assert_eq!(low.durable_nonce.as_ref().and_then(|n| n.current_nonce), Some(nonce_hash));
+    }
+
+    #[test]
     fn simple_sell_auto_creates_non_sol_output_ata() {
         let simple = SimpleSellParams {
             dex_type: DexType::PumpFun,
@@ -1938,5 +1985,32 @@ mod tests {
         assert!(low.create_output_token_ata);
         assert!(!low.close_output_token_ata);
         assert!(!low.close_mint_token_ata);
+    }
+
+    #[test]
+    fn simple_sell_builder_can_use_durable_nonce() {
+        let nonce_account = Pubkey::new_unique();
+        let nonce_hash = Hash::new_unique();
+        let durable_nonce = DurableNonceInfo {
+            nonce_account: Some(nonce_account),
+            current_nonce: Some(nonce_hash),
+        };
+
+        let simple = SimpleSellParams::new(
+            DexType::PumpFun,
+            TradeTokenType::SOL,
+            Pubkey::new_unique(),
+            SellAmount::ExactInput(50_000),
+            dummy_pumpfun_params(),
+            Hash::new_unique(),
+            GasFeeStrategy::new(),
+        )
+        .durable_nonce(durable_nonce.clone());
+
+        let low: TradeSellParams = simple.into();
+
+        assert!(low.recent_blockhash.is_none());
+        assert_eq!(low.durable_nonce.as_ref().and_then(|n| n.nonce_account), Some(nonce_account));
+        assert_eq!(low.durable_nonce.as_ref().and_then(|n| n.current_nonce), Some(nonce_hash));
     }
 }

@@ -14,11 +14,11 @@ use sol_trade_sdk::{
         core::params::{DexParamEnum, PumpFunParams},
         factory::DexType,
     },
-    AccountPolicy, BuyAmount, SellAmount, SimpleBuyParams, SimpleSellParams, SolanaTrade,
-    TradeTokenType,
+    AccountPolicy, BuyAmount, DurableNonceInfo, SellAmount, SimpleBuyParams, SimpleSellParams,
+    SolanaTrade, TradeTokenType,
 };
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{hash::Hash, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -83,7 +83,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // client.buy_simple(buy_params).await?;
     let _ = buy_params;
 
+    // Durable nonce is supported by the same high-level params. In production,
+    // fetch it with `sol_trade_sdk::fetch_nonce_info(...)` immediately before
+    // building the transaction.
+    let nonce_buy_params = SimpleBuyParams::new(
+        DexType::PumpFun,
+        TradeTokenType::SOL,
+        mint,
+        BuyAmount::WithMaxInput { quote_amount: 100_000 },
+        pumpfun_params.clone(),
+        recent_blockhash,
+        gas_fee_strategy.clone(),
+    )
+    .durable_nonce(DurableNonceInfo {
+        nonce_account: Some(Pubkey::new_unique()),
+        current_nonce: Some(Hash::new_unique()),
+    })
+    .account_policy(AccountPolicy::HotPathMinimal);
+    let _ = nonce_buy_params;
+
     let sell_params = SimpleSellParams::new(
+        DexType::PumpFun,
+        TradeTokenType::SOL,
+        mint,
+        SellAmount::ExactInput(1_000_000),
+        pumpfun_params.clone(),
+        client.infrastructure.rpc.get_latest_blockhash().await?,
+        gas_fee_strategy.clone(),
+    )
+    .slippage_basis_points(300)
+    .account_policy(AccountPolicy::HotPathMinimal);
+
+    // client.sell_simple(sell_params).await?;
+    let _ = sell_params;
+
+    let nonce_sell_params = SimpleSellParams::new(
         DexType::PumpFun,
         TradeTokenType::SOL,
         mint,
@@ -92,11 +126,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         client.infrastructure.rpc.get_latest_blockhash().await?,
         gas_fee_strategy,
     )
-    .slippage_basis_points(300)
+    .durable_nonce(DurableNonceInfo {
+        nonce_account: Some(Pubkey::new_unique()),
+        current_nonce: Some(Hash::new_unique()),
+    })
     .account_policy(AccountPolicy::HotPathMinimal);
-
-    // client.sell_simple(sell_params).await?;
-    let _ = sell_params;
+    let _ = nonce_sell_params;
 
     println!("Built simple buy/sell params for payer {}", client.payer.pubkey());
     Ok(())

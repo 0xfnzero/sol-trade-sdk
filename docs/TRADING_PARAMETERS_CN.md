@@ -30,7 +30,7 @@
 | `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
 | `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
 | `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
-| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `SimpleBuyParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `.durable_nonce(nonce_info)` 或 `SimpleBuyParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
 | `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
 | `grpc_recv_us` | `Option<i64>` | ❌ | 上游收到事件的微秒时间戳，用于延迟追踪。 |
 
@@ -50,7 +50,7 @@
 | `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
 | `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
 | `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
-| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `SimpleSellParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `.durable_nonce(nonce_info)` 或 `SimpleSellParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
 | `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
 | `with_tip` | `bool` | ❌ | 卖出交易是否带 relay tip。默认 `true`，可通过 `.with_tip(false)` 关闭。 |
 | `grpc_recv_us` | `Option<i64>` | ❌ | 上游收到事件的微秒时间戳，用于延迟追踪。 |
@@ -73,6 +73,31 @@
 | `HotPathMinimal` | 交易内不创建/关闭 ATA。 | Bot、狙击、套利、对交易体积敏感的路径。 |
 | `CreateMissing` | 尽量在交易内创建缺失 ATA。 | 更重视方便，不追求最小交易体积。 |
 | `AssumePrepared` | 不创建也不关闭 token account，调用方保证都已准备好。 | 高级确定性流程。 |
+
+### Simple 参数使用 Durable Nonce
+
+`fetch_nonce_info` 和 `DurableNonceInfo` 已从 crate root 重新导出：
+
+```rust
+use sol_trade_sdk::{fetch_nonce_info, SimpleBuyParams};
+
+let nonce_info = fetch_nonce_info(&client.infrastructure.rpc, nonce_account)
+    .await
+    .expect("nonce account must be initialized");
+
+let buy_params = SimpleBuyParams::new(
+    dex_type,
+    pay_with,
+    mint,
+    amount,
+    extension_params,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.durable_nonce(nonce_info);
+```
+
+调用 `.durable_nonce(...)` 会清空 `recent_blockhash`；nonce 交易会使用 nonce value 作为 transaction blockhash。
 
 ## TradeBuyParams
 

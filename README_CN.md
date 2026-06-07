@@ -258,7 +258,8 @@ client.buy_simple(buy_params).await?;
 | `.wait_for_all_submits(true)` | fast-submit 模式下等待所有 SWQoS 通道返回，并拿到全部签名。 |
 | `.simulate(true)` | 只构建并模拟交易，不真正发送。 |
 | `.grpc_recv_us(ts)` | 传入上游收到事件的微秒时间戳，用于延迟追踪。 |
-| `SimpleBuyParams::with_durable_nonce(...)` / `SimpleSellParams::with_durable_nonce(...)` | 使用 durable nonce，不使用 `recent_blockhash`。 |
+| `.durable_nonce(nonce_info)` | 使用 durable nonce，并清空 `recent_blockhash`。如果你从 `SimpleBuyParams::new(...)` / `SimpleSellParams::new(...)` 开始构造，推荐用这个。 |
+| `SimpleBuyParams::with_durable_nonce(...)` / `SimpleSellParams::with_durable_nonce(...)` | 直接用 durable nonce 构造参数，不使用 `recent_blockhash`。 |
 | `SimpleSellParams::with_tip(false)` | 关闭卖出交易 relay tip。买入的 tip 使用 gas fee strategy 控制。 |
 
 `TradeBuyParams` 和 `TradeSellParams` 仍保留为高级低层接口。详细说明见 [交易参数参考手册](docs/TRADING_PARAMETERS_CN.md)。
@@ -322,7 +323,29 @@ let temporal_config = SwqosConfig::Temporal(
 - 如果没有提供自定义 URL（`None`），系统将使用指定 `SwqosRegion` 的默认端点
 - 这提供了最大的灵活性，同时保持向后兼容性
 
-当使用多个MEV服务时，需要使用`Durable Nonce`。你需要使用`fetch_nonce_info`函数获取最新的`nonce`值，并在交易的时候将`durable_nonce`填入交易参数。
+当使用多个 MEV 服务时，需要使用 `Durable Nonce`。先获取最新 nonce，再挂到新的 buy/sell 参数上：
+
+```rust
+use sol_trade_sdk::{fetch_nonce_info, AccountPolicy, BuyAmount, SimpleBuyParams};
+
+let nonce_info = fetch_nonce_info(&client.infrastructure.rpc, nonce_account)
+    .await
+    .expect("nonce account must be initialized");
+
+let buy_params = SimpleBuyParams::new(
+    DexType::PumpFun,
+    TradeTokenType::SOL,
+    mint_pubkey,
+    BuyAmount::WithMaxInput { quote_amount: buy_sol_amount },
+    DexParamEnum::PumpFun(pumpfun_params),
+    recent_blockhash, // 会被 `.durable_nonce(...)` 清空
+    gas_fee_strategy.clone(),
+)
+.durable_nonce(nonce_info)
+.account_policy(AccountPolicy::HotPathMinimal);
+
+client.buy_simple(buy_params).await?;
+```
 
 #### Astralane（Binary / Plain / QUIC）
 

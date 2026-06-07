@@ -7,6 +7,7 @@ pub mod swqos;
 pub mod trading;
 pub mod utils;
 
+pub use crate::common::nonce_cache::{fetch_nonce_info, DurableNonceInfo};
 // Re-export for SwqosConfig (Node1/BlockRazor transport; Astralane submission mode)
 pub use crate::swqos::{AstralaneTransport, SwqosTransport};
 pub use client::{

@@ -30,7 +30,7 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 | `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
 | `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
 | `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
-| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `SimpleBuyParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `.durable_nonce(nonce_info)` or `SimpleBuyParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
 | `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
 | `grpc_recv_us` | `Option<i64>` | ❌ | Upstream receive timestamp in microseconds for latency tracing. |
 
@@ -50,7 +50,7 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 | `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
 | `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
 | `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
-| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `SimpleSellParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
+| `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `.durable_nonce(nonce_info)` or `SimpleSellParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
 | `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
 | `with_tip` | `bool` | ❌ | Whether sells include relay tips. Default is `true`; set with `.with_tip(false)`. |
 | `grpc_recv_us` | `Option<i64>` | ❌ | Upstream receive timestamp in microseconds for latency tracing. |
@@ -73,6 +73,31 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 | `HotPathMinimal` | No ATA create/close instructions in the trade transaction. | Bots, sniping, arbitrage, and any path sensitive to transaction size. |
 | `CreateMissing` | Include ATA creation where possible. | Convenience matters more than smallest transaction size. |
 | `AssumePrepared` | Do not create or close token accounts; caller prepared everything. | Advanced deterministic flows. |
+
+### Durable Nonce With Simple Params
+
+`fetch_nonce_info` and `DurableNonceInfo` are re-exported from the crate root:
+
+```rust
+use sol_trade_sdk::{fetch_nonce_info, SimpleBuyParams};
+
+let nonce_info = fetch_nonce_info(&client.infrastructure.rpc, nonce_account)
+    .await
+    .expect("nonce account must be initialized");
+
+let buy_params = SimpleBuyParams::new(
+    dex_type,
+    pay_with,
+    mint,
+    amount,
+    extension_params,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.durable_nonce(nonce_info);
+```
+
+Calling `.durable_nonce(...)` clears `recent_blockhash`; nonce transactions use the nonce value as the transaction blockhash.
 
 ## TradeBuyParams
 

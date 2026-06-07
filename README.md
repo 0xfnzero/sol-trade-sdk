@@ -259,7 +259,8 @@ Optional builder methods:
 | `.wait_for_all_submits(true)` | In fast-submit mode, wait for all SWQoS lane responses and return all signatures. |
 | `.simulate(true)` | Build and simulate the transaction instead of sending it. |
 | `.grpc_recv_us(ts)` | Attach upstream receive timestamp for latency tracing. |
-| `SimpleBuyParams::with_durable_nonce(...)` / `SimpleSellParams::with_durable_nonce(...)` | Use durable nonce instead of `recent_blockhash`. |
+| `.durable_nonce(nonce_info)` | Use durable nonce and clear `recent_blockhash`. Recommended when you start from `SimpleBuyParams::new(...)` / `SimpleSellParams::new(...)`. |
+| `SimpleBuyParams::with_durable_nonce(...)` / `SimpleSellParams::with_durable_nonce(...)` | Construct params directly with durable nonce instead of `recent_blockhash`. |
 | `SimpleSellParams::with_tip(false)` | Disable relay tips for sells. Buys use the gas fee strategy/tip settings. |
 
 `TradeBuyParams` and `TradeSellParams` remain available as advanced low-level APIs. See the dedicated [Trading Parameters Reference](docs/TRADING_PARAMETERS.md).
@@ -323,7 +324,29 @@ let temporal_config = SwqosConfig::Temporal(
 - If no custom URL is provided (`None`), the system will use the default endpoint for the specified `SwqosRegion`
 - This allows for maximum flexibility while maintaining backward compatibility 
 
-When using multiple MEV services, you need to use `Durable Nonce`. You need to use the `fetch_nonce_info` function to get the latest `nonce` value, and use it as the `durable_nonce` when trading.
+When using multiple MEV services, you need to use `Durable Nonce`. Fetch the latest nonce value and attach it to the high-level buy/sell params:
+
+```rust
+use sol_trade_sdk::{fetch_nonce_info, AccountPolicy, BuyAmount, SimpleBuyParams};
+
+let nonce_info = fetch_nonce_info(&client.infrastructure.rpc, nonce_account)
+    .await
+    .expect("nonce account must be initialized");
+
+let buy_params = SimpleBuyParams::new(
+    DexType::PumpFun,
+    TradeTokenType::SOL,
+    mint_pubkey,
+    BuyAmount::WithMaxInput { quote_amount: buy_sol_amount },
+    DexParamEnum::PumpFun(pumpfun_params),
+    recent_blockhash, // will be cleared by `.durable_nonce(...)`
+    gas_fee_strategy.clone(),
+)
+.durable_nonce(nonce_info)
+.account_policy(AccountPolicy::HotPathMinimal);
+
+client.buy_simple(buy_params).await?;
+```
 
 #### Astralane (Binary / Plain HTTP / QUIC)
 
