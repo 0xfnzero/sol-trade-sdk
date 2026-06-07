@@ -46,7 +46,7 @@ pub fn build_transaction(
     tip_amount: f64,
     durable_nonce: Option<&DurableNonceInfo>,
 ) -> Result<VersionedTransaction, anyhow::Error> {
-    let transaction = build_transaction_with_compute_budget(
+    let transaction = build_transaction_inner(
         payer,
         unit_limit,
         unit_price,
@@ -63,44 +63,32 @@ pub fn build_transaction(
     )?;
 
     let serialized_len = bincode::serialized_size(&transaction)? as usize;
-    if serialized_len <= PACKET_DATA_SIZE
-        || durable_nonce.is_some()
-        || !with_tip
-        || tip_amount <= 0.0
-        || (unit_limit == 0 && unit_price == 0)
-    {
+    if crate::common::sdk_log::sdk_log_enabled() {
+        println!(
+            " [SDK][tx-size     ] {} {} serialized={} bytes, business_ix={}, nonce={}, tip={}, cu_limit={}, cu_price={}, alt={}",
+            protocol_name,
+            if is_buy { "buy" } else { "sell" },
+            serialized_len,
+            business_instructions.len(),
+            durable_nonce.is_some(),
+            with_tip && tip_amount > 0.0,
+            unit_limit,
+            unit_price,
+            address_lookup_table_account.is_some()
+        );
+    }
+    if serialized_len <= PACKET_DATA_SIZE {
         return Ok(transaction);
     }
 
-    let compact_transaction = build_transaction_with_compute_budget(
-        payer,
-        0,
-        0,
-        business_instructions,
-        address_lookup_table_account,
-        recent_blockhash,
-        middleware_manager,
-        protocol_name,
-        is_buy,
-        with_tip,
-        tip_account,
-        tip_amount,
-        durable_nonce,
-    )?;
-    let compact_len = bincode::serialized_size(&compact_transaction)? as usize;
-    if compact_len <= PACKET_DATA_SIZE {
-        return Ok(compact_transaction);
-    }
-
     Err(anyhow!(
-        "transaction too large: {} > {}; compact without compute budget is {} bytes. Use an address lookup table or pre-create token ATAs before submitting",
+        "transaction too large: {} > {}; SDK did not remove compute budget or relay tip because that changes transaction priority semantics. Use an address lookup table or pre-create token ATAs before submitting",
         serialized_len,
-        PACKET_DATA_SIZE,
-        compact_len
+        PACKET_DATA_SIZE
     ))
 }
 
-fn build_transaction_with_compute_budget(
+fn build_transaction_inner(
     payer: &Arc<Keypair>,
     unit_limit: u32,
     unit_price: u64,
@@ -180,4 +168,42 @@ fn build_versioned_transaction(
     let tx = VersionedTransaction { signatures: vec![signature], message: versioned_msg };
 
     Ok(tx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_sdk::instruction::AccountMeta;
+
+    fn oversized_instruction(account_count: usize, data_len: usize) -> Instruction {
+        let accounts =
+            (0..account_count).map(|_| AccountMeta::new(Pubkey::new_unique(), false)).collect();
+        Instruction { program_id: Pubkey::new_unique(), accounts, data: vec![7; data_len] }
+    }
+
+    #[test]
+    fn oversized_transaction_returns_error_without_dropping_priority_semantics() {
+        let payer = Arc::new(Keypair::new());
+        let business_instructions = vec![oversized_instruction(36, 700)];
+        let err = build_transaction(
+            &payer,
+            80_000,
+            100_000,
+            &business_instructions,
+            None,
+            Some(Hash::new_unique()),
+            None,
+            "test",
+            true,
+            true,
+            &Pubkey::new_unique(),
+            0.001,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("transaction too large"), "{err}");
+        assert!(err.contains("did not remove compute budget or relay tip"), "{err}");
+    }
 }

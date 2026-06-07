@@ -14,9 +14,10 @@ use std::sync::Arc;
 /// **Buy/sell**：`creator_vault` 及（若可得）**`tradeEvent` / CPI 日志中的 `creator`** 优先于陈旧的曲线快照；
 /// ix 组装与链下询价见 [`Self::effective_creator_for_trade`]、[`crate::instruction::utils::pumpfun::resolve_creator_vault_for_ix_with_fee_sharing`]。
 ///
-/// **V2 instructions**: The SDK selects the layout automatically from `quote_mint`.
-/// Leave `quote_mint` default, or pass the Solscan SOL sentinel (`SOL_TOKEN_ACCOUNT`), for
-/// legacy SOL layout. Pass `WSOL_TOKEN_ACCOUNT` for SOL V2, or USDC for USDC-paired coins.
+/// **Instruction layout**: The SDK selects the smallest valid layout automatically from
+/// `quote_mint`. Native SOL-paired coins use the legacy SOL layout when `quote_mint`
+/// is default, the Solscan SOL sentinel (`SOL_TOKEN_ACCOUNT`), or the WSOL sentinel
+/// (`WSOL_TOKEN_ACCOUNT`). Non-native quote mints such as USDC use V2.
 #[derive(Clone)]
 pub struct PumpFunParams {
     pub bonding_curve: Arc<BondingCurveAccount>,
@@ -41,8 +42,9 @@ pub struct PumpFunParams {
     /// Fee recipient for buy/sell account #2. Set from sol-parser-sdk (`tradeEvent.feeRecipient` / 同笔 create_v2+buy 回填的 `observed_fee_recipient`)；热路径不查 RPC。
     /// `Pubkey::default()` 时只能使用 SDK 静态 fallback，可能落后于主网 Global；交易热路径应优先传入 gRPC / parser 观测值。
     pub fee_recipient: Pubkey,
-    /// Quote mint layout selector. Default and `SOL_TOKEN_ACCOUNT` use legacy SOL layout.
-    /// `WSOL_TOKEN_ACCOUNT` selects SOL v2; USDC selects USDC v2.
+    /// Quote mint layout selector. Default, `SOL_TOKEN_ACCOUNT`, and `WSOL_TOKEN_ACCOUNT`
+    /// are native SOL-paired and use the smaller legacy SOL layout by default.
+    /// USDC and other non-native quote mints select V2.
     /// For USDC-paired coins, set to `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
     pub quote_mint: Pubkey,
 }
@@ -50,7 +52,10 @@ pub struct PumpFunParams {
 impl PumpFunParams {
     #[inline]
     fn quote_mint_for_layout(quote_mint: Pubkey) -> Pubkey {
-        if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+        if quote_mint == Pubkey::default()
+            || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT
+            || quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             Pubkey::default()
         } else {
             BondingCurveAccount::normalize_quote_mint(quote_mint)
@@ -59,7 +64,10 @@ impl PumpFunParams {
 
     #[inline]
     fn quote_mint_for_rpc_return(quote_mint: Pubkey) -> Pubkey {
-        if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+        if quote_mint == Pubkey::default()
+            || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT
+            || quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
+        {
             crate::constants::SOL_TOKEN_ACCOUNT
         } else {
             BondingCurveAccount::normalize_quote_mint(quote_mint)
@@ -176,8 +184,8 @@ impl PumpFunParams {
     }
 
     /// Build PumpFun params from event/parser data. Pass `quote_mint` from the event:
-    /// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` for legacy SOL layout,
-    /// `WSOL_TOKEN_ACCOUNT` for SOL V2, and `USDC_TOKEN_ACCOUNT` for USDC V2.
+    /// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` / `WSOL_TOKEN_ACCOUNT` for native SOL
+    /// layout, and `USDC_TOKEN_ACCOUNT` or another non-native quote mint for V2.
     /// Also pass `is_cashback_coin` from the event so sells include the correct remaining accounts.
     ///
     /// `mayhem_mode`:
@@ -369,8 +377,9 @@ impl PumpFunParams {
     }
 
     /// Sets `quote_mint`. The instruction builder derives V1/V2 layout from this value.
-    /// For legacy SOL-paired coins, pass `SOL_TOKEN_ACCOUNT` or leave default.
-    /// Pass `WSOL_TOKEN_ACCOUNT` only when you intentionally want SOL v2 layout.
+    /// For native SOL-paired coins, pass `Pubkey::default()`, `SOL_TOKEN_ACCOUNT`, or
+    /// `WSOL_TOKEN_ACCOUNT`; all three select the smaller V1 layout unless buy/sell params
+    /// explicitly request WSOL settlement. Pass USDC or another non-native quote mint for V2.
     #[inline]
     pub fn with_quote_mint(mut self, quote_mint: Pubkey) -> Self {
         let effective_quote_mint = BondingCurveAccount::normalize_quote_mint(quote_mint);
@@ -419,6 +428,10 @@ mod tests {
             PumpFunParams::quote_mint_for_rpc_return(crate::constants::SOL_TOKEN_ACCOUNT),
             crate::constants::SOL_TOKEN_ACCOUNT
         );
+        assert_eq!(
+            PumpFunParams::quote_mint_for_rpc_return(crate::constants::WSOL_TOKEN_ACCOUNT),
+            crate::constants::SOL_TOKEN_ACCOUNT
+        );
     }
 
     #[test]
@@ -427,9 +440,22 @@ mod tests {
             PumpFunParams::quote_mint_for_rpc_return(crate::constants::USDC_TOKEN_ACCOUNT),
             crate::constants::USDC_TOKEN_ACCOUNT
         );
+    }
+
+    #[test]
+    fn quote_mint_for_layout_normalizes_native_sol_sentinels_to_default() {
+        assert_eq!(PumpFunParams::quote_mint_for_layout(Pubkey::default()), Pubkey::default());
         assert_eq!(
-            PumpFunParams::quote_mint_for_rpc_return(crate::constants::WSOL_TOKEN_ACCOUNT),
-            crate::constants::WSOL_TOKEN_ACCOUNT
+            PumpFunParams::quote_mint_for_layout(crate::constants::SOL_TOKEN_ACCOUNT),
+            Pubkey::default()
+        );
+        assert_eq!(
+            PumpFunParams::quote_mint_for_layout(crate::constants::WSOL_TOKEN_ACCOUNT),
+            Pubkey::default()
+        );
+        assert_eq!(
+            PumpFunParams::quote_mint_for_layout(crate::constants::USDC_TOKEN_ACCOUNT),
+            crate::constants::USDC_TOKEN_ACCOUNT
         );
     }
 }

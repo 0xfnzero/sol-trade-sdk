@@ -83,11 +83,11 @@
 
 **Rust crate:** `sol-trade-sdk = "4.0.17"`
 
-本版本刷新 PumpFun V2 WSOL quote 池处理逻辑，确保默认 RPC 提交通道会和 SWQoS 通道一起发出，快速提交结果等待窗口恢复为 5 秒，并将 Raydium CPMM fixed-output 交易对齐到链上 `swap_base_out` 指令。交易执行必须由调用方传入 `recent_blockhash` 或 durable nonce；热路径不会查询 RPC 获取 blockhash、账户或余额数据。
+本版本刷新 PumpFun native SOL quote 处理逻辑，SOL/WSOL sentinel 默认优先走更小的 V1 热路径，确保默认 RPC 提交通道会和 SWQoS 通道一起发出，快速提交结果等待窗口恢复为 5 秒，并将 Raydium CPMM fixed-output 交易对齐到链上 `swap_base_out` 指令。交易执行必须由调用方传入 `recent_blockhash` 或 durable nonce；热路径不会查询 RPC 获取 blockhash、账户或余额数据。
 
 ## ✨ 项目特性
 
-1. **PumpFun 交易**: SDK 侧统一为 `buy`、`sell`、`buy_exact_quote_in` 流程，内部按需选择旧版或 V2 链上指令（SOL/WSOL + USDC）
+1. **PumpFun 交易**: SDK 侧统一为 `buy`、`sell`、`buy_exact_quote_in` 流程，native SOL 优先走 V1，USDC/非 SOL quote 或显式 WSOL 结算才走 V2
 2. **PumpSwap 交易**: 支持 PumpSwap 池的交易操作
 3. **Bonk 交易**: 支持 Bonk 的交易操作
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
@@ -428,22 +428,21 @@ SDK 不会在每次卖出时通过 RPC 拉取 creator_vault（以避免延迟）
 
 Pump.fun 已升级 Bonding Curve 合约，推出**统一化 v2 指令**，通过固定账户布局同时支持 SOL 和 USDC 配对币。旧版 `buy`/`sell`/`buy_exact_sol_in` 仍可用于 SOL 配对币，且保持为默认选项。
 
-SDK 侧调用入口保持统一：正常使用 `buy` / `sell` 流程即可，SDK 会根据 `quote_mint` 自动选择正确的链上 discriminator 和账户布局。
+SDK 侧调用入口保持统一：正常使用 `buy` / `sell` 流程即可，SDK 会根据 `quote_mint` 和买/卖的结算 mint 自动选择正确的链上 discriminator 和账户布局。能用 V1 的 native SOL 池会优先用 V1。
 
 **v2 指令关键变化：**
-- 新增 `quote_mint` 参数 — SOL 配对传包装 SOL（`So11111111111111111111111111111111111111112`），USDC 配对传 USDC mint
+- 新增 `quote_mint` 参数 — native SOL 配对可能表现为默认值、Solscan SOL sentinel（`So11111111111111111111111111111111111111111`）或 WSOL sentinel（`So11111111111111111111111111111111111111112`）；USDC/其他真实 quote mint 才选择 V2
 - 27 个固定账户（buy）/ 26 个固定账户（sell）— **无可选账户**
 - `buyback_fee_recipient`、`sharing_config` 和 6 个 `associated_quote_*` ATA 变为强制账户
 - SOL 配对币的报价和成本与旧版一致，无额外开销
 
 **使用方式：**
 
-把事件里的 `quote_mint` 传给 `PumpFunParams::from_trade`。`quote_mint` 不是 PDA，它就是 quote SPL mint；`Pubkey::default()` 和 Solscan SOL（`So11111111111111111111111111111111111111111`）表示旧版 SOL 布局，`WSOL_TOKEN_ACCOUNT` 表示 SOL V2，USDC 表示 USDC V2：
+把事件里的 `quote_mint` 传给 `PumpFunParams::from_trade`。`quote_mint` 不是 PDA，它就是 quote SPL mint 或 native SOL sentinel；`Pubkey::default()`、Solscan SOL（`So11111111111111111111111111111111111111111`）和 `WSOL_TOKEN_ACCOUNT` 都表示 native SOL 配对，正常用 SOL 结算时默认走旧版 V1；USDC 表示 USDC V2：
 
 ```rust
-// legacy SOL 池：log 事件里可能是 Pubkey::default()，parser 数据里是 Solscan SOL sentinel
-// SOL V2 池：WSOL_TOKEN_ACCOUNT
-// USDC 池：就是 USDC mint
+// native SOL 池：可能是 Pubkey::default()、Solscan SOL sentinel 或 WSOL sentinel
+// USDC / 非 SOL 池：就是实际 quote SPL mint
 let quote_mint = e.quote_mint;
 
 let params = PumpFunParams::from_trade(
@@ -469,14 +468,14 @@ client.buy(buy_params).await?;
 client.sell(sell_params).await?;
 ```
 
-USDC 配对币必须用 USDC 买入、卖出也结算为 USDC；SOL/WSOL 只适用于 SOL 配对的 PumpFun 曲线。SDK 会在提交前拒绝 USDC quote 池的 SOL 输入，避免链上 6063 失败。
+USDC 配对币必须用 USDC 买入、卖出也结算为 USDC；SOL/WSOL 只适用于 SOL 配对的 PumpFun 曲线。SOL 配对的普通热路径请传 `SOL`，SDK 会用 V1；只有你明确传 `WSOL` 作为买入输入或卖出输出、希望通过已有 WSOL ATA 结算时，才会选择 V2。
+SDK 会在提交前拒绝 USDC quote 池的 SOL 输入，避免链上 6063 失败。
 消费 parser 事件时，需要把 `quoteMint`、`virtualQuoteReserves`、`realQuoteReserves` 传进 `PumpFunParams::from_trade(...)`；USDC 池初始虚拟 quote reserve 是 `4_292_000_000`。
 legacy SOL 事件里如果 `quote_mint` 是默认值或 Solscan SOL，并且 quote reserve 字段缺失/为 0，应回退使用 `virtual_sol_reserves` / `real_sol_reserves`。
 
 | quote_mint | 实际使用的指令 | 说明 |
 |-----------|---------|------|
-| 未设置（默认）/ `SOL_TOKEN_ACCOUNT` (`So111...11111`) | 旧版 `buy`/`sell`/`buy_exact_sol_in` | 向后兼容，仅 SOL |
-| `WSOL_TOKEN_ACCOUNT` (`So111...11112`) | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | SOL 配对，统一布局 |
+| 未设置（默认）/ `SOL_TOKEN_ACCOUNT` (`So111...11111`) / `WSOL_TOKEN_ACCOUNT` (`So111...11112`) | 优先旧版 `buy`/`sell`/`buy_exact_sol_in` | native SOL 配对；普通 SOL 结算走 V1，显式 WSOL 结算才走 V2 |
 | `USDC_TOKEN_ACCOUNT` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC 配对（必须使用 v2） |
 
 ## 🛡️ MEV 保护服务

@@ -1,10 +1,11 @@
 //! Pump.fun bonding-curve swap ix assembly ([`SwapParams`](crate::trading::core::params::SwapParams)).
 //!
 //! The SDK selects the legacy or V2 on-chain layout from `PumpFunParams.quote_mint`.
-//! `Pubkey::default()` and the Solscan SOL sentinel keep the smaller legacy SOL layout;
-//! explicit WSOL or USDC uses the V2 27/26-account unified metas.
-//! Default (`false`) keeps the smaller legacy SOL-paired instruction layout for latency.
+//! Native SOL-paired coins (`Pubkey::default()`, Solscan SOL sentinel, or WSOL sentinel)
+//! keep the smaller legacy SOL layout by default. Non-native quote mints such as USDC use
+//! the V2 27/26-account unified metas.
 
+use crate::swqos::TradeType;
 use crate::{
     common::bonding_curve::BondingCurveAccount,
     common::spl_token::close_account,
@@ -52,8 +53,8 @@ fn effective_pump_mint_token_program(protocol_params: &PumpFunParams, mint: &Pub
 }
 
 /// Resolve quote mint and its token program from PumpFunParams.
-/// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` means legacy SOL-paired; use WSOL mint when a
-/// downstream V2 helper needs a concrete SPL quote mint.
+/// `Pubkey::default()` / `SOL_TOKEN_ACCOUNT` / `WSOL_TOKEN_ACCOUNT` are native SOL-paired.
+/// V2 helpers still need a concrete SPL mint, so native SOL resolves to WSOL internally.
 #[inline]
 fn effective_quote_mint_and_token_program(protocol_params: &PumpFunParams) -> (Pubkey, Pubkey) {
     let curve_quote_mint = protocol_params.bonding_curve.effective_quote_mint();
@@ -71,6 +72,16 @@ fn effective_quote_mint_and_token_program(protocol_params: &PumpFunParams) -> (P
 fn is_sol_quote_mint(quote_mint: &Pubkey) -> bool {
     *quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT
         || *quote_mint == crate::constants::SOL_TOKEN_ACCOUNT
+}
+
+#[inline]
+fn is_native_sol_settlement_mint(mint: &Pubkey) -> bool {
+    *mint == crate::constants::SOL_TOKEN_ACCOUNT || *mint == Pubkey::default()
+}
+
+#[inline]
+fn is_explicit_wsol_settlement_mint(mint: &Pubkey) -> bool {
+    *mint == crate::constants::WSOL_TOKEN_ACCOUNT
 }
 
 #[inline]
@@ -130,9 +141,20 @@ fn should_use_v2_layout(params: &SwapParams) -> Result<bool> {
         .downcast_ref::<PumpFunParams>()
         .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
     let (quote_mint, _) = effective_quote_mint_and_token_program(protocol_params);
-    let explicit_v2_quote = protocol_params.quote_mint != Pubkey::default()
-        && protocol_params.quote_mint != crate::constants::SOL_TOKEN_ACCOUNT;
-    Ok(explicit_v2_quote || !is_sol_quote_mint(&quote_mint))
+    if !is_sol_quote_mint(&quote_mint) {
+        return Ok(true);
+    }
+
+    // Pump docs treat WSOL quote mint as the native SOL sentinel for SOL-paired curves.
+    // Keep V1 for native SOL settlement; use V2 only when the caller explicitly wants to
+    // spend/receive an existing WSOL ATA.
+    Ok(match params.trade_type {
+        TradeType::Buy | TradeType::CreateAndBuy => {
+            is_explicit_wsol_settlement_mint(&params.input_mint)
+        }
+        TradeType::Sell => is_explicit_wsol_settlement_mint(&params.output_mint),
+        TradeType::Create => false,
+    })
 }
 
 #[inline]
@@ -170,6 +192,13 @@ fn build_buy_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
         .as_any()
         .downcast_ref::<PumpFunParams>()
         .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
+
+    if !is_native_sol_settlement_mint(&params.input_mint) {
+        return Err(anyhow!(
+            "PumpFun native SOL buy expects input_mint SOL; got {}. Use the matching non-native quote mint for V2 pools or WSOL input only when spending an existing WSOL ATA.",
+            params.input_mint
+        ));
+    }
 
     let lamports_in = params.input_amount.unwrap_or(0);
     if lamports_in == 0 {
@@ -298,6 +327,13 @@ fn build_sell_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
         .as_any()
         .downcast_ref::<PumpFunParams>()
         .ok_or_else(|| anyhow!("Invalid protocol params for PumpFun"))?;
+
+    if !is_native_sol_settlement_mint(&params.output_mint) {
+        return Err(anyhow!(
+            "PumpFun native SOL sell expects output_mint SOL; got {}. Use the matching non-native quote mint for V2 pools or WSOL output only when receiving into an existing WSOL ATA.",
+            params.output_mint
+        ));
+    }
 
     let token_amount = if let Some(amount) = params.input_amount {
         if amount == 0 {
@@ -1002,14 +1038,15 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_v2_fixed_output_uses_buy_with_max_input_budget() {
+    fn pumpfun_v2_usdc_fixed_output_uses_buy_with_max_input_budget() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
+        params.input_mint = crate::constants::USDC_TOKEN_ACCOUNT;
         params.fixed_output_amount = Some(42);
         params.use_exact_sol_amount = Some(true);
         if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
             *protocol_params =
-                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+                protocol_params.clone().with_quote_mint(crate::constants::USDC_TOKEN_ACCOUNT);
         }
 
         let instructions = build_buy(&params).unwrap();
@@ -1024,7 +1061,7 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_v2_regular_buy_uses_native_sol_for_wsol_quote() {
+    fn pumpfun_wsol_quote_regular_buy_uses_v1_native_sol() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
         params.create_input_mint_ata = true;
@@ -1043,13 +1080,13 @@ mod tests {
             params.slippage_basis_points.unwrap(),
         );
 
-        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR);
+        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_DISCRIMINATOR);
         assert_eq!(u64::from_le_bytes(buy_ix.data[16..24].try_into().unwrap()), expected);
-        assert_eq!(buy_ix.accounts.len(), 27);
+        assert_eq!(buy_ix.accounts.len(), 18);
     }
 
     #[test]
-    fn pumpfun_v2_regular_buy_skips_wsol_ata_create_on_hot_path() {
+    fn pumpfun_wsol_quote_regular_buy_skips_wsol_ata_create_on_hot_path() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
         params.create_input_mint_ata = true;
@@ -1065,15 +1102,52 @@ mod tests {
         assert_eq!(instructions.len(), 1);
         assert_eq!(
             &instructions.last().unwrap().data[..8],
-            crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR
+            crate::instruction::utils::pumpfun::BUY_DISCRIMINATOR
         );
     }
 
     #[test]
-    fn pumpfun_v2_wsol_quote_hot_path_transaction_fits_packet_with_output_ata_create() {
+    fn pumpfun_v2_explicit_wsol_input_with_output_ata_create_reports_oversized_without_dropping_priority(
+    ) {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
         params.create_input_mint_ata = true;
         params.create_output_mint_ata = true;
+        params.use_exact_sol_amount = Some(false);
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params =
+                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+        }
+
+        let business_instructions = build_buy(&params).unwrap();
+        let err = crate::trading::common::transaction_builder::build_transaction(
+            &params.payer,
+            150_000,
+            500_000,
+            &business_instructions,
+            None,
+            Some(solana_hash::Hash::new_unique()),
+            None,
+            "PumpFun",
+            true,
+            true,
+            &Pubkey::new_unique(),
+            0.001,
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("transaction too large"), "{err}");
+        assert!(err.contains("did not remove compute budget or relay tip"), "{err}");
+    }
+
+    #[test]
+    fn pumpfun_v2_explicit_wsol_input_hot_path_transaction_fits_when_output_ata_prepared() {
+        let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
+        params.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
+        params.create_input_mint_ata = true;
+        params.create_output_mint_ata = false;
         params.use_exact_sol_amount = Some(false);
         if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
             *protocol_params =
@@ -1107,7 +1181,7 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_from_trade_wsol_quote_regular_buy_selects_buy_v2() {
+    fn pumpfun_from_trade_wsol_quote_regular_buy_selects_v1() {
         let mint = pump_mint();
         let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
@@ -1135,8 +1209,8 @@ mod tests {
         let instructions = build_buy(&params).unwrap();
         let buy_ix = instructions.last().unwrap();
 
-        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR);
-        assert_eq!(buy_ix.accounts.len(), 27);
+        assert_eq!(&buy_ix.data[..8], crate::instruction::utils::pumpfun::BUY_DISCRIMINATOR);
+        assert_eq!(buy_ix.accounts.len(), 18);
     }
 
     #[test]
@@ -1159,6 +1233,44 @@ mod tests {
             crate::instruction::utils::pumpfun::BUY_V2_DISCRIMINATOR
         );
         assert_eq!(instructions[0].accounts.len(), 27);
+    }
+
+    #[test]
+    fn pumpfun_sell_does_not_select_v2_from_base_mint_wsol() {
+        let mut params = swap_params_for_buy(crate::constants::WSOL_TOKEN_ACCOUNT, TOKEN_PROGRAM);
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
+        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params =
+                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+        }
+
+        let instructions = build_sell(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::SELL_DISCRIMINATOR);
+    }
+
+    #[test]
+    fn pumpfun_sell_selects_v2_for_explicit_wsol_output_settlement() {
+        let mint = pump_mint();
+        let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
+        params.trade_type = crate::swqos::TradeType::Sell;
+        params.input_mint = mint;
+        params.output_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
+        params.create_output_mint_ata = false;
+        if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
+            *protocol_params =
+                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+        }
+
+        let instructions = build_sell(&params).unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpfun::SELL_V2_DISCRIMINATOR);
+        assert_eq!(ix.accounts.len(), 26);
     }
 
     #[test]
@@ -1372,13 +1484,14 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_v2_buyback_fee_recipient_is_writable() {
+    fn pumpfun_v2_usdc_buyback_fee_recipient_is_writable() {
         let mint = pump_mint();
         let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
         params.create_output_mint_ata = false;
+        params.input_mint = crate::constants::USDC_TOKEN_ACCOUNT;
         if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
             *protocol_params =
-                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+                protocol_params.clone().with_quote_mint(crate::constants::USDC_TOKEN_ACCOUNT);
         }
 
         let buy_ix = build_buy(&params).unwrap().pop().unwrap();
@@ -1387,7 +1500,7 @@ mod tests {
 
         params.trade_type = crate::swqos::TradeType::Sell;
         params.input_mint = mint;
-        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.output_mint = crate::constants::USDC_TOKEN_ACCOUNT;
         let sell_ix = build_sell(&params).unwrap().pop().unwrap();
         assert!(global_constants::BUYBACK_FEE_RECIPIENTS.contains(&sell_ix.accounts[8].pubkey));
         assert!(sell_ix.accounts[8].is_writable);
@@ -1416,17 +1529,17 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_v2_sell_fixed_output_uses_min_sol_directly() {
+    fn pumpfun_v2_usdc_sell_fixed_output_uses_min_quote_directly() {
         let mint = pump_mint();
         let mut params = swap_params_for_buy(mint, TOKEN_PROGRAM);
         params.trade_type = crate::swqos::TradeType::Sell;
         params.input_mint = mint;
-        params.output_mint = crate::constants::SOL_TOKEN_ACCOUNT;
+        params.output_mint = crate::constants::USDC_TOKEN_ACCOUNT;
         params.create_output_mint_ata = false;
         params.fixed_output_amount = Some(42);
         if let DexParamEnum::PumpFun(protocol_params) = &mut params.protocol_params {
             *protocol_params =
-                protocol_params.clone().with_quote_mint(crate::constants::WSOL_TOKEN_ACCOUNT);
+                protocol_params.clone().with_quote_mint(crate::constants::USDC_TOKEN_ACCOUNT);
         }
 
         let instructions = build_sell(&params).unwrap();

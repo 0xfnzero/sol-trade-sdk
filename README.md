@@ -83,11 +83,11 @@ This SDK is available in multiple languages:
 
 **Rust crate:** `sol-trade-sdk = "4.0.17"`
 
-This release refreshes PumpFun V2 WSOL quote-pool handling, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
+This release refreshes PumpFun native-SOL quote handling so SOL/WSOL sentinels prefer the smaller V1 hot path, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
 
 ## ✨ Features
 
-1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, selecting legacy or V2 on-chain instructions as needed (SOL/WSOL + USDC)
+1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, preferring V1 for native SOL and selecting V2 for USDC/non-native quote mints or explicit WSOL settlement
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
 3. **Bonk Trading**: Support for Bonk trading operations
 4. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
@@ -426,15 +426,15 @@ PumpFun has two instruction sets for bonding-curve trading:
 |---|---|---|
 | Instructions | `buy` / `buy_exact_sol_in` / `sell` | `buy_v2` / `buy_exact_quote_in_v2` / `sell_v2` |
 | Account metas | 18 | 27 |
-| Quote mint | SOL only (legacy) | SOL or USDC (via `quote_mint` field) |
-| Transaction size | Smaller (fits `PACKET_DATA_SIZE` without LUT) | Larger (requires LUT for most transactions) |
+| Quote mint | Native SOL (`default`, Solscan SOL sentinel, or WSOL sentinel) | Non-native quote mint, or explicit WSOL settlement |
+| Transaction size | Smaller (preferred hot path) | Larger (may require LUT for nonce/tip/ATA-heavy transactions) |
 
-The SDK-side builder is version-neutral: callers use the normal buy/sell flow, and `quote_mint` selects the correct on-chain discriminator and account layout internally. There is no user-facing V2 switch required.
+The SDK-side builder is version-neutral: callers use the normal buy/sell flow, and `quote_mint` plus the requested settlement token (`pay_with` / `receive_as`) select the correct on-chain discriminator and account layout internally. There is no user-facing V2 switch required.
 
-**Default: V1**. When `quote_mint` is `Pubkey::default()` or the Solscan SOL sentinel (`So11111111111111111111111111111111111111111`), the SDK uses V1 instructions which produce smaller transactions that fit within the 1232-byte `PACKET_DATA_SIZE` limit without requiring an Address Lookup Table. Passing `WSOL_TOKEN_ACCOUNT` selects SOL V2; passing USDC selects USDC V2.
+**Default: V1**. When `quote_mint` is `Pubkey::default()`, the Solscan SOL sentinel (`So11111111111111111111111111111111111111111`), or `WSOL_TOKEN_ACCOUNT` (`So11111111111111111111111111111111111111112`), the SDK treats the curve as native SOL-paired and uses V1 instructions when `pay_with` / `receive_as` is `SOL`. This is the preferred hot path because it avoids the 27-account V2 layout. Passing USDC or another real quote mint selects V2. Passing `WSOL` as the buy input or sell output selects V2 only when you intentionally want to settle through an existing WSOL ATA.
 
 **Key changes in v2 instructions:**
-- `quote_mint` parameter — pass wrapped SOL for SOL-paired, or USDC mint for USDC-paired
+- `quote_mint` parameter — native SOL-paired curves may appear as default, Solscan SOL, or WSOL; USDC/non-native quote mints select V2
 - 27 fixed accounts (buy) / 26 fixed accounts (sell) — **no optional accounts**
 - `buyback_fee_recipient`, `sharing_config`, and 6 `associated_quote_*` ATAs are now mandatory
 - Same pricing and cost as legacy instructions for SOL-paired coins
@@ -442,13 +442,12 @@ The SDK-side builder is version-neutral: callers use the normal buy/sell flow, a
 
 **Pass `quote_mint` into `PumpFunParams::from_trade`**:
 
-When using event/parser data, pass the event's `quote_mint` right after `mint`. `Pubkey::default()` and Solscan SOL (`So11111111111111111111111111111111111111111`) mean the legacy SOL layout; `WSOL_TOKEN_ACCOUNT` means SOL V2; USDC means USDC V2.
+When using event/parser data, pass the event's `quote_mint` right after `mint`. `Pubkey::default()`, Solscan SOL (`So11111111111111111111111111111111111111111`), and `WSOL_TOKEN_ACCOUNT` all mean a native SOL-paired curve and default to V1 for normal SOL settlement. USDC means USDC V2.
 
 ```rust
 // quote_mint is not a PDA. It is the quote SPL mint carried by parser/gRPC events:
-// - Legacy SOL pool: Pubkey::default() or Solscan SOL from parser data
-// - SOL V2 pool: WSOL_TOKEN_ACCOUNT
-// - USDC V2 pool: USDC mint
+// - Native SOL pool: Pubkey::default(), Solscan SOL, or WSOL sentinel from parser data
+// - USDC/non-native pool: actual quote SPL mint
 let quote_mint = e.quote_mint;
 let params = PumpFunParams::from_trade(
     e.bonding_curve,
@@ -469,11 +468,11 @@ let params = PumpFunParams::from_trade(
 );
 ```
 
-For USDC-paired coins, pass `USDC_TOKEN_ACCOUNT` as the buy `input_mint` and sell `output_mint`; SOL/WSOL is only valid for SOL-paired PumpFun curves.
+For USDC-paired coins, pass `USDC_TOKEN_ACCOUNT` as the buy `input_mint` and sell `output_mint`; SOL/WSOL is only valid for SOL-paired PumpFun curves. For SOL-paired curves, use `SOL` for the normal fast path; use `WSOL` only if you intentionally want V2 settlement through an existing WSOL ATA.
 When consuming parser events, map `quoteMint`, `virtualQuoteReserves`, and `realQuoteReserves` into `PumpFunParams::from_trade(...)`; USDC pools use `4_292_000_000` as the initial virtual quote reserve.
 For legacy SOL events where `quote_mint` is `Pubkey::default()` or Solscan SOL, use `virtual_sol_reserves` / `real_sol_reserves` when the quote-reserve fields are absent or zero.
 
-> **Note**: V2 transactions with ATA creation + durable nonce may exceed `PACKET_DATA_SIZE`. Enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
+> **Note**: V2 transactions with ATA creation + durable nonce/tip may exceed `PACKET_DATA_SIZE`. The SDK reports this locally and does not remove compute-budget or tip instructions because that changes priority semantics. Use V1 when the curve is native SOL-paired, pre-create ATAs, or enable an Address Lookup Table (`address_lookup_table_account`) when using V2.
 
 #### PumpSwap: coin_creator_vault from events (no RPC)
 

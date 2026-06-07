@@ -173,9 +173,10 @@ pub struct SimpleBuyParams {
     pub dex_type: DexType,
     /// Quote token used to pay for the buy: `SOL`, `WSOL`, `USDC`, or `USD1`.
     ///
-    /// For PumpFun V2 SOL-paired coins, use `TradeTokenType::SOL` even when the
-    /// protocol quote mint account is WSOL. The SDK passes WSOL as the V2 quote
-    /// account but keeps settlement in native SOL.
+    /// For PumpFun SOL-paired coins, use `TradeTokenType::SOL` for the normal
+    /// fast path even when parser data reports WSOL as the quote sentinel. The
+    /// SDK will prefer V1; choose `WSOL` only when intentionally spending an
+    /// existing WSOL ATA through V2.
     pub pay_with: TradeTokenType,
     /// Mint address of the token being bought.
     pub mint: Pubkey,
