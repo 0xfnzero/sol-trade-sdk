@@ -172,10 +172,16 @@ pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
 ];
 
 pub const SOLAMI_TIP_ACCOUNTS: &[Pubkey] = &[
-    pubkey!("6993ZufwyEDNdB94kciDTGB17ANXguiNH22VmMQU1ami"),
-    pubkey!("E1BkG293HQocKfCkfPS7tEvs8Enh6FK8pUKi17EH1ami"),
-    pubkey!("2Ga87xvZwpP9WRsSdiPiWre21cQbDcFhGLmT5EMo1ami"),
-    pubkey!("CGzT5jzT68vGUWVagQAQqESfrCEHSKYe9DAjfgfC1ami"),
+    pubkey!("15qWd4huAkoxvhDsHMfpUn27TW1YBYMMJJ2jkAkbeam"),
+    pubkey!("9XuGciSwr5wb7dLTQm91JhuBTvj3GG8WjuRDc3obeam"),
+    pubkey!("kiQioJNyFG7pU36ELLsRKXkeT48kFbk3b6rSgrWbeam"),
+    pubkey!("kjmVhW1UzJrW2sU5bY5NtZ79jpvjSStsj37Pzmabeam"),
+    pubkey!("kREnjPWFpt4AHeY5pijPmyXaCrMnbatUQJo7d3Xbeam"),
+    pubkey!("praRZG6N6MdbsT4EFpKgZJWReZGXQhAMFcH68oCbeam"),
+    pubkey!("SqoKQKU5uwBxovq3R7yEBxFwptc4z7vwoghU3M9beam"),
+    pubkey!("sV72TY66T1RfmDSeHPPbwX6wwJ3bBv5hd4ehJ8tbeam"),
+    pubkey!("swf8MyEeLo7gtRUo27UuJj6naCASUrypU7dbteSbeam"),
+    pubkey!("uiuaQsxA47JybQAVN4FTfYuoEDkMiXV1r591Aewbeam"),
 ];
 
 // `SwqosRegion` 与下列各 `SWQOS_ENDPOINTS_*` 下标严格对应（共 10 项）：
@@ -442,16 +448,16 @@ pub const SWQOS_ENDPOINTS_HELIUS: [&str; 10] = [
 ];
 
 pub const SWQOS_ENDPOINTS_SOLAMI: [&str; 10] = [
-    "nyc.landing.solami.fast:11000",
-    "fra.landing.solami.fast:11000",
-    "ams.landing.solami.fast:11000",
-    "ams.landing.solami.fast:11000", // Dublin: no IE PoP; use nearest published EU endpoint
-    "nyc.landing.solami.fast:11000", // SLC: no Mountain/West PoP published; US fallback
-    "sgp.landing.solami.fast:11000", // Tokyo: PR only provided SGP for APAC
-    "sgp.landing.solami.fast:11000",
-    "fra.landing.solami.fast:11000",
-    "nyc.landing.solami.fast:11000",
-    "landing.solami.fast:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
+    "beam.solami.dev:11000",
 ];
 
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费

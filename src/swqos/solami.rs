@@ -7,6 +7,7 @@ use quinn::{
 };
 use rand::seq::IndexedRandom as _;
 use solana_client::rpc_client::SerializableTransaction;
+use solana_sdk::signer::Signer;
 use solana_sdk::{signature::Keypair, transaction::VersionedTransaction};
 use solana_tls_utils::{new_dummy_x509_certificate, SkipServerVerification};
 use std::time::Instant;
@@ -16,6 +17,7 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Mutex;
+use tokio::time::timeout;
 
 use crate::common::SolanaRpcClient;
 use crate::swqos::common::poll_transaction_confirmation;
@@ -26,9 +28,11 @@ use crate::{
 };
 
 const ALPN_TPU_PROTOCOL_ID: &[u8] = b"solana-tpu";
-const SOLAMI_SERVER: &str = "solami-landing";
+const SOLAMI_SERVER: &str = "solami-beam";
 const KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(25);
 const MAX_IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const SEND_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub struct SolamiClient {
     pub rpc_client: Arc<SolanaRpcClient>,
@@ -42,7 +46,12 @@ pub struct SolamiClient {
 impl SolamiClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
-        let keypair = Keypair::from_base58_string(&api_key);
+        let keypair_bytes = bs58::decode(api_key.trim())
+            .into_vec()
+            .map_err(|e| anyhow::anyhow!("Solami api_token base58 decode failed: {}", e))?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice()).map_err(|e| {
+            anyhow::anyhow!("Solami api_token is not a valid Solana keypair: {}", e)
+        })?;
         let (cert, key) = new_dummy_x509_certificate(&keypair);
         let mut crypto = rustls::ClientConfig::builder()
             .dangerous()
@@ -66,7 +75,17 @@ impl SolamiClient {
             .to_socket_addrs()?
             .next()
             .ok_or_else(|| anyhow::anyhow!("Address not resolved"))?;
-        let connection = endpoint.connect(addr, SOLAMI_SERVER)?.await?;
+        let connecting = endpoint.connect(addr, SOLAMI_SERVER)?;
+        let connection = timeout(CONNECT_TIMEOUT, connecting)
+            .await
+            .context("Solami QUIC connect timeout")?
+            .with_context(|| {
+                format!(
+                    "Solami QUIC handshake failed (verify wallet pubkey {} is registered and UDP {} is reachable)",
+                    keypair.pubkey(),
+                    endpoint_string
+                )
+            })?;
 
         Ok(Self {
             rpc_client: Arc::new(rpc_client),
@@ -78,14 +97,29 @@ impl SolamiClient {
         })
     }
 
-    async fn reconnect(&self) -> Result<()> {
-        let _guard = self.reconnect.try_lock()?;
-        let connection = self
-            .endpoint
-            .connect_with(self.client_config.clone(), self.addr, SOLAMI_SERVER)?
-            .await?;
-        self.connection.store(Arc::new(connection));
-        Ok(())
+    async fn ensure_connected(&self) -> Result<Arc<Connection>> {
+        let current = self.connection.load_full();
+        if current.close_reason().is_none() {
+            return Ok(current);
+        }
+        let _guard = self.reconnect.lock().await;
+        let current = self.connection.load_full();
+        if current.close_reason().is_some() {
+            let connecting =
+                self.endpoint.connect_with(self.client_config.clone(), self.addr, SOLAMI_SERVER)?;
+            let connection = timeout(CONNECT_TIMEOUT, connecting)
+                .await
+                .context("Solami QUIC reconnect timeout")?
+                .with_context(|| {
+                    format!(
+                        "Solami QUIC re-handshake failed (peer {} SNI {})",
+                        self.addr, SOLAMI_SERVER
+                    )
+                })?;
+            self.connection.store(Arc::new(connection));
+            return Ok(self.connection.load_full());
+        }
+        Ok(current)
     }
 
     async fn try_send_bytes(connection: &Connection, payload: &[u8]) -> Result<()> {
@@ -107,31 +141,77 @@ impl SwqosClientTrait for SolamiClient {
         let start_time = Instant::now();
         let signature = transaction.get_signature();
         let serialized_tx = bincode::serialize(transaction)?;
-        let connection = self.connection.load_full();
-        if Self::try_send_bytes(&connection, &serialized_tx).await.is_err() {
-            eprintln!(" [Solami] {} submission failed, reconnecting", trade_type);
-            self.reconnect().await?;
-            let connection = self.connection.load_full();
-            if let Err(e) = Self::try_send_bytes(&connection, &serialized_tx).await {
-                eprintln!(" [Solami] {} submission failed: {:?}", trade_type, e);
-                return Err(e.into());
+        let connection = self.ensure_connected().await?;
+        let mut send_result =
+            timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &serialized_tx)).await;
+        let need_retry = matches!(&send_result, Ok(Err(_)) | Err(_));
+        if need_retry {
+            if crate::common::sdk_log::sdk_log_enabled() {
+                crate::common::sdk_log::log_swqos_submission_failed(
+                    "Solami",
+                    trade_type,
+                    start_time.elapsed(),
+                    "reconnecting",
+                );
+            }
+            let connection = self.ensure_connected().await?;
+            send_result =
+                timeout(SEND_TIMEOUT, Self::try_send_bytes(&connection, &serialized_tx)).await;
+        }
+        match send_result {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                if crate::common::sdk_log::sdk_log_enabled() {
+                    crate::common::sdk_log::log_swqos_submission_failed(
+                        "Solami",
+                        trade_type,
+                        start_time.elapsed(),
+                        &e,
+                    );
+                }
+                return Err(e);
+            }
+            Err(_) => {
+                if crate::common::sdk_log::sdk_log_enabled() {
+                    crate::common::sdk_log::log_swqos_submission_failed(
+                        "Solami",
+                        trade_type,
+                        start_time.elapsed(),
+                        "timeout",
+                    );
+                }
+                anyhow::bail!("Solami QUIC send timeout");
             }
         }
+        if crate::common::sdk_log::sdk_log_enabled() {
+            crate::common::sdk_log::log_swqos_submitted("Solami", trade_type, start_time.elapsed());
+        }
+        let start_time = Instant::now();
         match poll_transaction_confirmation(&self.rpc_client, *signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
-                println!(" signature: {:?}", signature);
-                println!(
-                    " [Solami] {} confirmation failed: {:?}",
-                    trade_type,
-                    start_time.elapsed()
-                );
+                if crate::common::sdk_log::sdk_log_enabled() {
+                    println!(" signature: {:?}", signature);
+                    println!(
+                        " [{:width$}] {} confirmation failed: {:?}",
+                        "Solami",
+                        trade_type,
+                        start_time.elapsed(),
+                        width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+                    );
+                }
                 return Err(e);
             }
         }
-        if wait_confirmation {
+        if wait_confirmation && crate::common::sdk_log::sdk_log_enabled() {
             println!(" signature: {:?}", signature);
-            println!(" [Solami] {} confirmed: {:?}", trade_type, start_time.elapsed());
+            println!(
+                " [{:width$}] {} confirmed: {:?}",
+                "Solami",
+                trade_type,
+                start_time.elapsed(),
+                width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+            );
         }
         Ok(())
     }
