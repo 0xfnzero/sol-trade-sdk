@@ -171,6 +171,13 @@ pub const SPEEDLANDING_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("speede8xCcUq2Tiv1efXeTuE3k9TDNq8TnGKaKSc6J4"),
 ];
 
+pub const SOLAMI_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("6993ZufwyEDNdB94kciDTGB17ANXguiNH22VmMQU1ami"),
+    pubkey!("E1BkG293HQocKfCkfPS7tEvs8Enh6FK8pUKi17EH1ami"),
+    pubkey!("2Ga87xvZwpP9WRsSdiPiWre21cQbDcFhGLmT5EMo1ami"),
+    pubkey!("CGzT5jzT68vGUWVagQAQqESfrCEHSKYe9DAjfgfC1ami"),
+];
+
 // `SwqosRegion` 与下列各 `SWQOS_ENDPOINTS_*` 下标严格对应（共 10 项）：
 // 0 NewYork, 1 Frankfurt, 2 Amsterdam, 3 Dublin, 4 SLC, 5 Tokyo, 6 Singapore, 7 London, 8 LosAngeles, 9 Default。
 //
@@ -434,6 +441,19 @@ pub const SWQOS_ENDPOINTS_HELIUS: [&str; 10] = [
     "https://sender.helius-rpc.com/fast", // Default: 非地理区域；全局 Sender
 ];
 
+pub const SWQOS_ENDPOINTS_SOLAMI: [&str; 10] = [
+    "nyc.landing.solami.fast:11000",
+    "fra.landing.solami.fast:11000",
+    "ams.landing.solami.fast:11000",
+    "ams.landing.solami.fast:11000", // Dublin: no IE PoP; use nearest published EU endpoint
+    "nyc.landing.solami.fast:11000", // SLC: no Mountain/West PoP published; US fallback
+    "sgp.landing.solami.fast:11000", // Tokyo: PR only provided SGP for APAC
+    "sgp.landing.solami.fast:11000",
+    "fra.landing.solami.fast:11000",
+    "nyc.landing.solami.fast:11000",
+    "landing.solami.fast:11000",
+];
+
 pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
@@ -450,6 +470,7 @@ pub const SWQOS_MIN_TIP_SOYAS: f64 = 0.001; // Soyas requires minimum 0.001 SOL 
 pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires minimum 0.001 SOL tip
 /// Helius Sender: 0.0002 SOL when not swqos_only; use SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY when swqos_only=true.
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
+pub const SWQOS_MIN_TIP_SOLAMI: f64 = 0.0001;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
 
@@ -476,6 +497,7 @@ mod tests {
         &SWQOS_ENDPOINTS_SOYAS,
         &SWQOS_ENDPOINTS_SPEEDLANDING,
         &SWQOS_ENDPOINTS_HELIUS,
+        &SWQOS_ENDPOINTS_SOLAMI,
     ];
 
     #[test]
