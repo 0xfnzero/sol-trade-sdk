@@ -79,9 +79,20 @@
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 |
 
+## 这个 SDK 适合什么场景
+
+`sol-trade-sdk` 是 FnZero Solana 交易 SDK 系列的 Rust 版本，重点服务于低延迟交易构建和提交，适合 Solana DEX 交易机器人、跟单系统、狙击机器人、套利策略和私有交易基础设施。
+
+| 方向 | 覆盖范围 |
+|------|----------|
+| DEX 协议 | PumpFun、PumpSwap、Bonk、Meteora DAMM v2、Raydium AMM v4、Raydium CPMM |
+| 提交通道 | 默认 Solana RPC，以及 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、SpeedLanding 等 SWQoS 服务 |
+| 交易流程 | 买入/卖出、精确输入/输出、跟单交易、狙击交易、地址查找表、durable nonce、中间件、共享基础设施 |
+| 热路径设计 | 调用方传入 recent blockhash 或 durable nonce；交易执行阶段不再查询 RPC 获取 blockhash、账户或余额 |
+
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "4.0.17"`
+**Rust crate:** `sol-trade-sdk = "4.0.21"`
 
 本版本刷新 PumpFun native SOL quote 处理逻辑，SOL/WSOL sentinel 默认优先走更小的 V1 热路径，确保默认 RPC 提交通道会和 SWQoS 通道一起发出，快速提交结果等待窗口恢复为 5 秒，并将 Raydium CPMM fixed-output 交易对齐到链上 `swap_base_out` 指令。交易执行必须由调用方传入 `recent_blockhash` 或 durable nonce；热路径不会查询 RPC 获取 blockhash、账户或余额数据。
 
@@ -115,14 +126,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.17" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.21" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "4.0.17"
+sol-trade-sdk = "4.0.21"
 ```
 
 ## 🛠️ 使用示例

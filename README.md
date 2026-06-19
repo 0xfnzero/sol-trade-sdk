@@ -79,9 +79,20 @@ This SDK is available in multiple languages:
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support |
 
+## What This SDK Is For
+
+`sol-trade-sdk` is the Rust implementation of the FnZero Solana trading SDK family. It focuses on low-latency transaction construction and submission for Solana DEX trading bots, copy-trading systems, sniper bots, arbitrage strategies, and private trading infrastructure.
+
+| Area | Coverage |
+|------|----------|
+| DEX protocols | PumpFun, PumpSwap, Bonk, Meteora DAMM v2, Raydium AMM v4, Raydium CPMM |
+| Submit lanes | Default Solana RPC plus Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, SpeedLanding, and other SWQoS providers |
+| Trading workflows | Buy/sell, exact input/output, copy trading, sniper trading, address lookup tables, durable nonce, middleware, shared infrastructure |
+| Hot-path design | Caller supplies recent blockhash or durable nonce; trade execution avoids RPC reads for blockhash, account, or balance data |
+
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "4.0.17"`
+**Rust crate:** `sol-trade-sdk = "4.0.21"`
 
 This release refreshes PumpFun native-SOL quote handling so SOL/WSOL sentinels prefer the smaller V1 hot path, keeps the default RPC submit lane active alongside SWQoS lanes, restores the fast-submit result window to 5 seconds, and aligns Raydium CPMM fixed-output swaps with the on-chain `swap_base_out` instruction. Trade execution requires a caller-supplied `recent_blockhash` or durable nonce; hot-path execution does not query RPC for blockhash, account, or balance data.
 
@@ -115,14 +126,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.17" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.21" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "4.0.17"
+sol-trade-sdk = "4.0.21"
 ```
 
 ## 🛠️ Usage Examples
