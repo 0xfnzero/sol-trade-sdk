@@ -27,9 +27,9 @@
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | CU price/limit 和 relay tip 配置。 |
 | `slippage_basis_points` | `Option<u64>` | ❌ | 可选滑点覆盖。`100` 表示 1%。 |
 | `account_policy` | `AccountPolicy` | ❌ | ATA 创建/关闭策略。默认 `Auto`。 |
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
+| `address_lookup_table_accounts` | `Vec<AddressLookupTableAccount>` | ❌ | 可选 ALT 列表。传 1 个元素表示单 ALT，传多个元素表示多 ALT，用于减少交易体积。 |
 | `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
-| `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
+| `wait_for_all_submits` | `bool` | ❌ | 是否等待所有 SWQoS 通道返回并拿到已提交签名；适合 poll-any 确认或外部监控。recent blockhash 多路交易不互斥；durable nonce 多路交易互斥。 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `.durable_nonce(nonce_info)` 或 `SimpleBuyParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
 | `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
 | `grpc_recv_us` | `Option<i64>` | ❌ | 上游收到事件的微秒时间戳，用于延迟追踪。 |
@@ -47,9 +47,9 @@
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | CU price/limit 和 relay tip 配置。 |
 | `slippage_basis_points` | `Option<u64>` | ❌ | 可选滑点覆盖。`100` 表示 1%。 |
 | `account_policy` | `AccountPolicy` | ❌ | ATA 创建/关闭策略。默认 `Auto`。 |
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 可选 ALT，用于减少交易体积。 |
+| `address_lookup_table_accounts` | `Vec<AddressLookupTableAccount>` | ❌ | 可选 ALT 列表。传 1 个元素表示单 ALT，传多个元素表示多 ALT，用于减少交易体积。 |
 | `wait_tx_confirmed` | `bool` | ❌ | 是否等链上确认后再返回。默认 `false`。 |
-| `wait_for_all_submits` | `bool` | ❌ | fast-submit 模式下，是否等待所有 SWQoS 通道返回并拿到全部签名。 |
+| `wait_for_all_submits` | `bool` | ❌ | 是否等待所有 SWQoS 通道返回并拿到已提交签名；适合 poll-any 确认或外部监控。recent blockhash 多路交易不互斥；durable nonce 多路交易互斥。 |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | durable nonce 信息。使用 `.durable_nonce(nonce_info)` 或 `SimpleSellParams::with_durable_nonce(...)` 设置，不要和 `recent_blockhash` 混用。 |
 | `simulate` | `bool` | ❌ | 只构建并模拟交易，不提交。默认 `false`。 |
 | `with_tip` | `bool` | ❌ | 卖出交易是否带 relay tip。默认 `true`，可通过 `.with_tip(false)` 关闭。 |
@@ -119,7 +119,6 @@ let buy_params = SimpleBuyParams::new(
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `address_lookup_table_account` | `Option<Pubkey>` | ❌ | 用于交易优化的地址查找表 |
 | `wait_tx_confirmed` | `bool` | ✅ | 是否等待交易确认 |
 | `create_input_token_ata` | `bool` | ✅ | 是否创建输入代币关联代币账户 |
 | `close_input_token_ata` | `bool` | ✅ | 交易后是否关闭输入代币 ATA |
@@ -151,7 +150,6 @@ let buy_params = SimpleBuyParams::new(
 
 | 参数 | 类型 | 必需 | 描述 |
 |------|------|------|------|
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | 用于交易优化的地址查找表 |
 | `wait_tx_confirmed` | `bool` | ✅ | 是否等待交易确认 |
 | `create_output_token_ata` | `bool` | ✅ | 是否创建输出代币关联代币账户 |
 | `close_output_token_ata` | `bool` | ✅ | 交易后是否关闭输出代币 ATA |
@@ -192,7 +190,7 @@ let buy_params = SimpleBuyParams::new(
 
 这些参数启用高级优化：
 
-- **address_lookup_table_account**: 使用地址查找表减少交易大小
+- **address_lookup_table_accounts**: 使用一个或多个地址查找表减少交易大小
 
 ### 🔄 代币类型参数
 
@@ -236,7 +234,7 @@ let trade_config = TradeConfig::new(rpc_url, swqos_configs, commitment)
 
 ### 🔍 地址查找表
 
-使用 `address_lookup_table_account` 之前：
+使用 `address_lookup_table_accounts` 之前：
 - 查找表减少交易大小并提高成功率
 - 对于有许多账户引用的复杂交易特别有益
 

@@ -144,10 +144,9 @@ async fn pumpfun_copy_trade_with_grpc(
     let recent_blockhash = client.infrastructure.rpc.get_latest_blockhash().await?;
 
     let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
-    let address_lookup_table_account =
-        fetch_address_lookup_table_account(&client.infrastructure.rpc, &lookup_table_key)
-            .await
-            .ok();
+    let alt = fetch_address_lookup_table_account(&client.infrastructure.rpc, &lookup_table_key)
+        .await
+        .ok();
 
     let gas_fee_strategy = GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
@@ -177,7 +176,7 @@ async fn pumpfun_copy_trade_with_grpc(
             trade_info.is_cashback_coin,
             Some(trade_info.mayhem_mode),
         )),
-        address_lookup_table_account,
+        address_lookup_table_accounts: alt.into_iter().collect(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_input_token_ata: false,

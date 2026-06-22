@@ -187,8 +187,8 @@ pub struct SimpleBuyParams {
     /// Recent blockhash for non-nonce transactions.
     ///
     /// The SDK intentionally does not fetch blockhash on the hot path. Use
-    /// [`SimpleBuyParams::with_durable_nonce`] instead when submitting multiple
-    /// SWQoS lanes against a pinned nonce.
+    /// [`SimpleBuyParams::with_durable_nonce`] only when the caller specifically
+    /// wants durable-nonce transactions.
     pub recent_blockhash: Option<Hash>,
     /// Protocol-specific parameters, for example `DexParamEnum::PumpFun(...)`.
     pub extension_params: DexParamEnum,
@@ -196,12 +196,15 @@ pub struct SimpleBuyParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// ATA creation/close behavior. See [`AccountPolicy`].
     pub account_policy: AccountPolicy,
-    /// Optional Address Lookup Table to reduce transaction size.
-    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
+    /// Optional Address Lookup Tables to reduce transaction size.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub address_lookup_table_accounts: Vec<AddressLookupTableAccount>,
     /// Wait until the transaction is confirmed before returning.
     pub wait_tx_confirmed: bool,
-    /// Fast-submit mode only: wait for every SWQoS route's submit response so all
-    /// signatures can be returned.
+    /// Wait for every SWQoS route's submit response so all signatures can be
+    /// returned. Useful when confirming through poll-any semantics or monitoring
+    /// route variants externally. Recent-blockhash variants are not mutually
+    /// exclusive; durable nonce variants are.
     pub wait_for_all_submits: bool,
     /// Durable nonce info. Mutually exclusive with `recent_blockhash`.
     pub durable_nonce: Option<DurableNonceInfo>,
@@ -235,12 +238,15 @@ pub struct SimpleSellParams {
     pub gas_fee_strategy: GasFeeStrategy,
     /// ATA creation/close behavior. See [`AccountPolicy`].
     pub account_policy: AccountPolicy,
-    /// Optional Address Lookup Table to reduce transaction size.
-    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
+    /// Optional Address Lookup Tables to reduce transaction size.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub address_lookup_table_accounts: Vec<AddressLookupTableAccount>,
     /// Wait until the transaction is confirmed before returning.
     pub wait_tx_confirmed: bool,
-    /// Fast-submit mode only: wait for every SWQoS route's submit response so all
-    /// signatures can be returned.
+    /// Wait for every SWQoS route's submit response so all signatures can be
+    /// returned. Useful when confirming through poll-any semantics or monitoring
+    /// route variants externally. Recent-blockhash variants are not mutually
+    /// exclusive; durable nonce variants are.
     pub wait_for_all_submits: bool,
     /// Durable nonce info. Mutually exclusive with `recent_blockhash`.
     pub durable_nonce: Option<DurableNonceInfo>,
@@ -281,7 +287,7 @@ impl SimpleBuyParams {
             extension_params,
             gas_fee_strategy,
             account_policy: AccountPolicy::Auto,
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             wait_tx_confirmed: false,
             wait_for_all_submits: false,
             durable_nonce: None,
@@ -330,9 +336,10 @@ impl SimpleBuyParams {
         self
     }
 
-    /// Attach an Address Lookup Table to reduce transaction size.
-    pub fn address_lookup_table_account(mut self, value: AddressLookupTableAccount) -> Self {
-        self.address_lookup_table_account = Some(value);
+    /// Attach Address Lookup Tables to reduce transaction size.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub fn address_lookup_table_accounts(mut self, values: Vec<AddressLookupTableAccount>) -> Self {
+        self.address_lookup_table_accounts = values;
         self
     }
 
@@ -352,7 +359,7 @@ impl SimpleBuyParams {
         self
     }
 
-    /// In fast-submit mode, wait for all SWQoS submit responses and return every signature.
+    /// Wait for all SWQoS submit responses and return submitted signatures.
     pub fn wait_for_all_submits(mut self, value: bool) -> Self {
         self.wait_for_all_submits = value;
         self
@@ -401,7 +408,7 @@ impl SimpleSellParams {
             extension_params,
             gas_fee_strategy,
             account_policy: AccountPolicy::Auto,
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             wait_tx_confirmed: false,
             wait_for_all_submits: false,
             durable_nonce: None,
@@ -449,9 +456,10 @@ impl SimpleSellParams {
         self
     }
 
-    /// Attach an Address Lookup Table to reduce transaction size.
-    pub fn address_lookup_table_account(mut self, value: AddressLookupTableAccount) -> Self {
-        self.address_lookup_table_account = Some(value);
+    /// Attach Address Lookup Tables to reduce transaction size.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub fn address_lookup_table_accounts(mut self, values: Vec<AddressLookupTableAccount>) -> Self {
+        self.address_lookup_table_accounts = values;
         self
     }
 
@@ -471,7 +479,7 @@ impl SimpleSellParams {
         self
     }
 
-    /// In fast-submit mode, wait for all SWQoS submit responses and return every signature.
+    /// Wait for all SWQoS submit responses and return submitted signatures.
     pub fn wait_for_all_submits(mut self, value: bool) -> Self {
         self.wait_for_all_submits = value;
         self
@@ -782,14 +790,16 @@ pub struct TradeBuyParams {
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
     pub extension_params: DexParamEnum,
     // Extended configuration
-    /// Optional address lookup table for transaction size optimization
-    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
+    /// Optional address lookup tables for transaction size optimization.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub address_lookup_table_accounts: Vec<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_tx_confirmed: bool,
-    /// Fast-submit only (`wait_tx_confirmed = false`): when true, wait for every
-    /// SWQOS route's HTTP submit response so all submitted signatures are
-    /// returned. Set to true when confirming externally against a pinned
-    /// durable nonce; defaults to false. See `SwapParams.wait_for_all_submits`.
+    /// When true, wait for every SWQOS route's HTTP submit response so all
+    /// submitted signatures are returned. This applies whether SDK confirmation
+    /// is enabled or the caller monitors externally. Recent-blockhash route
+    /// variants are not mutually exclusive; durable nonce variants are.
+    /// Defaults to false. See `SwapParams.wait_for_all_submits`.
     pub wait_for_all_submits: bool,
     /// Whether to create input token associated token account
     pub create_input_token_ata: bool,
@@ -839,14 +849,16 @@ pub struct TradeSellParams {
     /// Protocol-specific parameters (PumpFun, Raydium, etc.)
     pub extension_params: DexParamEnum,
     // Extended configuration
-    /// Optional address lookup table for transaction size optimization
-    pub address_lookup_table_account: Option<AddressLookupTableAccount>,
+    /// Optional address lookup tables for transaction size optimization.
+    /// Pass one element for a single ALT or multiple elements for multi-ALT.
+    pub address_lookup_table_accounts: Vec<AddressLookupTableAccount>,
     /// Whether to wait for transaction confirmation before returning
     pub wait_tx_confirmed: bool,
-    /// Fast-submit only (`wait_tx_confirmed = false`): when true, wait for every
-    /// SWQOS route's HTTP submit response so all submitted signatures are
-    /// returned. Set to true when confirming externally against a pinned
-    /// durable nonce; defaults to false. See `SwapParams.wait_for_all_submits`.
+    /// When true, wait for every SWQOS route's HTTP submit response so all
+    /// submitted signatures are returned. This applies whether SDK confirmation
+    /// is enabled or the caller monitors externally. Recent-blockhash route
+    /// variants are not mutually exclusive; durable nonce variants are.
+    /// Defaults to false. See `SwapParams.wait_for_all_submits`.
     pub wait_for_all_submits: bool,
     /// Whether to create output token associated token account
     pub create_output_token_ata: bool,
@@ -906,7 +918,7 @@ impl From<SimpleBuyParams> for TradeBuyParams {
             slippage_basis_points: params.slippage_basis_points,
             recent_blockhash: params.recent_blockhash,
             extension_params: params.extension_params,
-            address_lookup_table_account: params.address_lookup_table_account,
+            address_lookup_table_accounts: params.address_lookup_table_accounts,
             wait_tx_confirmed: params.wait_tx_confirmed,
             wait_for_all_submits: params.wait_for_all_submits,
             create_input_token_ata,
@@ -942,7 +954,7 @@ impl From<SimpleSellParams> for TradeSellParams {
             recent_blockhash: params.recent_blockhash,
             with_tip: params.with_tip,
             extension_params: params.extension_params,
-            address_lookup_table_account: params.address_lookup_table_account,
+            address_lookup_table_accounts: params.address_lookup_table_accounts,
             wait_tx_confirmed: params.wait_tx_confirmed,
             wait_for_all_submits: params.wait_for_all_submits,
             create_output_token_ata,
@@ -1381,7 +1393,7 @@ impl TradingClient {
             output_token_program: None,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
-            address_lookup_table_account: params.address_lookup_table_account,
+            address_lookup_table_accounts: params.address_lookup_table_accounts,
             recent_blockhash: params.recent_blockhash,
             wait_tx_confirmed: params.wait_tx_confirmed,
             protocol_params,
@@ -1509,7 +1521,7 @@ impl TradingClient {
             output_token_program: None,
             input_amount: Some(params.input_token_amount),
             slippage_basis_points: params.slippage_basis_points,
-            address_lookup_table_account: params.address_lookup_table_account,
+            address_lookup_table_accounts: params.address_lookup_table_accounts,
             recent_blockhash: params.recent_blockhash,
             wait_tx_confirmed: params.wait_tx_confirmed,
             protocol_params,
@@ -1860,7 +1872,7 @@ mod tests {
             extension_params: dummy_pumpfun_params(),
             gas_fee_strategy: GasFeeStrategy::new(),
             account_policy: AccountPolicy::HotPathMinimal,
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             wait_tx_confirmed: false,
             wait_for_all_submits: false,
             durable_nonce: None,
@@ -1891,7 +1903,7 @@ mod tests {
             extension_params: dummy_pumpfun_params(),
             gas_fee_strategy: GasFeeStrategy::new(),
             account_policy: AccountPolicy::Auto,
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             wait_tx_confirmed: false,
             wait_for_all_submits: false,
             durable_nonce: None,
@@ -1929,6 +1941,35 @@ mod tests {
         assert!(!low.create_input_token_ata);
         assert!(!low.create_mint_ata);
         assert!(!low.wait_tx_confirmed);
+    }
+
+    #[test]
+    fn simple_buy_builder_maps_multiple_lookup_tables() {
+        let alt1 = AddressLookupTableAccount {
+            key: Pubkey::new_unique(),
+            addresses: vec![Pubkey::new_unique()],
+        };
+        let alt2 = AddressLookupTableAccount {
+            key: Pubkey::new_unique(),
+            addresses: vec![Pubkey::new_unique()],
+        };
+
+        let simple = SimpleBuyParams::new(
+            DexType::PumpFun,
+            TradeTokenType::SOL,
+            Pubkey::new_unique(),
+            BuyAmount::ExactInput(10_000),
+            dummy_pumpfun_params(),
+            Hash::new_unique(),
+            GasFeeStrategy::new(),
+        )
+        .address_lookup_table_accounts(vec![alt1.clone(), alt2.clone()]);
+
+        let low: TradeBuyParams = simple.into();
+
+        assert_eq!(low.address_lookup_table_accounts.len(), 2);
+        assert_eq!(low.address_lookup_table_accounts[0].key, alt1.key);
+        assert_eq!(low.address_lookup_table_accounts[1].key, alt2.key);
     }
 
     #[test]
@@ -1970,7 +2011,7 @@ mod tests {
             extension_params: dummy_pumpfun_params(),
             gas_fee_strategy: GasFeeStrategy::new(),
             account_policy: AccountPolicy::Auto,
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             wait_tx_confirmed: false,
             wait_for_all_submits: false,
             durable_nonce: None,

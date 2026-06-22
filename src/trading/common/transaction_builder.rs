@@ -36,7 +36,7 @@ pub fn build_transaction(
     unit_limit: u32,
     unit_price: u64,
     business_instructions: &[Instruction],
-    address_lookup_table_account: Option<&AddressLookupTableAccount>,
+    address_lookup_table_accounts: &[AddressLookupTableAccount],
     recent_blockhash: Option<Hash>,
     middleware_manager: Option<&Arc<MiddlewareManager>>,
     protocol_name: &str,
@@ -51,7 +51,7 @@ pub fn build_transaction(
         unit_limit,
         unit_price,
         business_instructions,
-        address_lookup_table_account,
+        address_lookup_table_accounts,
         recent_blockhash,
         middleware_manager,
         protocol_name,
@@ -74,7 +74,7 @@ pub fn build_transaction(
             with_tip && tip_amount > 0.0,
             unit_limit,
             unit_price,
-            address_lookup_table_account.is_some()
+            address_lookup_table_accounts.len()
         );
     }
     if serialized_len <= PACKET_DATA_SIZE {
@@ -93,7 +93,7 @@ fn build_transaction_inner(
     unit_limit: u32,
     unit_price: u64,
     business_instructions: &[Instruction],
-    address_lookup_table_account: Option<&AddressLookupTableAccount>,
+    address_lookup_table_accounts: &[AddressLookupTableAccount],
     recent_blockhash: Option<Hash>,
     middleware_manager: Option<&Arc<MiddlewareManager>>,
     protocol_name: &str,
@@ -127,7 +127,7 @@ fn build_transaction_inner(
     build_versioned_transaction(
         payer,
         instructions,
-        address_lookup_table_account,
+        address_lookup_table_accounts,
         blockhash,
         middleware_manager,
         protocol_name,
@@ -138,7 +138,7 @@ fn build_transaction_inner(
 fn build_versioned_transaction(
     payer: &Arc<Keypair>,
     instructions: Vec<Instruction>,
-    address_lookup_table_account: Option<&AddressLookupTableAccount>,
+    address_lookup_table_accounts: &[AddressLookupTableAccount],
     blockhash: Hash,
     middleware_manager: Option<&Arc<MiddlewareManager>>,
     protocol_name: &str,
@@ -156,7 +156,7 @@ fn build_versioned_transaction(
     let build_result = builder.build_zero_alloc(
         &payer.pubkey(),
         &full_instructions,
-        address_lookup_table_account,
+        address_lookup_table_accounts,
         blockhash,
     );
     release_builder(builder);
@@ -190,7 +190,7 @@ mod tests {
             80_000,
             100_000,
             &business_instructions,
-            None,
+            &[],
             Some(Hash::new_unique()),
             None,
             "test",

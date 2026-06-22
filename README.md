@@ -267,7 +267,7 @@ Optional builder methods:
 | `.slippage_basis_points(300)` | Set slippage. `300` means 3%. |
 | `.address_lookup_table_account(alt)` | Attach an ALT to reduce transaction size. Useful for large PumpFun V2 transactions. |
 | `.wait_tx_confirmed(true)` | Return only after confirmation. Usually disabled for fastest submit paths. |
-| `.wait_for_all_submits(true)` | In fast-submit mode, wait for all SWQoS lane responses and return all signatures. |
+| `.wait_for_all_submits(true)` | Wait for all SWQoS lane responses and return submitted signatures. Recent-blockhash route variants are not mutually exclusive; durable nonce variants are. |
 | `.simulate(true)` | Build and simulate the transaction instead of sending it. |
 | `.grpc_recv_us(ts)` | Attach upstream receive timestamp for latency tracing. |
 | `.durable_nonce(nonce_info)` | Use durable nonce and clear `recent_blockhash`. Recommended when you start from `SimpleBuyParams::new(...)` / `SimpleSellParams::new(...)`. |

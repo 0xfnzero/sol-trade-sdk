@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: DexParamEnum::PumpSwap(
             PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool).await?,
         ),
-        address_lookup_table_account: None,
+        address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_input_token_ata: true,
@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         extension_params: DexParamEnum::PumpSwap(
             PumpSwapParams::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool).await?,
         ),
-        address_lookup_table_account: None,
+        address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_output_token_ata: true,

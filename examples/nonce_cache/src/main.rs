@@ -173,7 +173,7 @@ async fn pumpfun_copy_trade_with_grpc(
             trade_info.is_cashback_coin,
             Some(trade_info.mayhem_mode),
         )),
-        address_lookup_table_account: None,
+        address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_input_token_ata: false,

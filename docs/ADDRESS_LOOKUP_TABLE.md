@@ -19,7 +19,7 @@ Include lookup tables in your trade parameters:
 
 ```rust
 let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
-let address_lookup_table_account = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
+let alt = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await?;
 
 // Include lookup table in trade parameters
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -29,7 +29,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     slippage_basis_points: Some(100),
     recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
-    address_lookup_table_account: address_lookup_table_account, // Include lookup table
+    address_lookup_table_accounts: vec![alt], // One ALT
     wait_transaction_confirmed: true,
     create_wsol_ata: false,
     close_wsol_ata: false,
@@ -40,6 +40,26 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
 // Execute transaction
 client.buy(buy_params).await?;
 ```
+
+Multiple lookup tables are also supported:
+
+```rust
+let alt1 = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key_1).await?;
+let alt2 = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key_2).await?;
+
+let params = SimpleBuyParams::new(
+    DexType::PumpFun,
+    TradeTokenType::SOL,
+    mint_pubkey,
+    BuyAmount::ExactInput(buy_lamports),
+    extension_params,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.address_lookup_table_accounts(vec![alt1, alt2]);
+```
+
+Use the same `address_lookup_table_accounts` field for one or many ALTs: `vec![alt]` for a single ALT, `vec![alt1, alt2]` for multiple ALTs.
 
 ## 📊 Performance Comparison
 

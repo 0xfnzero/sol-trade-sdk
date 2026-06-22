@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             MeteoraDammV2Params::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool)
                 .await?,
         ),
-        address_lookup_table_account: None,
+        address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_input_token_ata: false, //if input token is SOL/WSOL,set to true,if input token is USDC,set to false.
@@ -83,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             MeteoraDammV2Params::from_pool_address_by_rpc(&client.infrastructure.rpc, &pool)
                 .await?,
         ),
-        address_lookup_table_account: None,
+        address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
         create_output_token_ata: false, //if output token is SOL/WSOL,set to true,if output token is USDC,set to false.

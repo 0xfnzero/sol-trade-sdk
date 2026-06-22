@@ -365,7 +365,7 @@ mod tests {
             output_token_program: None,
             input_amount: Some(100_000),
             slippage_basis_points: Some(100),
-            address_lookup_table_account: None,
+            address_lookup_table_accounts: Vec::new(),
             recent_blockhash: None,
             wait_tx_confirmed: false,
             protocol_params: DexParamEnum::RaydiumAmmV4(protocol_params),

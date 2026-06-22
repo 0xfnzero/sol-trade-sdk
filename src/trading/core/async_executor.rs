@@ -47,12 +47,13 @@ const SWQOS_POOL_WORKERS: usize = 18;
 const SWQOS_QUEUE_CAP: usize = 128;
 const SWQOS_DEDICATED_DEFAULT_THREADS: usize = 18;
 const FAST_SUBMIT_RESULT_TIMEOUT: Duration = Duration::from_secs(5);
+const FAST_SUBMIT_DRAIN_GRACE: Duration = Duration::from_millis(20);
 
 /// Shared across all jobs in one batch; built once, cloned as single Arc per job (minimal hot-path clone).
 struct SwqosSharedContext {
     payer: Arc<Keypair>,
     instructions: Arc<Vec<Instruction>>,
-    address_lookup_table_account: Option<AddressLookupTableAccount>,
+    address_lookup_table_accounts: Arc<Vec<AddressLookupTableAccount>>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
     middleware_manager: Option<Arc<MiddlewareManager>>,
@@ -92,7 +93,7 @@ async fn run_one_swqos_job(job: SwqosJob) {
         job.unit_limit,
         job.unit_price,
         s.instructions.as_ref(),
-        s.address_lookup_table_account.as_ref(),
+        s.address_lookup_table_accounts.as_slice(),
         s.recent_blockhash,
         s.middleware_manager.as_ref(),
         s.protocol_name,
@@ -508,10 +509,11 @@ impl ResultCollector {
         }
     }
 
-    /// 等待全部任务完成（不等待链上确认），然后收集并返回所有签名。用于「多路提交」时返回多笔签名。
+    /// 等待全部任务完成（不等待链上确认），然后收集并返回所有已返回的签名。
     /// 轮询间隔 2ms，避免 50ms 间隔在最后一笔返回时多等几十 ms 拉高 submit 耗时。
-    /// Re-enabled via `SwapParams.wait_for_all_submits` for callers that confirm
-    /// externally against a pinned durable nonce and need every submitted sig.
+    /// Re-enabled via `SwapParams.wait_for_all_submits` for callers that need
+    /// every submitted signature, either for external monitoring or for
+    /// executor-level poll-any confirmation after parallel submit.
     async fn wait_for_all_submitted(
         &self,
         timeout_secs: u64,
@@ -525,21 +527,10 @@ impl ResultCollector {
             }
             tokio::time::sleep(poll_interval).await;
         }
-        // 「不等待链上确认」仍会等各 SWQOS 的 HTTP 回包；主循环在收齐或触达 `timeout_secs` 后结束。
-        // 若主窗口到时仍有未回包通道，晚到的 TaskResult 若立刻 drain 会丢签名——仅在该路径上拉长 grace。
-        let all_submitted = self.completed_count.load(Ordering::Acquire) >= self.total_tasks;
-        if all_submitted {
-            tokio::task::yield_now().await;
-        } else {
-            tokio::time::sleep(Duration::from_millis(600)).await;
-            while self.completed_count.load(Ordering::Acquire) < self.total_tasks {
-                if start.elapsed() > primary + Duration::from_secs(6) {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(20)).await;
-            }
-            tokio::time::sleep(Duration::from_millis(120)).await;
-        }
+        // Bound the opt-in "all submits" path tightly. A slow relay must not
+        // delay poll-any confirmation by multiple seconds after the submit
+        // window; give only a short grace for a just-finished worker to publish.
+        tokio::time::sleep(FAST_SUBMIT_DRAIN_GRACE).await;
         self.get_first()
     }
 }
@@ -608,7 +599,7 @@ pub async fn execute_parallel(
     swqos_clients: &[Arc<SwqosClient>],
     payer: Arc<Keypair>,
     instructions: Vec<Instruction>,
-    address_lookup_table_account: Option<AddressLookupTableAccount>,
+    address_lookup_table_accounts: Vec<AddressLookupTableAccount>,
     recent_blockhash: Option<Hash>,
     durable_nonce: Option<DurableNonceInfo>,
     middleware_manager: Option<Arc<MiddlewareManager>>,
@@ -660,17 +651,13 @@ pub async fn execute_parallel(
         return Err(anyhow!("No available gas fee strategy configs"));
     }
 
-    if is_buy && selected_task_configs.len() > 1 && durable_nonce.is_none() {
-        return Err(anyhow!("Multiple swqos transactions require durable_nonce to be set.",));
-    }
-
     // Task preparation completed: one shared context (clone once per batch), then minimal per-task data.
     let channel_count = selected_task_configs.len().max(1);
     let collector = Arc::new(ResultCollector::new(channel_count));
     let shared = Arc::new(SwqosSharedContext {
         payer,
         instructions,
-        address_lookup_table_account,
+        address_lookup_table_accounts: Arc::new(address_lookup_table_accounts),
         recent_blockhash,
         durable_nonce,
         middleware_manager,
@@ -847,5 +834,19 @@ mod tests {
         assert_eq!(selected[0].gas_fee_config.0, SwqosType::Default);
         assert_eq!(selected[0].gas_fee_config.2.cu_price, 700_000);
         assert_eq!(selected[0].gas_fee_config.2.tip, 0.0);
+    }
+
+    #[tokio::test]
+    async fn wait_for_all_submitted_timeout_is_bounded() {
+        let collector = ResultCollector::new(1);
+        let start = Instant::now();
+
+        let result = collector.wait_for_all_submitted(0).await;
+
+        assert!(result.is_none());
+        assert!(
+            start.elapsed() < Duration::from_millis(150),
+            "wait_for_all_submitted should not add multi-second grace after timeout"
+        );
     }
 }

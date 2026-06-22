@@ -19,7 +19,7 @@
 
 ```rust
 let lookup_table_key = Pubkey::from_str("use_your_lookup_table_key_here").unwrap();
-let address_lookup_table_account = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await.ok();
+let alt = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key).await?;
 
 // 在交易参数中包含查找表
 let buy_params = sol_trade_sdk::TradeBuyParams {
@@ -29,7 +29,7 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
     slippage_basis_points: Some(100),
     recent_blockhash: Some(recent_blockhash),
     extension_params: Box::new(PumpFunParams::from_trade(&trade_info, None)),
-    address_lookup_table_account: address_lookup_table_account, // 包含查找表
+    address_lookup_table_accounts: vec![alt], // 1 个 ALT
     wait_transaction_confirmed: true,
     create_wsol_ata: false,
     close_wsol_ata: false,
@@ -40,6 +40,26 @@ let buy_params = sol_trade_sdk::TradeBuyParams {
 // 执行交易
 client.buy(buy_params).await?;
 ```
+
+也支持同时传入多个查找表：
+
+```rust
+let alt1 = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key_1).await?;
+let alt2 = fetch_address_lookup_table_account(&client.rpc, &lookup_table_key_2).await?;
+
+let params = SimpleBuyParams::new(
+    DexType::PumpFun,
+    TradeTokenType::SOL,
+    mint_pubkey,
+    BuyAmount::ExactInput(buy_lamports),
+    extension_params,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.address_lookup_table_accounts(vec![alt1, alt2]);
+```
+
+单 ALT 和多 ALT 都使用同一个 `address_lookup_table_accounts` 字段：单 ALT 传 `vec![alt]`，多 ALT 传 `vec![alt1, alt2]`。
 
 ## 📊 性能对比
 

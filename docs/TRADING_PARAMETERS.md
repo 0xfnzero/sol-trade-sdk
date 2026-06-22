@@ -27,9 +27,9 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Compute unit price/limit and relay tip configuration. |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Optional slippage override. `100` means 1%. |
 | `account_policy` | `AccountPolicy` | ❌ | ATA creation/close behavior. Default is `Auto`. |
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
+| `address_lookup_table_accounts` | `Vec<AddressLookupTableAccount>` | ❌ | Optional ALT list. Pass one element for a single ALT or multiple elements for multi-ALT to reduce transaction size. |
 | `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
-| `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
+| `wait_for_all_submits` | `bool` | ❌ | Wait for every SWQoS lane response and return submitted signatures; useful for poll-any confirmation or external monitoring. Recent-blockhash route variants are not mutually exclusive; durable nonce variants are. |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `.durable_nonce(nonce_info)` or `SimpleBuyParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
 | `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
 | `grpc_recv_us` | `Option<i64>` | ❌ | Upstream receive timestamp in microseconds for latency tracing. |
@@ -47,9 +47,9 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 | `gas_fee_strategy` | `GasFeeStrategy` | ✅ | Compute unit price/limit and relay tip configuration. |
 | `slippage_basis_points` | `Option<u64>` | ❌ | Optional slippage override. `100` means 1%. |
 | `account_policy` | `AccountPolicy` | ❌ | ATA creation/close behavior. Default is `Auto`. |
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Optional ALT to reduce transaction size. |
+| `address_lookup_table_accounts` | `Vec<AddressLookupTableAccount>` | ❌ | Optional ALT list. Pass one element for a single ALT or multiple elements for multi-ALT to reduce transaction size. |
 | `wait_tx_confirmed` | `bool` | ❌ | Whether to wait for chain confirmation before returning. Default is `false`. |
-| `wait_for_all_submits` | `bool` | ❌ | Fast-submit mode only: wait for every SWQoS lane response and return all signatures. |
+| `wait_for_all_submits` | `bool` | ❌ | Wait for every SWQoS lane response and return submitted signatures; useful for poll-any confirmation or external monitoring. Recent-blockhash route variants are not mutually exclusive; durable nonce variants are. |
 | `durable_nonce` | `Option<DurableNonceInfo>` | ❌ | Durable nonce info. Use `.durable_nonce(nonce_info)` or `SimpleSellParams::with_durable_nonce(...)`; do not combine with `recent_blockhash`. |
 | `simulate` | `bool` | ❌ | Build and simulate instead of submitting. Default is `false`. |
 | `with_tip` | `bool` | ❌ | Whether sells include relay tips. Default is `true`; set with `.with_tip(false)`. |
@@ -119,7 +119,6 @@ Calling `.durable_nonce(...)` clears `recent_blockhash`; nonce transactions use 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `address_lookup_table_account` | `Option<AddressLookupTableAccount>` | ❌ | Address lookup table for transaction optimization |
 | `wait_tx_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_input_token_ata` | `bool` | ✅ | Whether to create input token Associated Token Account |
 | `close_input_token_ata` | `bool` | ✅ | Whether to close input token ATA after transaction |
@@ -151,7 +150,6 @@ The `TradeSellParams` struct contains all parameters required for executing sell
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `address_lookup_table_account` | `Option<Pubkey>` | ❌ | Address lookup table for transaction optimization |
 | `wait_tx_confirmed` | `bool` | ✅ | Whether to wait for transaction confirmation |
 | `create_output_token_ata` | `bool` | ✅ | Whether to create output token Associated Token Account |
 | `close_output_token_ata` | `bool` | ✅ | Whether to close output token ATA after transaction |
@@ -192,7 +190,7 @@ These parameters control automatic account creation and management:
 
 These parameters enable advanced optimizations:
 
-- **address_lookup_table_account**: Use address lookup tables for reduced transaction size
+- **address_lookup_table_accounts**: Use one or more address lookup tables for reduced transaction size
 
 ### 🔄 Token Type Parameters
 
@@ -236,7 +234,7 @@ The account management parameters provide granular control:
 
 ### 🔍 Address Lookup Tables
 
-Before using `address_lookup_table_account`:
+Before using `address_lookup_table_accounts`:
 - Lookup tables reduce transaction size and improve success rates
 - Particularly beneficial for complex transactions with many account references
 

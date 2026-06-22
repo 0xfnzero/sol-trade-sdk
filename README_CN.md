@@ -266,7 +266,7 @@ client.buy_simple(buy_params).await?;
 | `.slippage_basis_points(300)` | 设置滑点。`300` 表示 3%。 |
 | `.address_lookup_table_account(alt)` | 传入 ALT 以减少交易体积。PumpFun V2 交易较大时很有用。 |
 | `.wait_tx_confirmed(true)` | 等链上确认后再返回。追求最快提交时通常关闭。 |
-| `.wait_for_all_submits(true)` | fast-submit 模式下等待所有 SWQoS 通道返回，并拿到全部签名。 |
+| `.wait_for_all_submits(true)` | 等待所有 SWQoS 通道返回，并拿到已提交签名。recent blockhash 多路交易不互斥；durable nonce 多路交易互斥。 |
 | `.simulate(true)` | 只构建并模拟交易，不真正发送。 |
 | `.grpc_recv_us(ts)` | 传入上游收到事件的微秒时间戳，用于延迟追踪。 |
 | `.durable_nonce(nonce_info)` | 使用 durable nonce，并清空 `recent_blockhash`。如果你从 `SimpleBuyParams::new(...)` / `SimpleSellParams::new(...)` 开始构造，推荐用这个。 |
