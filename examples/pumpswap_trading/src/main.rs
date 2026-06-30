@@ -1,6 +1,5 @@
 use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::common::TradeConfig;
-use sol_trade_sdk::instruction::utils::pumpswap::fetch_pool;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -148,8 +147,7 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
 
 async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> AnyResult<()> {
     let client = create_solana_trade_client().await?;
-    let pool_data = fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?;
-    let params = PumpSwapParams::from_trade(
+    let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
         trade_info.quote_mint,
@@ -162,9 +160,13 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
         trade_info.base_token_program,
         trade_info.quote_token_program,
         trade_info.protocol_fee_recipient,
-        pool_data.coin_creator,
-        pool_data.is_cashback_coin,
+        Pubkey::default(),
+        trade_info.coin_creator,
+        false,
         0,
+        trade_info.lp_fee_basis_points,
+        trade_info.protocol_fee_basis_points,
+        trade_info.coin_creator_fee_basis_points,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
         || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
@@ -179,8 +181,7 @@ async fn pumpswap_trade_with_grpc_buy_event(trade_info: PumpSwapBuyEvent) -> Any
 
 async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> AnyResult<()> {
     let client = create_solana_trade_client().await?;
-    let pool_data = fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?;
-    let params = PumpSwapParams::from_trade(
+    let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
         trade_info.quote_mint,
@@ -193,9 +194,13 @@ async fn pumpswap_trade_with_grpc_sell_event(trade_info: PumpSwapSellEvent) -> A
         trade_info.base_token_program,
         trade_info.quote_token_program,
         trade_info.protocol_fee_recipient,
-        pool_data.coin_creator,
-        pool_data.is_cashback_coin,
+        Pubkey::default(),
+        trade_info.coin_creator,
+        false,
         0,
+        trade_info.lp_fee_basis_points,
+        trade_info.protocol_fee_basis_points,
+        trade_info.coin_creator_fee_basis_points,
     );
     let mint = if trade_info.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
         || trade_info.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT

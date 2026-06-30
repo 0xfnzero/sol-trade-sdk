@@ -4,6 +4,7 @@ use super::common::{
 use crate::instruction::utils::pumpswap::accounts::{
     COIN_CREATOR_FEE_BASIS_POINTS, LP_FEE_BASIS_POINTS, PROTOCOL_FEE_BASIS_POINTS,
 };
+use crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints;
 use solana_sdk::pubkey::Pubkey;
 
 /// Creator-side fee bps: fixed coin-creator fee when a creator vault applies, plus optional
@@ -82,6 +83,26 @@ pub fn buy_base_input_internal(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
 ) -> Result<BuyBaseInputResult, String> {
+    buy_base_input_internal_with_fees(
+        base,
+        slippage_basis_points,
+        base_reserve,
+        quote_reserve,
+        &PumpSwapFeeBasisPoints::new(
+            LP_FEE_BASIS_POINTS,
+            PROTOCOL_FEE_BASIS_POINTS,
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+        ),
+    )
+}
+
+pub fn buy_base_input_internal_with_fees(
+    base: u64,
+    slippage_basis_points: u64,
+    base_reserve: u64,
+    quote_reserve: u64,
+    fee_basis_points: &PumpSwapFeeBasisPoints,
+) -> Result<BuyBaseInputResult, String> {
     if base_reserve == 0 || quote_reserve == 0 {
         return Err("Invalid input: 'baseReserve' or 'quoteReserve' cannot be zero.".to_string());
     }
@@ -100,12 +121,15 @@ pub fn buy_base_input_internal(
     let quote_amount_in = ceil_div(numerator, denominator as u128) as u64;
 
     // Calculate fees
-    let lp_fee = compute_fee(quote_amount_in as u128, LP_FEE_BASIS_POINTS as u128) as u64;
+    let lp_fee =
+        compute_fee(quote_amount_in as u128, fee_basis_points.lp_fee_basis_points as u128) as u64;
     let protocol_fee =
-        compute_fee(quote_amount_in as u128, PROTOCOL_FEE_BASIS_POINTS as u128) as u64;
-    let creator_bps =
-        creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points) as u128;
-    let coin_creator_fee = compute_fee(quote_amount_in as u128, creator_bps) as u64;
+        compute_fee(quote_amount_in as u128, fee_basis_points.protocol_fee_basis_points as u128)
+            as u64;
+    let coin_creator_fee = compute_fee(
+        quote_amount_in as u128,
+        fee_basis_points.coin_creator_fee_basis_points as u128,
+    ) as u64;
     let total_quote = quote_amount_in + lp_fee + protocol_fee + coin_creator_fee;
 
     // Calculate max quote with slippage
@@ -138,22 +162,53 @@ pub fn buy_quote_input_internal(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
 ) -> Result<BuyQuoteInputResult, String> {
+    buy_quote_input_internal_with_fees(
+        quote,
+        slippage_basis_points,
+        base_reserve,
+        quote_reserve,
+        &PumpSwapFeeBasisPoints::new(
+            LP_FEE_BASIS_POINTS,
+            PROTOCOL_FEE_BASIS_POINTS,
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+        ),
+    )
+}
+
+pub fn buy_quote_input_internal_with_fees(
+    quote: u64,
+    slippage_basis_points: u64,
+    base_reserve: u64,
+    quote_reserve: u64,
+    fee_basis_points: &PumpSwapFeeBasisPoints,
+) -> Result<BuyQuoteInputResult, String> {
     if base_reserve == 0 || quote_reserve == 0 {
         return Err("Invalid input: 'baseReserve' or 'quoteReserve' cannot be zero.".to_string());
     }
 
     // Calculate total fee basis points
-    let total_fee_bps = LP_FEE_BASIS_POINTS
-        + PROTOCOL_FEE_BASIS_POINTS
-        + creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points);
+    let total_fee_bps = fee_basis_points
+        .lp_fee_basis_points
+        .saturating_add(fee_basis_points.protocol_fee_basis_points)
+        .saturating_add(fee_basis_points.coin_creator_fee_basis_points);
     let denominator = 10_000 + total_fee_bps;
 
     // Calculate effective quote amount after fees
-    let effective_quote = (quote as u128 * 10_000) / denominator as u128;
+    let mut effective_quote = (quote as u128 * 10_000) / denominator as u128;
+    let lp_fee = compute_fee(effective_quote, fee_basis_points.lp_fee_basis_points as u128);
+    let protocol_fee =
+        compute_fee(effective_quote, fee_basis_points.protocol_fee_basis_points as u128);
+    let coin_creator_fee =
+        compute_fee(effective_quote, fee_basis_points.coin_creator_fee_basis_points as u128);
+    let total_with_fees = effective_quote + lp_fee + protocol_fee + coin_creator_fee;
+    if total_with_fees > quote as u128 {
+        effective_quote = effective_quote.saturating_sub(total_with_fees - quote as u128);
+    }
+    let input_amount = effective_quote.saturating_sub(1);
 
     // Calculate base amount out using constant product formula
-    let numerator = (base_reserve as u128) * effective_quote;
-    let denominator_effective = (quote_reserve as u128) + effective_quote;
+    let numerator = (base_reserve as u128) * input_amount;
+    let denominator_effective = (quote_reserve as u128) + input_amount;
 
     if denominator_effective == 0 {
         return Err("Pool would be depleted; denominator is zero.".to_string());
@@ -191,6 +246,26 @@ pub fn sell_base_input_internal(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
 ) -> Result<SellBaseInputResult, String> {
+    sell_base_input_internal_with_fees(
+        base,
+        slippage_basis_points,
+        base_reserve,
+        quote_reserve,
+        &PumpSwapFeeBasisPoints::new(
+            LP_FEE_BASIS_POINTS,
+            PROTOCOL_FEE_BASIS_POINTS,
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+        ),
+    )
+}
+
+pub fn sell_base_input_internal_with_fees(
+    base: u64,
+    slippage_basis_points: u64,
+    base_reserve: u64,
+    quote_reserve: u64,
+    fee_basis_points: &PumpSwapFeeBasisPoints,
+) -> Result<SellBaseInputResult, String> {
     if base_reserve == 0 || quote_reserve == 0 {
         return Err("Invalid input: 'baseReserve' or 'quoteReserve' cannot be zero.".to_string());
     }
@@ -200,12 +275,15 @@ pub fn sell_base_input_internal(
         / ((base_reserve as u128) + (base as u128))) as u64;
 
     // Calculate fees
-    let lp_fee = compute_fee(quote_amount_out as u128, LP_FEE_BASIS_POINTS as u128) as u64;
+    let lp_fee =
+        compute_fee(quote_amount_out as u128, fee_basis_points.lp_fee_basis_points as u128) as u64;
     let protocol_fee =
-        compute_fee(quote_amount_out as u128, PROTOCOL_FEE_BASIS_POINTS as u128) as u64;
-    let creator_bps =
-        creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points) as u128;
-    let coin_creator_fee = compute_fee(quote_amount_out as u128, creator_bps) as u64;
+        compute_fee(quote_amount_out as u128, fee_basis_points.protocol_fee_basis_points as u128)
+            as u64;
+    let coin_creator_fee = compute_fee(
+        quote_amount_out as u128,
+        fee_basis_points.coin_creator_fee_basis_points as u128,
+    ) as u64;
 
     // Calculate final quote after fees
     let total_fees = lp_fee + protocol_fee + coin_creator_fee;
@@ -260,6 +338,26 @@ pub fn sell_quote_input_internal(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
 ) -> Result<SellQuoteInputResult, String> {
+    sell_quote_input_internal_with_fees(
+        quote,
+        slippage_basis_points,
+        base_reserve,
+        quote_reserve,
+        &PumpSwapFeeBasisPoints::new(
+            LP_FEE_BASIS_POINTS,
+            PROTOCOL_FEE_BASIS_POINTS,
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+        ),
+    )
+}
+
+pub fn sell_quote_input_internal_with_fees(
+    quote: u64,
+    slippage_basis_points: u64,
+    base_reserve: u64,
+    quote_reserve: u64,
+    fee_basis_points: &PumpSwapFeeBasisPoints,
+) -> Result<SellQuoteInputResult, String> {
     if base_reserve == 0 || quote_reserve == 0 {
         return Err("Invalid input: 'baseReserve' or 'quoteReserve' cannot be zero.".to_string());
     }
@@ -270,9 +368,9 @@ pub fn sell_quote_input_internal(
     // Calculate raw quote amount including fees
     let raw_quote = calculate_quote_amount_out(
         quote,
-        LP_FEE_BASIS_POINTS,
-        PROTOCOL_FEE_BASIS_POINTS,
-        creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+        fee_basis_points.lp_fee_basis_points,
+        fee_basis_points.protocol_fee_basis_points,
+        fee_basis_points.coin_creator_fee_basis_points,
     );
 
     // Calculate base amount needed using inverse constant product formula

@@ -20,7 +20,9 @@ use crate::{
         params::{PumpSwapParams, SwapParams},
         traits::InstructionBuilder,
     },
-    utils::calc::pumpswap::{buy_quote_input_internal, sell_base_input_internal},
+    utils::calc::pumpswap::{
+        buy_quote_input_internal_with_fees, sell_base_input_internal_with_fees,
+    },
 };
 use anyhow::{anyhow, Result};
 use solana_sdk::{
@@ -85,34 +87,28 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let output_trade_mint = if quote_is_wsol_or_usdc { base_mint } else { quote_mint };
         let output_trade_token_program =
             if quote_is_wsol_or_usdc { base_token_program } else { quote_token_program };
-        let mut creator = Pubkey::default();
-        if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
-            creator = params_coin_creator_vault_authority;
-        }
-        let cashback_fee_bps = protocol_params.cashback_fee_basis_points;
+        let fee_basis_points = protocol_params.fee_basis_points;
 
         let (token_amount, sol_amount) = if let Some(output_amount) = params.fixed_output_amount {
             (output_amount, params.input_amount.unwrap_or(0))
         } else if quote_is_wsol_or_usdc {
-            let result = buy_quote_input_internal(
+            let result = buy_quote_input_internal_with_fees(
                 params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
-                &creator,
-                cashback_fee_bps,
+                &fee_basis_points,
             )
             .unwrap();
             // base_amount_out, max_quote_amount_in
             (result.base, result.max_quote)
         } else {
-            let result = sell_base_input_internal(
+            let result = sell_base_input_internal_with_fees(
                 params.input_amount.unwrap_or(0),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
-                &creator,
-                cashback_fee_bps,
+                &fee_basis_points,
             )
             .unwrap();
             // min_quote_amount_out, base_amount_in
@@ -321,34 +317,28 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let output_stable_mint = if quote_is_wsol_or_usdc { quote_mint } else { base_mint };
         let output_stable_token_program =
             if quote_is_wsol_or_usdc { quote_token_program } else { base_token_program };
-        let mut creator = Pubkey::default();
-        if params_coin_creator_vault_authority != accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY {
-            creator = params_coin_creator_vault_authority;
-        }
-        let cashback_fee_bps = protocol_params.cashback_fee_basis_points;
+        let fee_basis_points = protocol_params.fee_basis_points;
 
         let (token_amount, sol_amount) = if let Some(output_amount) = params.fixed_output_amount {
             (params.input_amount.unwrap(), output_amount)
         } else if quote_is_wsol_or_usdc {
-            let result = sell_base_input_internal(
+            let result = sell_base_input_internal_with_fees(
                 params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
-                &creator,
-                cashback_fee_bps,
+                &fee_basis_points,
             )
             .unwrap();
             // base_amount_in, min_quote_amount_out
             (params.input_amount.unwrap(), result.min_quote)
         } else {
-            let result = buy_quote_input_internal(
+            let result = buy_quote_input_internal_with_fees(
                 params.input_amount.unwrap(),
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
-                &creator,
-                cashback_fee_bps,
+                &fee_basis_points,
             )
             .unwrap();
             // max_quote_amount_in, base_amount_out
@@ -656,5 +646,31 @@ mod tests {
 
         assert_eq!(create_ix.program_id, crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID);
         assert_eq!(create_ix.accounts[3].pubkey, crate::constants::USDC_TOKEN_ACCOUNT);
+    }
+
+    #[tokio::test]
+    async fn pumpswap_buy_uses_fee_basis_points_from_params_without_rpc() {
+        let mut params = swap_params(TradeType::Buy, None);
+        params.input_amount = Some(1_000_000);
+        params.use_exact_sol_amount = Some(false);
+        params.protocol_params =
+            DexParamEnum::PumpSwap(pumpswap_params().with_fee_basis_points(20, 5, 75));
+
+        let instructions =
+            PumpSwapInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let ix = instructions.last().unwrap();
+
+        assert_eq!(&ix.data[..8], crate::instruction::utils::pumpswap::BUY_DISCRIMINATOR);
+        let base_amount_out = u64::from_le_bytes(ix.data[8..16].try_into().unwrap());
+
+        let expected = crate::utils::calc::pumpswap::buy_quote_input_internal_with_fees(
+            1_000_000,
+            100,
+            1_000_000_000,
+            2_000_000_000,
+            &crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints::new(20, 5, 0),
+        )
+        .unwrap();
+        assert_eq!(base_amount_out, expected.base);
     }
 }

@@ -179,21 +179,76 @@ pub mod accounts {
         };
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PumpSwapFeeBasisPoints {
+    pub lp_fee_basis_points: u64,
+    pub protocol_fee_basis_points: u64,
+    pub coin_creator_fee_basis_points: u64,
+}
+
+impl PumpSwapFeeBasisPoints {
+    #[inline]
+    pub const fn new(
+        lp_fee_basis_points: u64,
+        protocol_fee_basis_points: u64,
+        coin_creator_fee_basis_points: u64,
+    ) -> Self {
+        Self { lp_fee_basis_points, protocol_fee_basis_points, coin_creator_fee_basis_points }
+    }
+
+    #[inline]
+    pub const fn legacy_default() -> Self {
+        Self::new(
+            accounts::LP_FEE_BASIS_POINTS,
+            accounts::PROTOCOL_FEE_BASIS_POINTS,
+            accounts::COIN_CREATOR_FEE_BASIS_POINTS,
+        )
+    }
+}
+
+impl Default for PumpSwapFeeBasisPoints {
+    #[inline]
+    fn default() -> Self {
+        Self::legacy_default()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PumpSwapFeeTier {
+    pub market_cap_lamports_threshold: u128,
+    pub fees: PumpSwapFeeBasisPoints,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PumpSwapFeeConfig {
+    pub flat_fees: PumpSwapFeeBasisPoints,
+    pub fee_tiers: Vec<PumpSwapFeeTier>,
+    pub stable_fee_tiers: Vec<PumpSwapFeeTier>,
+}
+
 pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 pub const BUY_EXACT_QUOTE_IN_DISCRIMINATOR: [u8; 8] = [198, 46, 21, 82, 180, 217, 232, 112];
 pub const SELL_DISCRIMINATOR: [u8; 8] = [51, 230, 133, 164, 1, 127, 131, 173];
 
 const PUMPSWAP_GLOBAL_CONFIG_TTL: Duration = Duration::from_secs(90);
 const PUMPSWAP_GLOBAL_CONFIG_RPC_TIMEOUT: Duration = Duration::from_millis(180);
+const PUMPSWAP_FEE_CONFIG_TTL: Duration = Duration::from_secs(300);
+const PUMPSWAP_FEE_CONFIG_RPC_TIMEOUT: Duration = Duration::from_millis(180);
 
 const PUBKEY_LEN: usize = 32;
 const U64_LEN: usize = 8;
 const U8_LEN: usize = 1;
 const BOOL_LEN: usize = 1;
 const GLOBAL_CONFIG_DISCRIMINATOR_LEN: usize = 8;
+const FEE_CONFIG_DISCRIMINATOR_LEN: usize = 8;
+const FEE_CONFIG_BUMP_LEN: usize = 1;
+const FEE_TIER_LEN: usize = 16 + U64_LEN * 3;
 
 #[derive(Clone, Debug)]
 pub struct GlobalConfig {
+    pub lp_fee_basis_points: u64,
+    pub protocol_fee_basis_points: u64,
+    pub coin_creator_fee_basis_points: u64,
     pub protocol_fee_recipients: [Pubkey; 8],
     pub reserved_fee_recipient: Pubkey,
     pub reserved_fee_recipients: [Pubkey; 7],
@@ -206,9 +261,16 @@ struct CachedGlobalConfig {
     config: GlobalConfig,
 }
 
+#[derive(Clone)]
+struct CachedFeeConfig {
+    fetched_at: Instant,
+    config: PumpSwapFeeConfig,
+}
+
 static GLOBAL_CONFIG_CACHE: Lazy<RwLock<Option<CachedGlobalConfig>>> =
     Lazy::new(|| RwLock::new(None));
 static GLOBAL_CONFIG_REFRESH_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+static FEE_CONFIG_CACHE: Lazy<RwLock<Option<CachedFeeConfig>>> = Lazy::new(|| RwLock::new(None));
 
 fn read_pubkey(data: &[u8], offset: usize) -> Option<Pubkey> {
     let bytes = data.get(offset..offset + PUBKEY_LEN)?;
@@ -223,15 +285,34 @@ fn read_pubkey_array<const N: usize>(data: &[u8], offset: usize) -> Option<[Pubk
     Some(keys)
 }
 
+fn read_u64(data: &[u8], offset: usize) -> Option<u64> {
+    let bytes = data.get(offset..offset + U64_LEN)?;
+    Some(u64::from_le_bytes(bytes.try_into().ok()?))
+}
+
+fn read_u128(data: &[u8], offset: usize) -> Option<u128> {
+    let bytes = data.get(offset..offset + 16)?;
+    Some(u128::from_le_bytes(bytes.try_into().ok()?))
+}
+
+fn read_u32(data: &[u8], offset: usize) -> Option<u32> {
+    let bytes = data.get(offset..offset + 4)?;
+    Some(u32::from_le_bytes(bytes.try_into().ok()?))
+}
+
 fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
     let mut offset = GLOBAL_CONFIG_DISCRIMINATOR_LEN;
     offset += PUBKEY_LEN; // admin
-    offset += U64_LEN * 2; // lp_fee_basis_points + protocol_fee_basis_points
+    let lp_fee_basis_points = read_u64(data, offset)?;
+    offset += U64_LEN;
+    let protocol_fee_basis_points = read_u64(data, offset)?;
+    offset += U64_LEN;
     offset += U8_LEN; // disable_flags
 
     let protocol_fee_recipients = read_pubkey_array::<8>(data, offset)?;
     offset += PUBKEY_LEN * 8;
-    offset += U64_LEN; // coin_creator_fee_basis_points
+    let coin_creator_fee_basis_points = read_u64(data, offset)?;
+    offset += U64_LEN;
     offset += PUBKEY_LEN; // admin_set_coin_creator_authority
     offset += PUBKEY_LEN; // whitelist_pda
 
@@ -246,11 +327,54 @@ fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
     let buyback_fee_recipients = read_pubkey_array::<8>(data, offset)?;
 
     Some(GlobalConfig {
+        lp_fee_basis_points,
+        protocol_fee_basis_points,
+        coin_creator_fee_basis_points,
         protocol_fee_recipients,
         reserved_fee_recipient,
         reserved_fee_recipients,
         buyback_fee_recipients,
     })
+}
+
+fn decode_fees(data: &[u8], offset: usize) -> Option<PumpSwapFeeBasisPoints> {
+    Some(PumpSwapFeeBasisPoints::new(
+        read_u64(data, offset)?,
+        read_u64(data, offset + U64_LEN)?,
+        read_u64(data, offset + U64_LEN * 2)?,
+    ))
+}
+
+fn decode_fee_tiers(data: &[u8], offset: &mut usize) -> Option<Vec<PumpSwapFeeTier>> {
+    let len = read_u32(data, *offset)? as usize;
+    *offset += 4;
+    let byte_len = len.checked_mul(FEE_TIER_LEN)?;
+    let end = (*offset).checked_add(byte_len)?;
+    data.get(*offset..end)?;
+
+    let mut tiers = Vec::with_capacity(len);
+    for _ in 0..len {
+        let market_cap_lamports_threshold = read_u128(data, *offset)?;
+        *offset += 16;
+        let fees = decode_fees(data, *offset)?;
+        *offset += U64_LEN * 3;
+        tiers.push(PumpSwapFeeTier { market_cap_lamports_threshold, fees });
+    }
+    Some(tiers)
+}
+
+pub fn decode_fee_config(data: &[u8]) -> Option<PumpSwapFeeConfig> {
+    let mut offset = FEE_CONFIG_DISCRIMINATOR_LEN;
+    offset += FEE_CONFIG_BUMP_LEN;
+    offset += PUBKEY_LEN; // admin
+
+    let flat_fees = decode_fees(data, offset)?;
+    offset += U64_LEN * 3;
+
+    let fee_tiers = decode_fee_tiers(data, &mut offset)?;
+    let stable_fee_tiers = decode_fee_tiers(data, &mut offset)?;
+
+    Some(PumpSwapFeeConfig { flat_fees, fee_tiers, stable_fee_tiers })
 }
 
 async fn refresh_global_config_once(rpc: &SolanaRpcClient) -> Option<GlobalConfig> {
@@ -289,6 +413,42 @@ async fn refresh_global_config_once(rpc: &SolanaRpcClient) -> Option<GlobalConfi
     Some(config)
 }
 
+async fn refresh_fee_config_once(rpc: &SolanaRpcClient) -> Option<PumpSwapFeeConfig> {
+    let account = match tokio::time::timeout(
+        PUMPSWAP_FEE_CONFIG_RPC_TIMEOUT,
+        rpc.get_account(&accounts::FEE_CONFIG),
+    )
+    .await
+    {
+        Ok(Ok(account)) => account,
+        Ok(Err(e)) => {
+            warn!(target: "pumpswap_fee_config", "PumpSwap FeeConfig 读取失败: {}", e);
+            return None;
+        }
+        Err(_) => {
+            warn!(
+                target: "pumpswap_fee_config",
+                timeout_ms = PUMPSWAP_FEE_CONFIG_RPC_TIMEOUT.as_millis(),
+                "PumpSwap FeeConfig 读取超时"
+            );
+            return None;
+        }
+    };
+
+    let Some(config) = decode_fee_config(&account.data) else {
+        warn!(
+            target: "pumpswap_fee_config",
+            data_len = account.data.len(),
+            "PumpSwap FeeConfig 解析失败"
+        );
+        return None;
+    };
+
+    *FEE_CONFIG_CACHE.write() =
+        Some(CachedFeeConfig { fetched_at: Instant::now(), config: config.clone() });
+    Some(config)
+}
+
 pub async fn warm_pumpswap_global_config(rpc: Option<&Arc<SolanaRpcClient>>) {
     let Some(rpc) = rpc else {
         return;
@@ -302,6 +462,7 @@ pub async fn warm_pumpswap_global_config(rpc: Option<&Arc<SolanaRpcClient>>) {
         let rpc = Arc::clone(rpc);
         tokio::spawn(async move {
             let _ = refresh_global_config_once(rpc.as_ref()).await;
+            let _ = refresh_fee_config_once(rpc.as_ref()).await;
             GLOBAL_CONFIG_REFRESH_IN_FLIGHT.store(false, Ordering::Release);
         });
     }
@@ -311,6 +472,93 @@ fn cached_global_config() -> Option<GlobalConfig> {
     let guard = GLOBAL_CONFIG_CACHE.read();
     let cached = guard.as_ref()?;
     (cached.fetched_at.elapsed() <= PUMPSWAP_GLOBAL_CONFIG_TTL).then(|| cached.config.clone())
+}
+
+fn cached_fee_config() -> Option<PumpSwapFeeConfig> {
+    let guard = FEE_CONFIG_CACHE.read();
+    let cached = guard.as_ref()?;
+    (cached.fetched_at.elapsed() <= PUMPSWAP_FEE_CONFIG_TTL).then(|| cached.config.clone())
+}
+
+pub async fn fetch_fee_config(rpc: &SolanaRpcClient) -> Option<PumpSwapFeeConfig> {
+    if let Some(config) = cached_fee_config() {
+        return Some(config);
+    }
+    refresh_fee_config_once(rpc).await
+}
+
+#[inline]
+pub fn global_fee_basis_points() -> PumpSwapFeeBasisPoints {
+    cached_global_config()
+        .map(|config| {
+            PumpSwapFeeBasisPoints::new(
+                config.lp_fee_basis_points,
+                config.protocol_fee_basis_points,
+                config.coin_creator_fee_basis_points,
+            )
+        })
+        .unwrap_or_default()
+}
+
+#[inline]
+pub fn is_canonical_pump_pool(base_mint: &Pubkey, pool_creator: &Pubkey) -> bool {
+    get_pump_pool_authority_pda(base_mint) == *pool_creator
+}
+
+#[inline]
+pub fn pool_market_cap_lamports(
+    base_mint_supply: u64,
+    base_reserve: u64,
+    quote_reserve: u64,
+) -> Option<u128> {
+    if base_reserve == 0 {
+        return None;
+    }
+    Some((quote_reserve as u128) * (base_mint_supply as u128) / (base_reserve as u128))
+}
+
+pub fn calculate_fee_tier(
+    fee_tiers: &[PumpSwapFeeTier],
+    market_cap_lamports: u128,
+) -> Option<PumpSwapFeeBasisPoints> {
+    let first = fee_tiers.first()?;
+    if market_cap_lamports < first.market_cap_lamports_threshold {
+        return Some(first.fees);
+    }
+    fee_tiers
+        .iter()
+        .rev()
+        .find(|tier| market_cap_lamports >= tier.market_cap_lamports_threshold)
+        .map(|tier| tier.fees)
+        .or(Some(first.fees))
+}
+
+pub fn compute_fee_basis_points(
+    fee_config: Option<&PumpSwapFeeConfig>,
+    pool_creator: Pubkey,
+    base_mint: Pubkey,
+    base_mint_supply: Option<u64>,
+    base_reserve: u64,
+    quote_reserve: u64,
+) -> PumpSwapFeeBasisPoints {
+    let Some(fee_config) = fee_config else {
+        return global_fee_basis_points();
+    };
+
+    if !is_canonical_pump_pool(&base_mint, &pool_creator) {
+        return fee_config.flat_fees;
+    }
+
+    let Some(base_mint_supply) = base_mint_supply else {
+        return global_fee_basis_points();
+    };
+    let Some(market_cap_lamports) =
+        pool_market_cap_lamports(base_mint_supply, base_reserve, quote_reserve)
+    else {
+        return global_fee_basis_points();
+    };
+
+    calculate_fee_tier(&fee_config.fee_tiers, market_cap_lamports).unwrap_or(fee_config.flat_fees)
 }
 
 fn choose_nonzero(keys: &[Pubkey]) -> Option<Pubkey> {
@@ -656,6 +904,31 @@ mod tests {
     use super::*;
     use solana_sdk::pubkey::Pubkey;
 
+    fn fee_config_fixture() -> PumpSwapFeeConfig {
+        PumpSwapFeeConfig {
+            flat_fees: PumpSwapFeeBasisPoints::new(25, 5, 0),
+            fee_tiers: vec![
+                PumpSwapFeeTier {
+                    market_cap_lamports_threshold: 0,
+                    fees: PumpSwapFeeBasisPoints::new(2, 93, 30),
+                },
+                PumpSwapFeeTier {
+                    market_cap_lamports_threshold: 420_000_000_000,
+                    fees: PumpSwapFeeBasisPoints::new(20, 5, 95),
+                },
+                PumpSwapFeeTier {
+                    market_cap_lamports_threshold: 4_420_000_000_000,
+                    fees: PumpSwapFeeBasisPoints::new(20, 5, 75),
+                },
+                PumpSwapFeeTier {
+                    market_cap_lamports_threshold: 9_820_000_000_000,
+                    fees: PumpSwapFeeBasisPoints::new(20, 5, 70),
+                },
+            ],
+            stable_fee_tiers: Vec::new(),
+        }
+    }
+
     #[test]
     fn pumpswap_user_volume_accumulator_pda_deterministic() {
         let user = Pubkey::new_unique();
@@ -676,5 +949,41 @@ mod tests {
         let a = get_pool_v2_pda(&base_mint).unwrap();
         let b = get_pool_v2_pda(&base_mint).unwrap();
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn pumpswap_fee_tier_selects_issue_106_fee_bucket() {
+        let selected = calculate_fee_tier(&fee_config_fixture().fee_tiers, 4_500_000_000_000);
+        assert_eq!(selected, Some(PumpSwapFeeBasisPoints::new(20, 5, 75)));
+    }
+
+    #[test]
+    fn pumpswap_compute_fees_uses_flat_fee_for_non_canonical_pool() {
+        let base_mint = Pubkey::new_unique();
+        let non_canonical_creator = Pubkey::new_unique();
+        let fees = compute_fee_basis_points(
+            Some(&fee_config_fixture()),
+            non_canonical_creator,
+            base_mint,
+            Some(1_000_000_000_000_000),
+            1_000_000_000_000_000,
+            4_500_000_000_000,
+        );
+        assert_eq!(fees, PumpSwapFeeBasisPoints::new(25, 5, 0));
+    }
+
+    #[test]
+    fn pumpswap_compute_fees_uses_tier_for_canonical_pool() {
+        let base_mint = Pubkey::new_unique();
+        let canonical_creator = get_pump_pool_authority_pda(&base_mint);
+        let fees = compute_fee_basis_points(
+            Some(&fee_config_fixture()),
+            canonical_creator,
+            base_mint,
+            Some(1_000_000_000_000_000),
+            1_000_000_000_000_000,
+            4_500_000_000_000,
+        );
+        assert_eq!(fees, PumpSwapFeeBasisPoints::new(20, 5, 75));
     }
 }
