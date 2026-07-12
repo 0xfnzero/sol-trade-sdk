@@ -24,21 +24,20 @@ use solana_sdk::{
     message::{AccountMeta, Instruction},
     native_token::sol_str_to_lamports,
     pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
 };
 use solana_system_interface::instruction::transfer;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::{
     io::{self, Write},
     str::FromStr,
 };
-// 设置 payer
-static PAYER: LazyLock<Keypair> = LazyLock::new(|| Keypair::new());
-// 设置 rpc url
-static RPC_URL: &str = "https://api.mainnet-beta.solana.com";
-
 static DEXS: &[&str] = &["pumpfun", "pumpswap", "bonk", "raydium_v4", "raydium_cpmm"];
+
+fn rpc_url() -> String {
+    std::env::var("RPC_URL")
+        .or_else(|_| std::env::var("SOLANA_RPC_URL"))
+        .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string())
+}
 
 #[derive(Parser)]
 #[command(name = "sol-trade-cli")]
@@ -197,7 +196,7 @@ async fn show_startup_info() {
     println!("\n📋 STARTUP INFORMATION");
     println!("══════════════════════════════════════");
 
-    println!("🌐 RPC URL: {}", RPC_URL);
+    println!("🌐 RPC URL: {}", rpc_url());
 
     // Try to initialize client to show wallet info
     match initialize_real_client().await {
@@ -214,14 +213,9 @@ async fn show_startup_info() {
                 }
             }
         }
-        Err(_) => {
-            // Generate a temporary keypair to show the format
-            let temp_keypair = solana_sdk::signature::Keypair::new();
-            println!(
-                "👛 Wallet Address: {} (temporary - set SOLANA_RPC_URL for real wallet)",
-                temp_keypair.pubkey()
-            );
-            println!("💰 SOL Balance: Unable to fetch (no valid RPC connection)");
+        Err(err) => {
+            println!("👛 Wallet: unavailable ({})", err);
+            println!("💰 SOL Balance: Unable to fetch");
         }
     }
 
@@ -268,21 +262,21 @@ async fn run_interactive_mode() -> Result<(), Box<dyn std::error::Error>> {
                 handle_close_wsol().await?;
             }
             _ => {
-                if input.starts_with("raydium_cpmm_buy ") {
-                    handle_interactive_raydium_cpmm_buy(&input[16..]).await?;
-                } else if input.starts_with("raydium_cpmm_sell ") {
-                    handle_interactive_raydium_cpmm_sell(&input[17..]).await?;
-                } else if input.starts_with("raydium_v4_buy ") {
-                    handle_interactive_raydium_v4_buy(&input[14..]).await?;
-                } else if input.starts_with("raydium_v4_sell ") {
-                    handle_interactive_raydium_v4_sell(&input[15..]).await?;
-                } else if input.starts_with("buy ") {
-                    handle_interactive_buy(&input[4..]).await?;
-                } else if input.starts_with("sell ") {
-                    handle_interactive_sell(&input[5..]).await?;
-                } else if input.starts_with("wrap_sol ") || input.starts_with("wrap-sol ") {
-                    let amount_str =
-                        if input.starts_with("wrap_sol ") { &input[9..] } else { &input[9..] };
+                if let Some(args) = input.strip_prefix("raydium_cpmm_buy ") {
+                    handle_interactive_raydium_cpmm_buy(args).await?;
+                } else if let Some(args) = input.strip_prefix("raydium_cpmm_sell ") {
+                    handle_interactive_raydium_cpmm_sell(args).await?;
+                } else if let Some(args) = input.strip_prefix("raydium_v4_buy ") {
+                    handle_interactive_raydium_v4_buy(args).await?;
+                } else if let Some(args) = input.strip_prefix("raydium_v4_sell ") {
+                    handle_interactive_raydium_v4_sell(args).await?;
+                } else if let Some(args) = input.strip_prefix("buy ") {
+                    handle_interactive_buy(args).await?;
+                } else if let Some(args) = input.strip_prefix("sell ") {
+                    handle_interactive_sell(args).await?;
+                } else if let Some(amount_str) =
+                    input.strip_prefix("wrap_sol ").or_else(|| input.strip_prefix("wrap-sol "))
+                {
                     if let Ok(amount) = amount_str.parse::<f64>() {
                         handle_wrap_sol(amount).await?;
                     } else {
@@ -477,23 +471,20 @@ async fn check_mint_ata(
     let mint_pubkey = Pubkey::from_str(mint).unwrap();
 
     if let Ok(mint_info) = client.infrastructure.rpc.get_account(&mint_pubkey).await {
-        let owner_pubkey = mint_info.owner.clone();
+        let owner_pubkey = mint_info.owner;
         let mint_ata = get_associated_token_address_with_program_id_fast_use_seed(
             &client.get_payer_pubkey(),
             &mint_pubkey,
             &owner_pubkey,
             false,
         );
-        match client.infrastructure.rpc.get_token_account_balance(&mint_ata).await {
-            Ok(balance) => {
-                let amount = balance.ui_amount.unwrap_or(0.0);
-                decimals = balance.decimals;
-                amount_f64 = amount as f64 * 10_f64.powi(decimals as i32);
+        if let Ok(balance) = client.infrastructure.rpc.get_token_account_balance(&mint_ata).await {
+            let amount = balance.ui_amount.unwrap_or(0.0);
+            decimals = balance.decimals;
+            amount_f64 = amount * 10_f64.powi(decimals as i32);
 
-                create_mint_ata = false;
-                use_seed = false;
-            }
-            Err(_) => {}
+            create_mint_ata = false;
+            use_seed = false;
         }
         if !create_mint_ata {
             return Ok((create_mint_ata, use_seed, owner_pubkey, amount_f64, decimals));
@@ -505,16 +496,13 @@ async fn check_mint_ata(
             &owner_pubkey,
             true,
         );
-        match client.infrastructure.rpc.get_token_account_balance(&mint_ata).await {
-            Ok(_) => {
-                create_mint_ata = false;
-                use_seed = true;
-            }
-            Err(_) => {}
+        if client.infrastructure.rpc.get_token_account_balance(&mint_ata).await.is_ok() {
+            create_mint_ata = false;
+            use_seed = true;
         }
         return Ok((create_mint_ata, use_seed, owner_pubkey, amount_f64, decimals));
     }
-    return Err("Mint account not found".to_string().into());
+    Err("Mint account not found".to_string().into())
 }
 
 // Buy and sell functions - currently in demo mode since trading logic is complex
@@ -606,8 +594,8 @@ async fn handle_buy_pumpfun(
     println!("🔥 BUY PUMPFUN COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   SOL Amount: {} SOL", sol_amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}", slippage);
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
@@ -631,10 +619,10 @@ async fn handle_buy_pumpfun(
         wait_for_all_submits: false,
         create_input_token_ata: false,
         close_input_token_ata: false,
-        create_mint_ata: create_mint_ata,
+        create_mint_ata,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
         grpc_recv_us: None,
@@ -664,8 +652,8 @@ async fn handle_buy_pumpswap(
     println!("🔥 BUY PUMPSWAP COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   SOL Amount: {} SOL", sol_amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}%", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}%", slippage);
     }
     let mint_pubkey = Pubkey::from_str(mint)?;
     let param = PumpSwapParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey).await?;
@@ -688,10 +676,10 @@ async fn handle_buy_pumpswap(
         wait_for_all_submits: false,
         create_input_token_ata: true,
         close_input_token_ata: false,
-        create_mint_ata: create_mint_ata,
+        create_mint_ata,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
         grpc_recv_us: None,
@@ -720,8 +708,8 @@ async fn handle_buy_bonk(
     println!("🔥 BUY BONK COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   SOL Amount: {} SOL", sol_amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}%", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}%", slippage);
     }
     let mint_pubkey = Pubkey::from_str(mint)?;
     let param =
@@ -745,10 +733,10 @@ async fn handle_buy_bonk(
         wait_for_all_submits: false,
         create_input_token_ata: true,
         close_input_token_ata: false,
-        create_mint_ata: create_mint_ata,
+        create_mint_ata,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
         grpc_recv_us: None,
@@ -779,8 +767,8 @@ async fn handle_buy_raydium_v4(
     println!("   Token Mint: {}", mint);
     println!("   AMM: {}", amm);
     println!("   SOL Amount: {} SOL", sol_amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}%", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}%", slippage);
     }
 
     let mint_pubkey = Pubkey::from_str(mint)?;
@@ -806,10 +794,10 @@ async fn handle_buy_raydium_v4(
         wait_for_all_submits: false,
         create_input_token_ata: true,
         close_input_token_ata: false,
-        create_mint_ata: create_mint_ata,
+        create_mint_ata,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
         grpc_recv_us: None,
@@ -840,8 +828,8 @@ async fn handle_buy_raydium_cpmm(
     println!("   Pool Address: {}", pool_address);
     println!("   Token Mint: {}", mint);
     println!("   SOL Amount: {} SOL", sol_amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}%", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}%", slippage);
     }
 
     let mint_pubkey = Pubkey::from_str(mint)?;
@@ -868,10 +856,10 @@ async fn handle_buy_raydium_cpmm(
         wait_for_all_submits: false,
         create_input_token_ata: true,
         close_input_token_ata: false,
-        create_mint_ata: create_mint_ata,
+        create_mint_ata,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         use_exact_sol_amount: None,
         grpc_recv_us: None,
@@ -1008,13 +996,13 @@ async fn handle_sell_pumpfun(
     amount_f64: f64,
     _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
+    let amount = token_amount.unwrap_or(amount_f64);
 
     println!("🔥 SELL PUMPFUN COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   Token Amount: {} ", amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}%", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}%", slippage);
     }
 
     let client = initialize_real_client().await?;
@@ -1042,7 +1030,7 @@ async fn handle_sell_pumpfun(
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         grpc_recv_us: None,
     };
@@ -1070,12 +1058,12 @@ async fn handle_sell_pumpswap(
     amount_f64: f64,
     _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
+    let amount = token_amount.unwrap_or(amount_f64);
     println!("🔥 SELL PUMPSWAP COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   Token Amount: {}", amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}", slippage);
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
@@ -1102,7 +1090,7 @@ async fn handle_sell_pumpswap(
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         grpc_recv_us: None,
     };
@@ -1129,12 +1117,12 @@ async fn handle_sell_bonk(
     amount_f64: f64,
     _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
+    let amount = token_amount.unwrap_or(amount_f64);
     println!("🔥 SELL PUMPSWAP COMMAND");
     println!("   Token Mint: {}", mint);
     println!("   Token Amount: {}", amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}", slippage);
     }
     let client = initialize_real_client().await?;
     let mint_pubkey = Pubkey::from_str(mint)?;
@@ -1162,7 +1150,7 @@ async fn handle_sell_bonk(
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         grpc_recv_us: None,
     };
@@ -1190,13 +1178,13 @@ async fn handle_sell_raydium_v4(
     amount_f64: f64,
     _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
+    let amount = token_amount.unwrap_or(amount_f64);
     println!("🔥 SELL RAYDIUM V4 COMMAND");
     println!("   AMM: {}", amm);
     println!("   Token Mint: {}", mint);
     println!("   Token Amount: {}", amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}", slippage);
     }
     let client = initialize_real_client().await?;
     let amm_pubkey = Pubkey::from_str(amm)?;
@@ -1225,7 +1213,7 @@ async fn handle_sell_raydium_v4(
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         grpc_recv_us: None,
     };
@@ -1253,13 +1241,13 @@ async fn handle_sell_raydium_cpmm(
     amount_f64: f64,
     _decimals: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let amount = if token_amount.is_some() { token_amount.unwrap() } else { amount_f64 };
+    let amount = token_amount.unwrap_or(amount_f64);
     println!("🔥 SELL RAYDIUM CPMM COMMAND");
     println!("   Pool Address: {}", pool_address);
     println!("   Token Mint: {}", mint);
     println!("   Token Amount: {}", amount);
-    if slippage.is_some() {
-        println!("   Slippage: {}", slippage.unwrap());
+    if let Some(slippage) = slippage {
+        println!("   Slippage: {}", slippage);
     }
     let client = initialize_real_client().await?;
     let pool_pubkey = Pubkey::from_str(pool_address)?;
@@ -1289,7 +1277,7 @@ async fn handle_sell_raydium_cpmm(
         close_mint_token_ata: false,
         durable_nonce: None,
         fixed_output_token_amount: None,
-        gas_fee_strategy: gas_fee_strategy,
+        gas_fee_strategy,
         simulate: false,
         grpc_recv_us: None,
     };
@@ -1396,10 +1384,9 @@ async fn handle_wallet() -> Result<(), Box<dyn std::error::Error>> {
 
 // Real implementation functions
 async fn initialize_real_client() -> AnyResult<SolanaTrade> {
-    // You need to update this with a real RPC URL
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Arc::new(Keypair::try_from(&PAYER.to_bytes()[..]).unwrap());
-    let rpc_url = RPC_URL.to_string();
+    let payer = Arc::new(sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?);
+    let rpc_url = rpc_url();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
     let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)

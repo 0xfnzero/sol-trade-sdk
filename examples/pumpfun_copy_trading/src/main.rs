@@ -12,9 +12,7 @@ use sol_parser_sdk::grpc::{
     TransactionFilter, YellowstoneGrpc,
 };
 use sol_parser_sdk::DexEvent;
-use sol_trade_sdk::common::{
-    fast_fn::get_associated_token_address_with_program_id_fast_use_seed, TradeConfig,
-};
+use sol_trade_sdk::common::TradeConfig;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -26,8 +24,6 @@ use sol_trade_sdk::{
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
 
 static ALREADY_EXECUTED: AtomicBool = AtomicBool::new(false);
 
@@ -109,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?;
     let rpc_url = std::env::var("RPC_URL")
         .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
     let commitment = CommitmentConfig::confirmed();
@@ -140,6 +136,8 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
 
     let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
     gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
+    let balance_before =
+        client.get_payer_token_balance_with_program(&mint_pubkey, &e.token_program).await?;
 
     // 买入：使用事件参数，含 is_cashback_coin（来自 sol-parser-sdk 解析）
     let buy_sol_amount = 100_000u64;
@@ -180,19 +178,25 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
         use_exact_sol_amount: None,
         grpc_recv_us: None,
     };
-    client.buy(buy_params).await?;
+    let (ok, sigs, err, _) = client.buy(buy_params).await?;
+    if !ok {
+        return Err(
+            std::io::Error::other(format!("buy failed: {:?}; sigs: {:?}", err, sigs)).into()
+        );
+    }
 
     // 卖出：查询余额后卖出，同样传入 is_cashback_coin
-    let rpc = client.infrastructure.rpc.clone();
-    let payer = client.payer.pubkey();
-    let account = get_associated_token_address_with_program_id_fast_use_seed(
-        &payer,
-        &mint_pubkey,
-        &e.token_program,
-        client.use_seed_optimize,
-    );
-    let balance = rpc.get_token_account_balance(&account).await?;
-    let amount_token = balance.amount.parse::<u64>().unwrap();
+    let balance_after =
+        client.get_payer_token_balance_with_program(&mint_pubkey, &e.token_program).await?;
+    let amount_token = balance_after
+        .checked_sub(balance_before)
+        .ok_or_else(|| std::io::Error::other("token balance decreased after buy"))?;
+    if amount_token == 0 {
+        return Err(std::io::Error::other("confirmed buy did not increase token balance").into());
+    }
+    let sell_extension = PumpFunParams::from_mint_by_rpc(&client.infrastructure.rpc, &mint_pubkey)
+        .await?
+        .with_creator_vault(e.creator_vault);
 
     let sell_params = sol_trade_sdk::TradeSellParams {
         dex_type: DexType::PumpFun,
@@ -200,25 +204,9 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points,
-        recent_blockhash: Some(recent_blockhash),
+        recent_blockhash: Some(client.infrastructure.rpc.get_latest_blockhash().await?),
         with_tip: false,
-        extension_params: DexParamEnum::PumpFun(PumpFunParams::from_trade(
-            e.bonding_curve,
-            e.associated_bonding_curve,
-            e.mint,
-            e.quote_mint,
-            e.creator,
-            e.creator_vault,
-            e.virtual_token_reserves,
-            virtual_quote_reserves,
-            e.real_token_reserves,
-            real_quote_reserves,
-            Some(true),
-            e.fee_recipient,
-            e.token_program,
-            e.is_cashback_coin,
-            Some(e.mayhem_mode),
-        )),
+        extension_params: DexParamEnum::PumpFun(sell_extension),
         address_lookup_table_accounts: Vec::new(),
         wait_tx_confirmed: true,
         wait_for_all_submits: false,
@@ -231,7 +219,12 @@ async fn pumpfun_copy_trade(e: sol_parser_sdk::core::events::PumpFunTradeEvent) 
         simulate: false,
         grpc_recv_us: None,
     };
-    client.sell(sell_params).await?;
+    let (ok, sigs, err, _) = client.sell(sell_params).await?;
+    if !ok {
+        return Err(
+            std::io::Error::other(format!("sell failed: {:?}; sigs: {:?}", err, sigs)).into()
+        );
+    }
 
     println!("跟单一次买+卖完成");
     Ok(())

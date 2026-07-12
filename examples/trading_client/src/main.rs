@@ -13,7 +13,6 @@ use sol_trade_sdk::{
     AstralaneTransport, TradingClient, TradingInfrastructure,
 };
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::signature::Keypair;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -35,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// Use this when you have a single wallet or don't need to share infrastructure.
 async fn create_trading_client_simple() -> AnyResult<TradingClient> {
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?;
     let rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx".to_string();
     let commitment = CommitmentConfig::processed();
 
@@ -73,7 +72,7 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
 /// Use this when you have multiple wallets sharing the same configuration.
 /// The infrastructure (RPC client, SWQOS clients) is created once and shared.
 async fn create_trading_client_from_infrastructure() -> AnyResult<TradingClient> {
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?;
     let rpc_url = "https://mainnet.helius-rpc.com/?api-key=xxxxxx".to_string();
     let commitment = CommitmentConfig::processed();
 

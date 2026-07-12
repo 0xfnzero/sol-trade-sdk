@@ -280,27 +280,33 @@ client.buy_simple(buy_params).await?;
 当你使用 shred 订阅事件时，由于 shred 的特性，你无法获取到交易事件的完整信息。
 请你在使用时，确保你的交易逻辑依赖的参数，在shred中都能获取到。
 
+客户端预热、blockhash/nonce、交易模式、事件状态新鲜度和 6040 重报价规则见 [低延迟 Bot 集成清单](docs/LOW_LATENCY_BOTS_CN.md)。
+
 ### 📊 使用示例汇总表格
 
-| 描述 | 运行命令 | 源码路径 |
+完整双语索引和安全分类见 [`examples/README_CN.md`](examples/README_CN.md)。
+
+| 描述 | 运行命令 | 使用说明 |
 |------|---------|----------|
-| 简化买卖参数 API | `cargo run --package simple_trading` | [examples/simple_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/simple_trading/src/main.rs) |
-| 创建和配置 TradingClient 实例 | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
-| 多钱包共享基础设施 | `cargo run --package shared_infrastructure` | [examples/shared_infrastructure](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/shared_infrastructure/src/main.rs) |
-| PumpFun 代币狙击交易 | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
-| PumpFun 代币跟单交易 | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
-| PumpSwap 交易操作 | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |
-| Raydium CPMM 交易操作 | `cargo run --package raydium_cpmm_trading` | [examples/raydium_cpmm_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_cpmm_trading/src/main.rs) |
-| Raydium AMM V4 交易操作 | `cargo run --package raydium_amm_v4_trading` | [examples/raydium_amm_v4_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_amm_v4_trading/src/main.rs) |
-| Meteora DAMM V2 交易操作 | `cargo run --package meteora_damm_v2_direct_trading` | [examples/meteora_damm_v2_direct_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/meteora_damm_v2_direct_trading/src/main.rs) |
-| Bonk 代币狙击交易 | `cargo run --package bonk_sniper_trading` | [examples/bonk_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_sniper_trading/src/main.rs) |
-| Bonk 代币跟单交易 | `cargo run --package bonk_copy_trading` | [examples/bonk_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_copy_trading/src/main.rs) |
-| 自定义指令中间件示例 | `cargo run --package middleware_system` | [examples/middleware_system](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/middleware_system/src/main.rs) |
-| 地址查找表示例 | `cargo run --package address_lookup` | [examples/address_lookup](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/address_lookup/src/main.rs) |
-| Nonce示例 | `cargo run --package nonce_cache` | [examples/nonce_cache](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/nonce_cache/src/main.rs) |
-| SOL与WSOL相互转换示例 | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
-| Seed 优化交易示例 | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
-| Gas费用策略示例 | `cargo run --package gas_fee_strategy` | [examples/gas_fee_strategy](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/gas_fee_strategy/src/main.rs) |
+| 简化买卖参数 API | `cargo run --package simple_trading` | [README](examples/simple_trading/README_CN.md) |
+| 创建和配置 TradingClient | `cargo run --package trading_client` | [README](examples/trading_client/README_CN.md) |
+| 多钱包共享基础设施 | `cargo run --package shared_infrastructure` | [README](examples/shared_infrastructure/README_CN.md) |
+| PumpFun 狙击 | `cargo run --package pumpfun_sniper_trading` | [README](examples/pumpfun_sniper_trading/README_CN.md) |
+| PumpFun 跟单 | `cargo run --package pumpfun_copy_trading` | [README](examples/pumpfun_copy_trading/README_CN.md) |
+| PumpSwap 低延迟事件流 | `cargo run --package pumpswap_trading` | [README](examples/pumpswap_trading/README_CN.md) |
+| PumpSwap 直接 RPC 流程 | `cargo run --package pumpswap_direct_trading` | [README](examples/pumpswap_direct_trading/README_CN.md) |
+| Raydium CPMM | `cargo run --package raydium_cpmm_trading` | [README](examples/raydium_cpmm_trading/README_CN.md) |
+| Raydium AMM V4 | `cargo run --package raydium_amm_v4_trading` | [README](examples/raydium_amm_v4_trading/README_CN.md) |
+| Meteora DAMM V2 | `cargo run --package meteora_damm_v2_direct_trading` | [README](examples/meteora_damm_v2_direct_trading/README_CN.md) |
+| Bonk 狙击 | `cargo run --package bonk_sniper_trading` | [README](examples/bonk_sniper_trading/README_CN.md) |
+| Bonk 跟单 | `cargo run --package bonk_copy_trading` | [README](examples/bonk_copy_trading/README_CN.md) |
+| 指令中间件 | `cargo run --package middleware_system` | [README](examples/middleware_system/README_CN.md) |
+| 地址查找表 | `cargo run --package address_lookup` | [README](examples/address_lookup/README_CN.md) |
+| Durable nonce | `cargo run --package nonce_cache` | [README](examples/nonce_cache/README_CN.md) |
+| SOL/WSOL 包装与解包 | `cargo run --package wsol_wrapper` | [README](examples/wsol_wrapper/README_CN.md) |
+| Seed 优化 | `cargo run --package seed_trading` | [README](examples/seed_trading/README_CN.md) |
+| Gas fee 策略 | `cargo run --package gas_fee_strategy` | [README](examples/gas_fee_strategy/README_CN.md) |
+| 多 DEX CLI 模板 | `cargo run --package cli_trading` | [README](examples/cli_trading/README_CN.md) |
 
 ### ⚙️ SWQoS 服务配置说明
 

@@ -10,3 +10,4 @@ solana-sdk = "3.0.0"
 solana-commitment-config = { version = "3.0.0", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 spl-token-2022 = { version = "8.0.0", features = ["no-entrypoint"] }
+anyhow = "1"

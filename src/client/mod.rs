@@ -1348,6 +1348,12 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
+        validate_trade_safety(
+            "buy",
+            params.input_token_amount,
+            params.fixed_output_token_amount,
+            params.slippage_basis_points,
+        )?;
         if params.recent_blockhash.is_none() && params.durable_nonce.is_none() {
             return Err(anyhow::anyhow!(
                 "Must provide either recent_blockhash or durable_nonce for buy (required for transaction validity)"
@@ -1476,6 +1482,12 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
+        validate_trade_safety(
+            "sell",
+            params.input_token_amount,
+            params.fixed_output_token_amount,
+            params.slippage_basis_points,
+        )?;
         #[cfg(feature = "perf-trace")]
         if sdk_log::sdk_log_enabled() && params.slippage_basis_points.is_none() {
             debug!(
@@ -1820,6 +1832,30 @@ impl TradingClient {
     }
 }
 
+fn validate_trade_safety(
+    side: &str,
+    input_amount: u64,
+    fixed_output_amount: Option<u64>,
+    slippage_basis_points: Option<u64>,
+) -> Result<(), anyhow::Error> {
+    if input_amount == 0 {
+        return Err(anyhow::anyhow!("{} input amount must be greater than zero", side));
+    }
+    if fixed_output_amount == Some(0) {
+        return Err(anyhow::anyhow!("{} fixed output amount must be greater than zero", side));
+    }
+    if let Some(bps) = slippage_basis_points {
+        if bps >= 10_000 {
+            return Err(anyhow::anyhow!(
+                "{} slippage_basis_points must be below 10000, got {}",
+                side,
+                bps
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1839,6 +1875,20 @@ mod tests {
             fee_recipient: global_constants::FEE_RECIPIENT,
             quote_mint: Pubkey::default(),
         })
+    }
+
+    #[test]
+    fn trade_safety_rejects_zero_amounts_and_unbounded_slippage() {
+        assert!(validate_trade_safety("buy", 0, None, Some(100)).is_err());
+        assert!(validate_trade_safety("buy", 1, Some(0), Some(100)).is_err());
+        assert!(validate_trade_safety("sell", 1, None, Some(10_000)).is_err());
+        assert!(validate_trade_safety("sell", 1, None, Some(u64::MAX)).is_err());
+    }
+
+    #[test]
+    fn trade_safety_accepts_bounded_values() {
+        assert!(validate_trade_safety("buy", 1, None, None).is_ok());
+        assert!(validate_trade_safety("buy", 1, Some(1), Some(9_999)).is_ok());
     }
 
     #[test]

@@ -281,27 +281,33 @@ Optional builder methods:
 When using shred to subscribe to events, due to the nature of shreds, you cannot get complete information about transaction events.
 Please ensure that the parameters your trading logic depends on are available in shreds when using them.
 
+See the [low-latency bot integration checklist](docs/LOW_LATENCY_BOTS.md) for client warmup, blockhash/nonce handling, trade intent, event-state freshness, and bounded requoting.
+
 ### 📊 Usage Examples Summary Table
 
-| Description | Run Command | Source Code |
+The complete bilingual index and safety classification are available in [`examples/README.md`](examples/README.md).
+
+| Description | Run Command | Guide |
 |-------------|-------------|-------------|
-| Simple buy/sell parameter API | `cargo run --package simple_trading` | [examples/simple_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/simple_trading/src/main.rs) |
-| Create and configure TradingClient instance | `cargo run --package trading_client` | [examples/trading_client](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/trading_client/src/main.rs) |
-| Share infrastructure across multiple wallets | `cargo run --package shared_infrastructure` | [examples/shared_infrastructure](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/shared_infrastructure/src/main.rs) |
-| PumpFun token sniping trading | `cargo run --package pumpfun_sniper_trading` | [examples/pumpfun_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_sniper_trading/src/main.rs) |
-| PumpFun token copy trading | `cargo run --package pumpfun_copy_trading` | [examples/pumpfun_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpfun_copy_trading/src/main.rs) |
-| PumpSwap trading operations | `cargo run --package pumpswap_trading` | [examples/pumpswap_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/pumpswap_trading/src/main.rs) |
-| Raydium CPMM trading operations | `cargo run --package raydium_cpmm_trading` | [examples/raydium_cpmm_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_cpmm_trading/src/main.rs) |
-| Raydium AMM V4 trading operations | `cargo run --package raydium_amm_v4_trading` | [examples/raydium_amm_v4_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/raydium_amm_v4_trading/src/main.rs) |
-| Meteora DAMM V2 trading operations | `cargo run --package meteora_damm_v2_direct_trading` | [examples/meteora_damm_v2_direct_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/meteora_damm_v2_direct_trading/src/main.rs) |
-| Bonk token sniping trading | `cargo run --package bonk_sniper_trading` | [examples/bonk_sniper_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_sniper_trading/src/main.rs) |
-| Bonk token copy trading | `cargo run --package bonk_copy_trading` | [examples/bonk_copy_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/bonk_copy_trading/src/main.rs) |
-| Custom instruction middleware example | `cargo run --package middleware_system` | [examples/middleware_system](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/middleware_system/src/main.rs) |
-| Address lookup table example | `cargo run --package address_lookup` | [examples/address_lookup](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/address_lookup/src/main.rs) |
-| Nonce example | `cargo run --package nonce_cache` | [examples/nonce_cache](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/nonce_cache/src/main.rs) |
-| Wrap/unwrap SOL to/from WSOL example | `cargo run --package wsol_wrapper` | [examples/wsol_wrapper](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/wsol_wrapper/src/main.rs) |
-| Seed trading example | `cargo run --package seed_trading` | [examples/seed_trading](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/seed_trading/src/main.rs) |
-| Gas fee strategy example | `cargo run --package gas_fee_strategy` | [examples/gas_fee_strategy](https://github.com/0xfnzero/sol-trade-sdk/tree/main/examples/gas_fee_strategy/src/main.rs) |
+| Simple buy/sell parameter API | `cargo run --package simple_trading` | [README](examples/simple_trading/README.md) |
+| Create and configure TradingClient | `cargo run --package trading_client` | [README](examples/trading_client/README.md) |
+| Share infrastructure across wallets | `cargo run --package shared_infrastructure` | [README](examples/shared_infrastructure/README.md) |
+| PumpFun sniper | `cargo run --package pumpfun_sniper_trading` | [README](examples/pumpfun_sniper_trading/README.md) |
+| PumpFun copy trading | `cargo run --package pumpfun_copy_trading` | [README](examples/pumpfun_copy_trading/README.md) |
+| PumpSwap low-latency stream | `cargo run --package pumpswap_trading` | [README](examples/pumpswap_trading/README.md) |
+| PumpSwap direct RPC flow | `cargo run --package pumpswap_direct_trading` | [README](examples/pumpswap_direct_trading/README.md) |
+| Raydium CPMM | `cargo run --package raydium_cpmm_trading` | [README](examples/raydium_cpmm_trading/README.md) |
+| Raydium AMM V4 | `cargo run --package raydium_amm_v4_trading` | [README](examples/raydium_amm_v4_trading/README.md) |
+| Meteora DAMM V2 | `cargo run --package meteora_damm_v2_direct_trading` | [README](examples/meteora_damm_v2_direct_trading/README.md) |
+| Bonk sniper | `cargo run --package bonk_sniper_trading` | [README](examples/bonk_sniper_trading/README.md) |
+| Bonk copy trading | `cargo run --package bonk_copy_trading` | [README](examples/bonk_copy_trading/README.md) |
+| Instruction middleware | `cargo run --package middleware_system` | [README](examples/middleware_system/README.md) |
+| Address lookup tables | `cargo run --package address_lookup` | [README](examples/address_lookup/README.md) |
+| Durable nonce | `cargo run --package nonce_cache` | [README](examples/nonce_cache/README.md) |
+| Wrap/unwrap SOL and WSOL | `cargo run --package wsol_wrapper` | [README](examples/wsol_wrapper/README.md) |
+| Seed optimization | `cargo run --package seed_trading` | [README](examples/seed_trading/README.md) |
+| Gas fee strategy | `cargo run --package gas_fee_strategy` | [README](examples/gas_fee_strategy/README.md) |
+| Multi-DEX CLI template | `cargo run --package cli_trading` | [README](examples/cli_trading/README.md) |
 
 ### ⚙️ SWQoS Service Configuration
 

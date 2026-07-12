@@ -1,6 +1,5 @@
 use sol_trade_sdk::{common::TradeConfig, swqos::SwqosConfig, SolanaTrade};
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::signature::Keypair;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -80,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Create and initialize SolanaTrade client
 async fn create_solana_trade_client() -> Result<SolanaTrade, Box<dyn std::error::Error>> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("use_your_payer_keypair_here");
+    let payer = sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?;
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];

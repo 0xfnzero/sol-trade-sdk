@@ -1,6 +1,10 @@
 # SOL Trade CLI
 
+[中文](README_CN.md)
+
 A command-line tool for trading tokens on Solana, supporting multiple DEX trading and wallet management features.
+
+> **Live transaction warning:** set `PRIVATE_KEY` (base58 or a 64-byte JSON array) and `RPC_URL` before running. The CLI no longer creates a temporary trading wallet. Commands below can submit real mainnet transactions.
 
 ## Features
 

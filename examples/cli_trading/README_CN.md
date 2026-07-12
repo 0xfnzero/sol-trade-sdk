@@ -1,6 +1,10 @@
 # SOL Trade CLI
 
+[English](README.md)
+
 一个用于在 Solana 上交易代币的命令行工具，支持多种 DEX 交易和钱包管理功能。
+
+> **真实交易警告：**运行前设置 `PRIVATE_KEY`（base58 或 64 字节 JSON 数组）和 `RPC_URL`。CLI 不再创建临时交易钱包；下列命令可能提交真实主网交易。
 
 ## 功能
 

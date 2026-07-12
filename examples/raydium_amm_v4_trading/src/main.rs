@@ -1,4 +1,3 @@
-use sol_trade_sdk::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed;
 use sol_trade_sdk::{
     common::AnyResult,
     swqos::SwqosConfig,
@@ -10,8 +9,6 @@ use sol_trade_sdk::{
 };
 use sol_trade_sdk::{common::TradeConfig, TradeTokenType};
 use solana_commitment_config::CommitmentConfig;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
 use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use solana_streamer_sdk::streaming::event_parser::common::EventType;
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_amm_v4::parser::RAYDIUM_AMM_V4_PROGRAM_ID;
@@ -89,7 +86,7 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
                     tokio::spawn(async move {
                         if let Err(err) = raydium_amm_v4_copy_trade_with_grpc(event_clone).await {
                             eprintln!("Error in copy trade: {:?}", err);
-                            std::process::exit(0);
+                            std::process::exit(1);
                         }
                     });
                 }
@@ -102,7 +99,7 @@ fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
 /// Initializes a new SolanaTrade client with configuration
 async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
     println!("🚀 Initializing SolanaTrade client...");
-    let payer = Keypair::from_base58_string("your_payer_keypair_here");
+    let payer = sol_trade_sdk::common::keypair::load_keypair_from_env("PRIVATE_KEY")?;
     let rpc_url = "https://api.mainnet-beta.solana.com".to_string();
     let commitment = CommitmentConfig::confirmed();
     let swqos_configs: Vec<SwqosConfig> = vec![SwqosConfig::Default(rpc_url.clone())];
@@ -147,6 +144,9 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
     let input_token_amount = 100_000;
     let is_wsol = params.pc_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || params.coin_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+    let mint_token_program = client.infrastructure.rpc.get_account(&mint_pubkey).await?.owner;
+    let balance_before =
+        client.get_payer_token_balance_with_program(&mint_pubkey, &mint_token_program).await?;
     let buy_params = sol_trade_sdk::TradeBuyParams {
         dex_type: DexType::RaydiumAmmV4,
         input_token_type: if is_wsol { TradeTokenType::WSOL } else { TradeTokenType::USDC },
@@ -168,22 +168,24 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         use_exact_sol_amount: None,
         grpc_recv_us: None,
     };
-    client.buy(buy_params).await?;
+    let (ok, sigs, err, _) = client.buy(buy_params).await?;
+    if !ok {
+        return Err(
+            std::io::Error::other(format!("buy failed: {:?}; sigs: {:?}", err, sigs)).into()
+        );
+    }
 
     // Sell tokens
     println!("Selling tokens from Raydium_amm_v4...");
 
-    let rpc = client.infrastructure.rpc.clone();
-    let payer = client.payer.pubkey();
-    let account = get_associated_token_address_with_program_id_fast_use_seed(
-        &payer,
-        &mint_pubkey,
-        &trade_info.token_program,
-        client.use_seed_optimize,
-    );
-    let balance = rpc.get_token_account_balance(&account).await?;
-    println!("Balance: {:?}", balance);
-    let amount_token = balance.amount.parse::<u64>().unwrap();
+    let balance_after =
+        client.get_payer_token_balance_with_program(&mint_pubkey, &mint_token_program).await?;
+    let amount_token = balance_after
+        .checked_sub(balance_before)
+        .ok_or_else(|| std::io::Error::other("token balance decreased after buy"))?;
+    if amount_token == 0 {
+        return Err(std::io::Error::other("confirmed buy did not increase token balance").into());
+    }
 
     println!("Selling {} tokens", amount_token);
     let params =
@@ -195,7 +197,7 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         mint: mint_pubkey,
         input_token_amount: amount_token,
         slippage_basis_points: slippage_basis_points,
-        recent_blockhash: Some(recent_blockhash),
+        recent_blockhash: Some(client.infrastructure.rpc.get_latest_blockhash().await?),
         with_tip: false,
         extension_params: DexParamEnum::RaydiumAmmV4(params),
         address_lookup_table_accounts: Vec::new(),
@@ -210,7 +212,12 @@ async fn raydium_amm_v4_copy_trade_with_grpc(trade_info: RaydiumAmmV4SwapEvent) 
         simulate: false,
         grpc_recv_us: None,
     };
-    client.sell(sell_params).await?;
+    let (ok, sigs, err, _) = client.sell(sell_params).await?;
+    if !ok {
+        return Err(
+            std::io::Error::other(format!("sell failed: {:?}; sigs: {:?}", err, sigs)).into()
+        );
+    }
 
     // Exit program
     std::process::exit(0);
