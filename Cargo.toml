@@ -112,7 +112,7 @@ sha2 = "0.10"
 tonic-prost = "0.14.2"
 # 须含 runtime-tokio，否则 quinn::Endpoint::client 报 no async runtime found，QUIC（Speedlanding/Soyas）无法初始化
 quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
-lunar-lander-quic-client = "0.1"
+lunar-lander-quic-client = "0.4"
 rcgen = "0.13"
 uuid = "1.11"
 

@@ -15,8 +15,7 @@ use crate::{common::SolanaRpcClient, constants::swqos::LUNARLANDER_TIP_ACCOUNTS}
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::task::JoinHandle;
 
-use lunar_lander_quic_client::LunarLanderQuicClient;
-use tokio::sync::Mutex;
+use lunar_lander_quic_client::{ClientOptions, LunarLanderQuicClient};
 
 #[derive(Clone)]
 pub enum LunarLanderBackend {
@@ -27,7 +26,7 @@ pub enum LunarLanderBackend {
         ping_handle: Arc<tokio::sync::Mutex<Option<JoinHandle<()>>>>,
         stop_ping: Arc<AtomicBool>,
     },
-    Quic(Arc<Mutex<LunarLanderQuicClient>>),
+    Quic(Arc<LunarLanderQuicClient>),
 }
 
 #[derive(Clone)]
@@ -98,12 +97,22 @@ impl LunarLanderClient {
     }
 
     /// Create a QUIC client (port 16888, cert CN = api_key, fire-and-forget unidirectional streams).
-    pub async fn new_quic(rpc_url: String, quic_endpoint: &str, api_key: String) -> Result<Self> {
+    pub async fn new_quic(
+        rpc_url: String,
+        quic_endpoint: &str,
+        api_key: String,
+        mev_protection: bool,
+    ) -> Result<Self> {
         let rpc_client = SolanaRpcClient::new(rpc_url);
-        let quic_client = LunarLanderQuicClient::connect(quic_endpoint, &api_key).await?;
+        let quic_client = LunarLanderQuicClient::connect_with_options(
+            quic_endpoint,
+            api_key,
+            quic_client_options(mev_protection),
+        )
+        .await?;
         Ok(Self {
             rpc_client: Arc::new(rpc_client),
-            backend: LunarLanderBackend::Quic(Arc::new(Mutex::new(quic_client))),
+            backend: LunarLanderBackend::Quic(Arc::new(quic_client)),
         })
     }
 
@@ -155,7 +164,7 @@ impl LunarLanderClient {
         endpoint: &str,
         auth_token: &str,
     ) -> Result<()> {
-        let url = format!("{}/ping", endpoint);
+        let url = format!("{}/ping", endpoint.trim_end_matches('/'));
         let response = http_client
             .get(&url)
             .header("x-api-key", auth_token)
@@ -173,13 +182,16 @@ impl LunarLanderClient {
         wait_confirmation: bool,
     ) -> Result<()> {
         let start_time = Instant::now();
-        let signature = transaction.signatures[0];
+        let signature = *transaction
+            .signatures
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("LunarLander transaction has no signature"))?;
         let body_bytes = bincode_serialize(transaction)
             .map_err(|e| anyhow::anyhow!("LunarLander binary serialize failed: {}", e))?;
 
         match &self.backend {
             LunarLanderBackend::Http { endpoint, auth_token, http_client, .. } => {
-                let url = format!("{}/send-bin", endpoint);
+                let url = format!("{}/send-bin", endpoint.trim_end_matches('/'));
                 let response = http_client
                     .post(&url)
                     .header("x-api-key", auth_token)
@@ -210,25 +222,7 @@ impl LunarLanderClient {
                 }
             }
             LunarLanderBackend::Quic(quic) => {
-                let send_result = {
-                    let client = quic.lock().await;
-                    client.send_transaction(&body_bytes).await
-                };
-                if let Err(e) = send_result {
-                    // Attempt reconnect on failure.
-                    let mut client = quic.lock().await;
-                    if let Err(re) = client.reconnect().await {
-                        if crate::common::sdk_log::sdk_log_enabled() {
-                            crate::common::sdk_log::log_swqos_submission_failed(
-                                "LunarLander",
-                                trade_type,
-                                start_time.elapsed(),
-                                format!("QUIC send failed: {}, reconnect failed: {}", e, re),
-                            );
-                        }
-                    }
-                    return Err(anyhow::anyhow!("LunarLander QUIC send failed: {}", e));
-                }
+                quic.send_transaction(&body_bytes).await?;
                 if crate::common::sdk_log::sdk_log_enabled() {
                     crate::common::sdk_log::log_swqos_submitted(
                         "LunarLander",
@@ -275,16 +269,28 @@ impl Drop for LunarLanderClient {
         match &self.backend {
             LunarLanderBackend::Http { stop_ping, ping_handle, .. } => {
                 stop_ping.store(true, Ordering::Relaxed);
-                let ping_handle = ping_handle.clone();
-                tokio::spawn(async move {
-                    let mut guard = ping_handle.lock().await;
-                    if let Some(handle) = guard.as_ref() {
+                if let Ok(mut guard) = ping_handle.try_lock() {
+                    if let Some(handle) = guard.take() {
                         handle.abort();
                     }
-                    *guard = None;
-                });
+                }
             }
             LunarLanderBackend::Quic(_) => {}
         }
+    }
+}
+
+fn quic_client_options(mev_protection: bool) -> ClientOptions {
+    ClientOptions { mev_protect: mev_protection, ..ClientOptions::default() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quic_options_follow_sdk_mev_protection() {
+        assert!(!quic_client_options(false).mev_protect);
+        assert!(quic_client_options(true).mev_protect);
     }
 }

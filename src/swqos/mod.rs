@@ -553,9 +553,13 @@ impl SwqosConfig {
                     let quic_endpoint = url.unwrap_or_else(|| {
                         SWQOS_ENDPOINTS_LUNARLANDER_QUIC[region as usize].to_string()
                     });
-                    let lunarlander_client =
-                        LunarLanderClient::new_quic(rpc_url.clone(), &quic_endpoint, api_key)
-                            .await?;
+                    let lunarlander_client = LunarLanderClient::new_quic(
+                        rpc_url.clone(),
+                        &quic_endpoint,
+                        api_key,
+                        mev_protection,
+                    )
+                    .await?;
                     Ok(Arc::new(lunarlander_client))
                 } else {
                     let endpoint = SwqosConfig::get_endpoint(SwqosType::LunarLander, region, url);
