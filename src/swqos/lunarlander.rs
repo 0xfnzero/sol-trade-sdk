@@ -1,34 +1,39 @@
-//! HelloMoon Lunar Lander SWQOS client.
-//!
-//! High-performance transaction landing service with keep-alive ping.
-//! Auth via `?api-key=` query parameter. Minimum tip: 0.001 SOL.
-
-use crate::swqos::common::{
-    default_http_client_builder, poll_transaction_confirmation, serialize_transaction_and_encode,
-};
+use crate::swqos::common::{default_http_client_builder, poll_transaction_confirmation};
 use rand::seq::IndexedRandom;
 use reqwest::Client;
-use serde_json::json;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{sync::Arc, time::Instant};
-
-use solana_transaction_status::UiTransactionEncoding;
-use std::time::Duration;
 
 use crate::swqos::SwqosClientTrait;
 use crate::swqos::{SwqosType, TradeType};
 use anyhow::Result;
+use bincode::serialize as bincode_serialize;
 use solana_sdk::transaction::VersionedTransaction;
+use std::time::Duration;
 
 use crate::{common::SolanaRpcClient, constants::swqos::LUNARLANDER_TIP_ACCOUNTS};
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::task::JoinHandle;
+
+use lunar_lander_quic_client::LunarLanderQuicClient;
+use tokio::sync::Mutex;
+
+#[derive(Clone)]
+pub enum LunarLanderBackend {
+    Http {
+        endpoint: String,
+        auth_token: String,
+        http_client: Client,
+        ping_handle: Arc<tokio::sync::Mutex<Option<JoinHandle<()>>>>,
+        stop_ping: Arc<AtomicBool>,
+    },
+    Quic(Arc<Mutex<LunarLanderQuicClient>>),
+}
+
 #[derive(Clone)]
 pub struct LunarLanderClient {
-    pub endpoint: String,
-    pub api_key: String,
     pub rpc_client: Arc<SolanaRpcClient>,
-    pub http_client: Client,
-    stop_ping: Arc<AtomicBool>,
+    backend: LunarLanderBackend,
 }
 
 #[async_trait::async_trait]
@@ -39,7 +44,7 @@ impl SwqosClientTrait for LunarLanderClient {
         transaction: &VersionedTransaction,
         wait_confirmation: bool,
     ) -> Result<()> {
-        self.send_transaction(trade_type, transaction, wait_confirmation).await
+        self.send_transaction_impl(trade_type, transaction, wait_confirmation).await
     }
 
     async fn send_transactions(
@@ -48,7 +53,10 @@ impl SwqosClientTrait for LunarLanderClient {
         transactions: &Vec<VersionedTransaction>,
         wait_confirmation: bool,
     ) -> Result<()> {
-        self.send_transactions(trade_type, transactions, wait_confirmation).await
+        for transaction in transactions {
+            self.send_transaction_impl(trade_type, transaction, wait_confirmation).await?;
+        }
+        Ok(())
     }
 
     fn get_tip_account(&self) -> Result<String> {
@@ -65,145 +73,184 @@ impl SwqosClientTrait for LunarLanderClient {
 }
 
 impl LunarLanderClient {
-    /// Derive the ping URL from the send endpoint by replacing the last path segment.
-    fn ping_url(endpoint: &str, api_key: &str) -> String {
-        // Find the last '/' that is part of the path (after "://")
-        let scheme_end = endpoint.find("://").map(|i| i + 3).unwrap_or(0);
-        let base = endpoint[scheme_end..]
-            .rfind('/')
-            .map(|i| &endpoint[..scheme_end + i])
-            .unwrap_or(endpoint);
-        format!("{}/ping?api-key={}", base, api_key)
-    }
-
-    /// Derive the send URL with the API key query parameter.
-    fn send_url(endpoint: &str, api_key: &str) -> String {
-        let separator = if endpoint.contains('?') { '&' } else { '?' };
-        format!("{}{}api-key={}", endpoint, separator, api_key)
-    }
-
-    pub fn new(rpc_url: String, endpoint: String, api_key: String) -> Self {
+    /// Create an HTTP binary client (POST /send-bin with bincode body).
+    pub fn new(rpc_url: String, endpoint: String, auth_token: String) -> Self {
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let http_client = default_http_client_builder().build().unwrap();
-
+        let ping_handle = Arc::new(tokio::sync::Mutex::new(None));
         let stop_ping = Arc::new(AtomicBool::new(false));
 
         let client = Self {
             rpc_client: Arc::new(rpc_client),
-            endpoint: endpoint.clone(),
-            api_key: api_key.clone(),
-            http_client: http_client.clone(),
-            stop_ping: stop_ping.clone(),
+            backend: LunarLanderBackend::Http {
+                endpoint,
+                auth_token,
+                http_client,
+                ping_handle,
+                stop_ping,
+            },
         };
-
-        // Start ping task
         let client_clone = client.clone();
         tokio::spawn(async move {
             client_clone.start_ping_task().await;
         });
-
         client
     }
 
-    /// Start periodic ping task to keep connections active.
-    /// GET /ping every 30s on the same TCP connection (recommended 30-45s by HelloMoon).
-    async fn start_ping_task(&self) {
-        let ping_url = Self::ping_url(&self.endpoint, &self.api_key);
-        let http_client = self.http_client.clone();
-        let stop_ping = self.stop_ping.clone();
-
-        tokio::spawn(async move {
-            // Immediate first ping to warm connection and reduce first-submit cold start latency
-            if let Ok(resp) =
-                http_client.get(&ping_url).timeout(Duration::from_millis(1500)).send().await
-            {
-                let status = resp.status();
-                let _ = resp.bytes().await;
-                if !status.is_success() && crate::common::sdk_log::sdk_log_enabled() {
-                    eprintln!(" [lunarlander] ping failed with status: {}", status);
-                }
-            }
-            let mut interval = tokio::time::interval(Duration::from_secs(30));
-            loop {
-                interval.tick().await;
-                if stop_ping.load(Ordering::Relaxed) {
-                    break;
-                }
-                match http_client.get(&ping_url).timeout(Duration::from_millis(1500)).send().await {
-                    Ok(response) => {
-                        let status = response.status();
-                        let _ = response.bytes().await;
-                        if !status.is_success() && crate::common::sdk_log::sdk_log_enabled() {
-                            eprintln!(" [lunarlander] ping failed with status: {}", status);
-                        }
-                    }
-                    Err(e) => {
-                        if crate::common::sdk_log::sdk_log_enabled() {
-                            eprintln!(" [lunarlander] ping request error: {:?}", e);
-                        }
-                    }
-                }
-            }
-        });
+    /// Create a QUIC client (port 16888, cert CN = api_key, fire-and-forget unidirectional streams).
+    pub async fn new_quic(rpc_url: String, quic_endpoint: &str, api_key: String) -> Result<Self> {
+        let rpc_client = SolanaRpcClient::new(rpc_url);
+        let quic_client = LunarLanderQuicClient::connect(quic_endpoint, &api_key).await?;
+        Ok(Self {
+            rpc_client: Arc::new(rpc_client),
+            backend: LunarLanderBackend::Quic(Arc::new(Mutex::new(quic_client))),
+        })
     }
 
-    pub async fn send_transaction(
+    async fn start_ping_task(&self) {
+        match &self.backend {
+            LunarLanderBackend::Http {
+                endpoint,
+                auth_token,
+                http_client,
+                ping_handle,
+                stop_ping,
+            } => {
+                let endpoint = endpoint.clone();
+                let auth_token = auth_token.clone();
+                let http_client = http_client.clone();
+                let ping_handle = ping_handle.clone();
+                let stop_ping = stop_ping.clone();
+                let handle = tokio::spawn(async move {
+                    // Immediate first ping to warm connection.
+                    let _ = Self::send_ping_request(&http_client, &endpoint, &auth_token).await;
+                    let mut interval = tokio::time::interval(Duration::from_secs(30));
+                    loop {
+                        interval.tick().await;
+                        if stop_ping.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        if let Err(e) =
+                            Self::send_ping_request(&http_client, &endpoint, &auth_token).await
+                        {
+                            if crate::common::sdk_log::sdk_log_enabled() {
+                                eprintln!("LunarLander ping request failed: {}", e);
+                            }
+                        }
+                    }
+                });
+                let mut guard = ping_handle.lock().await;
+                if let Some(old) = guard.as_ref() {
+                    old.abort();
+                }
+                *guard = Some(handle);
+            }
+            LunarLanderBackend::Quic(_) => {}
+        }
+    }
+
+    /// GET {endpoint}/ping for HTTP keepalive.
+    async fn send_ping_request(
+        http_client: &Client,
+        endpoint: &str,
+        auth_token: &str,
+    ) -> Result<()> {
+        let url = format!("{}/ping", endpoint);
+        let response = http_client
+            .get(&url)
+            .header("x-api-key", auth_token)
+            .timeout(Duration::from_millis(1500))
+            .send()
+            .await?;
+        let _ = response.bytes().await;
+        Ok(())
+    }
+
+    async fn send_transaction_impl(
         &self,
         trade_type: TradeType,
         transaction: &VersionedTransaction,
         wait_confirmation: bool,
     ) -> Result<()> {
         let start_time = Instant::now();
-        let (content, signature) =
-            serialize_transaction_and_encode(transaction, UiTransactionEncoding::Base64)?;
+        let signature = transaction.signatures[0];
+        let body_bytes = bincode_serialize(transaction)
+            .map_err(|e| anyhow::anyhow!("LunarLander binary serialize failed: {}", e))?;
 
-        let request_body = serde_json::to_string(&json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "sendTransaction",
-            "params": [
-                content,
-                { "encoding": "base64" }
-            ]
-        }))?;
-
-        let url = Self::send_url(&self.endpoint, &self.api_key);
-
-        let response_text = self
-            .http_client
-            .post(&url)
-            .body(request_body)
-            .header("Content-Type", "application/json")
-            .header("Connection", "keep-alive")
-            .header("Keep-Alive", "timeout=30, max=1000")
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        // Parse response
-        if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
-            if crate::common::sdk_log::sdk_log_enabled() {
-                if response_json.get("result").is_some() {
-                    println!(" [lunarlander] {} submitted: {:?}", trade_type, start_time.elapsed());
-                } else if let Some(error) = response_json.get("error") {
-                    eprintln!(" [lunarlander] {} submission failed: {:?}", trade_type, error);
+        match &self.backend {
+            LunarLanderBackend::Http { endpoint, auth_token, http_client, .. } => {
+                let url = format!("{}/send-bin", endpoint);
+                let response = http_client
+                    .post(&url)
+                    .header("x-api-key", auth_token)
+                    .header("Content-Type", "application/octet-stream")
+                    .body(body_bytes)
+                    .send()
+                    .await?;
+                let status = response.status();
+                let _ = response.bytes().await;
+                if status.is_success() {
+                    if crate::common::sdk_log::sdk_log_enabled() {
+                        crate::common::sdk_log::log_swqos_submitted(
+                            "LunarLander",
+                            trade_type,
+                            start_time.elapsed(),
+                        );
+                    }
+                } else {
+                    if crate::common::sdk_log::sdk_log_enabled() {
+                        crate::common::sdk_log::log_swqos_submission_failed(
+                            "LunarLander",
+                            trade_type,
+                            start_time.elapsed(),
+                            format!("status {}", status),
+                        );
+                    }
+                    return Err(anyhow::anyhow!("LunarLander sendTransaction failed: {}", status));
                 }
             }
-        } else if crate::common::sdk_log::sdk_log_enabled() {
-            eprintln!(" [lunarlander] {} submission failed: {:?}", trade_type, response_text);
+            LunarLanderBackend::Quic(quic) => {
+                let send_result = {
+                    let client = quic.lock().await;
+                    client.send_transaction(&body_bytes).await
+                };
+                if let Err(e) = send_result {
+                    // Attempt reconnect on failure.
+                    let mut client = quic.lock().await;
+                    if let Err(re) = client.reconnect().await {
+                        if crate::common::sdk_log::sdk_log_enabled() {
+                            crate::common::sdk_log::log_swqos_submission_failed(
+                                "LunarLander",
+                                trade_type,
+                                start_time.elapsed(),
+                                format!("QUIC send failed: {}, reconnect failed: {}", e, re),
+                            );
+                        }
+                    }
+                    return Err(anyhow::anyhow!("LunarLander QUIC send failed: {}", e));
+                }
+                if crate::common::sdk_log::sdk_log_enabled() {
+                    crate::common::sdk_log::log_swqos_submitted(
+                        "LunarLander",
+                        trade_type,
+                        start_time.elapsed(),
+                    );
+                }
+            }
         }
 
-        let start_time: Instant = Instant::now();
+        let start_time = Instant::now();
         match poll_transaction_confirmation(&self.rpc_client, signature, wait_confirmation).await {
             Ok(_) => (),
             Err(e) => {
                 if crate::common::sdk_log::sdk_log_enabled() {
                     println!(" signature: {:?}", signature);
                     println!(
-                        " [lunarlander] {} confirmation failed: {:?}",
+                        " [{:width$}] {} confirmation failed: {:?}",
+                        "LunarLander",
                         trade_type,
-                        start_time.elapsed()
+                        start_time.elapsed(),
+                        width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
                     );
                 }
                 return Err(e);
@@ -211,88 +258,33 @@ impl LunarLanderClient {
         }
         if wait_confirmation && crate::common::sdk_log::sdk_log_enabled() {
             println!(" signature: {:?}", signature);
-            println!(" [lunarlander] {} confirmed: {:?}", trade_type, start_time.elapsed());
-        }
-
-        Ok(())
-    }
-
-    pub async fn send_transactions(
-        &self,
-        trade_type: TradeType,
-        transactions: &Vec<VersionedTransaction>,
-        wait_confirmation: bool,
-    ) -> Result<()> {
-        for transaction in transactions {
-            self.send_transaction(trade_type, transaction, wait_confirmation).await?;
+            println!(
+                " [{:width$}] {} confirmed: {:?}",
+                "LunarLander",
+                trade_type,
+                start_time.elapsed(),
+                width = crate::common::sdk_log::SWQOS_LABEL_WIDTH
+            );
         }
         Ok(())
-    }
-
-    /// Stop the ping task
-    pub fn stop_ping_task(&self) {
-        self.stop_ping.store(true, Ordering::Relaxed);
     }
 }
 
 impl Drop for LunarLanderClient {
     fn drop(&mut self) {
-        // Stop ping task when client is dropped
-        self.stop_ping.store(true, Ordering::Relaxed);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ping_url_default_endpoint() {
-        let url =
-            LunarLanderClient::ping_url("http://nyc.lunar-lander.hellomoon.io/send", "test-key");
-        assert_eq!(url, "http://nyc.lunar-lander.hellomoon.io/ping?api-key=test-key");
-    }
-
-    #[test]
-    fn test_ping_url_geolocated_endpoint() {
-        let url = LunarLanderClient::ping_url("http://lunar-lander.hellomoon.io/send", "test-key");
-        assert_eq!(url, "http://lunar-lander.hellomoon.io/ping?api-key=test-key");
-    }
-
-    #[test]
-    fn test_ping_url_custom_with_nested_path() {
-        let url = LunarLanderClient::ping_url("http://proxy.example.com/v2/lunar/send", "key123");
-        assert_eq!(url, "http://proxy.example.com/v2/lunar/ping?api-key=key123");
-    }
-
-    #[test]
-    fn test_ping_url_custom_pathless() {
-        // Custom URL with no path — should append /ping to the host
-        let url = LunarLanderClient::ping_url("http://proxy.example.com", "key123");
-        assert_eq!(url, "http://proxy.example.com/ping?api-key=key123");
-    }
-
-    #[test]
-    fn test_send_url_simple() {
-        let url =
-            LunarLanderClient::send_url("http://nyc.lunar-lander.hellomoon.io/send", "test-key");
-        assert_eq!(url, "http://nyc.lunar-lander.hellomoon.io/send?api-key=test-key");
-    }
-
-    #[test]
-    fn test_send_url_existing_query_params() {
-        let url = LunarLanderClient::send_url("http://proxy.example.com/send?foo=bar", "test-key");
-        assert_eq!(url, "http://proxy.example.com/send?foo=bar&api-key=test-key");
-    }
-
-    #[test]
-    fn test_tip_account_is_valid() {
-        // Verify the tip accounts array is non-empty and accounts parse as pubkeys
-        assert!(!LUNARLANDER_TIP_ACCOUNTS.is_empty());
-        for account in LUNARLANDER_TIP_ACCOUNTS {
-            // If these were invalid, the pubkey! macro would fail at compile time,
-            // but verify they are 32 bytes
-            assert_eq!(account.to_bytes().len(), 32);
+        match &self.backend {
+            LunarLanderBackend::Http { stop_ping, ping_handle, .. } => {
+                stop_ping.store(true, Ordering::Relaxed);
+                let ping_handle = ping_handle.clone();
+                tokio::spawn(async move {
+                    let mut guard = ping_handle.lock().await;
+                    if let Some(handle) = guard.as_ref() {
+                        handle.abort();
+                    }
+                    *guard = None;
+                });
+            }
+            LunarLanderBackend::Quic(_) => {}
         }
     }
 }
