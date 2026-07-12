@@ -277,8 +277,8 @@ pub enum SwqosConfig {
     Helius(String, SwqosRegion, Option<String>, Option<bool>),
     /// Solami(api_key, region, custom_url)
     Solami(String, SwqosRegion, Option<String>),
-    /// Lunar Lander (HelloMoon): binary tx via HTTP POST /send-bin or QUIC (port 16888).
-    /// (api_key, region, custom_url, transport). transport=None => HTTP; Some(Quic) => QUIC.
+    /// Lunar Lander (HelloMoon): binary tx via QUIC (port 16888) or HTTP POST /send-bin.
+    /// (api_key, region, custom_url, transport). transport=None => QUIC; Some(Http) => HTTP.
     /// Minimum tip: 0.001 SOL. Apply for API key: https://docs.hellomoon.io/reference/lunar-lander
     LunarLander(String, SwqosRegion, Option<String>, Option<SwqosTransport>),
 }
@@ -367,7 +367,7 @@ impl SwqosConfig {
                 }
             }
             SwqosType::LunarLander => {
-                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                let use_quic = transport.unwrap_or(SwqosTransport::Quic) == SwqosTransport::Quic;
                 if use_quic {
                     SWQOS_ENDPOINTS_LUNARLANDER_QUIC[region as usize].to_string()
                 } else {
@@ -548,7 +548,7 @@ impl SwqosConfig {
                 Ok(Arc::new(solami_client))
             }
             SwqosConfig::LunarLander(api_key, region, url, transport) => {
-                let use_quic = transport.map_or(false, |t| t == SwqosTransport::Quic);
+                let use_quic = transport.unwrap_or(SwqosTransport::Quic) == SwqosTransport::Quic;
                 if use_quic {
                     let quic_endpoint = url.unwrap_or_else(|| {
                         SWQOS_ENDPOINTS_LUNARLANDER_QUIC[region as usize].to_string()
@@ -574,5 +574,36 @@ impl SwqosConfig {
                 Ok(Arc::new(rpc_client))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lunarlander_defaults_to_quic_endpoint() {
+        let endpoint = SwqosConfig::get_endpoint_with_transport(
+            SwqosType::LunarLander,
+            SwqosRegion::Frankfurt,
+            None,
+            None,
+            false,
+        );
+
+        assert_eq!(endpoint, SWQOS_ENDPOINTS_LUNARLANDER_QUIC[SwqosRegion::Frankfurt as usize]);
+    }
+
+    #[test]
+    fn lunarlander_http_transport_uses_binary_http_endpoint() {
+        let endpoint = SwqosConfig::get_endpoint_with_transport(
+            SwqosType::LunarLander,
+            SwqosRegion::Frankfurt,
+            None,
+            Some(SwqosTransport::Http),
+            false,
+        );
+
+        assert_eq!(endpoint, SWQOS_ENDPOINTS_LUNARLANDER[SwqosRegion::Frankfurt as usize]);
     }
 }
