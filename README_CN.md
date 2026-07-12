@@ -104,7 +104,7 @@
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 5. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
 6. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
-7. **多种 MEV 保护**: 支持 Jito、Temporal、FlashBlock、BlockRazor、Astralane、SpeedLanding 等服务
+7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、SpeedLanding、LunarLander 等服务
 8. **并发交易**: 所有已配置的 SWQoS 通道和默认 RPC 通道都会发出提交；首个成功只影响返回，较慢通道会继续提交
 9. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 10. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
@@ -161,6 +161,7 @@ let swqos_configs: Vec<SwqosConfig> = vec![
     // Astralane：第4个参数为 AstralaneTransport — Binary（默认）、Plain（/iris）或 Quic
     SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None), // Binary /irisb
     SwqosConfig::SpeedLanding("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::LunarLander("your_hellomoon_api_key".to_string(), SwqosRegion::Frankfurt, None),
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -505,6 +506,8 @@ legacy SOL 事件里如果 `quote_mint` 是默认值或 Solscan SOL，并且 quo
 - **BlockRazor**: 高速交易执行，支持 API 密钥认证
 - **Astralane**: 区块链网络加速（Binary/Plain HTTP 与 QUIC）
 - **SpeedLanding**: 高速交易执行，支持 API 密钥认证
+- **Node1**: 高速交易执行，支持 API 密钥认证
+- **LunarLander**: HelloMoon 交易着陆服务（最低小费：0.001 SOL）
 
 ## 📁 项目结构
 

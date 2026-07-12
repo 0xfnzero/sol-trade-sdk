@@ -184,6 +184,20 @@ pub const SOLAMI_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("uiuaQsxA47JybQAVN4FTfYuoEDkMiXV1r591Aewbeam"),
 ];
 
+// LunarLander (HelloMoon) tip accounts
+pub const LUNARLANDER_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("moon17L6BgxXRX5uHKudAmqVF96xia9h8ygcmG2sL3F"),
+    pubkey!("moon26Sek222Md7ZydcAGxoKG832DK36CkLrS3PQY4c"),
+    pubkey!("moon7fwyajcVstMoBnVy7UBcTx87SBtNoGGAaH2Cb8V"),
+    pubkey!("moonBtH9HvLHjLqi9ivyrMVKgFUsSfrz9BwQ9khhn1u"),
+    pubkey!("moonCJg8476LNFLptX1qrK8PdRsA1HD1R6XWyu9MB93"),
+    pubkey!("moonF2sz7qwAtdETnrgxNbjonnhGGjd6r4W4UC9284s"),
+    pubkey!("moonKfftMiGSak3cezvhEqvkPSzwrmQxQHXuspC96yj"),
+    pubkey!("moonQBUKBpkifLcTd78bfxxt4PYLwmJ5admLW6cBBs8"),
+    pubkey!("moonXwpKwoVkMegt5Bc776cSW793X1irL5hHV1vJ3JA"),
+    pubkey!("moonZ6u9E2fgk6eWd82621eLPHt9zuJuYECXAYjMY1C"),
+];
+
 // `SwqosRegion` 与下列各 `SWQOS_ENDPOINTS_*` 下标严格对应（共 10 项）：
 // 0 NewYork, 1 Frankfurt, 2 Amsterdam, 3 Dublin, 4 SLC, 5 Tokyo, 6 Singapore, 7 London, 8 LosAngeles, 9 Default。
 //
@@ -433,6 +447,21 @@ pub const SWQOS_ENDPOINTS_SPEEDLANDING: [&str; 10] = [
     "fra.speedlanding.trade:17778", // Default: 非地理区域；EU 枢纽
 ];
 
+/// HelloMoon Lunar Lander: JSON-RPC sendTransaction, auth via ?api-key= query param.
+/// `SwqosRegion` order; regions without a dedicated published PoP use the nearest available host.
+pub const SWQOS_ENDPOINTS_LUNARLANDER: [&str; 10] = [
+    "http://nyc.lunar-lander.hellomoon.io/send", // NewYork
+    "http://fra.lunar-lander.hellomoon.io/send", // Frankfurt
+    "http://ams.lunar-lander.hellomoon.io/send", // Amsterdam
+    "http://ams.lunar-lander.hellomoon.io/send", // Dublin -> Amsterdam
+    "http://ash.lunar-lander.hellomoon.io/send", // SLC -> Ashburn
+    "http://tyo.lunar-lander.hellomoon.io/send", // Tokyo
+    "http://tyo.lunar-lander.hellomoon.io/send", // Singapore -> Tokyo
+    "http://fra.lunar-lander.hellomoon.io/send", // London -> Frankfurt
+    "http://nyc.lunar-lander.hellomoon.io/send", // LosAngeles -> NYC
+    "http://lunar-lander.hellomoon.io/send",     // Default
+];
+
 /// Helius Sender: POST /fast, dual routing to validators and Jito. API key optional (custom TPS only).
 pub const SWQOS_ENDPOINTS_HELIUS: [&str; 10] = [
     "http://ewr-sender.helius-rpc.com/fast",
@@ -477,6 +506,7 @@ pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires mini
 /// Helius Sender: 0.0002 SOL when not swqos_only; use SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY when swqos_only=true.
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
 pub const SWQOS_MIN_TIP_SOLAMI: f64 = 0.0001;
+pub const SWQOS_MIN_TIP_LUNARLANDER: f64 = 0.001; // LunarLander 最低小费 0.001 SOL
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
 
@@ -503,6 +533,7 @@ mod tests {
         &SWQOS_ENDPOINTS_SOYAS,
         &SWQOS_ENDPOINTS_SPEEDLANDING,
         &SWQOS_ENDPOINTS_HELIUS,
+        &SWQOS_ENDPOINTS_LUNARLANDER,
         &SWQOS_ENDPOINTS_SOLAMI,
     ];
 
