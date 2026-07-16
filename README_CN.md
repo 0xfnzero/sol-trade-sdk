@@ -92,9 +92,9 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "4.0.21"`
+**Rust crate:** `sol-trade-sdk = "4.0.23"`
 
-本版本刷新 PumpFun native SOL quote 处理逻辑，SOL/WSOL sentinel 默认优先走更小的 V1 热路径，确保默认 RPC 提交通道会和 SWQoS 通道一起发出，快速提交结果等待窗口恢复为 5 秒，并将 Raydium CPMM fixed-output 交易对齐到链上 `swap_base_out` 指令。交易执行必须由调用方传入 `recent_blockhash` 或 durable nonce；热路径不会查询 RPC 获取 blockhash、账户或余额数据。
+本版本适配 PumpSwap 2026 年 7 月的虚拟 quote 储备升级。Pool 与事件 schema 新增 `virtual_quote_reserves`，PumpSwap 买入、卖出、报价和动态费率计算统一使用 `quote_vault_balance + virtual_quote_reserves`。
 
 ## ✨ 项目特性
 
@@ -126,14 +126,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.21" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "4.0.23" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "4.0.21"
+sol-trade-sdk = "4.0.23"
 ```
 
 ## 🛠️ 使用示例
@@ -502,6 +502,14 @@ legacy SOL 事件里如果 `quote_mint` 是默认值或 Solscan SOL，并且 quo
 |-----------|---------|------|
 | 未设置（默认）/ `SOL_TOKEN_ACCOUNT` (`So111...11111`) / `WSOL_TOKEN_ACCOUNT` (`So111...11112`) | 优先旧版 `buy`/`sell`/`buy_exact_sol_in` | native SOL 配对；普通 SOL 结算走 V1，显式 WSOL 结算才走 V2 |
 | `USDC_TOKEN_ACCOUNT` | `buy_v2`/`sell_v2`/`buy_exact_quote_in_v2` | USDC 配对（必须使用 v2） |
+
+#### PumpSwap：虚拟 quote 储备
+
+PumpSwap 报价必须使用 `effective_quote_reserves = pool_quote_token_account.amount + virtual_quote_reserves`。Pool 账户以及 BuyEvent/SellEvent 中的 `virtual_quote_reserves` 类型均为 `i128`。
+
+- `PumpSwapParams::from_pool_address_by_rpc` 等 RPC 构造器会自动读取并应用 Pool 字段。
+- 事件热路径必须把事件中的原始 `pool_quote_token_reserves` 和 `virtual_quote_reserves` 分别传给 `PumpSwapParams::from_trade(...)` 或 `from_trade_with_fee_basis_points(...)`，不要在调用前自行相加。
+- SDK 在买入、卖出、报价和动态费率分层中统一使用有效储备；无效的有符号结果会返回错误，不会发生整数回绕。
 
 ## 🛡️ MEV 保护服务
 

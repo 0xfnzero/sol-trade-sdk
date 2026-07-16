@@ -54,7 +54,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
         let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
+        let pool_quote_token_reserves = protocol_params.effective_quote_reserves()?;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
         let params_coin_creator_vault_authority = protocol_params.coin_creator_vault_authority;
         let create_input_ata = params.create_input_mint_ata;
@@ -283,7 +283,7 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
         let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
+        let pool_quote_token_reserves = protocol_params.effective_quote_reserves()?;
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
@@ -535,6 +535,7 @@ mod tests {
             pk(4),
             1_000_000_000,
             2_000_000_000,
+            0,
             pk(5),
             accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY,
             crate::constants::TOKEN_PROGRAM,
@@ -627,6 +628,7 @@ mod tests {
             pk(4),
             1_000_000_000,
             2_000_000_000,
+            0,
             pk(5),
             accounts::DEFAULT_COIN_CREATOR_VAULT_AUTHORITY,
             crate::constants::TOKEN_PROGRAM,
@@ -653,8 +655,9 @@ mod tests {
         let mut params = swap_params(TradeType::Buy, None);
         params.input_amount = Some(1_000_000);
         params.use_exact_sol_amount = Some(false);
-        params.protocol_params =
-            DexParamEnum::PumpSwap(pumpswap_params().with_fee_basis_points(20, 5, 75));
+        let mut protocol_params = pumpswap_params().with_fee_basis_points(20, 5, 75);
+        protocol_params.virtual_quote_reserves = 500_000_000;
+        params.protocol_params = DexParamEnum::PumpSwap(protocol_params);
 
         let instructions =
             PumpSwapInstructionBuilder.build_buy_instructions(&params).await.unwrap();
@@ -667,10 +670,33 @@ mod tests {
             1_000_000,
             100,
             1_000_000_000,
-            2_000_000_000,
+            2_500_000_000,
             &crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints::new(20, 5, 0),
         )
         .unwrap();
         assert_eq!(base_amount_out, expected.base);
+    }
+
+    #[tokio::test]
+    async fn pumpswap_sell_prices_with_effective_quote_reserves() {
+        let mut params = swap_params(TradeType::Sell, None);
+        let mut protocol_params = pumpswap_params().with_fee_basis_points(20, 5, 0);
+        protocol_params.virtual_quote_reserves = 500_000_000;
+        params.protocol_params = DexParamEnum::PumpSwap(protocol_params);
+
+        let instructions =
+            PumpSwapInstructionBuilder.build_sell_instructions(&params).await.unwrap();
+        let ix = instructions.last().unwrap();
+        let min_quote_amount_out = u64::from_le_bytes(ix.data[16..24].try_into().unwrap());
+
+        let expected = crate::utils::calc::pumpswap::sell_base_input_internal_with_fees(
+            100_000,
+            100,
+            1_000_000_000,
+            2_500_000_000,
+            &crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints::new(20, 5, 0),
+        )
+        .unwrap();
+        assert_eq!(min_quote_amount_out, expected.min_quote);
     }
 }

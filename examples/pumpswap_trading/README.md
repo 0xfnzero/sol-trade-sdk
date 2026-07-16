@@ -21,6 +21,7 @@ cargo run --release --package pumpswap_trading
 
 - The buy uses `BuyAmount::WithMaxInput`, which applies slippage to maximum quote cost and is appropriate when fill priority matters.
 - Buy parameters use post-trade reserves and LP/protocol/creator fee bps from the event.
+- `solana-streamer-sdk 0.5.0` predates the appended `virtual_quote_reserves` event field, so this compatibility example reads that Pool field once before quoting. When the parser exposes the field, pass it directly to `PumpSwapParams::from_trade_with_fee_basis_points` or keep it in a Pool account cache to remove this RPC from the hot path.
 - The example records the pre-buy balance and sells only the confirmed balance increase. It refreshes pool state and blockhash before selling.
 - Use `BuyAmount::ExactInput` when the quote spend must be exact. That mode protects minimum output and can fail more often in an active pool.
 

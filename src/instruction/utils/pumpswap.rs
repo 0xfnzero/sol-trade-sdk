@@ -18,7 +18,7 @@ use std::sync::{
 use std::time::{Duration, Instant};
 use tracing::warn;
 
-// Pool account sizes moved to find_by_base_mint/find_by_quote_mint (POOL_DATA_LEN_SPL, POOL_DATA_LEN_T22)
+// Pool account sizes are handled by find_by_base_mint/find_by_quote_mint.
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {
@@ -740,12 +740,14 @@ pub async fn fetch_pool(
     Ok(pool)
 }
 
-/// Known pool account sizes: 252 (SPL Token) and 643 (Token2022)
-const POOL_DATA_LEN_SPL: u64 = 8 + 244;
-const POOL_DATA_LEN_T22: u64 = 643;
+/// Known allocated Pool account sizes. The July 2026 layout carrying
+/// `virtual_quote_reserves` is allocated to 300 bytes on-chain.
+const POOL_DATA_LEN_LEGACY: u64 = 8 + 244;
+const POOL_DATA_LEN_CURRENT: u64 = 300;
+const POOL_DATA_LEN_EXTENDED: u64 = 643;
 
-/// Run getProgramAccounts with a Memcmp filter, querying both pool sizes in parallel.
-async fn get_program_accounts_both_sizes(
+/// Run getProgramAccounts with a Memcmp filter, querying known Pool sizes in parallel.
+async fn get_program_accounts_known_sizes(
     rpc: &SolanaRpcClient,
     memcmp_offset: usize,
     mint: &Pubkey,
@@ -768,12 +770,14 @@ async fn get_program_accounts_both_sizes(
     };
     let program_id = accounts::AMM_PROGRAM;
     #[allow(deprecated)]
-    let (spl_result, t22_result) = tokio::join!(
-        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_SPL)),
-        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_T22)),
+    let (legacy_result, current_result, extended_result) = tokio::join!(
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_LEGACY)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_CURRENT)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_EXTENDED)),
     );
-    let mut all = spl_result.unwrap_or_default();
-    all.extend(t22_result.unwrap_or_default());
+    let mut all = legacy_result.unwrap_or_default();
+    all.extend(current_result.unwrap_or_default());
+    all.extend(extended_result.unwrap_or_default());
     Ok(all)
 }
 
@@ -797,7 +801,7 @@ pub async fn find_by_base_mint(
     base_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
     // base_mint offset: 8(discriminator) + 1(bump) + 2(index) + 32(creator) = 43
-    let accounts = get_program_accounts_both_sizes(rpc, 43, base_mint).await?;
+    let accounts = get_program_accounts_known_sizes(rpc, 43, base_mint).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", base_mint));
     }
@@ -814,7 +818,7 @@ pub async fn find_by_quote_mint(
     quote_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
     // quote_mint offset: 8 + 1 + 2 + 32 + 32 = 75
-    let accounts = get_program_accounts_both_sizes(rpc, 75, quote_mint).await?;
+    let accounts = get_program_accounts_known_sizes(rpc, 75, quote_mint).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", quote_mint));
     }

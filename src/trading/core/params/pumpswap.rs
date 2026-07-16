@@ -32,8 +32,10 @@ pub struct PumpSwapParams {
     pub pool_quote_token_account: Pubkey,
     /// Base token reserves in the pool
     pub pool_base_token_reserves: u64,
-    /// Quote token reserves in the pool
+    /// Raw quote-vault token balance. Pricing uses this plus [`Self::virtual_quote_reserves`].
     pub pool_quote_token_reserves: u64,
+    /// Signed virtual quote reserves from the PumpSwap Pool account or trade event.
+    pub virtual_quote_reserves: i128,
     /// Coin creator vault ATA
     pub coin_creator_vault_ata: Pubkey,
     /// Coin creator vault authority
@@ -75,6 +77,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -99,6 +102,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -125,6 +129,21 @@ impl PumpSwapParams {
     pub fn with_base_mint_supply(mut self, base_mint_supply: u64) -> Self {
         self.base_mint_supply = Some(base_mint_supply);
         self
+    }
+
+    /// Quote reserves used by PumpSwap pricing and fee-tier selection.
+    pub fn effective_quote_reserves(&self) -> Result<u64, anyhow::Error> {
+        crate::instruction::utils::pumpswap_types::effective_quote_reserves(
+            self.pool_quote_token_reserves,
+            self.virtual_quote_reserves,
+        )
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Invalid PumpSwap effective quote reserves: vault={} virtual={}",
+                self.pool_quote_token_reserves,
+                self.virtual_quote_reserves
+            )
+        })
     }
 
     pub fn with_fee_basis_points(
@@ -161,6 +180,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -178,6 +198,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -202,6 +223,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -223,6 +245,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -277,6 +300,18 @@ impl PumpSwapParams {
     ) -> Result<Self, anyhow::Error> {
         let (pool_base_token_reserves, pool_quote_token_reserves) =
             crate::instruction::utils::pumpswap::get_token_balances(pool_data, rpc).await?;
+        let effective_quote_token_reserves =
+            crate::instruction::utils::pumpswap_types::effective_quote_reserves(
+                pool_quote_token_reserves,
+                pool_data.virtual_quote_reserves,
+            )
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Invalid PumpSwap effective quote reserves: vault={} virtual={}",
+                    pool_quote_token_reserves,
+                    pool_data.virtual_quote_reserves
+                )
+            })?;
         let base_mint_supply = fetch_mint_supply(rpc, &pool_data.base_mint).await.ok();
         let fee_config = crate::instruction::utils::pumpswap::fetch_fee_config(rpc).await;
         let raw_fee_basis_points = crate::instruction::utils::pumpswap::compute_fee_basis_points(
@@ -285,7 +320,7 @@ impl PumpSwapParams {
             pool_data.base_mint,
             base_mint_supply,
             pool_base_token_reserves,
-            pool_quote_token_reserves,
+            effective_quote_token_reserves,
         );
         let creator_fee_basis_points = if pool_data.coin_creator == Pubkey::default() {
             0
@@ -319,6 +354,7 @@ impl PumpSwapParams {
             pool_quote_token_account: pool_data.pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves: pool_data.virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program: if pool_data.pool_base_token_account == base_token_program_ata {

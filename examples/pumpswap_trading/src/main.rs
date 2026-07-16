@@ -1,4 +1,5 @@
 use sol_trade_sdk::common::{clock::now_micros, SolanaRpcClient, TradeConfig};
+use sol_trade_sdk::instruction::utils::pumpswap::fetch_pool;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -279,6 +280,10 @@ async fn pumpswap_trade_with_grpc_buy_event(
     blockhash_cache: BlockhashCache,
     trade_info: PumpSwapBuyEvent,
 ) -> AnyResult<()> {
+    // solana-streamer-sdk 0.5.0 predates the appended event field. Read the
+    // Pool value so this compatibility example still prices effective reserves.
+    let virtual_quote_reserves =
+        fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?.virtual_quote_reserves;
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -287,6 +292,7 @@ async fn pumpswap_trade_with_grpc_buy_event(
         trade_info.pool_quote_token_account,
         trade_info.pool_base_token_reserves,
         trade_info.pool_quote_token_reserves,
+        virtual_quote_reserves,
         trade_info.coin_creator_vault_ata,
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
@@ -317,6 +323,8 @@ async fn pumpswap_trade_with_grpc_sell_event(
     blockhash_cache: BlockhashCache,
     trade_info: PumpSwapSellEvent,
 ) -> AnyResult<()> {
+    let virtual_quote_reserves =
+        fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?.virtual_quote_reserves;
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -325,6 +333,7 @@ async fn pumpswap_trade_with_grpc_sell_event(
         trade_info.pool_quote_token_account,
         trade_info.pool_base_token_reserves,
         trade_info.pool_quote_token_reserves,
+        virtual_quote_reserves,
         trade_info.coin_creator_vault_ata,
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
