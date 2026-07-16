@@ -740,10 +740,11 @@ pub async fn fetch_pool(
     Ok(pool)
 }
 
-/// Known allocated Pool account sizes. The July 2026 layout carrying
-/// `virtual_quote_reserves` is allocated to 300 bytes on-chain.
+/// Known allocated Pool account sizes. Current accounts may be serialized to
+/// exactly 261 bytes or retain a larger historical allocation.
 const POOL_DATA_LEN_LEGACY: u64 = 8 + 244;
-const POOL_DATA_LEN_CURRENT: u64 = 300;
+const POOL_DATA_LEN_CURRENT: u64 = 8 + 253;
+const POOL_DATA_LEN_PADDED: u64 = 300;
 const POOL_DATA_LEN_EXTENDED: u64 = 643;
 
 /// Run getProgramAccounts with a Memcmp filter, querying known Pool sizes in parallel.
@@ -770,13 +771,15 @@ async fn get_program_accounts_known_sizes(
     };
     let program_id = accounts::AMM_PROGRAM;
     #[allow(deprecated)]
-    let (legacy_result, current_result, extended_result) = tokio::join!(
+    let (legacy_result, current_result, padded_result, extended_result) = tokio::join!(
         rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_LEGACY)),
         rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_CURRENT)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_PADDED)),
         rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_EXTENDED)),
     );
     let mut all = legacy_result.unwrap_or_default();
     all.extend(current_result.unwrap_or_default());
+    all.extend(padded_result.unwrap_or_default());
     all.extend(extended_result.unwrap_or_default());
     Ok(all)
 }
@@ -989,5 +992,13 @@ mod tests {
             4_500_000_000_000,
         );
         assert_eq!(fees, PumpSwapFeeBasisPoints::new(20, 5, 75));
+    }
+
+    #[test]
+    fn pumpswap_pool_queries_cover_current_serialized_and_padded_sizes() {
+        assert_eq!(POOL_DATA_LEN_LEGACY, 252);
+        assert_eq!(POOL_DATA_LEN_CURRENT, 261);
+        assert_eq!(POOL_DATA_LEN_PADDED, 300);
+        assert_eq!(POOL_DATA_LEN_EXTENDED, 643);
     }
 }

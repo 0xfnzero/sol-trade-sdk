@@ -1,5 +1,4 @@
 use sol_trade_sdk::common::{clock::now_micros, SolanaRpcClient, TradeConfig};
-use sol_trade_sdk::instruction::utils::pumpswap::fetch_pool;
 use sol_trade_sdk::TradeTokenType;
 use sol_trade_sdk::{
     common::AnyResult,
@@ -12,18 +11,16 @@ use sol_trade_sdk::{
 };
 use solana_commitment_config::CommitmentConfig;
 use solana_sdk::{hash::Hash, pubkey::Pubkey};
+use solana_streamer_sdk::streaming::event_parser::protocols::pumpswap::parser::PUMPSWAP_PROGRAM_ID;
 use solana_streamer_sdk::streaming::event_parser::{
     common::filter::EventTypeFilter, protocols::pumpswap::PumpSwapBuyEvent,
 };
 use solana_streamer_sdk::streaming::event_parser::{
     common::EventType, protocols::pumpswap::PumpSwapSellEvent,
 };
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
+use solana_streamer_sdk::streaming::event_parser::{DexEvent, Protocol};
 use solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter};
 use solana_streamer_sdk::streaming::YellowstoneGrpc;
-use solana_streamer_sdk::{
-    match_event, streaming::event_parser::protocols::pumpswap::parser::PUMPSWAP_PROGRAM_ID,
-};
 use std::str::FromStr;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -170,8 +167,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account_filter = AccountFilter { account: vec![], owner: vec![], filters: vec![] };
 
     // listen to specific event type
-    let event_type_filter =
-        EventTypeFilter { include: vec![EventType::PumpSwapBuy, EventType::PumpSwapSell] };
+    let event_type_filter = EventTypeFilter {
+        include: vec![EventType::PumpSwapBuy, EventType::PumpSwapSell],
+        ..Default::default()
+    };
 
     grpc.subscribe_events_immediate(
         protocols,
@@ -194,62 +193,59 @@ fn create_event_callback(
     client: Arc<SolanaTrade>,
     blockhash_cache: BlockhashCache,
     selection: EventSelection,
-) -> impl Fn(Box<dyn UnifiedEvent>) {
-    move |event: Box<dyn UnifiedEvent>| {
-        match_event!(event, {
-            PumpSwapBuyEvent => |e: PumpSwapBuyEvent| {
-                let is_wsol = e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
-                let is_usdc = e.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
-                if !is_wsol && !is_usdc {
-                    return;
-                }
-                if !selection.matches(e.pool, e.base_mint, e.quote_mint, e.metadata.recv_us) {
-                    return;
-                }
-                // Test code, only test one transaction
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    let client = client.clone();
-                    let blockhash_cache = blockhash_cache.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) = pumpswap_trade_with_grpc_buy_event(
-                            client,
-                            blockhash_cache,
-                            event_clone,
-                        ).await {
-                            eprintln!("Error in trade: {:?}", err);
-                            std::process::exit(1);
-                        }
-                    });
-                }
-            },
-            PumpSwapSellEvent => |e: PumpSwapSellEvent| {
-                let is_wsol = e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
-                let is_usdc = e.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
-                if !is_wsol && !is_usdc {
-                    return;
-                }
-                if !selection.matches(e.pool, e.base_mint, e.quote_mint, e.metadata.recv_us) {
-                    return;
-                }
-                // Test code, only test one transaction
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    let client = client.clone();
-                    let blockhash_cache = blockhash_cache.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) = pumpswap_trade_with_grpc_sell_event(
-                            client,
-                            blockhash_cache,
-                            event_clone,
-                        ).await {
-                            eprintln!("Error in trade: {:?}", err);
-                            std::process::exit(1);
-                        }
-                    });
-                }
+) -> impl Fn(DexEvent) {
+    move |event: DexEvent| match event {
+        DexEvent::PumpSwapBuyEvent(e) => {
+            let is_wsol = e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+                || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+            let is_usdc = e.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
+                || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
+            if !is_wsol && !is_usdc {
+                return;
             }
-        });
+            if !selection.matches(e.pool, e.base_mint, e.quote_mint, e.metadata.recv_us) {
+                return;
+            }
+            // Test code, only test one transaction
+            if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+                let client = client.clone();
+                let blockhash_cache = blockhash_cache.clone();
+                tokio::spawn(async move {
+                    if let Err(err) =
+                        pumpswap_trade_with_grpc_buy_event(client, blockhash_cache, e).await
+                    {
+                        eprintln!("Error in trade: {:?}", err);
+                        std::process::exit(1);
+                    }
+                });
+            }
+        }
+        DexEvent::PumpSwapSellEvent(e) => {
+            let is_wsol = e.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
+                || e.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
+            let is_usdc = e.base_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT
+                || e.quote_mint == sol_trade_sdk::constants::USDC_TOKEN_ACCOUNT;
+            if !is_wsol && !is_usdc {
+                return;
+            }
+            if !selection.matches(e.pool, e.base_mint, e.quote_mint, e.metadata.recv_us) {
+                return;
+            }
+            // Test code, only test one transaction
+            if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+                let client = client.clone();
+                let blockhash_cache = blockhash_cache.clone();
+                tokio::spawn(async move {
+                    if let Err(err) =
+                        pumpswap_trade_with_grpc_sell_event(client, blockhash_cache, e).await
+                    {
+                        eprintln!("Error in trade: {:?}", err);
+                        std::process::exit(1);
+                    }
+                });
+            }
+        }
+        _ => {}
     }
 }
 
@@ -280,10 +276,6 @@ async fn pumpswap_trade_with_grpc_buy_event(
     blockhash_cache: BlockhashCache,
     trade_info: PumpSwapBuyEvent,
 ) -> AnyResult<()> {
-    // solana-streamer-sdk 0.5.0 predates the appended event field. Read the
-    // Pool value so this compatibility example still prices effective reserves.
-    let virtual_quote_reserves =
-        fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?.virtual_quote_reserves;
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -292,7 +284,7 @@ async fn pumpswap_trade_with_grpc_buy_event(
         trade_info.pool_quote_token_account,
         trade_info.pool_base_token_reserves,
         trade_info.pool_quote_token_reserves,
-        virtual_quote_reserves,
+        trade_info.virtual_quote_reserves,
         trade_info.coin_creator_vault_ata,
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
@@ -300,8 +292,8 @@ async fn pumpswap_trade_with_grpc_buy_event(
         trade_info.protocol_fee_recipient,
         Pubkey::default(),
         trade_info.coin_creator,
-        false,
-        0,
+        trade_info.cashback_fee_basis_points != 0 || trade_info.cashback != 0,
+        trade_info.cashback_fee_basis_points,
         trade_info.lp_fee_basis_points,
         trade_info.protocol_fee_basis_points,
         trade_info.coin_creator_fee_basis_points,
@@ -323,8 +315,6 @@ async fn pumpswap_trade_with_grpc_sell_event(
     blockhash_cache: BlockhashCache,
     trade_info: PumpSwapSellEvent,
 ) -> AnyResult<()> {
-    let virtual_quote_reserves =
-        fetch_pool(&client.infrastructure.rpc, &trade_info.pool).await?.virtual_quote_reserves;
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -333,7 +323,7 @@ async fn pumpswap_trade_with_grpc_sell_event(
         trade_info.pool_quote_token_account,
         trade_info.pool_base_token_reserves,
         trade_info.pool_quote_token_reserves,
-        virtual_quote_reserves,
+        trade_info.virtual_quote_reserves,
         trade_info.coin_creator_vault_ata,
         trade_info.coin_creator_vault_authority,
         trade_info.base_token_program,
@@ -341,8 +331,8 @@ async fn pumpswap_trade_with_grpc_sell_event(
         trade_info.protocol_fee_recipient,
         Pubkey::default(),
         trade_info.coin_creator,
-        false,
-        0,
+        trade_info.cashback_fee_basis_points != 0 || trade_info.cashback != 0,
+        trade_info.cashback_fee_basis_points,
         trade_info.lp_fee_basis_points,
         trade_info.protocol_fee_basis_points,
         trade_info.coin_creator_fee_basis_points,

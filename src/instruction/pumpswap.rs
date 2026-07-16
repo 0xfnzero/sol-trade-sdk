@@ -54,7 +54,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
         let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.effective_quote_reserves()?;
+        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
+        let virtual_quote_reserves = protocol_params.virtual_quote_reserves;
+        protocol_params.effective_quote_reserves()?;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
         let params_coin_creator_vault_authority = protocol_params.coin_creator_vault_authority;
         let create_input_ata = params.create_input_mint_ata;
@@ -97,9 +99,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
+                virtual_quote_reserves,
                 &fee_basis_points,
             )
-            .unwrap();
+            .map_err(anyhow::Error::msg)?;
             // base_amount_out, max_quote_amount_in
             (result.base, result.max_quote)
         } else {
@@ -108,9 +111,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
+                virtual_quote_reserves,
                 &fee_basis_points,
             )
-            .unwrap();
+            .map_err(anyhow::Error::msg)?;
             // min_quote_amount_out, base_amount_in
             (result.min_quote, params.input_amount.unwrap_or(0))
         };
@@ -283,7 +287,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let base_mint = protocol_params.base_mint;
         let quote_mint = protocol_params.quote_mint;
         let pool_base_token_reserves = protocol_params.pool_base_token_reserves;
-        let pool_quote_token_reserves = protocol_params.effective_quote_reserves()?;
+        let pool_quote_token_reserves = protocol_params.pool_quote_token_reserves;
+        let virtual_quote_reserves = protocol_params.virtual_quote_reserves;
+        protocol_params.effective_quote_reserves()?;
         let pool_base_token_account = protocol_params.pool_base_token_account;
         let pool_quote_token_account = protocol_params.pool_quote_token_account;
         let params_coin_creator_vault_ata = protocol_params.coin_creator_vault_ata;
@@ -305,8 +311,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             return Err(anyhow!("Pool must contain WSOL or USDC"));
         }
 
-        if params.input_amount.is_none() {
-            return Err(anyhow!("Token amount is not set"));
+        if params.input_amount.unwrap_or_default() == 0 {
+            return Err(anyhow!("Token amount must be greater than zero"));
         }
 
         // ========================================
@@ -320,6 +326,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let fee_basis_points = protocol_params.fee_basis_points;
 
         let (token_amount, sol_amount) = if let Some(output_amount) = params.fixed_output_amount {
+            if quote_is_wsol_or_usdc && output_amount > pool_quote_token_reserves {
+                return Err(anyhow!("Minimum quote output exceeds the real quote-vault balance"));
+            }
             (params.input_amount.unwrap(), output_amount)
         } else if quote_is_wsol_or_usdc {
             let result = sell_base_input_internal_with_fees(
@@ -327,9 +336,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
+                virtual_quote_reserves,
                 &fee_basis_points,
             )
-            .unwrap();
+            .map_err(anyhow::Error::msg)?;
             // base_amount_in, min_quote_amount_out
             (params.input_amount.unwrap(), result.min_quote)
         } else {
@@ -338,9 +348,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
+                virtual_quote_reserves,
                 &fee_basis_points,
             )
-            .unwrap();
+            .map_err(anyhow::Error::msg)?;
             // max_quote_amount_in, base_amount_out
             (result.max_quote, result.base)
         };
@@ -618,6 +629,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pumpswap_sell_fixed_output_rejects_real_vault_overflow() {
+        let mut params = swap_params(TradeType::Sell, Some(42));
+        let DexParamEnum::PumpSwap(protocol_params) = &mut params.protocol_params else {
+            unreachable!();
+        };
+        protocol_params.pool_quote_token_reserves = 41;
+
+        let error = PumpSwapInstructionBuilder.build_sell_instructions(&params).await.unwrap_err();
+
+        assert_eq!(error.to_string(), "Minimum quote output exceeds the real quote-vault balance");
+    }
+
+    #[tokio::test]
+    async fn pumpswap_sell_rejects_zero_input() {
+        let mut params = swap_params(TradeType::Sell, None);
+        params.input_amount = Some(0);
+
+        let error = PumpSwapInstructionBuilder.build_sell_instructions(&params).await.unwrap_err();
+
+        assert_eq!(error.to_string(), "Token amount must be greater than zero");
+    }
+
+    #[tokio::test]
     async fn pumpswap_usdc_buy_create_input_builds_usdc_ata() {
         let mut params = swap_params(TradeType::Buy, Some(42));
         params.protocol_params = DexParamEnum::PumpSwap(PumpSwapParams::new(
@@ -670,7 +704,8 @@ mod tests {
             1_000_000,
             100,
             1_000_000_000,
-            2_500_000_000,
+            2_000_000_000,
+            500_000_000,
             &crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints::new(20, 5, 0),
         )
         .unwrap();
@@ -693,7 +728,8 @@ mod tests {
             100_000,
             100,
             1_000_000_000,
-            2_500_000_000,
+            2_000_000_000,
+            500_000_000,
             &crate::instruction::utils::pumpswap::PumpSwapFeeBasisPoints::new(20, 5, 0),
         )
         .unwrap();

@@ -78,7 +78,7 @@ pub fn pool_decode(data: &[u8]) -> Option<Pool> {
 
 /// Compute the quote reserves used by PumpSwap pricing.
 ///
-/// Returns `None` when the signed sum is negative or cannot fit in a `u64`.
+/// Returns `None` when the signed sum is non-positive or cannot fit in a `u64`.
 #[inline]
 pub fn effective_quote_reserves(
     quote_vault_balance: u64,
@@ -87,6 +87,7 @@ pub fn effective_quote_reserves(
     i128::from(quote_vault_balance)
         .checked_add(virtual_quote_reserves)
         .and_then(|reserves| u64::try_from(reserves).ok())
+        .filter(|reserves| *reserves != 0)
 }
 
 #[cfg(test)]
@@ -131,6 +132,7 @@ mod tests {
     fn effective_reserves_support_signed_virtual_amounts_and_reject_invalid_sums() {
         assert_eq!(effective_quote_reserves(1_000, 250), Some(1_250));
         assert_eq!(effective_quote_reserves(1_000, -250), Some(750));
+        assert_eq!(effective_quote_reserves(1_000, -1_000), None);
         assert_eq!(effective_quote_reserves(100, -101), None);
         assert_eq!(effective_quote_reserves(u64::MAX, 1), None);
     }
