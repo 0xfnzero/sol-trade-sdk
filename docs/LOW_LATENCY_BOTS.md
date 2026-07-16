@@ -20,10 +20,12 @@ Do not initialize clients, synchronously fetch a blockhash, query balances, or s
 | Sell an exact token amount | `SellAmount::ExactInput` |
 
 `WithMaxInput` still enforces slippage. Never use `min_out = 0` as routine error handling.
+Exact-output support is protocol- and pool-direction-specific. PumpSwap exposes exact output through its on-chain `buy` instruction, but its `sell` instruction accepts exact base input plus minimum quote output; the SDK rejects `SellAmount::ExactOutput` when that direction would require `sell`.
 
 Use post-trade event reserves. Preserve PumpFun quote mint, creator/vault, token program, cashback, and mayhem fields. PumpSwap event integrations should use `from_trade_with_fee_basis_points`. Refresh delayed sells because the triggering trade and your own buy both change pool state. Durable nonce extends transaction validity, not quote validity.
 
 For `BuySlippageBelowMinBaseAmountOut`, discard the old transaction, obtain newer reserves and fee rates, enforce a quote-age limit, and rebuild only within a bounded retry policy.
+After a submit timeout or ambiguous relay error, reconcile the signature and position before retrying. A retry policy may rebuild quotes automatically only when the previous transaction is known not to have been submitted.
 
 Reference examples:
 

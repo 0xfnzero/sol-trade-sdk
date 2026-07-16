@@ -2,6 +2,8 @@ use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
+pub const POOL_DISCRIMINATOR: [u8; 8] = [241, 154, 109, 4, 17, 177, 109, 188];
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct Pool {
     pub pool_bump: u8,
@@ -26,7 +28,9 @@ pub struct Pool {
 /// Minimum Borsh payload length for the current Pool layout, excluding the
 /// 8-byte Anchor account discriminator.
 pub const POOL_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1 + 1 + 16;
-const LEGACY_POOL_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1 + 1;
+const LEGACY_POOL_FIELDS_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1 + 1;
+/// Legacy Pool accounts were allocated with seven trailing padding bytes.
+pub const LEGACY_POOL_SIZE: usize = LEGACY_POOL_FIELDS_SIZE + 7;
 
 #[derive(BorshDeserialize)]
 struct LegacyPool {
@@ -69,8 +73,10 @@ pub fn pool_decode(data: &[u8]) -> Option<Pool> {
         return borsh::from_slice::<Pool>(&data[..POOL_SIZE]).ok();
     }
 
-    if data.len() >= LEGACY_POOL_SIZE {
-        return borsh::from_slice::<LegacyPool>(&data[..LEGACY_POOL_SIZE]).ok().map(Into::into);
+    if data.len() == LEGACY_POOL_SIZE {
+        return borsh::from_slice::<LegacyPool>(&data[..LEGACY_POOL_FIELDS_SIZE])
+            .ok()
+            .map(Into::into);
     }
 
     None
@@ -121,11 +127,19 @@ mod tests {
     #[test]
     fn decodes_legacy_pool_with_zero_virtual_quote_reserves() {
         let mut data = pool_payload(0);
-        data.truncate(LEGACY_POOL_SIZE);
+        data.truncate(LEGACY_POOL_FIELDS_SIZE);
         data.extend_from_slice(&[0; 7]);
 
         let pool = pool_decode(&data).unwrap();
         assert_eq!(pool.virtual_quote_reserves, 0);
+    }
+
+    #[test]
+    fn rejects_partial_current_pool_layout() {
+        let current = pool_payload(987_654_321);
+        for len in (LEGACY_POOL_SIZE + 1)..POOL_SIZE {
+            assert!(pool_decode(&current[..len]).is_none(), "accepted body length {len}");
+        }
     }
 
     #[test]

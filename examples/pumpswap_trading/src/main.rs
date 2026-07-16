@@ -24,7 +24,7 @@ use solana_streamer_sdk::streaming::YellowstoneGrpc;
 use std::str::FromStr;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, RwLock,
 };
 use std::time::{Duration, Instant};
 use tokio::sync::watch;
@@ -91,6 +91,18 @@ struct CachedBlockhash {
     fetched_at: Instant,
 }
 
+#[derive(Clone, Copy)]
+struct PositionBaseline {
+    mint: Pubkey,
+    token_program: Pubkey,
+    amount: u64,
+}
+
+enum EventAction {
+    BaselineWarmed,
+    TradeCompleted,
+}
+
 #[derive(Clone)]
 struct BlockhashCache {
     receiver: watch::Receiver<CachedBlockhash>,
@@ -139,6 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let trade_client = Arc::new(create_solana_trade_client().await?);
     let blockhash_cache = BlockhashCache::start(trade_client.infrastructure.rpc.clone()).await?;
+    let position_baseline = Arc::new(RwLock::new(None));
 
     let grpc = YellowstoneGrpc::new(
         std::env::var("GRPC_ENDPOINT")
@@ -146,7 +159,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("GRPC_AUTH_TOKEN").ok(),
     )?;
 
-    let callback = create_event_callback(trade_client, blockhash_cache, selection);
+    let callback =
+        create_event_callback(trade_client, blockhash_cache, position_baseline, selection);
     let protocols = vec![Protocol::PumpSwap];
     // Filter accounts
     let account_include = vec![
@@ -192,6 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn create_event_callback(
     client: Arc<SolanaTrade>,
     blockhash_cache: BlockhashCache,
+    position_baseline: Arc<RwLock<Option<PositionBaseline>>>,
     selection: EventSelection,
 ) -> impl Fn(DexEvent) {
     move |event: DexEvent| match event {
@@ -207,15 +222,38 @@ fn create_event_callback(
                 return;
             }
             // Test code, only test one transaction
-            if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+            if ALREADY_EXECUTED
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
                 let client = client.clone();
                 let blockhash_cache = blockhash_cache.clone();
+                let position_baseline = position_baseline.clone();
+                let was_preparing =
+                    position_baseline.read().map(|baseline| baseline.is_none()).unwrap_or(true);
                 tokio::spawn(async move {
-                    if let Err(err) =
-                        pumpswap_trade_with_grpc_buy_event(client, blockhash_cache, e).await
+                    match pumpswap_trade_with_grpc_buy_event(
+                        client,
+                        blockhash_cache,
+                        position_baseline,
+                        selection,
+                        e,
+                    )
+                    .await
                     {
-                        eprintln!("Error in trade: {:?}", err);
-                        std::process::exit(1);
+                        Ok(EventAction::BaselineWarmed) => {
+                            ALREADY_EXECUTED.store(false, Ordering::Release);
+                        }
+                        Ok(EventAction::TradeCompleted) => {}
+                        Err(err) if was_preparing => {
+                            eprintln!("baseline warmup failed; waiting for a later event: {err:?}");
+                            ALREADY_EXECUTED.store(false, Ordering::Release);
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "trade failed after entering execution state: {err:?}; automatic retry is disabled because submission status or position state may be uncertain"
+                            );
+                        }
                     }
                 });
             }
@@ -232,15 +270,38 @@ fn create_event_callback(
                 return;
             }
             // Test code, only test one transaction
-            if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+            if ALREADY_EXECUTED
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
                 let client = client.clone();
                 let blockhash_cache = blockhash_cache.clone();
+                let position_baseline = position_baseline.clone();
+                let was_preparing =
+                    position_baseline.read().map(|baseline| baseline.is_none()).unwrap_or(true);
                 tokio::spawn(async move {
-                    if let Err(err) =
-                        pumpswap_trade_with_grpc_sell_event(client, blockhash_cache, e).await
+                    match pumpswap_trade_with_grpc_sell_event(
+                        client,
+                        blockhash_cache,
+                        position_baseline,
+                        selection,
+                        e,
+                    )
+                    .await
                     {
-                        eprintln!("Error in trade: {:?}", err);
-                        std::process::exit(1);
+                        Ok(EventAction::BaselineWarmed) => {
+                            ALREADY_EXECUTED.store(false, Ordering::Release);
+                        }
+                        Ok(EventAction::TradeCompleted) => {}
+                        Err(err) if was_preparing => {
+                            eprintln!("baseline warmup failed; waiting for a later event: {err:?}");
+                            ALREADY_EXECUTED.store(false, Ordering::Release);
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "trade failed after entering execution state: {err:?}; automatic retry is disabled because submission status or position state may be uncertain"
+                            );
+                        }
                     }
                 });
             }
@@ -274,8 +335,10 @@ async fn create_solana_trade_client() -> AnyResult<SolanaTrade> {
 async fn pumpswap_trade_with_grpc_buy_event(
     client: Arc<SolanaTrade>,
     blockhash_cache: BlockhashCache,
+    position_baseline: Arc<RwLock<Option<PositionBaseline>>>,
+    selection: EventSelection,
     trade_info: PumpSwapBuyEvent,
-) -> AnyResult<()> {
+) -> AnyResult<EventAction> {
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -305,16 +368,25 @@ async fn pumpswap_trade_with_grpc_buy_event(
     } else {
         trade_info.base_mint
     };
-    pumpswap_trade_with_grpc(&client, &blockhash_cache, trade_info.metadata.recv_us, mint, params)
-        .await?;
-    Ok(())
+    pumpswap_trade_with_grpc(
+        &client,
+        &blockhash_cache,
+        &position_baseline,
+        trade_info.metadata.recv_us,
+        selection.max_event_age_ms,
+        mint,
+        params,
+    )
+    .await
 }
 
 async fn pumpswap_trade_with_grpc_sell_event(
     client: Arc<SolanaTrade>,
     blockhash_cache: BlockhashCache,
+    position_baseline: Arc<RwLock<Option<PositionBaseline>>>,
+    selection: EventSelection,
     trade_info: PumpSwapSellEvent,
-) -> AnyResult<()> {
+) -> AnyResult<EventAction> {
     let params = PumpSwapParams::from_trade_with_fee_basis_points(
         trade_info.pool,
         trade_info.base_mint,
@@ -344,24 +416,33 @@ async fn pumpswap_trade_with_grpc_sell_event(
     } else {
         trade_info.base_mint
     };
-    pumpswap_trade_with_grpc(&client, &blockhash_cache, trade_info.metadata.recv_us, mint, params)
-        .await?;
-    Ok(())
+    pumpswap_trade_with_grpc(
+        &client,
+        &blockhash_cache,
+        &position_baseline,
+        trade_info.metadata.recv_us,
+        selection.max_event_age_ms,
+        mint,
+        params,
+    )
+    .await
 }
 
 async fn pumpswap_trade_with_grpc(
     client: &SolanaTrade,
     blockhash_cache: &BlockhashCache,
+    position_baseline: &Arc<RwLock<Option<PositionBaseline>>>,
     grpc_recv_us: i64,
+    max_event_age_ms: u64,
     mint_pubkey: Pubkey,
     params: PumpSwapParams,
-) -> AnyResult<()> {
+) -> AnyResult<EventAction> {
     println!("Testing PumpSwap trading...");
+    validate_pumpswap_snapshot(&params)?;
+    if !is_event_fresh(grpc_recv_us, now_micros(), max_event_age_ms) {
+        anyhow::bail!("event became stale before transaction construction");
+    }
     let slippage_basis_points = Some(500);
-    let recent_blockhash = blockhash_cache.latest()?;
-
-    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
-    gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
 
     let is_sol = params.base_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT
         || params.quote_mint == sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT;
@@ -372,8 +453,35 @@ async fn pumpswap_trade_with_grpc(
     } else {
         anyhow::bail!("target mint {} does not belong to pool {}", mint_pubkey, params.pool);
     };
-    let balance_before =
-        client.get_payer_token_balance_with_program(&mint_pubkey, &program_id).await?;
+    let baseline = position_baseline
+        .read()
+        .map_err(|_| anyhow::anyhow!("position baseline lock is poisoned"))?
+        .as_ref()
+        .copied();
+    let balance_before = if let Some(baseline) = baseline {
+        if baseline.mint != mint_pubkey || baseline.token_program != program_id {
+            anyhow::bail!("cached position baseline belongs to a different mint or token program");
+        }
+        baseline.amount
+    } else {
+        let amount = client.get_payer_token_balance_with_program(&mint_pubkey, &program_id).await?;
+        let mut baseline = position_baseline
+            .write()
+            .map_err(|_| anyhow::anyhow!("position baseline lock is poisoned"))?;
+        *baseline = Some(PositionBaseline { mint: mint_pubkey, token_program: program_id, amount });
+        println!(
+            "Position baseline warmed at {} base units; waiting for the next fresh matching event",
+            amount
+        );
+        return Ok(EventAction::BaselineWarmed);
+    };
+
+    let recent_blockhash = blockhash_cache.latest()?;
+    let gas_fee_strategy = sol_trade_sdk::common::GasFeeStrategy::new();
+    gas_fee_strategy.set_global_fee_strategy(150000, 150000, 500000, 500000, 0.001, 0.001);
+    if !is_event_fresh(grpc_recv_us, now_micros(), max_event_age_ms) {
+        anyhow::bail!("event became stale while preparing the transaction");
+    }
 
     // Buy tokens
     println!("Buying tokens from PumpSwap...");
@@ -431,8 +539,32 @@ async fn pumpswap_trade_with_grpc(
         anyhow::bail!("sell failed: {:?}; signatures: {:?}", err, sigs);
     }
 
-    // Exit program
-    std::process::exit(0);
+    println!("Round-trip example completed; further matching events remain locked out");
+    Ok(EventAction::TradeCompleted)
+}
+
+fn validate_pumpswap_snapshot(params: &PumpSwapParams) -> AnyResult<()> {
+    let required = [
+        ("pool", params.pool),
+        ("base_mint", params.base_mint),
+        ("quote_mint", params.quote_mint),
+        ("pool_base_token_account", params.pool_base_token_account),
+        ("pool_quote_token_account", params.pool_quote_token_account),
+        ("coin_creator_vault_ata", params.coin_creator_vault_ata),
+        ("coin_creator_vault_authority", params.coin_creator_vault_authority),
+        ("base_token_program", params.base_token_program),
+        ("quote_token_program", params.quote_token_program),
+    ];
+    for (name, value) in required {
+        if value == Pubkey::default() {
+            anyhow::bail!("event snapshot is missing {name}");
+        }
+    }
+    if params.pool_base_token_reserves == 0 || params.pool_quote_token_reserves == 0 {
+        anyhow::bail!("event snapshot has an empty raw pool reserve");
+    }
+    params.effective_quote_reserves()?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -5,15 +5,6 @@ use crate::instruction::utils::pumpswap::{
 };
 
 #[inline(always)]
-pub fn encode_pumpswap_buy_two_args(base_amount_out: u64, max_quote_amount_in: u64) -> [u8; 24] {
-    let mut d = [0u8; 24];
-    d[..8].copy_from_slice(&BUY_DISCRIMINATOR);
-    d[8..16].copy_from_slice(&base_amount_out.to_le_bytes());
-    d[16..24].copy_from_slice(&max_quote_amount_in.to_le_bytes());
-    d
-}
-
-#[inline(always)]
 pub fn encode_pumpswap_buy_ix_data(
     base_amount_out: u64,
     max_quote_amount_in: u64,

@@ -11,7 +11,18 @@
 /// * fee_basis_points = 100 -> 1% fee
 #[inline(always)]
 pub const fn compute_fee(amount: u128, fee_basis_points: u128) -> u128 {
-    ceil_div(amount * fee_basis_points, 10_000)
+    let whole = match (amount / 10_000).checked_mul(fee_basis_points) {
+        Some(value) => value,
+        None => return u128::MAX,
+    };
+    let remainder_product = match (amount % 10_000).checked_mul(fee_basis_points) {
+        Some(value) => value,
+        None => return u128::MAX,
+    };
+    match whole.checked_add(ceil_div(remainder_product, 10_000)) {
+        Some(value) => value,
+        None => u128::MAX,
+    }
 }
 
 /// Ceiling division implementation
@@ -25,7 +36,12 @@ pub const fn compute_fee(amount: u128, fee_basis_points: u128) -> u128 {
 /// Returns the ceiling result of a/b
 #[inline(always)]
 pub const fn ceil_div(a: u128, b: u128) -> u128 {
-    (a + b - 1) / b
+    let quotient = a / b;
+    if a % b == 0 {
+        quotient
+    } else {
+        quotient + 1
+    }
 }
 
 /// Maximum slippage in basis points (99.99% = 9999 bps)
@@ -55,7 +71,12 @@ pub const fn calculate_with_slippage_buy(amount: u64, basis_points: u64) -> u64 
     } else {
         basis_points
     };
-    amount + (amount * bps / 10000)
+    let result = amount as u128 + (amount as u128 * bps as u128 / 10_000);
+    if result > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        result as u64
+    }
 }
 
 /// Calculate sell amount with slippage protection
@@ -75,9 +96,35 @@ pub const fn calculate_with_slippage_sell(amount: u64, basis_points: u64) -> u64
     if amount == 0 {
         return 0;
     }
-    if amount <= basis_points / 10000 {
-        1
+    let bps = if basis_points > MAX_SLIPPAGE_BASIS_POINTS {
+        MAX_SLIPPAGE_BASIS_POINTS
     } else {
-        amount - (amount * basis_points / 10000)
+        basis_points
+    };
+    amount - (amount as u128 * bps as u128 / 10_000) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ceil_div_handles_u128_max_without_addition_overflow() {
+        assert_eq!(ceil_div(u128::MAX, u128::MAX), 1);
+        assert_eq!(ceil_div(u128::MAX, 2), u128::MAX / 2 + 1);
+    }
+
+    #[test]
+    fn compute_fee_handles_large_amounts_without_multiplication_overflow() {
+        assert_eq!(compute_fee(u128::MAX, 1), ceil_div(u128::MAX, 10_000));
+        assert_eq!(compute_fee(u128::MAX, 10_000), u128::MAX);
+    }
+
+    #[test]
+    fn slippage_helpers_are_deterministic_at_numeric_boundaries() {
+        assert_eq!(calculate_with_slippage_buy(u64::MAX, 100), u64::MAX);
+        assert_eq!(calculate_with_slippage_sell(u64::MAX, 100), 18_262_276_632_972_456_099);
+        assert_eq!(calculate_with_slippage_sell(10_000, u64::MAX), 1);
+        assert_eq!(calculate_with_slippage_sell(1, u64::MAX), 1);
     }
 }

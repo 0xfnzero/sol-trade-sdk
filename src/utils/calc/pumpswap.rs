@@ -30,10 +30,22 @@ fn effective_quote_reserve(
 pub(crate) fn creator_side_fee_basis_points(
     coin_creator: &Pubkey,
     cashback_fee_basis_points: u64,
-) -> u64 {
+) -> Result<u64, String> {
     let creator_bps =
         if *coin_creator == Pubkey::default() { 0 } else { COIN_CREATOR_FEE_BASIS_POINTS };
-    creator_bps.saturating_add(cashback_fee_basis_points)
+    creator_bps
+        .checked_add(cashback_fee_basis_points)
+        .ok_or_else(|| "Coin creator fee basis points overflow.".to_string())
+}
+
+#[inline]
+fn checked_u64(value: u128, name: &str) -> Result<u64, String> {
+    u64::try_from(value).map_err(|_| format!("Calculated {name} exceeds u64."))
+}
+
+#[inline]
+fn checked_fee(amount: u64, basis_points: u64, name: &str) -> Result<u64, String> {
+    checked_u64(compute_fee(amount as u128, basis_points as u128), name)
 }
 
 /// Result for buying base tokens with base amount input
@@ -111,7 +123,7 @@ pub fn buy_base_input_internal(
         &PumpSwapFeeBasisPoints::new(
             LP_FEE_BASIS_POINTS,
             PROTOCOL_FEE_BASIS_POINTS,
-            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points)?,
         ),
     )
 }
@@ -140,19 +152,23 @@ pub fn buy_base_input_internal_with_fees(
         return Err("Pool would be depleted; denominator is zero.".to_string());
     }
 
-    let quote_amount_in = ceil_div(numerator, denominator as u128) as u64;
+    let quote_amount_in =
+        checked_u64(ceil_div(numerator, denominator as u128), "raw quote amount")?;
 
     // Calculate fees
-    let lp_fee =
-        compute_fee(quote_amount_in as u128, fee_basis_points.lp_fee_basis_points as u128) as u64;
+    let lp_fee = checked_fee(quote_amount_in, fee_basis_points.lp_fee_basis_points, "LP fee")?;
     let protocol_fee =
-        compute_fee(quote_amount_in as u128, fee_basis_points.protocol_fee_basis_points as u128)
-            as u64;
-    let coin_creator_fee = compute_fee(
-        quote_amount_in as u128,
-        fee_basis_points.coin_creator_fee_basis_points as u128,
-    ) as u64;
-    let total_quote = quote_amount_in + lp_fee + protocol_fee + coin_creator_fee;
+        checked_fee(quote_amount_in, fee_basis_points.protocol_fee_basis_points, "protocol fee")?;
+    let coin_creator_fee = checked_fee(
+        quote_amount_in,
+        fee_basis_points.coin_creator_fee_basis_points,
+        "coin creator fee",
+    )?;
+    let total_quote = quote_amount_in
+        .checked_add(lp_fee)
+        .and_then(|amount| amount.checked_add(protocol_fee))
+        .and_then(|amount| amount.checked_add(coin_creator_fee))
+        .ok_or_else(|| "Total quote amount exceeds u64.".to_string())?;
 
     // Calculate max quote with slippage
     let max_quote = calculate_with_slippage_buy(total_quote, slippage_basis_points);
@@ -195,7 +211,7 @@ pub fn buy_quote_input_internal(
         &PumpSwapFeeBasisPoints::new(
             LP_FEE_BASIS_POINTS,
             PROTOCOL_FEE_BASIS_POINTS,
-            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points)?,
         ),
     )
 }
@@ -216,9 +232,12 @@ pub fn buy_quote_input_internal_with_fees(
     // Calculate total fee basis points
     let total_fee_bps = fee_basis_points
         .lp_fee_basis_points
-        .saturating_add(fee_basis_points.protocol_fee_basis_points)
-        .saturating_add(fee_basis_points.coin_creator_fee_basis_points);
-    let denominator = 10_000 + total_fee_bps;
+        .checked_add(fee_basis_points.protocol_fee_basis_points)
+        .and_then(|fees| fees.checked_add(fee_basis_points.coin_creator_fee_basis_points))
+        .ok_or_else(|| "Fee basis points overflow.".to_string())?;
+    let denominator = 10_000_u64
+        .checked_add(total_fee_bps)
+        .ok_or_else(|| "Fee denominator overflow.".to_string())?;
 
     // Calculate effective quote amount after fees
     let mut effective_quote = (quote as u128 * 10_000) / denominator as u128;
@@ -227,11 +246,19 @@ pub fn buy_quote_input_internal_with_fees(
         compute_fee(effective_quote, fee_basis_points.protocol_fee_basis_points as u128);
     let coin_creator_fee =
         compute_fee(effective_quote, fee_basis_points.coin_creator_fee_basis_points as u128);
-    let total_with_fees = effective_quote + lp_fee + protocol_fee + coin_creator_fee;
+    let total_with_fees = effective_quote
+        .checked_add(lp_fee)
+        .and_then(|amount| amount.checked_add(protocol_fee))
+        .and_then(|amount| amount.checked_add(coin_creator_fee))
+        .ok_or_else(|| "Total quote amount exceeds u128.".to_string())?;
     if total_with_fees > quote as u128 {
-        effective_quote = effective_quote.saturating_sub(total_with_fees - quote as u128);
+        effective_quote = effective_quote
+            .checked_sub(total_with_fees - quote as u128)
+            .ok_or_else(|| "Quote input is too small to cover fees.".to_string())?;
     }
-    let input_amount = effective_quote.saturating_sub(1);
+    let input_amount = effective_quote
+        .checked_sub(1)
+        .ok_or_else(|| "Quote input is too small after fees.".to_string())?;
 
     // Calculate base amount out using constant product formula
     let numerator = (base_reserve as u128) * input_amount;
@@ -241,14 +268,14 @@ pub fn buy_quote_input_internal_with_fees(
         return Err("Pool would be depleted; denominator is zero.".to_string());
     }
 
-    let base_amount_out = (numerator / denominator_effective) as u64;
+    let base_amount_out = checked_u64(numerator / denominator_effective, "base amount")?;
 
     // Calculate max quote with slippage
     let max_quote = calculate_with_slippage_buy(quote, slippage_basis_points);
 
     Ok(BuyQuoteInputResult {
         base: base_amount_out,
-        internal_quote_without_fees: effective_quote as u64,
+        internal_quote_without_fees: checked_u64(effective_quote, "effective quote amount")?,
         max_quote,
     })
 }
@@ -284,7 +311,7 @@ pub fn sell_base_input_internal(
         &PumpSwapFeeBasisPoints::new(
             LP_FEE_BASIS_POINTS,
             PROTOCOL_FEE_BASIS_POINTS,
-            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points)?,
         ),
     )
 }
@@ -303,22 +330,27 @@ pub fn sell_base_input_internal_with_fees(
     let effective_quote_reserve = effective_quote_reserve(quote_reserve, virtual_quote_reserves)?;
 
     // Calculate quote amount out using constant product formula
-    let quote_amount_out = ((effective_quote_reserve as u128) * (base as u128)
-        / ((base_reserve as u128) + (base as u128))) as u64;
+    let quote_amount_out = checked_u64(
+        (effective_quote_reserve as u128) * (base as u128)
+            / ((base_reserve as u128) + (base as u128)),
+        "raw quote amount",
+    )?;
 
     // Calculate fees
-    let lp_fee =
-        compute_fee(quote_amount_out as u128, fee_basis_points.lp_fee_basis_points as u128) as u64;
+    let lp_fee = checked_fee(quote_amount_out, fee_basis_points.lp_fee_basis_points, "LP fee")?;
     let protocol_fee =
-        compute_fee(quote_amount_out as u128, fee_basis_points.protocol_fee_basis_points as u128)
-            as u64;
-    let coin_creator_fee = compute_fee(
-        quote_amount_out as u128,
-        fee_basis_points.coin_creator_fee_basis_points as u128,
-    ) as u64;
+        checked_fee(quote_amount_out, fee_basis_points.protocol_fee_basis_points, "protocol fee")?;
+    let coin_creator_fee = checked_fee(
+        quote_amount_out,
+        fee_basis_points.coin_creator_fee_basis_points,
+        "coin creator fee",
+    )?;
 
     // Calculate final quote after fees
-    let total_fees = lp_fee + protocol_fee + coin_creator_fee;
+    let total_fees = lp_fee
+        .checked_add(protocol_fee)
+        .and_then(|fees| fees.checked_add(coin_creator_fee))
+        .ok_or_else(|| "Total fees exceed u64.".to_string())?;
     if total_fees > quote_amount_out {
         return Err("Fees exceed total output; final quote is negative.".to_string());
     }
@@ -395,7 +427,7 @@ pub fn sell_quote_input_internal(
         &PumpSwapFeeBasisPoints::new(
             LP_FEE_BASIS_POINTS,
             PROTOCOL_FEE_BASIS_POINTS,
-            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points),
+            creator_side_fee_basis_points(coin_creator, cashback_fee_basis_points)?,
         ),
     )
 }
@@ -424,9 +456,11 @@ pub fn sell_quote_input_internal_with_fees(
         fee_basis_points.coin_creator_fee_basis_points,
     )?;
 
-    let lp_fee =
-        compute_fee(raw_quote as u128, fee_basis_points.lp_fee_basis_points as u128) as u64;
-    if raw_quote.saturating_sub(lp_fee) > quote_reserve {
+    let lp_fee = checked_fee(raw_quote, fee_basis_points.lp_fee_basis_points, "LP fee")?;
+    let quote_vault_outflow = raw_quote
+        .checked_sub(lp_fee)
+        .ok_or_else(|| "LP fee exceeds raw quote output.".to_string())?;
+    if quote_vault_outflow > quote_reserve {
         return Err("Insufficient real quote reserves to cover the sell output.".to_string());
     }
 
@@ -435,10 +469,13 @@ pub fn sell_quote_input_internal_with_fees(
         return Err("Invalid input: Desired quote amount exceeds available reserve.".to_string());
     }
 
-    let base_amount_in = ceil_div(
-        (base_reserve as u128) * (raw_quote as u128),
-        (effective_quote_reserve - raw_quote) as u128,
-    ) as u64;
+    let base_amount_in = checked_u64(
+        ceil_div(
+            (base_reserve as u128) * (raw_quote as u128),
+            (effective_quote_reserve - raw_quote) as u128,
+        ),
+        "base amount",
+    )?;
 
     // Calculate min quote with slippage
     let min_quote = calculate_with_slippage_sell(quote, slippage_basis_points);
@@ -530,5 +567,119 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error, "Invalid effective quote reserves: raw=1000000, virtual=-1000000.");
+    }
+
+    #[test]
+    fn quote_modes_match_official_integer_formulas() {
+        let fees = PumpSwapFeeBasisPoints::new(20, 5, 30);
+        let base_reserve = 800_000_000_000_000;
+        let quote_reserve = 100_000_000_000;
+        let virtual_quote_reserves = 5_000_000_000;
+        let slippage_basis_points = 125;
+
+        let buy_base = buy_base_input_internal_with_fees(
+            123_456_789_000,
+            slippage_basis_points,
+            base_reserve,
+            quote_reserve,
+            virtual_quote_reserves,
+            &fees,
+        )
+        .unwrap();
+        assert_eq!(buy_base.internal_quote_amount, 16_206_205);
+        assert_eq!(buy_base.ui_quote, 16_295_341);
+        assert_eq!(buy_base.max_quote, 16_499_032);
+
+        let buy_quote = buy_quote_input_internal_with_fees(
+            1_500_000_000,
+            slippage_basis_points,
+            base_reserve,
+            quote_reserve,
+            virtual_quote_reserves,
+            &fees,
+        )
+        .unwrap();
+        assert_eq!(buy_quote.internal_quote_without_fees, 1_491_795_125);
+        assert_eq!(buy_quote.base, 11_206_836_149_304);
+        assert_eq!(buy_quote.max_quote, 1_518_750_000);
+
+        let sell_base = sell_base_input_internal_with_fees(
+            123_456_789_000,
+            slippage_basis_points,
+            base_reserve,
+            quote_reserve,
+            virtual_quote_reserves,
+            &fees,
+        )
+        .unwrap();
+        assert_eq!(sell_base.internal_quote_amount_out, 16_201_203);
+        assert_eq!(sell_base.ui_quote, 16_112_095);
+        assert_eq!(sell_base.min_quote, 15_910_694);
+
+        let sell_quote = sell_quote_input_internal_with_fees(
+            500_000_000,
+            slippage_basis_points,
+            base_reserve,
+            quote_reserve,
+            virtual_quote_reserves,
+            &fees,
+        )
+        .unwrap();
+        assert_eq!(sell_quote.internal_raw_quote, 502_765_209);
+        assert_eq!(sell_quote.base, 3_849_022_110_532);
+        assert_eq!(sell_quote.min_quote, 493_750_000);
+    }
+
+    #[test]
+    fn oversized_quote_results_return_errors_instead_of_truncating() {
+        let no_fees = PumpSwapFeeBasisPoints::new(0, 0, 0);
+
+        let buy_error =
+            buy_base_input_internal_with_fees(u64::MAX - 1, 0, u64::MAX, u64::MAX, 0, &no_fees)
+                .unwrap_err();
+        assert_eq!(buy_error, "Calculated raw quote amount exceeds u64.");
+
+        let sell_error =
+            sell_quote_input_internal_with_fees(u64::MAX - 1, 0, u64::MAX, u64::MAX, 0, &no_fees)
+                .unwrap_err();
+        assert_eq!(sell_error, "Calculated base amount exceeds u64.");
+    }
+
+    #[test]
+    fn invalid_fee_boundaries_return_errors() {
+        let overflowing_fees = PumpSwapFeeBasisPoints::new(u64::MAX, 1, 0);
+        let error = buy_quote_input_internal_with_fees(
+            10_000,
+            0,
+            1_000_000,
+            1_000_000,
+            0,
+            &overflowing_fees,
+        )
+        .unwrap_err();
+        assert_eq!(error, "Fee basis points overflow.");
+
+        let oversized_fee = PumpSwapFeeBasisPoints::new(u64::MAX, 0, 0);
+        let error = sell_base_input_internal_with_fees(
+            1_000_000,
+            0,
+            1_000_000,
+            1_000_000,
+            0,
+            &oversized_fee,
+        )
+        .unwrap_err();
+        assert_eq!(error, "Calculated LP fee exceeds u64.");
+
+        let error = creator_side_fee_basis_points(&Pubkey::new_unique(), u64::MAX).unwrap_err();
+        assert_eq!(error, "Coin creator fee basis points overflow.");
+    }
+
+    #[test]
+    fn buy_quote_rejects_amount_too_small_after_fees() {
+        let error =
+            buy_quote_input_internal_with_fees(1, 0, 1_000_000, 1_000_000, 0, &fees()).unwrap_err();
+
+        assert_eq!(error, "Quote input is too small after fees.");
     }
 }

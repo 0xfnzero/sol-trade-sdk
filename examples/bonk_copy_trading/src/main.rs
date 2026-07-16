@@ -15,13 +15,12 @@ use sol_trade_sdk::{
     SolanaTrade,
 };
 use solana_commitment_config::CommitmentConfig;
-use solana_streamer_sdk::match_event;
 use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use solana_streamer_sdk::streaming::event_parser::common::EventType;
 use solana_streamer_sdk::streaming::event_parser::protocols::bonk::parser::BONK_PROGRAM_ID;
 use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter};
+use solana_streamer_sdk::streaming::event_parser::{DexEvent, Protocol};
+use solana_streamer_sdk::streaming::yellowstone_grpc::TransactionFilter;
 use solana_streamer_sdk::streaming::YellowstoneGrpc;
 
 // Global static flag to ensure transaction is executed only once
@@ -52,24 +51,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         account_required,
     };
 
-    // Listen to account data belonging to owner programs -> account event monitoring
-    let account_filter = AccountFilter { account: vec![], owner: vec![], filters: vec![] };
-
     // listen to specific event type
-    let event_type_filter = EventTypeFilter {
-        include: vec![
-            EventType::BonkBuyExactIn,
-            EventType::BonkSellExactIn,
-            EventType::BonkBuyExactOut,
-            EventType::BonkSellExactOut,
-        ],
-    };
+    let event_type_filter = EventTypeFilter::include_only(vec![
+        EventType::BonkBuyExactIn,
+        EventType::BonkSellExactIn,
+        EventType::BonkBuyExactOut,
+        EventType::BonkSellExactOut,
+    ]);
 
     grpc.subscribe_events_immediate(
         protocols,
         None,
         vec![transaction_filter],
-        vec![account_filter],
+        vec![],
         Some(event_type_filter),
         None,
         callback,
@@ -77,27 +71,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     tokio::signal::ctrl_c().await?;
+    grpc.stop().await;
 
     Ok(())
 }
 
 /// Create an event callback function that handles different types of events
-fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
-    |event: Box<dyn UnifiedEvent>| {
-        match_event!(event, {
-            BonkTradeEvent => |e: BonkTradeEvent| {
-                // Test code, only test one transaction
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) = bonk_copy_trade_with_grpc(event_clone).await {
-                            eprintln!("Error in copy trade: {:?}", err);
-                            std::process::exit(1);
-                        }
-                    });
+fn create_event_callback() -> impl Fn(DexEvent) {
+    |event: DexEvent| {
+        let DexEvent::BonkTradeEvent(event) = event else {
+            return;
+        };
+        if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+            tokio::spawn(async move {
+                if let Err(err) = bonk_copy_trade_with_grpc(event).await {
+                    eprintln!("Error in copy trade: {:?}", err);
+                    std::process::exit(1);
                 }
-            },
-        });
+            });
+        }
     }
 }
 
