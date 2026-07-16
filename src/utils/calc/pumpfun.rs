@@ -89,7 +89,9 @@ pub fn get_sell_sol_amount_from_token_amount(
     let amount_128 = amount as u128;
 
     // Calculate SOL amount received from selling tokens using constant product formula
-    let numerator = amount_128.checked_mul(virtual_sol_reserves).unwrap_or(0);
+    let Some(numerator) = amount_128.checked_mul(virtual_sol_reserves) else {
+        return u64::MAX;
+    };
     let denominator = virtual_token_reserves.checked_add(amount_128).unwrap_or(1);
 
     let sol_cost = numerator.checked_div(denominator).unwrap_or(0);
@@ -101,5 +103,5 @@ pub fn get_sell_sol_amount_from_token_amount(
     // Calculate transaction fee
     let fee = compute_fee(sol_cost, total_fee_basis_points_128);
 
-    sol_cost.saturating_sub(fee) as u64
+    sol_cost.saturating_sub(fee).min(u64::MAX as u128) as u64
 }

@@ -1,12 +1,8 @@
-use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id;
 use crate::common::SolanaRpcClient;
 use crate::instruction::utils::pumpswap::{
     accounts::MAYHEM_FEE_RECIPIENT as MAYHEM_FEE_RECIPIENT_SWAP, PumpSwapFeeBasisPoints,
 };
 use solana_sdk::pubkey::Pubkey;
-
-const SPL_MINT_SUPPLY_OFFSET: usize = 36;
-const SPL_MINT_SUPPLY_LEN: usize = 8;
 
 /// PumpSwap Protocol Specific Parameters
 ///
@@ -32,8 +28,10 @@ pub struct PumpSwapParams {
     pub pool_quote_token_account: Pubkey,
     /// Base token reserves in the pool
     pub pool_base_token_reserves: u64,
-    /// Quote token reserves in the pool
+    /// Raw quote-vault token balance. Pricing uses this plus [`Self::virtual_quote_reserves`].
     pub pool_quote_token_reserves: u64,
+    /// Signed virtual quote reserves from the PumpSwap Pool account or trade event.
+    pub virtual_quote_reserves: i128,
     /// Coin creator vault ATA
     pub coin_creator_vault_ata: Pubkey,
     /// Coin creator vault authority
@@ -75,6 +73,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -99,6 +98,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -125,6 +125,21 @@ impl PumpSwapParams {
     pub fn with_base_mint_supply(mut self, base_mint_supply: u64) -> Self {
         self.base_mint_supply = Some(base_mint_supply);
         self
+    }
+
+    /// Quote reserves used by PumpSwap pricing and fee-tier selection.
+    pub fn effective_quote_reserves(&self) -> Result<u64, anyhow::Error> {
+        crate::instruction::utils::pumpswap_types::effective_quote_reserves(
+            self.pool_quote_token_reserves,
+            self.virtual_quote_reserves,
+        )
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Invalid PumpSwap effective quote reserves: vault={} virtual={}",
+                self.pool_quote_token_reserves,
+                self.virtual_quote_reserves
+            )
+        })
     }
 
     pub fn with_fee_basis_points(
@@ -161,6 +176,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -178,6 +194,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -202,6 +219,7 @@ impl PumpSwapParams {
         pool_quote_token_account: Pubkey,
         pool_base_token_reserves: u64,
         pool_quote_token_reserves: u64,
+        virtual_quote_reserves: i128,
         coin_creator_vault_ata: Pubkey,
         coin_creator_vault_authority: Pubkey,
         base_token_program: Pubkey,
@@ -223,6 +241,7 @@ impl PumpSwapParams {
             pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
             base_token_program,
@@ -244,17 +263,9 @@ impl PumpSwapParams {
         rpc: &SolanaRpcClient,
         mint: &Pubkey,
     ) -> Result<Self, anyhow::Error> {
-        if let Ok((pool_address, _)) =
-            crate::instruction::utils::pumpswap::find_by_base_mint(rpc, mint).await
-        {
-            Self::from_pool_address_by_rpc(rpc, &pool_address).await
-        } else if let Ok((pool_address, _)) =
-            crate::instruction::utils::pumpswap::find_by_quote_mint(rpc, mint).await
-        {
-            Self::from_pool_address_by_rpc(rpc, &pool_address).await
-        } else {
-            return Err(anyhow::anyhow!("No pool found for mint"));
-        }
+        let (pool_address, pool) =
+            crate::instruction::utils::pumpswap::find_by_mint(rpc, mint).await?;
+        Self::from_pool_data(rpc, &pool_address, &pool).await
     }
 
     pub async fn from_pool_address_by_rpc(
@@ -275,9 +286,23 @@ impl PumpSwapParams {
         pool_address: &Pubkey,
         pool_data: &crate::instruction::utils::pumpswap_types::Pool,
     ) -> Result<Self, anyhow::Error> {
-        let (pool_base_token_reserves, pool_quote_token_reserves) =
-            crate::instruction::utils::pumpswap::get_token_balances(pool_data, rpc).await?;
-        let base_mint_supply = fetch_mint_supply(rpc, &pool_data.base_mint).await.ok();
+        let snapshot =
+            crate::instruction::utils::pumpswap::get_pool_rpc_snapshot(pool_data, rpc).await?;
+        let pool_base_token_reserves = snapshot.base_reserve;
+        let pool_quote_token_reserves = snapshot.quote_reserve;
+        let effective_quote_token_reserves =
+            crate::instruction::utils::pumpswap_types::effective_quote_reserves(
+                pool_quote_token_reserves,
+                pool_data.virtual_quote_reserves,
+            )
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Invalid PumpSwap effective quote reserves: vault={} virtual={}",
+                    pool_quote_token_reserves,
+                    pool_data.virtual_quote_reserves
+                )
+            })?;
+        let base_mint_supply = Some(snapshot.base_mint_supply);
         let fee_config = crate::instruction::utils::pumpswap::fetch_fee_config(rpc).await;
         let raw_fee_basis_points = crate::instruction::utils::pumpswap::compute_fee_basis_points(
             fee_config.as_ref(),
@@ -285,7 +310,7 @@ impl PumpSwapParams {
             pool_data.base_mint,
             base_mint_supply,
             pool_base_token_reserves,
-            pool_quote_token_reserves,
+            effective_quote_token_reserves,
         );
         let creator_fee_basis_points = if pool_data.coin_creator == Pubkey::default() {
             0
@@ -296,20 +321,10 @@ impl PumpSwapParams {
         let coin_creator_vault_ata = crate::instruction::utils::pumpswap::coin_creator_vault_ata(
             creator,
             pool_data.quote_mint,
+            snapshot.quote_token_program,
         );
         let coin_creator_vault_authority =
             crate::instruction::utils::pumpswap::coin_creator_vault_authority(creator);
-
-        let base_token_program_ata = get_associated_token_address_with_program_id(
-            pool_address,
-            &pool_data.base_mint,
-            &crate::constants::TOKEN_PROGRAM,
-        );
-        let quote_token_program_ata = get_associated_token_address_with_program_id(
-            pool_address,
-            &pool_data.quote_mint,
-            &crate::constants::TOKEN_PROGRAM,
-        );
 
         Ok(Self {
             pool: *pool_address,
@@ -319,19 +334,12 @@ impl PumpSwapParams {
             pool_quote_token_account: pool_data.pool_quote_token_account,
             pool_base_token_reserves,
             pool_quote_token_reserves,
+            virtual_quote_reserves: pool_data.virtual_quote_reserves,
             coin_creator_vault_ata,
             coin_creator_vault_authority,
-            base_token_program: if pool_data.pool_base_token_account == base_token_program_ata {
-                crate::constants::TOKEN_PROGRAM
-            } else {
-                crate::constants::TOKEN_PROGRAM_2022
-            },
+            base_token_program: snapshot.base_token_program,
             is_cashback_coin: pool_data.is_cashback_coin,
-            quote_token_program: if pool_data.pool_quote_token_account == quote_token_program_ata {
-                crate::constants::TOKEN_PROGRAM
-            } else {
-                crate::constants::TOKEN_PROGRAM_2022
-            },
+            quote_token_program: snapshot.quote_token_program,
             is_mayhem_mode: pool_data.is_mayhem_mode,
             pool_creator: pool_data.creator,
             coin_creator: pool_data.coin_creator,
@@ -344,14 +352,4 @@ impl PumpSwapParams {
             ),
         })
     }
-}
-
-fn decode_mint_supply(data: &[u8]) -> Option<u64> {
-    let bytes = data.get(SPL_MINT_SUPPLY_OFFSET..SPL_MINT_SUPPLY_OFFSET + SPL_MINT_SUPPLY_LEN)?;
-    Some(u64::from_le_bytes(bytes.try_into().ok()?))
-}
-
-async fn fetch_mint_supply(rpc: &SolanaRpcClient, mint: &Pubkey) -> Result<u64, anyhow::Error> {
-    let account = rpc.get_account(mint).await?;
-    decode_mint_supply(&account.data).ok_or_else(|| anyhow::anyhow!("Failed to decode mint supply"))
 }

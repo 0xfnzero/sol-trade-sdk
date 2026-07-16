@@ -2,8 +2,8 @@ use crate::{
     common::{
         spl_associated_token_account::get_associated_token_address_with_program_id, SolanaRpcClient,
     },
-    constants::{TOKEN_PROGRAM, WSOL_TOKEN_ACCOUNT},
-    instruction::utils::pumpswap_types::{pool_decode, Pool},
+    constants::WSOL_TOKEN_ACCOUNT,
+    instruction::utils::pumpswap_types::{pool_decode, Pool, POOL_DISCRIMINATOR},
 };
 use anyhow::anyhow;
 use once_cell::sync::Lazy;
@@ -18,7 +18,7 @@ use std::sync::{
 use std::time::{Duration, Instant};
 use tracing::warn;
 
-// Pool account sizes moved to find_by_base_mint/find_by_quote_mint (POOL_DATA_LEN_SPL, POOL_DATA_LEN_T22)
+// Pool account sizes are handled by find_by_base_mint/find_by_quote_mint.
 
 /// Constants used as seeds for deriving PDAs (Program Derived Addresses)
 pub mod seeds {
@@ -241,6 +241,8 @@ const U8_LEN: usize = 1;
 const BOOL_LEN: usize = 1;
 const GLOBAL_CONFIG_DISCRIMINATOR_LEN: usize = 8;
 const FEE_CONFIG_DISCRIMINATOR_LEN: usize = 8;
+const GLOBAL_CONFIG_DISCRIMINATOR: [u8; 8] = [149, 8, 156, 202, 160, 252, 176, 217];
+const FEE_CONFIG_DISCRIMINATOR: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155];
 const FEE_CONFIG_BUMP_LEN: usize = 1;
 const FEE_TIER_LEN: usize = 16 + U64_LEN * 3;
 
@@ -301,6 +303,9 @@ fn read_u32(data: &[u8], offset: usize) -> Option<u32> {
 }
 
 fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
+    if data.get(..GLOBAL_CONFIG_DISCRIMINATOR_LEN)? != GLOBAL_CONFIG_DISCRIMINATOR {
+        return None;
+    }
     let mut offset = GLOBAL_CONFIG_DISCRIMINATOR_LEN;
     offset += PUBKEY_LEN; // admin
     let lp_fee_basis_points = read_u64(data, offset)?;
@@ -364,6 +369,9 @@ fn decode_fee_tiers(data: &[u8], offset: &mut usize) -> Option<Vec<PumpSwapFeeTi
 }
 
 pub fn decode_fee_config(data: &[u8]) -> Option<PumpSwapFeeConfig> {
+    if data.get(..FEE_CONFIG_DISCRIMINATOR_LEN)? != FEE_CONFIG_DISCRIMINATOR {
+        return None;
+    }
     let mut offset = FEE_CONFIG_DISCRIMINATOR_LEN;
     offset += FEE_CONFIG_BUMP_LEN;
     offset += PUBKEY_LEN; // admin
@@ -399,6 +407,14 @@ async fn refresh_global_config_once(rpc: &SolanaRpcClient) -> Option<GlobalConfi
         }
     };
 
+    if account.owner != accounts::AMM_PROGRAM {
+        warn!(
+            target: "pumpswap_global_config",
+            owner = %account.owner,
+            "PumpSwap GlobalConfig owner 无效"
+        );
+        return None;
+    }
     let Some(config) = decode_global_config(&account.data) else {
         warn!(
             target: "pumpswap_global_config",
@@ -435,6 +451,14 @@ async fn refresh_fee_config_once(rpc: &SolanaRpcClient) -> Option<PumpSwapFeeCon
         }
     };
 
+    if account.owner != accounts::FEE_PROGRAM {
+        warn!(
+            target: "pumpswap_fee_config",
+            owner = %account.owner,
+            "PumpSwap FeeConfig owner 无效"
+        );
+        return None;
+    }
     let Some(config) = decode_fee_config(&account.data) else {
         warn!(
             target: "pumpswap_fee_config",
@@ -665,22 +689,30 @@ pub(crate) fn coin_creator_vault_authority(coin_creator: Pubkey) -> Pubkey {
     pump_pool_authority
 }
 
-pub(crate) fn coin_creator_vault_ata(coin_creator: Pubkey, quote_mint: Pubkey) -> Pubkey {
+pub(crate) fn coin_creator_vault_ata(
+    coin_creator: Pubkey,
+    quote_mint: Pubkey,
+    quote_token_program: Pubkey,
+) -> Pubkey {
     let creator_vault_authority = coin_creator_vault_authority(coin_creator);
     let associated_token_creator_vault_authority = get_associated_token_address_with_program_id(
         &creator_vault_authority,
         &quote_mint,
-        &TOKEN_PROGRAM,
+        &quote_token_program,
     );
     associated_token_creator_vault_authority
 }
 
-pub(crate) fn fee_recipient_ata(fee_recipient: Pubkey, quote_mint: Pubkey) -> Pubkey {
+pub(crate) fn fee_recipient_ata(
+    fee_recipient: Pubkey,
+    quote_mint: Pubkey,
+    quote_token_program: Pubkey,
+) -> Pubkey {
     let associated_token_fee_recipient =
         crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
             &fee_recipient,
             &quote_mint,
-            &TOKEN_PROGRAM,
+            &quote_token_program,
         );
     associated_token_fee_recipient
 }
@@ -733,19 +765,32 @@ pub async fn fetch_pool(
     pool_address: &Pubkey,
 ) -> Result<Pool, anyhow::Error> {
     let account = rpc.get_account(pool_address).await?;
-    if account.owner != accounts::AMM_PROGRAM {
-        return Err(anyhow!("Account is not owned by PumpSwap program"));
-    }
-    let pool = pool_decode(&account.data[8..]).ok_or_else(|| anyhow!("Failed to decode pool"))?;
-    Ok(pool)
+    decode_pool_account(&account).map_err(anyhow::Error::msg)
 }
 
-/// Known pool account sizes: 252 (SPL Token) and 643 (Token2022)
-const POOL_DATA_LEN_SPL: u64 = 8 + 244;
-const POOL_DATA_LEN_T22: u64 = 643;
+fn decode_pool_account(account: &solana_sdk::account::Account) -> Result<Pool, String> {
+    if account.owner != accounts::AMM_PROGRAM {
+        return Err("Account is not owned by PumpSwap program".to_string());
+    }
+    let discriminator = account
+        .data
+        .get(..8)
+        .ok_or_else(|| "Pool account is shorter than its discriminator".to_string())?;
+    if discriminator != POOL_DISCRIMINATOR {
+        return Err("Account discriminator is not PumpSwap Pool".to_string());
+    }
+    pool_decode(&account.data[8..]).ok_or_else(|| "Failed to decode pool".to_string())
+}
 
-/// Run getProgramAccounts with a Memcmp filter, querying both pool sizes in parallel.
-async fn get_program_accounts_both_sizes(
+/// Known allocated Pool account sizes. Current accounts may be serialized to
+/// exactly 261 bytes or retain a larger historical allocation.
+const POOL_DATA_LEN_LEGACY: u64 = 8 + 244;
+const POOL_DATA_LEN_CURRENT: u64 = 8 + 253;
+const POOL_DATA_LEN_PADDED: u64 = 300;
+const POOL_DATA_LEN_EXTENDED: u64 = 643;
+
+/// Run getProgramAccounts with a Memcmp filter, querying known Pool sizes in parallel.
+async fn get_program_accounts_known_sizes(
     rpc: &SolanaRpcClient,
     memcmp_offset: usize,
     mint: &Pubkey,
@@ -753,6 +798,9 @@ async fn get_program_accounts_both_sizes(
     let make_config = |data_size: u64| solana_rpc_client_api::config::RpcProgramAccountsConfig {
         filters: Some(vec![
             solana_rpc_client_api::filter::RpcFilterType::DataSize(data_size),
+            solana_rpc_client_api::filter::RpcFilterType::Memcmp(
+                solana_client::rpc_filter::Memcmp::new_base58_encoded(0, &POOL_DISCRIMINATOR),
+            ),
             solana_rpc_client_api::filter::RpcFilterType::Memcmp(
                 solana_client::rpc_filter::Memcmp::new_base58_encoded(memcmp_offset, mint.as_ref()),
             ),
@@ -768,12 +816,28 @@ async fn get_program_accounts_both_sizes(
     };
     let program_id = accounts::AMM_PROGRAM;
     #[allow(deprecated)]
-    let (spl_result, t22_result) = tokio::join!(
-        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_SPL)),
-        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_T22)),
+    let (legacy_result, current_result, padded_result, extended_result) = tokio::join!(
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_LEGACY)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_CURRENT)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_PADDED)),
+        rpc.get_program_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_EXTENDED)),
     );
-    let mut all = spl_result.unwrap_or_default();
-    all.extend(t22_result.unwrap_or_default());
+    let results = [legacy_result, current_result, padded_result, extended_result];
+    let mut all = Vec::new();
+    let mut errors = Vec::new();
+    for (size, result) in
+        [POOL_DATA_LEN_LEGACY, POOL_DATA_LEN_CURRENT, POOL_DATA_LEN_PADDED, POOL_DATA_LEN_EXTENDED]
+            .into_iter()
+            .zip(results)
+    {
+        match result {
+            Ok(accounts) => all.extend(accounts),
+            Err(error) => errors.push(format!("dataSize={size}: {error}")),
+        }
+    }
+    if !errors.is_empty() {
+        return Err(anyhow!("Incomplete PumpSwap pool query: {}", errors.join("; ")));
+    }
     Ok(all)
 }
 
@@ -782,13 +846,7 @@ fn decode_pool_accounts(
 ) -> Vec<(Pubkey, Pool)> {
     accounts
         .into_iter()
-        .filter_map(|(addr, acc)| {
-            if acc.data.len() > 8 {
-                pool_decode(&acc.data[8..]).map(|pool| (addr, pool))
-            } else {
-                None
-            }
-        })
+        .filter_map(|(addr, acc)| decode_pool_account(&acc).ok().map(|pool| (addr, pool)))
         .collect()
 }
 
@@ -797,7 +855,7 @@ pub async fn find_by_base_mint(
     base_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
     // base_mint offset: 8(discriminator) + 1(bump) + 2(index) + 32(creator) = 43
-    let accounts = get_program_accounts_both_sizes(rpc, 43, base_mint).await?;
+    let accounts = get_program_accounts_known_sizes(rpc, 43, base_mint).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", base_mint));
     }
@@ -814,7 +872,7 @@ pub async fn find_by_quote_mint(
     quote_mint: &Pubkey,
 ) -> Result<(Pubkey, Pool), anyhow::Error> {
     // quote_mint offset: 8 + 1 + 2 + 32 + 32 = 75
-    let accounts = get_program_accounts_both_sizes(rpc, 75, quote_mint).await?;
+    let accounts = get_program_accounts_known_sizes(rpc, 75, quote_mint).await?;
     if accounts.is_empty() {
         return Err(anyhow!("No pool found for mint {}", quote_mint));
     }
@@ -878,17 +936,111 @@ pub async fn find_by_mint(
     Err(anyhow!("No pool found for mint {}. diag: {}", mint, diag_str))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PoolRpcSnapshot {
+    pub base_reserve: u64,
+    pub quote_reserve: u64,
+    pub base_token_program: Pubkey,
+    pub quote_token_program: Pubkey,
+    pub base_mint_supply: u64,
+}
+
+const TOKEN_ACCOUNT_MINT_END: usize = 32;
+const TOKEN_ACCOUNT_AMOUNT_OFFSET: usize = 64;
+const TOKEN_ACCOUNT_AMOUNT_END: usize = 72;
+const TOKEN_ACCOUNT_STATE_OFFSET: usize = 108;
+const MINT_SUPPLY_OFFSET: usize = 36;
+const MINT_SUPPLY_END: usize = 44;
+const MINT_INITIALIZED_OFFSET: usize = 45;
+
+fn supported_token_program(program: &Pubkey) -> bool {
+    *program == crate::constants::TOKEN_PROGRAM || *program == crate::constants::TOKEN_PROGRAM_2022
+}
+
+fn decode_token_account_amount(
+    account: &solana_sdk::account::Account,
+    expected_mint: &Pubkey,
+) -> Result<(u64, Pubkey), anyhow::Error> {
+    if !supported_token_program(&account.owner) {
+        return Err(anyhow!("Pool vault is not owned by a supported token program"));
+    }
+    let mint = account
+        .data
+        .get(..TOKEN_ACCOUNT_MINT_END)
+        .ok_or_else(|| anyhow!("Pool vault data is too short"))?;
+    if mint != expected_mint.as_ref() {
+        return Err(anyhow!("Pool vault mint does not match Pool account"));
+    }
+    if account.data.get(TOKEN_ACCOUNT_STATE_OFFSET).copied() != Some(1) {
+        return Err(anyhow!("Pool vault is not initialized"));
+    }
+    let amount = account
+        .data
+        .get(TOKEN_ACCOUNT_AMOUNT_OFFSET..TOKEN_ACCOUNT_AMOUNT_END)
+        .and_then(|bytes| bytes.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or_else(|| anyhow!("Pool vault amount is missing"))?;
+    Ok((amount, account.owner))
+}
+
+fn decode_mint_supply(
+    account: &solana_sdk::account::Account,
+    expected_token_program: &Pubkey,
+) -> Result<u64, anyhow::Error> {
+    if account.owner != *expected_token_program {
+        return Err(anyhow!("Base mint and base vault use different token programs"));
+    }
+    if account.data.get(MINT_INITIALIZED_OFFSET).copied() != Some(1) {
+        return Err(anyhow!("Base mint is not initialized"));
+    }
+    account
+        .data
+        .get(MINT_SUPPLY_OFFSET..MINT_SUPPLY_END)
+        .and_then(|bytes| bytes.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or_else(|| anyhow!("Base mint supply is missing"))
+}
+
+pub async fn get_pool_rpc_snapshot(
+    pool: &Pool,
+    rpc: &SolanaRpcClient,
+) -> Result<PoolRpcSnapshot, anyhow::Error> {
+    let addresses = [pool.pool_base_token_account, pool.pool_quote_token_account, pool.base_mint];
+    let accounts = rpc.get_multiple_accounts(&addresses).await?;
+    let base_vault = accounts
+        .first()
+        .and_then(Option::as_ref)
+        .ok_or_else(|| anyhow!("PumpSwap base vault account was not found"))?;
+    let quote_vault = accounts
+        .get(1)
+        .and_then(Option::as_ref)
+        .ok_or_else(|| anyhow!("PumpSwap quote vault account was not found"))?;
+    let base_mint = accounts
+        .get(2)
+        .and_then(Option::as_ref)
+        .ok_or_else(|| anyhow!("PumpSwap base mint account was not found"))?;
+    let (base_reserve, base_token_program) =
+        decode_token_account_amount(base_vault, &pool.base_mint)?;
+    let (quote_reserve, quote_token_program) =
+        decode_token_account_amount(quote_vault, &pool.quote_mint)?;
+    let base_mint_supply = decode_mint_supply(base_mint, &base_token_program)?;
+
+    Ok(PoolRpcSnapshot {
+        base_reserve,
+        quote_reserve,
+        base_token_program,
+        quote_token_program,
+        base_mint_supply,
+    })
+}
+
 pub async fn get_token_balances(
     pool: &Pool,
     rpc: &SolanaRpcClient,
 ) -> Result<(u64, u64), anyhow::Error> {
-    let base_balance = rpc.get_token_account_balance(&pool.pool_base_token_account).await?;
-    let quote_balance = rpc.get_token_account_balance(&pool.pool_quote_token_account).await?;
+    let snapshot = get_pool_rpc_snapshot(pool, rpc).await?;
 
-    let base_amount = base_balance.amount.parse::<u64>().map_err(|e| anyhow!(e))?;
-    let quote_amount = quote_balance.amount.parse::<u64>().map_err(|e| anyhow!(e))?;
-
-    Ok((base_amount, quote_amount))
+    Ok((snapshot.base_reserve, snapshot.quote_reserve))
 }
 
 #[inline]
@@ -902,7 +1054,40 @@ pub fn get_fee_config_pda() -> Option<Pubkey> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solana_sdk::pubkey::Pubkey;
+    use crate::instruction::utils::pumpswap_types;
+    use solana_sdk::{account::Account, pubkey::Pubkey};
+
+    fn pool_account(virtual_quote_reserves: i128) -> Account {
+        let mut data = Vec::with_capacity(8 + pumpswap_types::POOL_SIZE);
+        data.extend_from_slice(&POOL_DISCRIMINATOR);
+        data.push(7);
+        data.extend_from_slice(&42u16.to_le_bytes());
+        for seed in 1..=6 {
+            data.extend_from_slice(Pubkey::new_from_array([seed; 32]).as_ref());
+        }
+        data.extend_from_slice(&123_456u64.to_le_bytes());
+        data.extend_from_slice(Pubkey::new_from_array([7; 32]).as_ref());
+        data.push(1);
+        data.push(0);
+        data.extend_from_slice(&virtual_quote_reserves.to_le_bytes());
+        Account { data, owner: accounts::AMM_PROGRAM, ..Account::default() }
+    }
+
+    fn token_account(mint: Pubkey, owner: Pubkey, amount: u64) -> Account {
+        let mut data = vec![0; 165];
+        data[..32].copy_from_slice(mint.as_ref());
+        data[TOKEN_ACCOUNT_AMOUNT_OFFSET..TOKEN_ACCOUNT_AMOUNT_END]
+            .copy_from_slice(&amount.to_le_bytes());
+        data[TOKEN_ACCOUNT_STATE_OFFSET] = 1;
+        Account { data, owner, ..Account::default() }
+    }
+
+    fn mint_account(owner: Pubkey, supply: u64) -> Account {
+        let mut data = vec![0; 82];
+        data[MINT_SUPPLY_OFFSET..MINT_SUPPLY_END].copy_from_slice(&supply.to_le_bytes());
+        data[MINT_INITIALIZED_OFFSET] = 1;
+        Account { data, owner, ..Account::default() }
+    }
 
     fn fee_config_fixture() -> PumpSwapFeeConfig {
         PumpSwapFeeConfig {
@@ -927,6 +1112,25 @@ mod tests {
             ],
             stable_fee_tiers: Vec::new(),
         }
+    }
+
+    #[test]
+    fn config_decoders_require_official_account_discriminators() {
+        let global_len = 8 + 32 + 8 + 8 + 1 + 32 * 8 + 8 + 32 + 32 + 32 + 1 + 32 * 7 + 1 + 32 * 8;
+        let mut global_data = vec![0; global_len];
+        global_data[..8].copy_from_slice(&GLOBAL_CONFIG_DISCRIMINATOR);
+        assert!(decode_global_config(&global_data).is_some());
+        global_data[0] ^= 0xff;
+        assert!(decode_global_config(&global_data).is_none());
+
+        let mut fee_data = Vec::with_capacity(8 + 1 + 32 + 24 + 4 + 4);
+        fee_data.extend_from_slice(&FEE_CONFIG_DISCRIMINATOR);
+        fee_data.extend_from_slice(&[0; 1 + 32 + 24]);
+        fee_data.extend_from_slice(&0_u32.to_le_bytes());
+        fee_data.extend_from_slice(&0_u32.to_le_bytes());
+        assert!(decode_fee_config(&fee_data).is_some());
+        fee_data[0] ^= 0xff;
+        assert!(decode_fee_config(&fee_data).is_none());
     }
 
     #[test]
@@ -985,5 +1189,79 @@ mod tests {
             4_500_000_000_000,
         );
         assert_eq!(fees, PumpSwapFeeBasisPoints::new(20, 5, 75));
+    }
+
+    #[test]
+    fn pumpswap_pool_queries_cover_current_serialized_and_padded_sizes() {
+        assert_eq!(POOL_DATA_LEN_LEGACY, 252);
+        assert_eq!(POOL_DATA_LEN_CURRENT, 261);
+        assert_eq!(POOL_DATA_LEN_PADDED, 300);
+        assert_eq!(POOL_DATA_LEN_EXTENDED, 643);
+    }
+
+    #[test]
+    fn pool_account_validation_checks_owner_length_and_discriminator() {
+        let account = pool_account(-123_456);
+        assert_eq!(decode_pool_account(&account).unwrap().virtual_quote_reserves, -123_456);
+
+        let mut wrong_owner = account.clone();
+        wrong_owner.owner = Pubkey::new_unique();
+        assert_eq!(
+            decode_pool_account(&wrong_owner).unwrap_err(),
+            "Account is not owned by PumpSwap program"
+        );
+
+        let mut short = account.clone();
+        short.data.truncate(7);
+        assert_eq!(
+            decode_pool_account(&short).unwrap_err(),
+            "Pool account is shorter than its discriminator"
+        );
+
+        let mut wrong_discriminator = account;
+        wrong_discriminator.data[0] ^= 0xff;
+        assert_eq!(
+            decode_pool_account(&wrong_discriminator).unwrap_err(),
+            "Account discriminator is not PumpSwap Pool"
+        );
+    }
+
+    #[test]
+    fn pool_snapshot_decoders_validate_token_ownership_and_layout() {
+        let mint = Pubkey::new_unique();
+        let token_program = crate::constants::TOKEN_PROGRAM_2022;
+        let vault = token_account(mint, token_program, 987_654_321);
+        assert_eq!(
+            decode_token_account_amount(&vault, &mint).unwrap(),
+            (987_654_321, token_program)
+        );
+        assert_eq!(
+            decode_mint_supply(&mint_account(token_program, 42), &token_program).unwrap(),
+            42
+        );
+
+        let wrong_mint = Pubkey::new_unique();
+        assert_eq!(
+            decode_token_account_amount(&vault, &wrong_mint).unwrap_err().to_string(),
+            "Pool vault mint does not match Pool account"
+        );
+
+        let unsupported = token_account(mint, Pubkey::new_unique(), 1);
+        assert_eq!(
+            decode_token_account_amount(&unsupported, &mint).unwrap_err().to_string(),
+            "Pool vault is not owned by a supported token program"
+        );
+    }
+
+    #[test]
+    fn coin_creator_vault_ata_uses_quote_token_program() {
+        let creator = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token_program = crate::constants::TOKEN_PROGRAM_2022;
+        let authority = coin_creator_vault_authority(creator);
+        let expected =
+            get_associated_token_address_with_program_id(&authority, &mint, &token_program);
+
+        assert_eq!(coin_creator_vault_ata(creator, mint, token_program), expected);
     }
 }

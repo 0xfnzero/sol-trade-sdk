@@ -12,8 +12,8 @@ use solana_commitment_config::CommitmentConfig;
 use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use solana_streamer_sdk::streaming::event_parser::common::EventType;
 use solana_streamer_sdk::streaming::event_parser::protocols::bonk::BonkTradeEvent;
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use solana_streamer_sdk::{match_event, streaming::ShredStreamGrpc};
+use solana_streamer_sdk::streaming::event_parser::{DexEvent, Protocol};
+use solana_streamer_sdk::streaming::ShredStreamGrpc;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -29,16 +29,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shred_stream = ShredStreamGrpc::new("use_your_shred_stream_url_here".to_string()).await?;
     let callback = create_event_callback();
     let protocols = vec![Protocol::Bonk];
-    let event_type_filter = EventTypeFilter {
-        include: vec![
-            EventType::BonkBuyExactIn,
-            EventType::BonkBuyExactOut,
-            EventType::BonkSellExactIn,
-            EventType::BonkSellExactOut,
-            EventType::BonkInitialize,
-            EventType::BonkInitializeV2,
-        ],
-    };
+    let event_type_filter = EventTypeFilter::include_only(vec![
+        EventType::BonkBuyExactIn,
+        EventType::BonkBuyExactOut,
+        EventType::BonkSellExactIn,
+        EventType::BonkSellExactOut,
+        EventType::BonkInitialize,
+        EventType::BonkInitializeV2,
+    ]);
     println!("Starting to listen for events, press Ctrl+C to stop...");
     shred_stream.shredstream_subscribe(protocols, None, Some(event_type_filter), callback).await?;
     tokio::signal::ctrl_c().await?;
@@ -46,27 +44,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Create an event callback function that handles different types of events
-fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
-    |event: Box<dyn UnifiedEvent>| {
-        match_event!(event, {
-            BonkTradeEvent => |e: BonkTradeEvent| {
-                // Only process developer token creation events
-                if !e.is_dev_create_token_trade {
-                    return;
+fn create_event_callback() -> impl Fn(DexEvent) {
+    |event: DexEvent| {
+        let DexEvent::BonkTradeEvent(event) = event else {
+            return;
+        };
+        if !event.is_dev_create_token_trade {
+            return;
+        }
+        if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+            tokio::spawn(async move {
+                if let Err(err) = bonk_sniper_trade_with_shreds(event).await {
+                    eprintln!("Error in sniper trade: {:?}", err);
+                    std::process::exit(1);
                 }
-                // Ensure we only execute the trade once using atomic compare-and-swap
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    // Spawn a new task to handle the trading operation
-                    tokio::spawn(async move {
-                        if let Err(err) = bonk_sniper_trade_with_shreds(event_clone).await {
-                            eprintln!("Error in sniper trade: {:?}", err);
-                            std::process::exit(1);
-                        }
-                    });
-                }
-            },
-        });
+            });
+        }
     }
 }
 

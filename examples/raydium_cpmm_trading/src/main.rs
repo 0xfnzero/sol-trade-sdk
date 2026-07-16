@@ -8,12 +8,10 @@ use solana_commitment_config::CommitmentConfig;
 use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use solana_streamer_sdk::streaming::event_parser::common::EventType;
 use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::parser::RAYDIUM_CPMM_PROGRAM_ID;
-use solana_streamer_sdk::streaming::event_parser::{Protocol, UnifiedEvent};
-use solana_streamer_sdk::streaming::yellowstone_grpc::{AccountFilter, TransactionFilter};
+use solana_streamer_sdk::streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent;
+use solana_streamer_sdk::streaming::event_parser::{DexEvent, Protocol};
+use solana_streamer_sdk::streaming::yellowstone_grpc::TransactionFilter;
 use solana_streamer_sdk::streaming::YellowstoneGrpc;
-use solana_streamer_sdk::{
-    match_event, streaming::event_parser::protocols::raydium_cpmm::RaydiumCpmmSwapEvent,
-};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -47,19 +45,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         account_required,
     };
 
-    // Listen to account data belonging to owner programs -> account event monitoring
-    let account_filter = AccountFilter { account: vec![], owner: vec![], filters: vec![] };
-
     // listen to specific event type
-    let event_type_filter = EventTypeFilter {
-        include: vec![EventType::RaydiumCpmmSwapBaseInput, EventType::RaydiumCpmmSwapBaseOutput],
-    };
+    let event_type_filter = EventTypeFilter::include_only(vec![
+        EventType::RaydiumCpmmSwapBaseInput,
+        EventType::RaydiumCpmmSwapBaseOutput,
+    ]);
 
     grpc.subscribe_events_immediate(
         protocols,
         None,
         vec![transaction_filter],
-        vec![account_filter],
+        vec![],
         Some(event_type_filter),
         None,
         callback,
@@ -67,32 +63,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     tokio::signal::ctrl_c().await?;
+    grpc.stop().await;
 
     Ok(())
 }
 
 /// Create an event callback function that handles different types of events
-fn create_event_callback() -> impl Fn(Box<dyn UnifiedEvent>) {
-    |event: Box<dyn UnifiedEvent>| {
-        match_event!(event, {
-            RaydiumCpmmSwapEvent => |e: RaydiumCpmmSwapEvent| {
-                let is_wsol = e.input_token_mint == WSOL_TOKEN_ACCOUNT || e.output_token_mint == WSOL_TOKEN_ACCOUNT;
-                let is_usdc = e.input_token_mint == USDC_TOKEN_ACCOUNT || e.output_token_mint == USDC_TOKEN_ACCOUNT;
-                if !is_wsol && !is_usdc {
-                    return;
+fn create_event_callback() -> impl Fn(DexEvent) {
+    |event: DexEvent| {
+        let DexEvent::RaydiumCpmmSwapEvent(event) = event else {
+            return;
+        };
+        let is_wsol = event.input_token_mint == WSOL_TOKEN_ACCOUNT
+            || event.output_token_mint == WSOL_TOKEN_ACCOUNT;
+        let is_usdc = event.input_token_mint == USDC_TOKEN_ACCOUNT
+            || event.output_token_mint == USDC_TOKEN_ACCOUNT;
+        if !is_wsol && !is_usdc {
+            return;
+        }
+        if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
+            tokio::spawn(async move {
+                if let Err(err) = raydium_cpmm_copy_trade_with_grpc(event).await {
+                    eprintln!("Error in copy trade: {:?}", err);
+                    std::process::exit(1);
                 }
-                // Test code, only test one transaction
-                if !ALREADY_EXECUTED.swap(true, Ordering::SeqCst) {
-                    let event_clone = e.clone();
-                    tokio::spawn(async move {
-                        if let Err(err) = raydium_cpmm_copy_trade_with_grpc(event_clone).await {
-                            eprintln!("Error in copy trade: {:?}", err);
-                            std::process::exit(1);
-                        }
-                    });
-                }
-            },
-        });
+            });
+        }
     }
 }
 
