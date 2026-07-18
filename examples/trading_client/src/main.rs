@@ -55,6 +55,20 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
         ), // QUIC；None / Some(Binary) / Some(Plain) 为 HTTP
         // Helius Sender: 4th param swqos_only Some(true) => min tip 0.000005 SOL; None => 0.0002 SOL
         SwqosConfig::Helius("".to_string(), SwqosRegion::Default, None, Some(true)),
+        // Glaive defaults to persistent QUIC (UDP/4000). Use Some(Http) for binary HTTP.
+        SwqosConfig::Glaive(
+            "your_glaive_uuid_v4_api_key".to_string(),
+            SwqosRegion::Frankfurt,
+            None,
+            None,
+        ),
+        // HTTP alternative:
+        // SwqosConfig::Glaive(
+        //     "your_glaive_uuid_v4_api_key".to_string(),
+        //     SwqosRegion::Frankfurt,
+        //     None,
+        //     Some(sol_trade_sdk::SwqosTransport::Http),
+        // ),
     ];
 
     let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)

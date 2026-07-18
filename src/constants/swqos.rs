@@ -198,6 +198,16 @@ pub const LUNARLANDER_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("moonZ6u9E2fgk6eWd82621eLPHt9zuJuYECXAYjMY1C"),
 ];
 
+/// Glaive tip accounts from <https://glaive.trade/docs#tip-accounts>.
+pub const GLAIVE_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("GLaiv4GMRYQmthatDS98uQT4HoucgxWT8NeJz6oSwxeU"),
+    pubkey!("GLaivL5uPrDpvd1wTtvat38KGqb5WLhEdqQfnmNd3oNr"),
+    pubkey!("GLaivinAWh21NaJMhtExtD5G2gZs1xnvaYVZmwqobWZL"),
+    pubkey!("GLaivJSUL71FcocYa8tks5vpVyYzvaDMHtyrzfQF2ABr"),
+    pubkey!("GLaivRU6eDKrta3p3psFAWPEFLzCjeMHGpPUuQqTjtyv"),
+    pubkey!("GLaivq5dU8qHayz9Qf13LjPfVy3SmUhbmickfGiZdmfh"),
+];
+
 // `SwqosRegion` 与下列各 `SWQOS_ENDPOINTS_*` 下标严格对应（共 10 项）：
 // 0 NewYork, 1 Frankfurt, 2 Amsterdam, 3 Dublin, 4 SLC, 5 Tokyo, 6 Singapore, 7 London, 8 LosAngeles, 9 Default。
 //
@@ -477,6 +487,35 @@ pub const SWQOS_ENDPOINTS_LUNARLANDER_QUIC: [&str; 10] = [
     "nyc-1.prod.lunar-lander.hellomoon.io:16888", // Default -> NYC
 ];
 
+/// Glaive binary HTTP origins. The client appends `/binary?api-key=...`.
+/// Glaive currently publishes Amsterdam, Frankfurt, London, and New York PoPs.
+pub const SWQOS_ENDPOINTS_GLAIVE: [&str; 10] = [
+    "http://ny.glaive.trade",
+    "http://fra.glaive.trade",
+    "http://ams1.glaive.trade",
+    "http://lon.glaive.trade",  // Dublin -> London
+    "http://ny.glaive.trade",   // SLC -> only published US PoP
+    "http://ams1.glaive.trade", // Tokyo -> nearest published PoP
+    "http://fra.glaive.trade",  // Singapore -> nearest published PoP
+    "http://lon.glaive.trade",
+    "http://ny.glaive.trade",   // Los Angeles -> only published US PoP
+    "http://ams1.glaive.trade", // Default -> official documentation example
+];
+
+/// Glaive QUIC endpoints. ALPN `solana-tpu`, SNI `glaive-intake`, UDP port 4000.
+pub const SWQOS_ENDPOINTS_GLAIVE_QUIC: [&str; 10] = [
+    "ny.glaive.trade:4000",
+    "fra.glaive.trade:4000",
+    "ams1.glaive.trade:4000",
+    "lon.glaive.trade:4000",  // Dublin -> London
+    "ny.glaive.trade:4000",   // SLC -> only published US PoP
+    "ams1.glaive.trade:4000", // Tokyo -> nearest published PoP
+    "fra.glaive.trade:4000",  // Singapore -> nearest published PoP
+    "lon.glaive.trade:4000",
+    "ny.glaive.trade:4000",   // Los Angeles -> only published US PoP
+    "ams1.glaive.trade:4000", // Default -> official documentation example
+];
+
 /// Helius Sender: POST /fast, dual routing to validators and Jito. API key optional (custom TPS only).
 pub const SWQOS_ENDPOINTS_HELIUS: [&str; 10] = [
     "http://ewr-sender.helius-rpc.com/fast",
@@ -522,6 +561,8 @@ pub const SWQOS_MIN_TIP_SPEEDLANDING: f64 = 0.001; // Speedlanding requires mini
 pub const SWQOS_MIN_TIP_HELIUS: f64 = 0.0002;
 pub const SWQOS_MIN_TIP_SOLAMI: f64 = 0.0001;
 pub const SWQOS_MIN_TIP_LUNARLANDER: f64 = 0.001; // LunarLander 最低小费 0.001 SOL
+/// Glaive requires at least 100,000 lamports (0.0001 SOL).
+pub const SWQOS_MIN_TIP_GLAIVE: f64 = 0.0001;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
 #[cfg(test)]
@@ -549,6 +590,8 @@ mod tests {
         &SWQOS_ENDPOINTS_HELIUS,
         &SWQOS_ENDPOINTS_LUNARLANDER,
         &SWQOS_ENDPOINTS_LUNARLANDER_QUIC,
+        &SWQOS_ENDPOINTS_GLAIVE,
+        &SWQOS_ENDPOINTS_GLAIVE_QUIC,
         &SWQOS_ENDPOINTS_SOLAMI,
     ];
 
@@ -592,5 +635,22 @@ mod tests {
             let binary = SWQOS_ENDPOINTS_ASTRALANE_BINARY[i].trim_end_matches("/irisb");
             assert_eq!(plain, binary, "Astralane Plain vs Binary base URL mismatch at index {}", i);
         }
+    }
+
+    #[test]
+    fn glaive_http_and_quic_hosts_match_per_region() {
+        for i in 0..10 {
+            let http_host =
+                SWQOS_ENDPOINTS_GLAIVE[i].strip_prefix("http://").expect("Glaive HTTP URL");
+            let quic_host =
+                SWQOS_ENDPOINTS_GLAIVE_QUIC[i].strip_suffix(":4000").expect("Glaive QUIC endpoint");
+            assert_eq!(http_host, quic_host, "Glaive HTTP vs QUIC host mismatch at index {i}");
+        }
+    }
+
+    #[test]
+    fn glaive_tip_policy_matches_official_docs() {
+        assert_eq!(GLAIVE_TIP_ACCOUNTS.len(), 6);
+        assert_eq!(SWQOS_MIN_TIP_GLAIVE, 0.0001);
     }
 }

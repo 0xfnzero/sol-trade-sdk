@@ -13,8 +13,8 @@ pub struct InfrastructureConfig {
     /// When true, SWQOS sender threads use the *last* N cores instead of the first N. Reduces contention with main thread / default tokio workers that often use low-numbered cores. Default false.
     pub swqos_cores_from_end: bool,
     /// Global MEV protection flag. When true, SWQOS providers that support MEV protection
-    /// (Astralane QUIC `:9000` or HTTP `mev-protect=true`, BlockRazor) use MEV-protected
-    /// endpoints/modes. Default false.
+    /// (Astralane, BlockRazor, Glaive) use MEV-protected endpoints/modes. Glaive HTTP adds
+    /// `mev-protect=true`; Glaive QUIC sets auth-frame flag bit 0. Default false.
     pub mev_protection: bool,
 }
 
@@ -100,8 +100,8 @@ pub struct TradeConfig {
     /// When true, SWQOS uses the *last* N cores (instead of the first N). Use when main thread / tokio use low-numbered cores to reduce CPU contention. Default false.
     pub swqos_cores_from_end: bool,
     /// Global MEV protection flag. When true, SWQOS providers that support MEV protection
-    /// (Astralane QUIC `:9000` or Plain/Binary HTTP `mev-protect=true`, BlockRazor sandwichMitigation)
-    /// use their MEV-protected endpoints/modes. Default false (no MEV protection, lower latency).
+    /// (Astralane, BlockRazor, Glaive) use their MEV-protected endpoints/modes. Glaive HTTP
+    /// adds `mev-protect=true`; Glaive QUIC sets auth-frame flag bit 0. Default false.
     pub mev_protection: bool,
 }
 
@@ -114,7 +114,7 @@ impl TradeConfig {
     /// - `.log_enabled(bool)`                 — SDK timing/SWQOS logs (default: true)
     /// - `.check_min_tip(bool)`               — filter SWQOS below min tip (default: false)
     /// - `.swqos_cores_from_end(bool)`        — bind SWQOS to last N cores (default: false)
-    /// - `.mev_protection(bool)`              — MEV protection for Astralane/BlockRazor (default: false)
+    /// - `.mev_protection(bool)`              — MEV protection for Astralane/BlockRazor/Glaive (default: false)
     ///
     /// # Example
     /// ```rust,ignore
@@ -209,6 +209,7 @@ impl TradeConfigBuilder {
     /// Enable global MEV protection. When `true`:
     /// - **Astralane QUIC** uses port `9000`; **Astralane HTTP** adds `mev-protect=true`
     /// - **BlockRazor** uses `mode=sandwichMitigation` (skips blacklisted Leader slots)
+    /// - **Glaive HTTP** adds `mev-protect=true`; **Glaive QUIC** sets auth-frame flag bit 0
     ///
     /// May reduce landing speed. Default: `false`.
     pub fn mev_protection(mut self, v: bool) -> Self {

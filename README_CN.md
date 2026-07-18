@@ -55,6 +55,7 @@
   - [📊 使用示例汇总表格](#-使用示例汇总表格)
   - [⚙️ SWQoS 服务配置说明](#️-swqos-服务配置说明)
   - [Astralane（Binary / Plain / QUIC）](#astralanebinary--plain--quic)
+  - [Glaive（Binary HTTP / QUIC）](#glaivebinary-http--quic)
   - [🔧 中间件系统说明](#-中间件系统说明)
   - [🔍 地址查找表](#-地址查找表)
   - [🔍 Nonce 缓存](#-nonce-缓存)
@@ -86,7 +87,7 @@
 | 方向 | 覆盖范围 |
 |------|----------|
 | DEX 协议 | PumpFun、PumpSwap、Bonk、Meteora DAMM v2、Raydium AMM v4、Raydium CPMM |
-| 提交通道 | 默认 Solana RPC，以及 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、SpeedLanding 等 SWQoS 服务 |
+| 提交通道 | 默认 Solana RPC，以及 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、SpeedLanding 等 SWQoS 服务 |
 | 交易流程 | 买入/卖出、精确输入/输出、跟单交易、狙击交易、地址查找表、durable nonce、中间件、共享基础设施 |
 | 热路径设计 | 调用方传入 recent blockhash 或 durable nonce；交易执行阶段不再查询 RPC 获取 blockhash、账户或余额 |
 
@@ -104,7 +105,7 @@
 4. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 5. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
 6. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
-7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、SpeedLanding、LunarLander 等服务
+7. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、SpeedLanding、LunarLander 等服务
 8. **并发交易**: 所有已配置的 SWQoS 通道和默认 RPC 通道都会发出提交；首个成功只影响返回，较慢通道会继续提交
 9. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 10. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
@@ -169,6 +170,13 @@ let swqos_configs: Vec<SwqosConfig> = vec![
         None,
         Some(SwqosTransport::Http),
     ),
+    // Glaive：None 为 QUIC（默认，UDP/4000）；Some(Http) 为 binary HTTP
+    SwqosConfig::Glaive(
+        "your_glaive_uuid_v4_api_key".to_string(),
+        SwqosRegion::Frankfurt,
+        None,
+        None,
+    ),
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -177,7 +185,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .log_enabled(true)                  // 默认: true  - SDK 计时 / SWQOS 日志
     // .check_min_tip(false)               // 默认: false - 过滤低于最低小费的 SWQOS
     // .swqos_cores_from_end(false)        // 默认: false - 将 SWQOS 绑定到末尾 N 个 CPU 核心
-    // .mev_protection(false)              // 默认: false - MEV（Astralane QUIC :9000 或 HTTP mev-protect / BlockRazor）
+    // .mev_protection(false)              // 默认: false - Astralane / BlockRazor / Glaive 的 MEV 保护
     .build();
 
 // 创建 TradingClient
@@ -347,6 +355,7 @@ let temporal_config = SwqosConfig::Temporal(
 - 如果提供了自定义 URL（`Some(url)`），将使用自定义 URL 而不是区域端点
 - 如果没有提供自定义 URL（`None`），系统将使用指定 `SwqosRegion` 的默认端点
 - 这提供了最大的灵活性，同时保持向后兼容性
+- Glaive 自定义 QUIC 地址格式为 `host:4000`；自定义 HTTP 地址必须是完整的 `http://` 或 `https://` 基础 URL，SDK 会自动追加 `/binary` 和鉴权参数。
 
 当使用多个 MEV 服务时，需要使用 `Durable Nonce`。先获取最新 nonce，再挂到新的 buy/sell 参数上：
 
@@ -394,6 +403,42 @@ let swqos_configs: Vec<SwqosConfig> = vec![
 - **Binary**（默认）：`None` 或 `Some(AstralaneTransport::Binary)` — `/irisb`，bincode 正文。
 - **Plain**：`Some(AstralaneTransport::Plain)` — `/iris`。
 - **QUIC**：`Some(AstralaneTransport::Quic)` — 按区域的 `host:7000` / `:9000`（MEV）；同一 API key。
+
+#### Glaive（Binary HTTP / QUIC）
+
+Glaive 支持 binary HTTP 和持久 QUIC。Glaive 官方将 QUIC 定义为最低延迟路径，因此 SDK 默认使用 QUIC。API key 必须是 UUID v4；每笔交易至少需要 `0.0001 SOL` tip，SDK 会从 Glaive 官方公布的 6 个 tip 账户中选择一个。
+
+```rust
+use sol_trade_sdk::{
+    swqos::{SwqosConfig, SwqosRegion},
+    SwqosTransport,
+};
+
+let glaive_quic = SwqosConfig::Glaive(
+    "your_glaive_uuid_v4_api_key".to_string(),
+    SwqosRegion::Frankfurt,
+    None, // fra.glaive.trade:4000
+    None, // 默认 QUIC
+);
+
+let glaive_http = SwqosConfig::Glaive(
+    "your_glaive_uuid_v4_api_key".to_string(),
+    SwqosRegion::Frankfurt,
+    None, // http://fra.glaive.trade/binary?api-key=...
+    Some(SwqosTransport::Http),
+);
+```
+
+- **QUIC（默认）**：`None` 或 `Some(SwqosTransport::Quic)`。使用 UDP `4000`、ALPN `solana-tpu`、SNI `glaive-intake`；维持一条已鉴权连接，每笔交易使用一个单向流。
+- **Binary HTTP**：`Some(SwqosTransport::Http)`。把原始交易字节提交到 `/binary?api-key=...`，并通过 `/health` 保持连接池热连接。
+- `Some(SwqosTransport::Grpc)` 会直接返回错误，因为 Glaive 没有提供 gRPC 提交协议。
+- **MEV 保护**：`.mev_protection(true)` 会设置 QUIC 鉴权帧的 flag bit 0，或为 binary HTTP 追加 `mev-protect=true`。
+- **Tip 配置**：Glaive 通道的 gas-fee strategy tip 至少应为 `0.0001 SOL`。`.check_min_tip(true)` 会在本地过滤低于该值的配置，但不会自动提高用户设置的 tip。
+- **区域**：Glaive 原生 PoP 包括 Amsterdam、Frankfurt、London 和 New York；其他 `SwqosRegion` 会映射到最近的已公布端点。
+- **仅主网**：Glaive 当前没有 testnet 端点。
+- 内置 HTTP 地址遵循 Glaive 官方文档中的 `http://` 端点。优先使用默认 QUIC；如果 Glaive 为你分配了 HTTPS 地址，也可以通过自定义 URL 使用。
+
+凭证、限流和协议详情请参考 [Glaive 官方文档](https://glaive.trade/docs)。
 
 ---
 
@@ -520,6 +565,7 @@ PumpSwap 报价必须使用 `effective_quote_reserves = pool_quote_token_account
 - **FlashBlock**: 高速交易执行，支持 API 密钥认证
 - **BlockRazor**: 高速交易执行，支持 API 密钥认证
 - **Astralane**: 区块链网络加速（Binary/Plain HTTP 与 QUIC）
+- **Glaive**: 持久 QUIC 与 binary HTTP 交易投递（最低 tip：0.0001 SOL）
 - **SpeedLanding**: 高速交易执行，支持 API 密钥认证
 - **Node1**: 高速交易执行，支持 API 密钥认证
 - **LunarLander**: HelloMoon 交易着陆服务（最低小费：0.001 SOL）
