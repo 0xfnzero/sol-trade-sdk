@@ -6,6 +6,8 @@
 
 这是配置模板。运行前设置 `PRIVATE_KEY`、RPC 和所有已启用服务商凭证；程序会初始化网络客户端，但不会提交交易。
 
+Glaive 配置默认使用 QUIC，其凭证必须是 Glaive 提供的 UUID v4 API key。若要改用 binary HTTP，把第四个参数替换为 `Some(SwqosTransport::Http)`。
+
 ```bash
 cargo run --package trading_client
 ```
