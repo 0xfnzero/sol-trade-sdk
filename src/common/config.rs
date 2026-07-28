@@ -909,10 +909,7 @@ rpc_url = "https://api.testnet.solana.com"
 execution_keypair_path = "${SOLBOT_HOME_NONEXISTENT:-/tmp/solbot}/id.json"
         "#;
         let cfg = AppConfig::from_toml(toml_str).unwrap();
-        assert_eq!(
-            cfg.wallet.execution_keypair_path,
-            "/tmp/solbot/id.json"
-        );
+        assert_eq!(cfg.wallet.execution_keypair_path, "/tmp/solbot/id.json");
     }
 
     #[test]

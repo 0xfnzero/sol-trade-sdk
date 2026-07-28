@@ -123,8 +123,11 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 toml = "0.8"
 
 # Performance optimization dependencies
+crossbeam-channel = "0.5"
 crossbeam-queue = "0.3"
 crossbeam-utils = "0.8"
+lru = "0.12"
+shredstream = "2.0.0"
 memmap2 = "0.9"
 num_cpus = "1.16"
 libc = "0.2"

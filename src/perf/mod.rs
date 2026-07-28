@@ -4,11 +4,13 @@
 pub mod compiler_optimization;
 pub mod hardware_optimizations;
 pub mod simd;
+pub mod shredstream;
 pub mod syscall_bypass;
 pub mod zero_copy_io;
 
 pub use compiler_optimization::*;
 pub use hardware_optimizations::*;
+pub use shredstream::*;
 pub use simd::*;
 pub use syscall_bypass::*;
 pub use zero_copy_io::*;

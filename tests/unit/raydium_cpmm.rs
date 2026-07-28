@@ -22,7 +22,9 @@ fn swap_out_discriminator() {
 
 #[test]
 fn swap_in_and_out_differ() {
-    use sol_trade_sdk::instruction::utils::raydium_cpmm::{SWAP_BASE_IN_DISCRIMINATOR, SWAP_BASE_OUT_DISCRIMINATOR};
+    use sol_trade_sdk::instruction::utils::raydium_cpmm::{
+        SWAP_BASE_IN_DISCRIMINATOR, SWAP_BASE_OUT_DISCRIMINATOR,
+    };
     assert_ne!(SWAP_BASE_IN_DISCRIMINATOR, SWAP_BASE_OUT_DISCRIMINATOR);
 }
 
