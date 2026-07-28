@@ -314,6 +314,10 @@ impl Drop for AstralaneQuicClient {
 #[derive(Debug)]
 struct SkipServerVerification;
 
+#[cfg(not(feature = "dev-insecure-tls"))]
+compile_error!("astralane_quic: dev-insecure-tls feature required for permissive TLS. Use HTTPS transport or enable feature for non-production use.");
+
+#[cfg(feature = "dev-insecure-tls")]
 impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
     fn verify_server_cert(
         &self,

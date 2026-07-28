@@ -42,6 +42,8 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+production = []
+dev-insecure-tls = []
 perf-trace = []  # 性能追踪特性，生产环境应禁用以获得最佳性能
 
 [dependencies]

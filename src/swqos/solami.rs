@@ -9,7 +9,11 @@ use rand::seq::IndexedRandom as _;
 use solana_client::rpc_client::SerializableTransaction;
 use solana_sdk::signer::Signer;
 use solana_sdk::{signature::Keypair, transaction::VersionedTransaction};
-use solana_tls_utils::{new_dummy_x509_certificate, SkipServerVerification};
+use solana_tls_utils::new_dummy_x509_certificate;
+#[cfg(feature = "dev-insecure-tls")]
+use solana_tls_utils::SkipServerVerification;
+#[cfg(not(feature = "dev-insecure-tls"))]
+compile_error!("solami: dev-insecure-tls feature required for permissive TLS. Use HTTPS transport or enable feature for non-production use.");
 use std::time::Instant;
 use std::{
     net::{SocketAddr, ToSocketAddrs as _},
