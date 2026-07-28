@@ -1,6 +1,7 @@
 pub mod address_lookup;
 pub mod bonding_curve;
 pub mod clock;
+pub mod config;
 pub mod fast_fn;
 pub mod fast_timing;
 pub mod gas_fee_strategy;

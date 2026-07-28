@@ -88,7 +88,8 @@ impl Node1QuicClient {
                 .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
                 .with_no_client_auth();
 
-            let client_crypto = QuicClientConfig::try_from(crypto).context("build QUIC TLS config")?;
+            let client_crypto =
+                QuicClientConfig::try_from(crypto).context("build QUIC TLS config")?;
             let mut client_config = ClientConfig::new(Arc::new(client_crypto));
 
             let mut transport = TransportConfig::default();
@@ -153,8 +154,14 @@ impl Node1QuicClient {
         recv.read_exact(&mut header)
             .await
             .map_err(|e| anyhow::anyhow!("read response header: {:?}", e))?;
-        let status = u16::from_be_bytes(header[0..2].try_into().map_err(|_| anyhow::anyhow!("Invalid response header: could not parse status"))?);
-        let msg_len = u32::from_be_bytes(header[2..6].try_into().map_err(|_| anyhow::anyhow!("Invalid response header: could not parse message length"))?) as usize;
+        let status = u16::from_be_bytes(
+            header[0..2]
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("Invalid response header: could not parse status"))?,
+        );
+        let msg_len = u32::from_be_bytes(header[2..6].try_into().map_err(|_| {
+            anyhow::anyhow!("Invalid response header: could not parse message length")
+        })?) as usize;
         let mut msg = vec![0u8; msg_len];
         if msg_len > 0 {
             recv.read_exact(&mut msg)

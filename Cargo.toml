@@ -119,7 +119,8 @@ tonic-prost = "0.14.2"
 quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
 lunar-lander-quic-client = "0.4"
 rcgen = "0.13"
-uuid = "1.11"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+toml = "0.8"
 
 # Performance optimization dependencies
 crossbeam-queue = "0.3"

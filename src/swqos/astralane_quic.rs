@@ -295,7 +295,8 @@ impl AstralaneQuicClient {
             crypto.alpn_protocols = vec![ALPN_ASTRALANE_TPU.to_vec()];
 
             let mut transport = TransportConfig::default();
-            transport.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(30)).unwrap()));
+            transport
+                .max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(30)).unwrap()));
             transport.keep_alive_interval(Some(Duration::from_secs(25)));
 
             let mut client_config =
