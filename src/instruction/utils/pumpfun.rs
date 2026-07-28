@@ -42,7 +42,7 @@ pub mod global_constants {
     pub const INITIAL_VIRTUAL_USDC_RESERVES: u64 = 4_292_000_000;
     pub const INITIAL_REAL_TOKEN_RESERVES: u64 = 793_100_000_000_000;
     pub const TOKEN_TOTAL_SUPPLY: u64 = 1_000_000_000_000_000;
-    pub const FEE_BASIS_POINTS: u64 = 95;
+    pub const FEE_BASIS_POINTS: u64 = 100; // on-chain verified: pump program charges 100 bps
     pub const ENABLE_MIGRATE: bool = false;
     pub const POOL_MIGRATION_FEE: u64 = 15_000_001;
     pub const CREATOR_FEE: u64 = 30;

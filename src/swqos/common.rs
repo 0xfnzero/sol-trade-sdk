@@ -81,7 +81,7 @@ pub trait FormatBase64VersionedTransaction {
 impl FormatBase64VersionedTransaction for VersionedTransaction {
     fn to_base64_string(&self) -> Result<String, anyhow::Error> {
         let tx_bytes = bincode::serialize(self).context("Failed to serialize transaction")?;
-        general_purpose::STANDARD.encode(tx_bytes)
+        Ok(general_purpose::STANDARD.encode(tx_bytes))
     }
 }
 

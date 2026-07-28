@@ -1,0 +1,307 @@
+# =============================================================================
+# CI/CD Pipeline for sol-trade-sdk
+# =============================================================================
+#
+# DESIGN OVERVIEW
+# ---------------
+# This CI workflow provides a comprehensive gate for PR-based development.
+# It enforces code quality, security, and correctness before any merge.
+# The workflow is designed to run on every push to any branch and on all PRs
+# targeting 'main' (or the active development branch).
+#
+# REQUIRED INFRASTRUCTURE
+# ------------------------
+# 1. rust-toolchain.toml (currently missing — must be created to pin version)
+# 2. deny.toml (exists — use as-is)
+# 3. cargo-deny: installed via taiki-e/install-action
+# 4. cargo-audit: installed via taiki-e/install-action
+# 5. Secrets: SLACK_WEBHOOK (for scheduled job alerts)
+# =============================================================================
+
+name: CI
+
+"on":
+  push:
+    branches: ["main", "develop", "release/*"]
+  pull_request:
+    branches: ["main", "develop"]
+  merge_group:
+    types: [checks_requested]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  RUST_BACKTRACE: 1
+
+jobs:
+  # =========================================================================
+  # JOB: fmt
+  # Uses nightly rustfmt for latest formatting features
+  # =========================================================================
+  fmt:
+    name: Formatting (rustfmt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  # =========================================================================
+  # JOB: check (fast compile-time validation)
+  # =========================================================================
+  check:
+    name: Check (cargo check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo check
+        run: cargo check --workspace --all-targets --all-features
+
+  # =========================================================================
+  # JOB: clippy (linting with deny-warnings)
+  # =========================================================================
+  clippy:
+    name: Linting (clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: clippy check
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  # =========================================================================
+  # JOB: test (debug mode)
+  # =========================================================================
+  test:
+    name: Tests (debug)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test (debug)
+        run: cargo test --workspace
+
+  # =========================================================================
+  # JOB: test-release (release mode)
+  # =========================================================================
+  test-release:
+    name: Tests (release)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test (release)
+        run: cargo test --release --workspace
+
+  # =========================================================================
+  # JOB: audit (security vulnerabilities)
+  # =========================================================================
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    continue-on-error: true  # advisory DB fetch failures don't block CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: cargo audit
+        run: cargo audit
+
+  # =========================================================================
+  # JOB: deny (license, bans, sources)
+  # =========================================================================
+  deny:
+    name: License/Bans/Sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: cargo deny check
+        run: cargo deny check
+
+# =============================================================================
+# SCHEDULED JOBS — enable by uncommenting the 'on: schedule:' block in each
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Scheduled: Weekly Dependency Audit
+# Runs every Monday at 06:00 UTC. Posts to Slack if vulns found.
+# Uses: cargo audit --json > report, then posts to #security-alerts
+# ---------------------------------------------------------------------------
+# name: Weekly Dependency Audit
+# on:
+#   schedule:
+#     - cron: '0 6 * * 1'
+# jobs:
+#   audit-weekly:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: dtolnay/rust-toolchain@stable
+#       - name: Install cargo-audit
+#         uses: taiki-e/install-action@v2
+#         with:
+#           tool: cargo-audit
+#       - name: Full audit
+#         run: cargo audit --json > audit-report.json
+#       - name: Upload report
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: audit-report
+#           path: audit-report.json
+#       - name: Post to Slack
+#         uses: slackapi/slack-github-action@v1
+
+# ---------------------------------------------------------------------------
+# Scheduled: Upstream Drift Check
+# Runs every Monday at 07:00 UTC.
+# Compares pinned Git commit of sol-parser-sdk and solana-streamer
+# (from Cargo.lock) against their current main branch HEAD.
+# Opens a GitHub issue if drift > 1 week.
+# ---------------------------------------------------------------------------
+# name: Upstream Drift Check
+# on:
+#   schedule:
+#     - cron: '0 7 * * 1'
+# jobs:
+#   upstream-drift:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+#       - name: Check pinned upstream commits
+#         run: |
+#           # Extract git URLs + pinned refs from Cargo.lock
+#           # Compare HEAD of main via GitHub API
+#           # if diverge: gh issue create --label upstream-drift
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ---------------------------------------------------------------------------
+# Scheduled: Official IDL Hash Check
+# Runs every Wednesday at 06:00 UTC.
+# Verifies SHA256 of each IDL in idl/ against REFERENCE_HASHES.txt.
+# Alerts on mismatch (protocol upgrade detected).
+# ---------------------------------------------------------------------------
+# name: IDL Hash Check
+# on:
+#   schedule:
+#     - cron: '0 6 * * 3'
+# jobs:
+#   idl-hash-check:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Verify IDL hashes
+#         run: |
+#           # for f in idl/*.json; do
+#           #   hash=$(sha256sum "$f" | cut -d' ' -f1)
+#           #   ref=$(grep "$f" idl/REFERENCE_HASHES.txt | cut -d' ' -f2)
+#           #   if [ "$hash" != "$ref" ]; then
+#           #     echo "HASH MISMATCH: $f"
+#           #     exit 1
+#           #   fi
+#           # done
+
+# ---------------------------------------------------------------------------
+# Scheduled: Mainnet Protocol Fixture Simulation
+# Runs every Thursday at 08:00 UTC.
+# Spins up solana-test-validator with mainnet account snapshots,
+# runs simulateTransaction for all protocol instructions.
+# ---------------------------------------------------------------------------
+# name: Fixture Simulation
+# on:
+#   schedule:
+#     - cron: '0 8 * * 4'
+# jobs:
+#   fixture-simulation:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: dtolnay/rust-toolchain@stable
+#       - name: Install Solana CLI
+#         run: sh -c "$(curl -sSfL https://release.anza.xyz/stable)"
+#       - name: Start test validator
+#         run: |
+#           solana-test-validator --clone-upgradeable-program ... &
+#           sleep 10
+#       - name: Run fixture simulation
+#         run: cargo test --release --test fixture_simulation
+
+# ---------------------------------------------------------------------------
+# Scheduled: Documentation Link Verification
+# Runs every Friday at 06:00 UTC.
+# Checks all URLs in docs/ and *.md for 404s using lychee.
+# ---------------------------------------------------------------------------
+# name: Doc Link Check
+# on:
+#   schedule:
+#     - cron: '0 6 * * 5'
+# jobs:
+#   doc-links:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Check links
+#         uses: lycheeverse/lychee-action@v2
+#         with:
+#           args: --verbose --no-progress './**/*.md'
+
+# =============================================================================
+# RELEASE GATE DESIGN
+# =============================================================================
+#
+# Current release.yml (runs on tag push) must be updated to require CI success:
+#
+#   jobs:
+#     ci-pass:
+#       needs: [fmt, check, clippy, test, test-release, audit, deny]
+#       runs-on: ubuntu-latest
+#       steps:
+#         - run: echo "All CI checks passed — proceeding with release"
+#
+#     release:
+#       needs: [ci-pass]
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/checkout@v4
+#           with:
+#             fetch-depth: 0
+#         - name: Get version from tag
+#           id: tag
+#           run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+#         - name: Create GitHub Release
+#           uses: softprops/action-gh-release@v2
+#           with:
+#             name: v${{ steps.tag.outputs.VERSION }}
+#             body: |
+#               ## sol-trade-sdk v${{ steps.tag.outputs.VERSION }}
+#               Rust SDK to interact with the DEX trade Solana program.
+#               - Cargo: `sol-trade-sdk = { git = "...", tag = "v${{ steps.tag.outputs.VERSION }}" }`
+#             draft: false
+#             generate_release_notes: true
+#           env:
+#             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# =============================================================================

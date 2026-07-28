@@ -71,8 +71,17 @@ pub mod accounts {
     /// Pump Bonding Curve program（canonical pool 的 creator 来自此程序的 pool-authority PDA）
     pub const PUMP_PROGRAM_ID: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 
+    /// Default LP fee basis points for pre-deployment/migration pool state.
+    /// On-chain pool state provides the actual fee after initialization.
+    /// This value MUST NOT be used for production quotes without verifying pool state.
     pub const LP_FEE_BASIS_POINTS: u64 = 25;
+    /// Default protocol fee basis points for pre-deployment/migration pool state.
+    /// On-chain pool state provides the actual fee after initialization.
+    /// This value MUST NOT be used for production quotes without verifying pool state.
     pub const PROTOCOL_FEE_BASIS_POINTS: u64 = 5;
+    /// Default coin creator fee basis points for pre-deployment/migration pool state.
+    /// On-chain pool state provides the actual fee after initialization.
+    /// This value MUST NOT be used for production quotes without verifying pool state.
     pub const COIN_CREATOR_FEE_BASIS_POINTS: u64 = 5;
 
     pub const FEE_PROGRAM: Pubkey = pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
