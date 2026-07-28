@@ -1,5 +1,6 @@
 use crate::common::types::SolanaRpcClient;
 use crate::swqos::serialization;
+use anyhow::Context;
 use anyhow::Result;
 use base64::engine::general_purpose::{self, STANDARD};
 use base64::Engine;
@@ -74,12 +75,12 @@ impl From<anyhow::Error> for TradeError {
 // High-performance serialization
 
 pub trait FormatBase64VersionedTransaction {
-    fn to_base64_string(&self) -> String;
+    fn to_base64_string(&self) -> Result<String, anyhow::Error>;
 }
 
 impl FormatBase64VersionedTransaction for VersionedTransaction {
-    fn to_base64_string(&self) -> String {
-        let tx_bytes = bincode::serialize(self).unwrap();
+    fn to_base64_string(&self) -> Result<String, anyhow::Error> {
+        let tx_bytes = bincode::serialize(self).context("Failed to serialize transaction")?;
         general_purpose::STANDARD.encode(tx_bytes)
     }
 }

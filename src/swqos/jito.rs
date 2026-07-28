@@ -163,8 +163,10 @@ impl JitoClient {
         _wait_confirmation: bool,
     ) -> Result<()> {
         let start_time = Instant::now();
-        let txs_base64 =
-            transactions.iter().map(|tx| tx.to_base64_string()).collect::<Vec<String>>();
+        let txs_base64 = transactions
+            .iter()
+            .map(|tx| tx.to_base64_string())
+            .collect::<Result<Vec<String>, _>>()?;
         let body = serde_json::json!({
             "jsonrpc": "2.0",
             "method": "sendBundle",
