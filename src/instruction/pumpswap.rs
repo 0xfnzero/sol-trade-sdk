@@ -397,10 +397,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             if output_amount >= pool_base_token_reserves {
                 return Err(anyhow!("Exact base output must be below the pool base reserve"));
             }
-            (params.input_amount.unwrap(), output_amount)
+            (params.input_amount.ok_or(anyhow!("Missing input_amount for sell path"))?, output_amount)
         } else if quote_is_wsol_or_usdc {
             let result = sell_base_input_internal_with_fees(
-                params.input_amount.unwrap(),
+                params.input_amount.ok_or(anyhow!("Missing input_amount for sell path"))?,
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
@@ -409,10 +409,10 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             )
             .map_err(anyhow::Error::msg)?;
             // base_amount_in, min_quote_amount_out
-            (params.input_amount.unwrap(), result.min_quote)
+            (params.input_amount.ok_or(anyhow!("Missing input_amount for sell path"))?, result.min_quote)
         } else {
             let result = buy_quote_input_internal_with_fees(
-                params.input_amount.unwrap(),
+                params.input_amount.ok_or(anyhow!("Missing input_amount for sell path"))?,
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
                 pool_base_token_reserves,
                 pool_quote_token_reserves,
