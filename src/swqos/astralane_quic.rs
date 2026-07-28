@@ -274,33 +274,41 @@ impl AstralaneQuicClient {
     }
 
     fn build_client_config(api_key: &str) -> Result<ClientConfig> {
-        let key_pair = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
-        let mut cert_params = CertificateParams::new(vec![])?;
-        cert_params
-            .distinguished_name
-            .push(rcgen::DnType::CommonName, rcgen::DnValue::Utf8String(api_key.to_string()));
-        let cert = cert_params.self_signed(&key_pair)?;
+        #[cfg(feature = "dev-insecure-tls")]
+        {
+            let key_pair = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;
+            let mut cert_params = CertificateParams::new(vec![])?;
+            cert_params
+                .distinguished_name
+                .push(rcgen::DnType::CommonName, rcgen::DnValue::Utf8String(api_key.to_string()));
+            let cert = cert_params.self_signed(&key_pair)?;
 
-        let cert_der = CertificateDer::from(cert.der().to_vec());
-        let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_pair.serialize_der()));
+            let cert_der = CertificateDer::from(cert.der().to_vec());
+            let key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key_pair.serialize_der()));
 
-        let mut crypto = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
-            .with_client_auth_cert(vec![cert_der], key_der)
-            .context("Failed to set client certificate")?;
+            let mut crypto = rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
+                .with_client_auth_cert(vec![cert_der], key_der)
+                .context("Failed to set client certificate")?;
 
-        crypto.alpn_protocols = vec![ALPN_ASTRALANE_TPU.to_vec()];
+            crypto.alpn_protocols = vec![ALPN_ASTRALANE_TPU.to_vec()];
 
-        let mut transport = TransportConfig::default();
-        transport.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(30)).unwrap()));
-        transport.keep_alive_interval(Some(Duration::from_secs(25)));
+            let mut transport = TransportConfig::default();
+            transport.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(30)).unwrap()));
+            transport.keep_alive_interval(Some(Duration::from_secs(25)));
 
-        let mut client_config =
-            ClientConfig::new(Arc::new(QuicClientConfig::try_from(crypto).unwrap()));
-        client_config.transport_config(Arc::new(transport));
+            let mut client_config =
+                ClientConfig::new(Arc::new(QuicClientConfig::try_from(crypto).unwrap()));
+            client_config.transport_config(Arc::new(transport));
 
-        Ok(client_config)
+            Ok(client_config)
+        }
+        #[cfg(not(feature = "dev-insecure-tls"))]
+        {
+            let _ = api_key;
+            anyhow::bail!("astralane_quic: dev-insecure-tls feature required for QUIC transport")
+        }
     }
 }
 

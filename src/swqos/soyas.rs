@@ -108,6 +108,8 @@ pub struct SoyasClient {
 
 impl SoyasClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
+        #[cfg(not(feature = "dev-insecure-tls"))]
+        anyhow::bail!("soyas QUIC: dev-insecure-tls feature required");
         let rpc_client = SolanaRpcClient::new(rpc_url);
         let keypair_bytes = bs58::decode(api_key.trim()).into_vec().map_err(|e| {
             anyhow::anyhow!("Soyas api_token base58 解码失败（QUIC mTLS 用）: {}", e)

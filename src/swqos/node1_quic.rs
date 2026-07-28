@@ -81,20 +81,27 @@ impl Node1QuicClient {
     }
 
     fn build_client_config() -> Result<ClientConfig> {
-        let crypto = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
-            .with_no_client_auth();
+        #[cfg(feature = "dev-insecure-tls")]
+        {
+            let crypto = rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
+                .with_no_client_auth();
 
-        let client_crypto = QuicClientConfig::try_from(crypto).context("build QUIC TLS config")?;
-        let mut client_config = ClientConfig::new(Arc::new(client_crypto));
+            let client_crypto = QuicClientConfig::try_from(crypto).context("build QUIC TLS config")?;
+            let mut client_config = ClientConfig::new(Arc::new(client_crypto));
 
-        let mut transport = TransportConfig::default();
-        transport.max_idle_timeout(Some(IdleTimeout::try_from(MAX_IDLE_TIMEOUT).unwrap()));
-        transport.keep_alive_interval(Some(KEEP_ALIVE_INTERVAL));
-        client_config.transport_config(Arc::new(transport));
+            let mut transport = TransportConfig::default();
+            transport.max_idle_timeout(Some(IdleTimeout::try_from(MAX_IDLE_TIMEOUT).unwrap()));
+            transport.keep_alive_interval(Some(KEEP_ALIVE_INTERVAL));
+            client_config.transport_config(Arc::new(transport));
 
-        Ok(client_config)
+            Ok(client_config)
+        }
+        #[cfg(not(feature = "dev-insecure-tls"))]
+        {
+            anyhow::bail!("node1_quic: dev-insecure-tls feature required for QUIC transport")
+        }
     }
 
     async fn authenticate(connection: &Connection, api_key_bytes: &[u8; 16]) -> Result<()> {
