@@ -13,6 +13,10 @@ pub mod seed;
 pub mod spl_associated_token_account;
 pub mod spl_token;
 pub mod spl_token_2022;
+pub mod alt_cache;
+pub mod blockhash_service;
+pub mod fee_service;
+pub mod rpc_pool;
 pub mod subscription_handle;
 pub mod types;
 
