@@ -1,3 +1,4 @@
+pub mod canary;
 pub mod common;
 pub mod core;
 pub mod factory;

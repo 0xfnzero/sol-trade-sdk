@@ -36,6 +36,7 @@ pub struct AppConfig {
     pub observability: ObservabilityConfig,
     pub storage: StorageConfig,
     pub runtime: RuntimeConfig,
+    pub canary: CanaryConfig,
 }
 
 impl Default for AppConfig {
@@ -54,6 +55,7 @@ impl Default for AppConfig {
             observability: ObservabilityConfig::default(),
             storage: StorageConfig::default(),
             runtime: RuntimeConfig::default(),
+            canary: CanaryConfig::default(),
         }
     }
 }
@@ -90,6 +92,7 @@ impl AppConfig {
         self.observability.validate()?;
         self.storage.validate()?;
         self.runtime.validate()?;
+        self.canary.validate()?;
         Ok(())
     }
 
@@ -855,6 +858,104 @@ impl RuntimeConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.graceful_shutdown_timeout_secs < 1 {
             anyhow::bail!("runtime.graceful_shutdown_timeout_secs must be >= 1");
+        }
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 14. Canary
+// ---------------------------------------------------------------------------
+
+/// Canary mode configuration — tiny wallet, tight limits, manual triggers.
+///
+/// Phase 12 of the productionization roadmap: run alongside shadow mode
+/// with a tiny wallet, ultra-conservative limits, and manual approval
+/// gate to compare hypothetical vs real outcomes before going full prod.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CanaryConfig {
+    /// Enable canary mode. When enabled, the solcanary binary enforces
+    /// ultra-tight limits and optionally requires manual approval.
+    pub enabled: bool,
+
+    /// Maximum SOL balance allowed in the wallet at startup.
+    /// solcanary will refuse to start if balance exceeds this.
+    pub max_wallet_balance_sol: f64,
+
+    /// Override for max SOL per trade (even tighter than risk defaults).
+    pub max_sol_per_trade: f64,
+
+    /// Override for max daily trades (even tighter than risk defaults).
+    pub max_daily_trades: u32,
+
+    /// Override for max open positions.
+    pub max_open_positions: u32,
+
+    /// Require manual HTTP approval before each trade.
+    pub manual_approval: bool,
+
+    /// How long to wait for manual approval before auto-rejecting (seconds).
+    pub approval_timeout_secs: u64,
+
+    /// Enable shadow comparison — records shadow decisions alongside
+    /// actual trades for outcome comparison.
+    pub shadow_comparison: bool,
+
+    /// Path to the shadow decisions DB file (SQLite), for cross-referencing.
+    pub shadow_db_path: String,
+
+    /// Allowlist of protocols that canary mode will trade.
+    /// Empty = all enabled protocols allowed.
+    pub allowed_protocols: Vec<String>,
+
+    /// Max slippage basis points for canary trades (even tighter).
+    pub max_slippage_basis_points: u64,
+
+    /// Require at least N SOL balance before starting canary (anti-drain).
+    pub min_wallet_balance_sol: f64,
+}
+
+impl Default for CanaryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            max_wallet_balance_sol: 0.5,
+            max_sol_per_trade: 0.01,
+            max_daily_trades: 20,
+            max_open_positions: 1,
+            manual_approval: true,
+            approval_timeout_secs: 60,
+            shadow_comparison: true,
+            shadow_db_path: "/var/lib/solbot/shadow.db".into(),
+            allowed_protocols: vec![],
+            max_slippage_basis_points: 25,
+            min_wallet_balance_sol: 0.05,
+        }
+    }
+}
+
+impl CanaryConfig {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.enabled {
+            if self.max_wallet_balance_sol <= 0.0 {
+                anyhow::bail!("canary.max_wallet_balance_sol must be > 0 when enabled");
+            }
+            if self.max_wallet_balance_sol > 5.0 {
+                anyhow::bail!("canary.max_wallet_balance_sol must be <= 5.0 (tiny wallet)");
+            }
+            if self.max_sol_per_trade > 0.1 {
+                anyhow::bail!("canary.max_sol_per_trade must be <= 0.1 (tiny position)");
+            }
+            if self.max_daily_trades > 100 {
+                anyhow::bail!("canary.max_daily_trades must be <= 100");
+            }
+            if self.approval_timeout_secs < 5 {
+                anyhow::bail!("canary.approval_timeout_secs must be >= 5");
+            }
+            if self.min_wallet_balance_sol <= 0.0 {
+                anyhow::bail!("canary.min_wallet_balance_sol must be > 0");
+            }
         }
         Ok(())
     }

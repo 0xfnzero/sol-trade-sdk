@@ -1,0 +1,201 @@
+# solcanary — Canary Mode Configuration
+# Phase 12: Tiny wallet, tight limits, manual triggers first.
+#
+# Copy this to /etc/solbot/canary.toml and adjust as needed.
+# Run with: solcanary --config /etc/solbot/canary.toml --keypair /path/to/canary-keypair.json
+
+[network]
+rpc_url = "https://api.mainnet-beta.solana.com"
+rpc_fallback_url = "https://solana-api.projectserum.com"
+ws_url = "wss://api.mainnet-beta.solana.com"
+connection_timeout_secs = 10
+request_timeout_secs = 30
+rate_limit_rps = 100
+
+[rpc]
+primary = "https://api.mainnet-beta.solana.com"
+fallback = "https://solana-api.projectserum.com"
+commitment = "processed"
+rate_limit_per_second = 100
+max_retries = 3
+retry_backoff_ms = [100, 500, 2000]
+
+[shredstream]
+enabled = false  # Enable when you have a ShredStream feed
+udp_bind_addr = "0.0.0.0:8001"
+receive_buffer_bytes = 67108864
+busy_poll_usec = 200
+slot_window = 3
+fec_enabled = true
+stuck_batch_timeout_ms = 50
+program_ids = [
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",  # PumpFun
+    "pAMMBay6oceH9fJKBRHGP5D4bD8sKbwv3Y5SQE2sTjQ",  # PumpSwap
+    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",  # Raydium AMM V4
+    "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",  # Raydium CPMM
+    "LBUZKhRxPF3XUpBCjp4YzTKgY6bE1UEsLzD2jF5K5oM",  # Meteora
+]
+
+[shredstream.cpu_affinity]
+receive_core = 0
+reconstruct_core = 1
+state_strategy_core = 2
+execute_core = 3
+
+[protocols]
+enabled = ["pumpfun", "pumpswap", "raydium_cpmm"]
+disabled = []
+
+[protocols.pumpfun]
+max_quote_age_ms = 500
+min_liquidity_sol = 5.0
+
+[protocols.pumpswap]
+max_quote_age_ms = 300
+min_liquidity_sol = 1.0
+
+[protocols.raydium_amm_v4]
+max_quote_age_ms = 200
+min_liquidity_sol = 1.0
+
+[protocols.raydium_cpmm]
+max_quote_age_ms = 200
+min_liquidity_sol = 1.0
+
+[protocols.meteora_damm_v2]
+max_quote_age_ms = 200
+min_liquidity_sol = 1.0
+
+[protocols.bonk]
+max_quote_age_ms = 500
+min_liquidity_sol = 0.5
+
+[submission]
+primary_provider = "rpc"
+fallback_provider = "jito"
+max_simultaneous_lanes = 1      # Canary: single lane only
+require_same_signature = true
+
+[submission.jito]
+endpoint = "https://mainnet.block-engine.jito.wtf"
+auth_token = ""
+tip_min_lamports = 1000
+tip_max_lamports = 10000
+bundle_tip_strategy = "fixed"
+
+[wallet]
+execution_keypair_path = "/etc/solbot/canary-keypair.json"
+payer_keypair_path = "/etc/solbot/canary-keypair.json"
+min_balance_sol = 0.05
+max_balance_sol = 0.5
+
+[blockhash]
+refresh_interval_ms = 200
+max_age_slots = 150
+stale_threshold_ms = 500
+commitment = "confirmed"
+fail_on_lag = true
+
+[fees]
+compute_unit_limit = 300000       # Canary: more conservative CU budget
+compute_unit_price = 1000
+max_priority_fee_lamports = 5000  # Canary: lower max fee
+max_relay_tip_lamports = 2000     # Canary: lower tip
+max_total_tx_cost_lamports = 10000
+profit_threshold_lamports = 500
+cu_tracking_enabled = true
+cu_tracking_window = 100
+
+[risk]
+max_sol_per_trade = 0.01          # Canary: tiny position (0.01 SOL)
+max_token_amount_per_trade = 100000000
+max_slippage_basis_points = 25    # Canary: tight slippage
+max_quote_age_ms = 200
+max_source_slot_age = 2
+min_expected_output = 1
+min_expected_output_as_bps = false
+min_expected_net_profit_lamports = 500
+
+[risk.global]
+max_open_exposure_sol = 0.05      # Canary: max 0.05 SOL total exposure
+max_exposure_per_mint_pct = 25.0
+max_exposure_per_protocol_pct = 50.0
+max_tx_per_minute = 10            # Canary: 10 tx/min max
+max_failures_per_5min = 3         # Canary: 3 failures → stop
+per_mint_cap_sol = 0.03
+max_positions_per_protocol = 1
+max_daily_trades = 20             # Canary: 20 trades/day max
+max_open_positions = 1            # Canary: 1 position at a time
+
+[risk.fee_ceilings]
+max_priority_fee_lamports = 5000
+max_relay_tip_lamports = 2000
+max_total_tx_cost_lamports = 10000
+max_daily_loss_lamports = 50000  # Canary: 0.00005 SOL max daily loss
+max_consecutive_losses = 2       # Canary: 2 consecutive losses → stop
+max_net_loss_per_trade_lamports = 10000
+max_loss_rate_per_100_trades_pct = 60.0
+
+[risk.health]
+max_rpc_slot_lag = 5
+max_packet_loss_pct = 1.0
+max_queue_delay_ms = 50
+max_blockhash_age_ms = 500
+max_reconciliation_backlog = 10
+max_shred_loss_pct = 2.0
+
+[risk.switches]
+global_kill = false
+buy_only = false
+sell_only = false
+per_protocol_disabled = []
+per_provider_disabled = []
+per_token_denylist = []
+
+[strategy]
+strategy_type = "momentum"
+max_open_positions = 1
+position_size_sol = 0.01
+take_profit_basis_points = 50
+stop_loss_basis_points = 30
+max_hold_ms = 30000
+min_slot_distance = 1
+
+[observability]
+metrics_endpoint = "0.0.0.0:9090"
+metrics_prefix = "solcanary"
+log_level = "info"
+log_format = "json"
+log_sampling_rate = 0.1
+trace_storage_path = "/var/log/solcanary/traces"
+
+[storage]
+state_path = "/var/lib/solcanary/state"
+dedup_cache_size = 262144
+reconciliation_db = "/var/lib/solcanary/reconciliation.db"
+max_disk_usage_gb = 1.0
+
+[runtime]
+graceful_shutdown_timeout_secs = 10
+restart_max_retries = 3
+restart_delay_ms = 1000
+cpu_affinity_enabled = true
+memory_limit_mb = 512
+file_descriptor_limit = 65536
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CANARY MODE — Phase 12
+# ═══════════════════════════════════════════════════════════════════════════
+[canary]
+enabled = true
+max_wallet_balance_sol = 0.5
+max_sol_per_trade = 0.01
+max_daily_trades = 20
+max_open_positions = 1
+manual_approval = true
+approval_timeout_secs = 60
+shadow_comparison = true
+shadow_db_path = "/var/lib/solbot/shadow.db"
+allowed_protocols = []
+max_slippage_basis_points = 25
+min_wallet_balance_sol = 0.05
