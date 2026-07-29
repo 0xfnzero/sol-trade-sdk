@@ -109,47 +109,61 @@ pub struct SoyasClient {
 impl SoyasClient {
     pub async fn new(rpc_url: String, endpoint_string: String, api_key: String) -> Result<Self> {
         #[cfg(not(feature = "dev-insecure-tls"))]
-        anyhow::bail!("soyas QUIC: dev-insecure-tls feature required");
-        let rpc_client = SolanaRpcClient::new(rpc_url);
-        let keypair_bytes = bs58::decode(api_key.trim()).into_vec().map_err(|e| {
-            anyhow::anyhow!("Soyas api_token base58 解码失败（QUIC mTLS 用）: {}", e)
-        })?;
-        let keypair = Keypair::try_from(keypair_bytes.as_slice()).map_err(|e| {
-            anyhow::anyhow!("Soyas api_token 无法解析为 Solana keypair（QUIC mTLS 用）: {}", e)
-        })?;
-        let (cert, key) = generate_client_tls_credentials(&keypair)?;
-        let mut crypto = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(SkipServerVerification::new())
-            .with_client_auth_cert(vec![cert], key)
-            .context("failed to configure client certificate")?;
+        {
+            anyhow::bail!("soyas QUIC: dev-insecure-tls feature required");
+        }
 
-        crypto.alpn_protocols = vec![ALPN_TPU_PROTOCOL_ID.to_vec()];
+        #[cfg(feature = "dev-insecure-tls")]
+        {
+            let rpc_client = SolanaRpcClient::new(rpc_url);
+            let keypair_bytes = bs58::decode(api_key.trim()).into_vec().map_err(|e| {
+                anyhow::anyhow!("Soyas api_token base58 decode failed (QUIC mTLS): {}", e)
+            })?;
+            let keypair = Keypair::try_from(keypair_bytes.as_slice()).map_err(|e| {
+                anyhow::anyhow!("Soyas api_token could not be parsed as Solana keypair (QUIC mTLS): {}", e)
+            })?;
+            let (cert, key) = generate_client_tls_credentials(&keypair)?;
+            let mut crypto = rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(SkipServerVerification::new())
+                .with_client_auth_cert(vec![cert], key)
+                .context("failed to configure client certificate")?;
 
-        let client_crypto = QuicClientConfig::try_from(crypto)
-            .context("failed to convert rustls config into quinn crypto config")?;
-        let mut client_config = ClientConfig::new(Arc::new(client_crypto));
-        let mut transport = TransportConfig::default();
-        transport.keep_alive_interval(Some(KEEP_ALIVE_INTERVAL));
-        transport.max_idle_timeout(Some(IdleTimeout::try_from(MAX_IDLE_TIMEOUT)?));
-        client_config.transport_config(Arc::new(transport));
+            crypto.alpn_protocols = vec![ALPN_TPU_PROTOCOL_ID.to_vec()];
 
-        let mut endpoint = Endpoint::client("0.0.0.0:0".parse()?)?;
-        endpoint.set_default_client_config(client_config.clone());
-        let addr = endpoint_string
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("Address not resolved"))?;
-        let connection = endpoint.connect(addr, SOYAS_SERVER)?.await?;
+            let client_crypto = QuicClientConfig::try_from(crypto)
+                .context("failed to convert rustls config into quinn crypto config")?;
+            let mut client_config = ClientConfig::new(Arc::new(client_crypto));
+            let mut transport = TransportConfig::default();
+            transport.keep_alive_interval(Some(KEEP_ALIVE_INTERVAL));
+            transport.max_idle_timeout(Some(IdleTimeout::try_from(MAX_IDLE_TIMEOUT)?));
+            client_config.transport_config(Arc::new(transport));
 
-        Ok(Self {
-            rpc_client: Arc::new(rpc_client),
-            endpoint,
-            client_config,
-            addr,
-            connection: ArcSwap::from_pointee(connection),
-            reconnect: Mutex::new(()),
-        })
+            let mut endpoint = Endpoint::client("0.0.0.0:0".parse()?)?;
+            endpoint.set_default_client_config(client_config.clone());
+            let addr = endpoint_string
+                .to_socket_addrs()?
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("Address not resolved"))?;
+            let connection = endpoint.connect(addr, SOYAS_SERVER)?.await?;
+
+            Ok(Self {
+                rpc_client: Arc::new(rpc_client),
+                endpoint,
+                client_config,
+                addr,
+                connection: ArcSwap::from_pointee(connection),
+                reconnect: Mutex::new(()),
+            })
+        }
+
+        #[cfg(not(feature = "dev-insecure-tls"))]
+        {
+            // Unreachable — the bail above already returned;
+            // this block exists only to satisfy the Rust type-checker
+            // that all code paths return a value.
+            unreachable!("soyas QUIC requires dev-insecure-tls feature")
+        }
     }
 
     async fn reconnect(&self) -> anyhow::Result<()> {
