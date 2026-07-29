@@ -25,7 +25,9 @@ use crate::trading::core::{
     state::{TradeDirection, TradeIntent, TradeState},
     traits::TradeExecutor,
 };
+use crate::trading::strategy::{StrategyEngine, StrategyOutcome, StrategyStats};
 use crate::trading::SwapParams;
+use crate::perf::shredstream::classifier::ClassifiedEvent;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature},
@@ -33,10 +35,10 @@ use solana_sdk::{
 };
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 use std::time::{Duration, Instant};
-use tracing::{info, warn};
+use tracing::{info, trace, warn};
 
 #[cfg(feature = "perf-trace")]
 use crate::perf::TraceSpan;
@@ -207,6 +209,9 @@ pub struct Orchestrator {
     // Phase 5 risk engine
     pub risk_engine: RiskEngine,
 
+    // Phase 14/15 strategy engine (Mutex for &self-access from plan_trade)
+    pub strategy_engine: Mutex<StrategyEngine>,
+
     // Phase 8 reconciliation
     pub reconciliation_service: ReconciliationService,
     pub reconciliation_config: ReconciliationConfig,
@@ -232,6 +237,7 @@ impl Orchestrator {
         payer: Arc<Keypair>,
         risk_config: RiskConfig,
         config: OrchestratorConfig,
+        strategy_engine: StrategyEngine,
     ) -> Self {
         let rpc_url = rpc_url.into();
         let rpc = Arc::new(SolanaRpcClient::new(rpc_url.clone()));
@@ -261,6 +267,7 @@ impl Orchestrator {
             fee_service,
             alt_cache,
             risk_engine,
+            strategy_engine: Mutex::new(strategy_engine),
             reconciliation_service,
             reconciliation_config: config.reconciliation.clone(),
             config,
@@ -275,7 +282,8 @@ impl Orchestrator {
         config.validate()?;
         let orchestrator_config = OrchestratorConfig::from(&config);
         let rpc_url = config.rpc.primary.clone();
-        Ok(Self::new(rpc_url, payer, config.risk.into(), orchestrator_config))
+        let strategy_engine = StrategyEngine::new(config.strategy.to_engine_config());
+        Ok(Self::new(rpc_url, payer, config.risk.into(), orchestrator_config, strategy_engine))
     }
 
     /// Start background service loops (blockhash refresh, fee refresh).
@@ -304,9 +312,42 @@ impl Orchestrator {
         self.kill_switch.load(Ordering::Acquire)
     }
 
+    // ── Strategy engine integration (Phase 14/15) ──
+
+    /// Feed a classified event into the strategy engine's market state.
+    ///
+    /// Call this in the event-ingest loop before calling `plan_trade()` to
+    /// ensure the strategy engine has up-to-date market state.
+    pub fn process_event(&self, event: &ClassifiedEvent) {
+        let now_micros = crate::common::fast_timing::fast_now_micros() as i64;
+        if let Ok(mut engine) = self.strategy_engine.lock() {
+            engine.process_event(event, now_micros);
+        }
+    }
+
+    /// Returns a snapshot of strategy engine statistics.
+    pub fn strategy_stats(&self) -> StrategyStats {
+        if let Ok(engine) = self.strategy_engine.lock() {
+            engine.stats()
+        } else {
+            StrategyStats {
+                eval_count: 0,
+                signal_count: 0,
+                notrade_count: 0,
+                tracked_mints: 0,
+                eviction_count: 0,
+            }
+        }
+    }
+
     // ── Trade planning ──
 
     /// Validate and create a `TradePlan` for a trade opportunity.
+    ///
+    /// Gates, in order:
+    /// 1. Kill switch
+    /// 2. Risk engine
+    /// 3. Strategy engine signal check
     pub async fn plan_trade(
         &self,
         protocol: &str,
@@ -329,15 +370,57 @@ impl Orchestrator {
         }
 
         if let Err(e) = self.risk_engine.check(
-            risk_context,
-            trade_params,
-            protocol,
-            "default",
-            &mint.to_string(),
-        ) {
-            warn!(target: "sol_trade_sdk", "orchestrator: trade rejected by risk engine: {}", e);
-            return None;
-        }
+                    risk_context,
+                    trade_params,
+                    protocol,
+                    "default",
+                    &mint.to_string(),
+                ) {
+                    warn!(target: "sol_trade_sdk", "orchestrator: trade rejected by risk engine: {e}");
+                    return None;
+                }
+
+                // ── Gate 3: Strategy engine signal check ──
+                let _mid_price = {
+                    let mut engine = self.strategy_engine.lock().ok()?;
+                    let mint_str = mint.to_string();
+                    // Get midpoint price from market state, fallback to 0.0
+                    let mp = engine
+                        .market_state
+                        .get(&mint_str)
+                        .map(|s| s.last_price)
+                        .unwrap_or(0.0);
+                    let now_micros = crate::common::fast_timing::fast_now_micros() as i64;
+                    let slot = detected_slot.unwrap_or(0);
+                    match engine.evaluate(&mint_str, protocol, slot, mp, now_micros) {
+                        Some(StrategyOutcome::Trade(signal)) => {
+                            info!(
+                                target: "sol_trade_sdk",
+                                "orchestrator: strategy signal for {} — {} (conf={:.2}, score={:.2})",
+                                mint_str, signal.strength, signal.confidence, signal.composite_score,
+                            );
+                            signal.midpoint_price
+                        }
+                        Some(StrategyOutcome::NoTrade(nt)) => {
+                            warn!(
+                                target: "sol_trade_sdk",
+                                "orchestrator: trade rejected by strategy engine for {}: {}",
+                                mint_str, nt.reason,
+                            );
+                            return None;
+                        }
+                        None => {
+                            // Strategy engine is time-gated (too early for another eval).
+                            // Still allow the trade — the market state is being built.
+                            trace!(
+                                target: "sol_trade_sdk",
+                                "orchestrator: strategy engine not ready for {} (eval gate)",
+                                mint_str,
+                            );
+                            0.0
+                        }
+                    }
+                };
 
         let blockhash = self.blockhash_service.get()?;
         let last_valid_slot = None;
@@ -578,6 +661,7 @@ mod tests {
             payer,
             risk_config,
             OrchestratorConfig::default(),
+            StrategyEngine::default_with_config(),
         );
         assert!(!orch.is_killed());
         assert_eq!(orch.config.blockhash_refresh_interval_ms, 200);
@@ -592,6 +676,7 @@ mod tests {
             payer,
             risk_config,
             OrchestratorConfig::default(),
+            StrategyEngine::default_with_config(),
         );
         orch.kill();
         assert!(orch.is_killed());
@@ -606,6 +691,7 @@ mod tests {
             payer,
             risk_config,
             OrchestratorConfig::default(),
+            StrategyEngine::default_with_config(),
         );
         orch.kill();
         assert!(orch.is_killed());

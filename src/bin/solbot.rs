@@ -30,6 +30,8 @@ use tiny_http::{Header, Method, Response, Server};
 use tracing::{error, info, warn};
 
 use sol_trade_sdk::common::config::AppConfig;
+use sol_trade_sdk::perf::shredstream::config::ShredstreamConfig;
+use sol_trade_sdk::perf::shredstream::ShredstreamAdapter;
 use sol_trade_sdk::perf::PerfRegistry;
 use sol_trade_sdk::trading::core::orchestrator::Orchestrator;
 
@@ -159,12 +161,11 @@ async fn main() -> anyhow::Result<()> {
     info!("Wallet loaded: {}", payer.as_ref().pubkey());
 
     // ------------------------------------------------------------------
-    // 5. Create Orchestrator
+    // 5. Create Orchestrator (wrapped in Arc for shared access)
     // ------------------------------------------------------------------
     let orchestrator =
-        Orchestrator::from_config(app_config, payer).context("Failed to create orchestrator")?;
-
-    let kill_switch = orchestrator.kill_switch.clone();
+        Orchestrator::from_config(app_config.clone(), payer).context("Failed to create orchestrator")?;
+    let orchestrator = Arc::new(orchestrator);
 
     // ------------------------------------------------------------------
     // 6. Start background services (blockhash + fee refresh)
@@ -201,7 +202,82 @@ async fn main() -> anyhow::Result<()> {
     info!("Health HTTP:  http://{}", cli.health_addr);
 
     // ------------------------------------------------------------------
-    // 8. Wait for shutdown signal (SIGTERM or Ctrl+C)
+    // 8. Start ShredStream event-ingest pipeline (if configured)
+    // ------------------------------------------------------------------
+    let shred_cfg = &app_config.shredstream;
+    let _event_ingest_handle = if shred_cfg.enabled {
+        let port: u16 = shred_cfg
+            .udp_bind_addr
+            .split(':')
+            .last()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(8001);
+        let bind_address = shred_cfg
+            .udp_bind_addr
+            .rsplitn(2, ':')
+            .last()
+            .unwrap_or("0.0.0.0")
+            .to_string();
+
+        let shred_config = ShredstreamConfig {
+            port,
+            bind_address,
+            recv_buf: shred_cfg.receive_buffer_bytes as usize,
+            max_age: shred_cfg.slot_window as u64,
+            busy_poll_us: Some(shred_cfg.busy_poll_usec),
+            pool_size: 4096,
+            enable_fec: shred_cfg.fec_enabled,
+            disable_salvage_delivery: false,
+            stuck_batch_timeout_ms: shred_cfg.stuck_batch_timeout_ms,
+            receive_core: Some(shred_cfg.cpu_affinity.receive_core as usize),
+            reconstruct_core: Some(shred_cfg.cpu_affinity.reconstruct_core as usize),
+            allowed_programs: shred_cfg.program_ids.clone(),
+            filter_votes: true,
+            raw_packet_queue_capacity: 32_768,
+            decoded_slot_queue_capacity: 1_024,
+            classified_event_queue_capacity: 8_192,
+            trade_intent_queue_capacity: 256,
+            dedup_cache_size: std::num::NonZeroUsize::new(262_144).unwrap(),
+            ..Default::default()
+        };
+
+        let mut adapter = ShredstreamAdapter::new(shred_config);
+        if let Err(e) = adapter.start() {
+            warn!("ShredStream adapter failed to start: {e} — running without event feed");
+            None
+        } else {
+            info!("ShredStream pipeline started — feeding classified events into strategy engine");
+            let orch_ingest = Arc::clone(&orchestrator);
+            let rx = adapter.classified_event_rx().clone();
+
+            // Spawn the event-ingest task
+            let handle = tokio::spawn(async move {
+                loop {
+                    match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                        Ok(event) => {
+                            orch_ingest.process_event(&event);
+                        }
+                        Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
+                            // Normal — no events this cycle
+                        }
+                        Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                            info!("ShredStream channel disconnected — event ingest ending");
+                            break;
+                        }
+                    }
+                }
+                info!("Event-ingest loop terminated");
+            });
+
+            Some(handle)
+        }
+    } else {
+        info!("ShredStream is disabled — running without event feed (strategy engine will have no market state)");
+        None
+    };
+
+    // ------------------------------------------------------------------
+    // 9. Wait for shutdown signal (SIGTERM or Ctrl+C)
     // ------------------------------------------------------------------
     wait_for_shutdown_signal().await;
     info!("Shutdown signal received — initiating graceful shutdown");

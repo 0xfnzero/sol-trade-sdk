@@ -80,6 +80,35 @@ impl FactorOutput {
 }
 
 // ---------------------------------------------------------------------------
+// FactorWeights — raw weight values for constructing SignalFactors
+// ---------------------------------------------------------------------------
+
+/// Raw weight values for each factor. Intended for use with
+/// [`SignalFactors::with_weights`] when constructing from config.
+#[derive(Debug, Clone, Copy)]
+pub struct FactorWeights {
+    pub momentum: f64,
+    pub volume_profile: f64,
+    pub spread: f64,
+    pub slot_freshness: f64,
+    pub protocol_confidence: f64,
+    pub momentum_divergence: f64,
+}
+
+impl Default for FactorWeights {
+    fn default() -> Self {
+        Self {
+            momentum: 0.30,
+            volume_profile: 0.15,
+            spread: 0.20,
+            slot_freshness: 0.10,
+            protocol_confidence: 0.10,
+            momentum_divergence: 0.15,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SignalFactors — composite factor evaluator
 // ---------------------------------------------------------------------------
 
@@ -133,6 +162,19 @@ impl SignalFactors {
             slot_freshness,
             protocol_confidence,
             momentum_divergence,
+        }
+    }
+
+    /// Create from raw weight values. Weights are used as-is (the engine
+    /// normalizes via total_weight division during aggregate).
+    pub fn with_weights(weights: FactorWeights) -> Self {
+        Self {
+            momentum: FactorConfig::new(weights.momentum),
+            volume_profile: FactorConfig::new(weights.volume_profile),
+            spread: FactorConfig::new(weights.spread),
+            slot_freshness: FactorConfig::new(weights.slot_freshness),
+            protocol_confidence: FactorConfig::new(weights.protocol_confidence),
+            momentum_divergence: FactorConfig::new(weights.momentum_divergence),
         }
     }
 

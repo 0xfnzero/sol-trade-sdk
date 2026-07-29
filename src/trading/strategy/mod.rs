@@ -14,11 +14,12 @@
 pub mod engine;
 pub mod factors;
 pub mod market_state;
+pub mod metrics;
 pub mod momentum;
 pub mod signal;
 
 pub use engine::{GateConfig, StrategyConfig, StrategyEngine, StrategyStats};
-pub use factors::{FactorConfig, FactorOutput, SignalFactors};
+pub use factors::{FactorConfig, FactorOutput, FactorWeights, SignalFactors};
 pub use market_state::{MarketStateTracker, MintMarketState};
 pub use momentum::{MomentumTracker, SlidingWindowMomentum};
 pub use signal::{

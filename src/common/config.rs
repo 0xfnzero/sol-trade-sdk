@@ -713,6 +713,7 @@ impl SwitchConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StrategyConfig {
+    // ── Position-management fields ──
     pub strategy_type: String,
     pub max_open_positions: u32,
     pub position_size_sol: f64,
@@ -720,11 +721,46 @@ pub struct StrategyConfig {
     pub stop_loss_basis_points: u64,
     pub max_hold_ms: u64,
     pub min_slot_distance: u64,
+
+    // ── Signal-engine fields (mapped to trading::strategy::StrategyConfig) ──
+    /// Evaluation interval in microseconds (default: 200ms = 200_000).
+    pub eval_interval_micros: i64,
+    /// Stale mint threshold in microseconds (default: 30s).
+    pub stale_mint_threshold_micros: i64,
+    /// Maximum number of tracked mints (default: 100).
+    pub max_tracked_mints: usize,
+    /// Stale data threshold for eviction in microseconds (default: 30s).
+    pub eviction_stale_micros: i64,
+
+    // ── Gate config ──
+    /// Minimum composite score to produce a directional signal.
+    pub min_composite_score: f64,
+    /// Minimum confidence for a signal to pass.
+    pub min_confidence: f64,
+    /// Maximum spread in basis points for entry.
+    pub max_spread_bps: f64,
+    /// Maximum age of last update in microseconds (default: 10s).
+    pub max_age_micros: i64,
+    /// Minimum event rate (events/sec) to trust the signal.
+    pub min_event_rate: f64,
+    /// Enable the event rate gate.
+    pub enable_event_rate_gate: bool,
+    /// Enable fee-aware EV gate (simplified).
+    pub enable_ev_gate: bool,
+
+    // ── Factor weights (normalized to sum 1.0) ──
+    pub momentum_weight: f64,
+    pub volume_profile_weight: f64,
+    pub spread_weight: f64,
+    pub slot_freshness_weight: f64,
+    pub protocol_confidence_weight: f64,
+    pub momentum_divergence_weight: f64,
 }
 
 impl Default for StrategyConfig {
     fn default() -> Self {
         Self {
+            // Position management
             strategy_type: "arbitrage".into(),
             max_open_positions: 1,
             position_size_sol: 0.05,
@@ -732,6 +768,29 @@ impl Default for StrategyConfig {
             stop_loss_basis_points: 30,
             max_hold_ms: 30_000,
             min_slot_distance: 1,
+
+            // Signal engine defaults (200ms eval, 30s stale, 100 mints)
+            eval_interval_micros: 200_000,
+            stale_mint_threshold_micros: 30_000_000,
+            max_tracked_mints: 100,
+            eviction_stale_micros: 30_000_000,
+
+            // Gate defaults
+            min_composite_score: 0.25,
+            min_confidence: 0.40,
+            max_spread_bps: 50.0,
+            max_age_micros: 10_000_000,
+            min_event_rate: 1.0,
+            enable_event_rate_gate: true,
+            enable_ev_gate: false,
+
+            // Factor weights matching strategy.toml
+            momentum_weight: 0.30,
+            volume_profile_weight: 0.15,
+            spread_weight: 0.20,
+            slot_freshness_weight: 0.10,
+            protocol_confidence_weight: 0.10,
+            momentum_divergence_weight: 0.15,
         }
     }
 }
@@ -742,6 +801,40 @@ impl StrategyConfig {
             anyhow::bail!("strategy.max_open_positions must be >= 1");
         }
         Ok(())
+    }
+
+    /// Convert to the Strategy Engine's internal configuration.
+    pub fn to_engine_config(&self) -> crate::trading::strategy::StrategyConfig {
+        use crate::trading::strategy::engine::GateConfig;
+        use crate::trading::strategy::factors::{FactorWeights, SignalFactors};
+
+        let gates = GateConfig {
+            min_composite_score: self.min_composite_score,
+            min_confidence: self.min_confidence,
+            max_spread_bps: self.max_spread_bps,
+            max_age_micros: self.max_age_micros,
+            min_event_rate: self.min_event_rate,
+            enable_event_rate_gate: self.enable_event_rate_gate,
+            enable_ev_gate: self.enable_ev_gate,
+        };
+
+        let factor_weights = FactorWeights {
+            momentum: self.momentum_weight,
+            volume_profile: self.volume_profile_weight,
+            spread: self.spread_weight,
+            slot_freshness: self.slot_freshness_weight,
+            protocol_confidence: self.protocol_confidence_weight,
+            momentum_divergence: self.momentum_divergence_weight,
+        };
+
+        crate::trading::strategy::StrategyConfig {
+            eval_interval_micros: self.eval_interval_micros,
+            stale_mint_threshold_micros: self.stale_mint_threshold_micros,
+            max_tracked_mints: self.max_tracked_mints,
+            gates,
+            factors: SignalFactors::with_weights(factor_weights),
+            eviction_stale_micros: self.eviction_stale_micros,
+        }
     }
 }
 
