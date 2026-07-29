@@ -38,6 +38,48 @@ use std::sync::{
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
+#[cfg(feature = "perf-trace")]
+use crate::perf::TraceSpan;
+
+// ── perf-trace instrumentation (zero-cost when feature disabled) ──
+
+#[cfg(feature = "perf-trace")]
+mod perf_metrics {
+    use super::*;
+    use crate::perf::{LatencyHistogram, PerfCounter, PerfRegistry, TraceSpan};
+    use once_cell::sync::Lazy;
+
+    /// Histogram for plan_trade latency (ns).
+    pub static PLAN_TRADE_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("orchestrator.plan_trade_ns", h.clone());
+        h
+    });
+
+    /// Histogram for execute_plan latency (ns).
+    pub static EXECUTE_PLAN_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("orchestrator.execute_plan_ns", h.clone());
+        h
+    });
+
+    /// Histogram for reconcile latency (ns).
+    pub static RECONCILE_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("orchestrator.reconcile_ns", h.clone());
+        h
+    });
+
+    /// Counter for successful trades.
+    pub static TRADE_LANDED: PerfCounter = PerfCounter::new("orchestrator.trade_landed");
+    /// Counter for failed trades.
+    pub static TRADE_FAILED: PerfCounter = PerfCounter::new("orchestrator.trade_failed");
+    /// Counter for trades sent to reconciliation.
+    pub static TRADE_RECONCILED: PerfCounter = PerfCounter::new("orchestrator.trade_reconciled");
+    /// Counter for trades rejected by kill switch.
+    pub static TRADE_REJECTED: PerfCounter = PerfCounter::new("orchestrator.trade_rejected");
+}
+
 // ---------------------------------------------------------------------------
 // OrchestratorConfig
 // ---------------------------------------------------------------------------
@@ -276,8 +318,13 @@ impl Orchestrator {
         risk_context: &RiskContext,
         trade_params: &TradeRiskParams,
     ) -> Option<TradePlan> {
+        #[cfg(feature = "perf-trace")]
+        let _plan_span = TraceSpan::new(perf_metrics::PLAN_TRADE_NS.clone());
+
         if self.is_killed() {
             warn!(target: "sol_trade_sdk", "orchestrator: trade rejected — kill switch active");
+            #[cfg(feature = "perf-trace")]
+            perf_metrics::TRADE_REJECTED.increment(1);
             return None;
         }
 
@@ -344,6 +391,9 @@ impl Orchestrator {
         executor: &dyn TradeExecutor,
         swap_params: SwapParams,
     ) -> TradeResult {
+        #[cfg(feature = "perf-trace")]
+        let _exec_span = TraceSpan::new(perf_metrics::EXECUTE_PLAN_NS.clone());
+
         let start = Instant::now();
         let mut intent = plan.intent;
 
@@ -387,6 +437,9 @@ impl Orchestrator {
         };
 
         if ok {
+            #[cfg(feature = "perf-trace")]
+            perf_metrics::TRADE_LANDED.increment(1);
+
             for sig in &signatures {
                 let _ = intent.record_submission(sig.to_string());
             }
@@ -404,6 +457,12 @@ impl Orchestrator {
 
         // Ambiguous case — trigger reconciliation
         if !signatures.is_empty() && self.config.enable_reconciliation {
+            #[cfg(feature = "perf-trace")]
+            {
+                perf_metrics::TRADE_RECONCILED.increment(1);
+                let _reconcile_span = TraceSpan::new(perf_metrics::RECONCILE_NS.clone());
+            }
+
             let _ = intent.transition(
                 TradeState::Ambiguous,
                 "all lanes returned ambiguous, starting reconciliation",

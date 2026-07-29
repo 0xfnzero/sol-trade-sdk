@@ -35,6 +35,46 @@ static SYSCALL_BYPASS: Lazy<SystemCallBypassManager> = Lazy::new(|| {
         .expect("Failed to create SystemCallBypassManager")
 });
 
+#[cfg(feature = "perf-trace")]
+use crate::perf::TraceSpan;
+
+// ── perf-trace instrumentation (zero-cost when feature disabled) ──
+
+#[cfg(feature = "perf-trace")]
+mod perf_metrics {
+    use super::*;
+    use crate::perf::{LatencyHistogram, PerfCounter, PerfRegistry, TraceSpan};
+    use once_cell::sync::Lazy;
+
+    /// Histogram for instruction build time (ns).
+    pub static BUILD_INSTRUCTIONS_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("executor.build_instructions_ns", h.clone());
+        h
+    });
+
+    /// Histogram for total swap execution time (ns).
+    pub static SWAP_TOTAL_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("executor.swap_total_ns", h.clone());
+        h
+    });
+
+    /// Histogram for middleware processing time (ns).
+    pub static MIDDLEWARE_NS: Lazy<Arc<LatencyHistogram>> = Lazy::new(|| {
+        let h = Arc::new(LatencyHistogram::new());
+        PerfRegistry::global().register_histogram("executor.middleware_ns", h.clone());
+        h
+    });
+
+    /// Counter for simulate calls.
+    pub static SIMULATE_COUNT: PerfCounter = PerfCounter::new("executor.simulate_count");
+    /// Counter for confirmed swaps.
+    pub static CONFIRMED_COUNT: PerfCounter = PerfCounter::new("executor.confirmed_count");
+    /// Counter for unconfirmed swaps.
+    pub static UNCONFIRMED_COUNT: PerfCounter = PerfCounter::new("executor.unconfirmed_count");
+}
+
 /// Generic trade executor implementation
 pub struct GenericTradeExecutor {
     instruction_builder: Arc<dyn InstructionBuilder>,
@@ -56,6 +96,9 @@ impl TradeExecutor for GenericTradeExecutor {
         &self,
         params: SwapParams,
     ) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
+        #[cfg(feature = "perf-trace")]
+        let _total_span = TraceSpan::new(perf_metrics::SWAP_TOTAL_NS.clone());
+
         // Sample total start only when logging or simulate. 仅在有日志或 simulate 时取起点。
         let total_start = (params.log_enabled || params.simulate).then(Instant::now);
         let timing_start_us: Option<i64> = if params.log_enabled {
@@ -69,6 +112,9 @@ impl TradeExecutor for GenericTradeExecutor {
 
         Prefetch::keypair(&params.payer);
 
+        #[cfg(feature = "perf-trace")]
+        let _build_span = TraceSpan::new(perf_metrics::BUILD_INSTRUCTIONS_NS.clone());
+
         // Time build only when log_enabled to avoid cold-path syscalls. 仅 log_enabled 时计时，减少冷路径 syscall。
         let build_start = params.log_enabled.then(Instant::now);
         let instructions = if is_buy {
@@ -79,6 +125,9 @@ impl TradeExecutor for GenericTradeExecutor {
         let _build_elapsed = build_start.map(|s| s.elapsed()).unwrap_or(Duration::ZERO);
 
         InstructionProcessor::preprocess(&instructions)?;
+
+        #[cfg(feature = "perf-trace")]
+        let _middleware_span = TraceSpan::new(perf_metrics::MIDDLEWARE_NS.clone());
 
         let final_instructions = match &params.middleware_manager {
             Some(middleware_manager) => middleware_manager
@@ -99,6 +148,9 @@ impl TradeExecutor for GenericTradeExecutor {
         let address_lookup_table_accounts = params.address_lookup_table_accounts.clone();
 
         if params.simulate {
+            #[cfg(feature = "perf-trace")]
+            perf_metrics::SIMULATE_COUNT.increment(1);
+
             let send_start = crate::common::sdk_log::sdk_log_enabled().then(Instant::now);
             let result = simulate_transaction(
                 params.rpc,
@@ -195,6 +247,9 @@ impl TradeExecutor for GenericTradeExecutor {
         let submit_timings_ref: &[SwqosSubmitTiming] = submit_timings.as_slice();
 
         let result = if need_confirm {
+            #[cfg(feature = "perf-trace")]
+            perf_metrics::CONFIRMED_COUNT.increment(1);
+
             let confirm_result = if let Some(rpc) = params.rpc.as_ref() {
                 if signatures.is_empty() {
                     (ok, signatures, err)
@@ -224,6 +279,9 @@ impl TradeExecutor for GenericTradeExecutor {
             //就是把confirm_result 拆开 再加上 submit_timings
             Ok((confirm_result.0, confirm_result.1, confirm_result.2, submit_timings))
         } else {
+            #[cfg(feature = "perf-trace")]
+            perf_metrics::UNCONFIRMED_COUNT.increment(1);
+
             // Not waiting for confirmation: confirmed is not measured (-); total is per-channel submit time only.
             if log_enabled {
                 let dir = if is_buy { "Buy" } else { "Sell" };

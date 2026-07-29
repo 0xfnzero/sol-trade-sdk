@@ -40,6 +40,10 @@ members = [
 [lib]
 crate-type = ["rlib"]
 
+[[bench]]
+name = "hot_paths"
+harness = false
+
 [features]
 default = []
 production = []
@@ -159,3 +163,12 @@ opt-level = 3
 
 [profile.release.package.bincode]
 opt-level = 3
+
+[dev-dependencies]
+divan = "0.1"
+divan-macros = "0.1"
+hdrhistogram = "7"
+rand = "0.9"
+
+[profile.bench]
+debug = 1
