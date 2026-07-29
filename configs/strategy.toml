@@ -1,0 +1,82 @@
+# sol-trade-sdk Strategy Engine Configuration
+# Phase 14: Multi-Factor Signal Evaluation
+#
+# This configures the StrategyEngine which sits between the ShredStream
+# classifier and the execution layer (Orchestrator / Shadow mode).
+
+[strategy]
+# Strategy type identifier
+strategy_type = "momentum-multi-factor"
+
+# Maximum number of open positions
+max_open_positions = 3
+
+# Position size in SOL
+position_size_sol = 0.05
+
+# Take profit threshold in basis points
+take_profit_basis_points = 50
+
+# Stop loss threshold in basis points
+stop_loss_basis_points = 30
+
+# Maximum hold time in milliseconds
+max_hold_ms = 30000
+
+# Minimum slot distance between trades
+min_slot_distance = 1
+
+# === Signal Engine Settings ===
+
+# Evaluation interval in microseconds (200ms = 200000)
+eval_interval_micros = 200000
+
+# Stale mint threshold in microseconds (30s = 30000000)
+stale_mint_threshold_micros = 30000000
+
+# Maximum number of tracked mints
+max_tracked_mints = 100
+
+# === Gate Configuration ===
+
+# Minimum composite score to produce a directional signal
+min_composite_score = 0.25
+
+# Minimum confidence for a signal to pass
+min_confidence = 0.40
+
+# Maximum spread in basis points for entry
+max_spread_bps = 50.0
+
+# Maximum age of last update in microseconds (10s = 10000000)
+max_age_micros = 10000000
+
+# Minimum event rate (events/sec) to trust the signal
+min_event_rate = 1.0
+
+# Whether to enable event rate gate
+enable_event_rate_gate = true
+
+# Whether to enable fee-aware EV gate (simplified)
+enable_ev_gate = false
+
+# === Factor Weights ===
+# All weights are normalized to sum to 1.0 automatically.
+
+# Momentum factor weight (buy/sell ratio over 2s window)
+momentum_weight = 0.30
+
+# Volume profile factor weight (volume acceleration)
+volume_profile_weight = 0.15
+
+# Spread factor weight (spread conditions)
+spread_weight = 0.20
+
+# Slot freshness factor weight (how recent is the data)
+slot_freshness_weight = 0.10
+
+# Protocol confidence factor weight
+protocol_confidence_weight = 0.10
+
+# Momentum divergence weight (fast - slow momentum)
+momentum_divergence_weight = 0.15
