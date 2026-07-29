@@ -1,0 +1,83 @@
+# /etc/systemd/system/solbot.service
+# sol-trade-sdk — Production DEX Trading Bot
+#
+# Install:
+#   sudo cp configs/solbot.service /etc/systemd/system/solbot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable solbot
+#   sudo systemctl start solbot
+#
+# View logs:
+#   sudo journalctl -u solbot -f
+#
+# Reload after config change:
+#   sudo systemctl restart solbot
+
+[Unit]
+Description=Solana DEX Trading Bot (sol-trade-sdk)
+After=network-online.target ntp.service
+Wants=network-online.target
+Documentation=https://github.com/0xfnzero/sol-trade-sdk
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Environment file — restricted 0600
+EnvironmentFile=/etc/solbot/env/production.env
+
+# Working directory
+WorkingDirectory=/opt/solbot
+
+# Executable
+ExecStart=/opt/solbot/bin/solbot \
+    --config /etc/solbot/config.toml \
+    --metrics 127.0.0.1:9090 \
+    --health 127.0.0.1:9091
+
+# Graceful shutdown — SIGTERM → graceful stop within 30s, then SIGKILL
+KillSignal=SIGTERM
+TimeoutStopSec=30
+KillMode=mixed
+SendSIGKILL=yes
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+# Resource limits
+LimitNOFILE=1048576
+LimitNPROC=65536
+LimitCORE=0
+
+# Memory limits
+MemoryMax=8G
+MemoryHigh=6G
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=yes
+RestrictRealtime=no
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+ProtectHostname=yes
+RemoveIPC=yes
+
+# Network access required for RPC, ShredStream, SWQOS
+PrivateNetwork=no
+
+[Install]
+WantedBy=multi-user.target
