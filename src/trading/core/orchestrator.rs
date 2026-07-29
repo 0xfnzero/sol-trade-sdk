@@ -223,10 +223,10 @@ pub struct Orchestrator {
     pub kill_switch: Arc<AtomicBool>,
 
     // RPC client for on-chain queries
-    rpc: Arc<SolanaRpcClient>,
+    pub rpc: Arc<SolanaRpcClient>,
 
     // Payer keypair (the execution wallet)
-    payer: Arc<Keypair>,
+    pub payer: Arc<Keypair>,
 }
 
 impl Orchestrator {

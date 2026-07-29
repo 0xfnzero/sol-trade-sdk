@@ -34,6 +34,9 @@ use sol_trade_sdk::perf::shredstream::config::ShredstreamConfig;
 use sol_trade_sdk::perf::shredstream::ShredstreamAdapter;
 use sol_trade_sdk::perf::PerfRegistry;
 use sol_trade_sdk::trading::core::orchestrator::Orchestrator;
+use sol_trade_sdk::trading::factory::DexType;
+use sol_trade_sdk::trading::jito::{bundle_executor, TipConfig};
+use sol_trade_sdk::swqos::SwqosClient;
 
 // ── Build info (injected at compile time) ───────────────────────────────────
 
@@ -277,7 +280,66 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // ------------------------------------------------------------------
-    // 9. Wait for shutdown signal (SIGTERM or Ctrl+C)
+    // 9a. Start Jito bundle trade execution loop (if configured)
+    // ------------------------------------------------------------------
+    let _trade_execution_handle = {
+        let jito_cfg = &app_config.submission.jito;
+        if jito_cfg.endpoint != "disabled" {
+            // Build SWQOS clients from config
+            let swqos_configs = app_config.submission.to_swqos_configs();
+            let commitment = app_config.rpc.commitment_config();
+            let mut clients: Vec<Arc<SwqosClient>> = Vec::new();
+            for sc in &swqos_configs {
+                if !sc.is_blacklisted() {
+                    if let Ok(c) = sol_trade_sdk::swqos::SwqosConfig::get_swqos_client(
+                        app_config.rpc.primary.clone(),
+                        commitment,
+                        sc.clone(),
+                        false,
+                    )
+                    .await
+                    {
+                        clients.push(c);
+                    }
+                }
+            }
+
+            if !clients.is_empty() {
+                let swqos_clients = Arc::new(clients);
+                let tip_config = TipConfig::from_jito_config(jito_cfg);
+                // Use a placeholder mint — real config should specify target mints
+                // TODO: add target_mints to StrategyConfig in config.rs
+                let target_mint = solana_sdk::pubkey::Pubkey::new_from_array([0u8; 32]);
+
+                let rpc = orchestrator.rpc.clone();
+                let orch = Arc::clone(&orchestrator);
+                let running_clone = running.clone();
+                let cfg_clone = app_config.clone();
+
+                let handle = bundle_executor::spawn_trade_execution_loop(
+                    orch,
+                    DexType::Bonk, // Placeholder — configurable per target mint
+                    target_mint,
+                    tip_config,
+                    swqos_clients,
+                    rpc,
+                    cfg_clone,
+                    running_clone,
+                );
+                info!("Jito trade execution loop started");
+                Some(handle)
+            } else {
+                warn!("No SWQOS clients available — trade execution loop not started");
+                None
+            }
+        } else {
+            info!("Jito is disabled (endpoint='disabled') — trade execution loop not started");
+            None
+        }
+    };
+
+    // ------------------------------------------------------------------
+    // 10. Wait for shutdown signal (SIGTERM or Ctrl+C)
     // ------------------------------------------------------------------
     wait_for_shutdown_signal().await;
     info!("Shutdown signal received — initiating graceful shutdown");

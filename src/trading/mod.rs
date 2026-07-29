@@ -2,6 +2,7 @@ pub mod canary;
 pub mod common;
 pub mod core;
 pub mod factory;
+pub mod jito;
 pub mod middleware;
 pub mod shadow;
 pub mod strategy;
