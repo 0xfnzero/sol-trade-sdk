@@ -2,6 +2,7 @@ pub mod common;
 pub mod core;
 pub mod factory;
 pub mod middleware;
+pub mod shadow;
 
 pub use core::params::SwapParams;
 pub use core::traits::InstructionBuilder;

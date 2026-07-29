@@ -2,7 +2,7 @@
 
 > **Reference**: Sections 40, 41, 42 of the pre-flight requirements
 > **Scope**: Environment separation, systemd service, configuration pre-flight, production stop conditions
-> **Status**: Design — implementation pending
+> **Status**: Binary entrypoint (`solbot`) implemented at 92c660e. CI/CD at dec5412. See `src/bin/solbot.rs`.
 
 ---
 

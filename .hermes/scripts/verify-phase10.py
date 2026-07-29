@@ -56,8 +56,18 @@ check("Build with feature → 0 errors", len(real_errors) == 0,
 
 print("\n[3/8] Binary entrypoint check")
 r = subprocess.run(
+    "cargo check --features dev-insecure-tls --bin solbot 2>&1",
+    shell=True, capture_output=True, text=True, timeout=120
+)
+bin_check_errors = [l for l in r.stdout.split("\n") if l.startswith("error[")]
+check("solbot binary compiles clean", len(bin_check_errors) == 0,
+      f"{len(bin_check_errors)} compile errors")
+
+# Also verify the binary can be built in release mode (longer timeout)
+print("  ... release build (may take 3+ minutes)")
+r = subprocess.run(
     "cargo build --features dev-insecure-tls --bin solbot --release 2>&1",
-    shell=True, capture_output=True, text=True, timeout=180
+    shell=True, capture_output=True, text=True, timeout=600
 )
 binary_path = os.path.join(REPO, "target", "release", "solbot")
 binary_exists = os.path.exists(binary_path)
