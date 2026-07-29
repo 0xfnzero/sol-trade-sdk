@@ -97,6 +97,7 @@ core_affinity = "0.8"
 chrono = "0.4.39"
 regex = "1"
 tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "2.0.11"
 async-trait = "0.1.86"
 once_cell = "1.20.3"
@@ -135,6 +136,9 @@ shredstream = "2.0.0"
 memmap2 = "0.9"
 num_cpus = "1.16"
 libc = "0.2"
+
+# HTTP server for metrics/health endpoints (production binary)
+tiny_http = "0.12"
 
 # 🚀 编译器优化配置 - 平衡性能与编译速度
 [profile.release]
