@@ -294,12 +294,16 @@ fn prove_exposure_test_was_false_positive() {
     );
     let ctx = ledger.build_context();
 
-    // The broken fixture: TradeRiskParams::new(0.2, 100_000, 50) = expected_output: 0
-    let trade = TradeRiskParams::new(0.2, 100_000, 50);
+    // The broken fixture used TradeRiskParams::new(0.2, 100_000, 50) which
+    // triggered max_sol_per_trade (0.2 > default 0.1) FIRST — never reaching
+    // the expected_output check. Use sol_amount < 0.1 to let the engine
+    // evaluate the intended check: expected_output=0 < min_expected_output=1.
+    let trade = TradeRiskParams::new(0.05, 100_000, 50);
     let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_b");
 
     // PROOF: the error is PerTrade (expected output: 0 < min 1),
-    // NOT Global (open exposure exceeded)
+    // NOT Global (open exposure exceeded), proving the original fixture
+    // was structurally incapable of reaching the exposure branch.
     assert!(
         matches!(&result, Err(sol_trade_sdk::constants::risk::RiskError::PerTrade(msg))
             if msg.contains("expected output")),
@@ -316,24 +320,31 @@ fn integration_risk_ledger_exposure_limit() {
     use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeLedger, TradeRiskParams};
     use sol_trade_sdk::trading::core::state::TradeDirection;
 
-    let engine = RiskEngine::new(RiskConfig::default());
+    // Custom config: relax per-mint/perp-trade limits so open-exposure is the
+    // first failing gate. Default per_mint_cap_sol=0.5 would fire before
+    // max_open_exposure_sol=1.0.
+    let mut cfg = RiskConfig::default();
+    cfg.global.per_mint_cap_sol = 2.0;
+    cfg.global.max_exposure_per_mint_pct = 100.0;
+    cfg.global.max_exposure_per_protocol_pct = 100.0;
+    cfg.max_sol_per_trade = 5.0;
+    let engine = RiskEngine::new(cfg);
     let mut ledger = TradeLedger::default();
 
-    // Open a 0.95 SOL position — under the 1.0 SOL max_open_exposure_sol
+    // Open 1.05 SOL — exceeds the 1.0 SOL max_open_exposure_sol
     ledger.open_position(
-        "mint_a", "pumpfun", 0.95, 1, TradeDirection::Buy, 950_000_000,
+        "mint_a", "pumpfun", 1.05, 1, TradeDirection::Buy, 1_050_000_000,
     );
     let ctx = ledger.build_context();
     assert!(
-        (ctx.current_open_exposure_sol - 0.95).abs() < 0.001,
-        "Exposure should be 0.95 SOL, got {:.4}",
+        (ctx.current_open_exposure_sol - 1.05).abs() < 0.001,
+        "Exposure should be 1.05 SOL, got {:.4}",
         ctx.current_open_exposure_sol
     );
 
-    // A second position of 0.1 SOL would push total to 1.05 > 1.0
-    // Use a valid baseline trade that passes per_trade checks
+    // A valid baseline trade that passes all per_trade checks
     let trade = TradeRiskParams {
-        sol_amount: 0.1,
+        sol_amount: 0.01,
         token_amount: 100_000,
         slippage_basis_points: 50,
         quote_age_ms: 100,
@@ -358,9 +369,13 @@ fn integration_risk_ledger_exposure_limit() {
         "Rejected exposure request must not mutate the ledger"
     );
 
-    // Boundary: 0.05 SOL (total 1.0 SOL = exactly at limit) must pass
-    let trade_at_limit = TradeRiskParams { sol_amount: 0.05, ..trade };
-    let result_at = engine.check(&ctx, &trade_at_limit, "pumpfun", "rpc", "mint_b");
+    // Boundary: 1.0 SOL (exactly at limit) must pass
+    let mut ledger_at = TradeLedger::default();
+    ledger_at.open_position(
+        "mint_a", "pumpfun", 1.0, 1, TradeDirection::Buy, 1_000_000_000,
+    );
+    let ctx_at = ledger_at.build_context();
+    let result_at = engine.check(&ctx_at, &trade, "pumpfun", "rpc", "mint_b");
     assert!(
         result_at.is_ok(),
         "Total exposure exactly at 1.0 SOL must pass: {:?}",
