@@ -1,0 +1,57 @@
+name: Native Integration Suite (Linux)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  native-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: cargo check --all-targets
+        run: cargo check --features dev-insecure-tls --all-targets 2>&1
+        continue-on-error: false
+
+      - name: cargo test --lib (unit tests)
+        run: cargo test --features dev-insecure-tls --lib 2>&1
+        continue-on-error: false
+
+      - name: cargo test --test runtime_behaviour (integration)
+        run: cargo test --features dev-insecure-tls --test runtime_behaviour 2>&1
+        continue-on-error: false
+
+      - name: cargo test (all tests + integration)
+        run: cargo test --features dev-insecure-tls 2>&1
+        continue-on-error: false
+
+      - name: cargo clippy --all-targets
+        run: cargo clippy --features dev-insecure-tls --all-targets 2>&1
+        continue-on-error: false
+
+      - name: Print Rust version
+        run: |
+          rustc --version
+          cargo --version
+          uname -a

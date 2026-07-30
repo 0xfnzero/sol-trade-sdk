@@ -15,9 +15,10 @@ use crate::common::{
     blockhash_service::BlockhashService,
     config::{AppConfig, RiskConfig},
     fee_service::FeeService,
-    SolanaRpcClient,
+    SolanaRpcClient, SwqosSubmitTiming,
 };
-use crate::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
+use crate::constants::risk::{RiskContext, RiskEngine, TradeLedger, TradeRiskParams};
+use crate::swqos::SwqosClient;
 use crate::trading::core::{
     reconciliation::{
         BalanceSnapshot, ReconciliationConfig, ReconciliationOutcome, ReconciliationService,
@@ -128,15 +129,17 @@ impl Default for OrchestratorConfig {
 impl From<&AppConfig> for OrchestratorConfig {
     fn from(cfg: &AppConfig) -> Self {
         Self {
-            blockhash_cache_capacity: 3,
+            blockhash_cache_capacity: cfg.blockhash.cache_capacity,
             blockhash_refresh_interval_ms: cfg.blockhash.refresh_interval_ms,
-            fee_window_size: 100,
-            fee_percentile: 50.0,
+            fee_window_size: cfg.fees.fee_window_size,
+            fee_percentile: cfg.fees.fee_percentile,
             min_cu_price: cfg.fees.compute_unit_price,
-            alt_cache_capacity: 1024,
+            alt_cache_capacity: cfg.runtime.alt_cache_capacity,
+            // TODO(P2-01): Wire from AppConfig.runtime.reconciliation_config (requires storing
+            // ReconciliationConfig on RuntimeConfig or adding a dedicated section).
             reconciliation: ReconciliationConfig::default(),
-            confirmation_timeout: Duration::from_secs(30),
-            enable_reconciliation: true,
+            confirmation_timeout: Duration::from_secs(cfg.runtime.confirmation_timeout_secs),
+            enable_reconciliation: cfg.runtime.enable_reconciliation,
         }
     }
 }
@@ -180,6 +183,8 @@ pub struct TradeResult {
     pub signatures: Vec<Signature>,
     /// Optional error message.
     pub error: Option<String>,
+    /// Per-provider submission timings (latency data from SWQOS lanes).
+    pub timings: Vec<SwqosSubmitTiming>,
     /// Reconciliation outcome, if reconciliation was triggered.
     pub reconciliation: Option<ReconciliationOutcome>,
     /// Total elapsed time from plan to completion.
@@ -227,6 +232,12 @@ pub struct Orchestrator {
 
     // Payer keypair (the execution wallet)
     pub payer: Arc<Keypair>,
+
+    /// SWQOS submission clients for execution.
+    pub swqos_clients: Arc<Vec<Arc<SwqosClient>>>,
+
+    /// Runtime trade ledger tracking open positions, daily counts, and P&L.
+    pub trade_ledger: Mutex<TradeLedger>,
 }
 
 impl Orchestrator {
@@ -238,6 +249,7 @@ impl Orchestrator {
         risk_config: RiskConfig,
         config: OrchestratorConfig,
         strategy_engine: StrategyEngine,
+        swqos_clients: Arc<Vec<Arc<SwqosClient>>>,
     ) -> Self {
         let rpc_url = rpc_url.into();
         let rpc = Arc::new(SolanaRpcClient::new(rpc_url.clone()));
@@ -274,16 +286,29 @@ impl Orchestrator {
             kill_switch: Arc::new(AtomicBool::new(false)),
             rpc,
             payer,
+            swqos_clients,
+            trade_ledger: Mutex::new(TradeLedger::default()),
         }
     }
 
     /// Create from an `AppConfig` (the production config struct).
-    pub fn from_config(config: AppConfig, payer: Arc<Keypair>) -> anyhow::Result<Self> {
+    pub fn from_config(
+        config: AppConfig,
+        payer: Arc<Keypair>,
+        swqos_clients: Arc<Vec<Arc<SwqosClient>>>,
+    ) -> anyhow::Result<Self> {
         config.validate()?;
         let orchestrator_config = OrchestratorConfig::from(&config);
         let rpc_url = config.rpc.primary.clone();
         let strategy_engine = StrategyEngine::new(config.strategy.to_engine_config());
-        Ok(Self::new(rpc_url, payer, config.risk.into(), orchestrator_config, strategy_engine))
+        Ok(Self::new(
+            rpc_url,
+            payer,
+            config.risk.into(),
+            orchestrator_config,
+            strategy_engine,
+            swqos_clients,
+        ))
     }
 
     /// Start background service loops (blockhash refresh, fee refresh).
@@ -356,7 +381,6 @@ impl Orchestrator {
         input_amount: u64,
         min_output_amount: u64,
         detected_slot: Option<u64>,
-        risk_context: &RiskContext,
         trade_params: &TradeRiskParams,
     ) -> Option<TradePlan> {
         #[cfg(feature = "perf-trace")]
@@ -369,8 +393,15 @@ impl Orchestrator {
             return None;
         }
 
+        // ── Build RiskContext from the runtime trade ledger ──
+        let risk_context = {
+            let mut ledger = self.trade_ledger.lock().ok()?;
+            ledger.daily_reset_if_needed();
+            ledger.build_context()
+        };
+
         if let Err(e) = self.risk_engine.check(
-                    risk_context,
+                    &risk_context,
                     trade_params,
                     protocol,
                     "default",
@@ -387,7 +418,7 @@ impl Orchestrator {
                     // Get midpoint price from market state, fallback to 0.0
                     let mp = engine
                         .market_state
-                        .get(&mint_str)
+                        .get(protocol, &mint_str)
                         .map(|s| s.last_price)
                         .unwrap_or(0.0);
                     let now_micros = crate::common::fast_timing::fast_now_micros() as i64;
@@ -423,6 +454,9 @@ impl Orchestrator {
                 };
 
         let blockhash = self.blockhash_service.get()?;
+        // TODO(P1-08): BlockhashService returns only a Hash — the last_valid_block_height is
+        // never queried from the RPC. Wire through BlockhashService to return both (Hash, Slot)
+        // so reconciliation can assess blockhash expiry in Step 3.
         let last_valid_slot = None;
 
         let cu_price = self.fee_service.estimate_cu_price();
@@ -440,6 +474,8 @@ impl Orchestrator {
 
         let balance_snapshot = BalanceSnapshot {
             payer_sol_lamports: payer_sol,
+            // TODO(P1-09): Query input/output token ATAs in plan_trade and populate both
+            // balances so reconciliation can perform balance-based checks in Step 4.
             input_token_balance: 0,
             output_token_balance: 0,
             snapshot_slot: current_slot,
@@ -485,6 +521,7 @@ impl Orchestrator {
                 intent,
                 success: false,
                 signatures: vec![],
+                timings: vec![],
                 error: Some(e.to_string()),
                 reconciliation: None,
                 elapsed_ms: start.elapsed().as_millis() as u64,
@@ -496,6 +533,7 @@ impl Orchestrator {
                 intent,
                 success: false,
                 signatures: vec![],
+                timings: vec![],
                 error: Some(e.to_string()),
                 reconciliation: None,
                 elapsed_ms: start.elapsed().as_millis() as u64,
@@ -504,14 +542,21 @@ impl Orchestrator {
 
         let swap_result = executor.swap(swap_params).await;
 
-        let (ok, signatures, err, _timings) = match swap_result {
+        let (ok, signatures, err, timings) = match swap_result {
             Ok(result) => result,
             Err(e) => {
-                let _ = intent.transition(TradeState::Failed, e.to_string());
+                // Built -> Failed is now valid (P1-08). Log and continue.
+                if let Err(transition_err) = intent.transition(
+                    TradeState::Failed,
+                    format!("executor failed before submission: {e}"),
+                ) {
+                    warn!(target: "sol_trade_sdk", "state transition failed: {:#}", transition_err);
+                }
                 return TradeResult {
                     intent,
                     success: false,
                     signatures: vec![],
+                    timings: vec![],
                     error: Some(e.to_string()),
                     reconciliation: None,
                     elapsed_ms: start.elapsed().as_millis() as u64,
@@ -524,15 +569,66 @@ impl Orchestrator {
             perf_metrics::TRADE_LANDED.increment(1);
 
             for sig in &signatures {
-                let _ = intent.record_submission(sig.to_string());
+                // P0-06: Insert Signed transition before record_submission.
+                // record_submission internally calls transition(Submitted) — (Built -> Submitted)
+                // is invalid so we must go through Signed first.
+                if let Err(e) =
+                    intent.transition(TradeState::Signed, "signed by execution keypair")
+                {
+                    warn!(target: "sol_trade_sdk", "state transition to Signed failed: {:#}", e);
+                    return TradeResult {
+                        intent,
+                        success: false,
+                        signatures: vec![],
+                        timings,
+                        error: Some(format!("state transition failed: {e}")),
+                        reconciliation: None,
+                        elapsed_ms: start.elapsed().as_millis() as u64,
+                    };
+                }
+                if let Err(e) = intent.record_submission(sig.to_string()) {
+                    warn!(target: "sol_trade_sdk", "record_submission failed: {:#}", e);
+                    return TradeResult {
+                        intent,
+                        success: false,
+                        signatures: vec![],
+                        timings,
+                        error: Some(format!("record_submission failed: {e}")),
+                        reconciliation: None,
+                        elapsed_ms: start.elapsed().as_millis() as u64,
+                    };
+                }
             }
-            let _ = intent.transition(TradeState::Landed, "confirmed on chain");
-            let _ = intent.transition(TradeState::Settled, "trade completed");
+            if let Err(e) = intent.transition(TradeState::Landed, "confirmed on chain") {
+                warn!(target: "sol_trade_sdk", "state transition to Landed failed: {:#}", e);
+                return TradeResult {
+                    intent,
+                    success: false,
+                    signatures: vec![],
+                    timings,
+                    error: Some(format!("state transition to Landed failed: {e}")),
+                    reconciliation: None,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                };
+            }
+            if let Err(e) = intent.transition(TradeState::Settled, "trade completed") {
+                warn!(target: "sol_trade_sdk", "state transition to Settled failed: {:#}", e);
+                return TradeResult {
+                    intent,
+                    success: false,
+                    signatures: vec![],
+                    timings,
+                    error: Some(format!("state transition to Settled failed: {e}")),
+                    reconciliation: None,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                };
+            }
             return TradeResult {
                 intent,
                 success: true,
                 signatures,
                 error: None,
+                timings,
                 reconciliation: None,
                 elapsed_ms: start.elapsed().as_millis() as u64,
             };
@@ -546,11 +642,15 @@ impl Orchestrator {
                 let _reconcile_span = TraceSpan::new(perf_metrics::RECONCILE_NS.clone());
             }
 
-            let _ = intent.transition(
+            if let Err(e) = intent.transition(
                 TradeState::Ambiguous,
                 "all lanes returned ambiguous, starting reconciliation",
-            );
+            ) {
+                warn!(target: "sol_trade_sdk", "state transition to Ambiguous failed: {:#}", e);
+            }
 
+            // P2-08: TODO — pass real ATAs and mints from plan/swap_params so reconciliation
+            // can query post-trade token balances. Currently all None prevents Step 4 balance checks.
             let outcome = self
                 .reconciliation_service
                 .reconcile(
@@ -559,10 +659,10 @@ impl Orchestrator {
                     plan.last_valid_slot,
                     plan.current_slot,
                     &self.payer.pubkey(),
-                    None,
-                    None,
-                    None,
-                    None,
+                    None, // TODO(P2-08): input_mint from plan/swap_params
+                    None, // TODO(P2-08): output_mint from plan/swap_params
+                    None, // TODO(P2-08): input_ata from plan/swap_params
+                    None, // TODO(P2-08): output_ata from plan/swap_params
                 )
                 .await;
 
@@ -570,59 +670,73 @@ impl Orchestrator {
 
             match &outcome {
                 ReconciliationOutcome::Landed { signature, slot } => {
-                    let _ = intent.transition(
+                    if let Err(e) = intent.transition(
                         TradeState::Landed,
                         format!("reconciled: landed at slot {}", slot),
-                    );
-                    let _ = intent.transition(TradeState::Settled, "reconciled: trade completed");
+                    ) {
+                        warn!(target: "sol_trade_sdk", "state transition to Landed after reconciliation failed: {:#}", e);
+                    }
+                    if let Err(e) = intent.transition(TradeState::Settled, "reconciled: trade completed") {
+                        warn!(target: "sol_trade_sdk", "state transition to Settled after reconciliation failed: {:#}", e);
+                    }
                     TradeResult {
                         intent,
                         success: true,
                         signatures: vec![*signature],
                         error: None,
+                        timings: timings.clone(),
                         reconciliation: Some(outcome),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
                 }
                 ReconciliationOutcome::Failed { signature, error: ref err_msg, slot } => {
-                    let _ = intent.transition_with_evidence(
+                    if let Err(e) = intent.transition_with_evidence(
                         TradeState::Failed,
                         format!("reconciled: failed at slot {}", slot),
                         err_msg.clone(),
-                    );
+                    ) {
+                        warn!(target: "sol_trade_sdk", "state transition to Failed after reconciliation failed: {:#}", e);
+                    }
                     TradeResult {
                         intent,
                         success: false,
                         signatures: vec![*signature],
                         error: Some(err_msg.clone()),
+                        timings: timings.clone(),
                         reconciliation: Some(outcome),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
                 }
                 ReconciliationOutcome::RolledBack { reason } => {
-                    let _ = intent.transition(
+                    if let Err(e) = intent.transition(
                         TradeState::Expired,
                         format!("reconciled: rolled back — {}", reason),
-                    );
+                    ) {
+                        warn!(target: "sol_trade_sdk", "state transition to Expired (rolled back) failed: {:#}", e);
+                    }
                     TradeResult {
                         intent,
                         success: false,
                         signatures: vec![],
                         error: Some(reason.clone()),
+                        timings: timings.clone(),
                         reconciliation: Some(outcome),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
                 }
                 ReconciliationOutcome::Rebuild { reason } => {
-                    let _ = intent.transition(
+                    if let Err(e) = intent.transition(
                         TradeState::Expired,
                         format!("reconciled: rebuild recommended — {}", reason),
-                    );
+                    ) {
+                        warn!(target: "sol_trade_sdk", "state transition to Expired (rebuild) failed: {:#}", e);
+                    }
                     TradeResult {
                         intent,
                         success: false,
                         signatures: vec![],
                         error: Some(reason.clone()),
+                        timings: timings.clone(),
                         reconciliation: Some(outcome),
                         elapsed_ms: start.elapsed().as_millis() as u64,
                     }
@@ -630,12 +744,15 @@ impl Orchestrator {
             }
         } else {
             let err_msg = err.map(|e| e.to_string()).unwrap_or_else(|| "execution failed".into());
-            let _ = intent.transition(TradeState::Failed, &err_msg);
+            if let Err(e) = intent.transition(TradeState::Failed, &err_msg) {
+                warn!(target: "sol_trade_sdk", "state transition to Failed failed: {:#}", e);
+            }
             TradeResult {
                 intent,
                 success: false,
                 signatures,
                 error: Some(err_msg),
+                timings,
                 reconciliation: None,
                 elapsed_ms: start.elapsed().as_millis() as u64,
             }
@@ -656,12 +773,14 @@ mod tests {
     fn orchestrator_creation() {
         let payer = Arc::new(Keypair::new());
         let risk_config = RiskConfig::default();
+        let swqos_clients = Arc::new(vec![]);
         let orch = Orchestrator::new(
             "https://api.mainnet-beta.solana.com",
             payer,
             risk_config,
             OrchestratorConfig::default(),
             StrategyEngine::default_with_config(),
+            swqos_clients,
         );
         assert!(!orch.is_killed());
         assert_eq!(orch.config.blockhash_refresh_interval_ms, 200);
@@ -671,12 +790,14 @@ mod tests {
     fn kill_switch_blocks_planning() {
         let payer = Arc::new(Keypair::new());
         let risk_config = RiskConfig::default();
+        let swqos_clients = Arc::new(vec![]);
         let orch = Orchestrator::new(
             "https://api.mainnet-beta.solana.com",
             payer,
             risk_config,
             OrchestratorConfig::default(),
             StrategyEngine::default_with_config(),
+            swqos_clients,
         );
         orch.kill();
         assert!(orch.is_killed());
@@ -686,12 +807,14 @@ mod tests {
     fn unkill_restores_planning() {
         let payer = Arc::new(Keypair::new());
         let risk_config = RiskConfig::default();
+        let swqos_clients = Arc::new(vec![]);
         let orch = Orchestrator::new(
             "https://api.mainnet-beta.solana.com",
             payer,
             risk_config,
             OrchestratorConfig::default(),
             StrategyEngine::default_with_config(),
+            swqos_clients,
         );
         orch.kill();
         assert!(orch.is_killed());
@@ -751,6 +874,7 @@ mod tests {
             success: true,
             signatures: vec![Signature::default()],
             error: None,
+            timings: vec![],
             reconciliation: None,
             elapsed_ms: 42,
         };

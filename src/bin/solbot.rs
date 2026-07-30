@@ -33,10 +33,10 @@ use sol_trade_sdk::common::config::AppConfig;
 use sol_trade_sdk::perf::shredstream::config::ShredstreamConfig;
 use sol_trade_sdk::perf::shredstream::ShredstreamAdapter;
 use sol_trade_sdk::perf::PerfRegistry;
+use sol_trade_sdk::swqos::SwqosClient;
 use sol_trade_sdk::trading::core::orchestrator::Orchestrator;
 use sol_trade_sdk::trading::factory::DexType;
 use sol_trade_sdk::trading::jito::{bundle_executor, TipConfig};
-use sol_trade_sdk::swqos::SwqosClient;
 
 // ── Build info (injected at compile time) ───────────────────────────────────
 
@@ -164,10 +164,12 @@ async fn main() -> anyhow::Result<()> {
     info!("Wallet loaded: {}", payer.as_ref().pubkey());
 
     // ------------------------------------------------------------------
-    // 5. Create Orchestrator (wrapped in Arc for shared access)
+    // 5. Create Orchestrator with empty SWQOS clients
+    //    (trade execution loop builds its own clients)
     // ------------------------------------------------------------------
     let orchestrator =
-        Orchestrator::from_config(app_config.clone(), payer).context("Failed to create orchestrator")?;
+        Orchestrator::from_config(app_config.clone(), payer, Arc::new(vec![]))
+            .context("Failed to create orchestrator")?;
     let orchestrator = Arc::new(orchestrator);
 
     // ------------------------------------------------------------------
@@ -392,34 +394,24 @@ async fn run_metrics_server(addr: &str, running: Arc<AtomicBool>) -> anyhow::Res
                     }
                 }
             }
-            Ok(None) => { /* timeout, loop back to check running */ }
-            Err(e) => {
-                if running.load(Ordering::Acquire) {
-                    warn!("Metrics server recv error: {e}");
-                }
-                break;
-            }
+            Ok(None) => {}
+            Err(_) => {}
         }
     }
-
     Ok(())
 }
 
 // ── Health HTTP server ──────────────────────────────────────────────────────
 
-/// Serves a JSON health check at GET /health or GET /.
+/// Serves build info at GET /health.
 async fn run_health_server(addr: &str, running: Arc<AtomicBool>) -> anyhow::Result<()> {
     let server = Server::http(addr)
         .map_err(|e| anyhow::anyhow!("Failed to start health server on {addr}: {e}"))?;
 
-    let content_type = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-
-    let build_json = format!(
-        r#"{{"status":"ok","build":"{}","version":"{}","pid":{}}}"#,
-        BUILD_NAME,
-        BUILD_VERSION,
-        std::process::id(),
-    );
+    let content_type =
+        Header::from_bytes(&b"Content-Type"[..], &b"application/json; charset=utf-8"[..]).unwrap();
+    let build_json =
+        format!("{{ \"name\": \"{BUILD_NAME}\", \"version\": \"{BUILD_VERSION}\", \"status\": \"ok\" }}");
 
     while running.load(Ordering::Acquire) {
         match server.recv_timeout(Duration::from_secs(1)) {
@@ -440,32 +432,32 @@ async fn run_health_server(addr: &str, running: Arc<AtomicBool>) -> anyhow::Resu
                 }
             }
             Ok(None) => {}
-            Err(e) => {
-                if running.load(Ordering::Acquire) {
-                    warn!("Health server recv error: {e}");
-                }
-                break;
-            }
+            Err(_) => {}
         }
     }
-
     Ok(())
 }
 
-// ── Signal handling ─────────────────────────────────────────────────────────
+// ── Shutdown signal handler ─────────────────────────────────────────────────
 
+/// Wait for SIGTERM (Unix) or Ctrl+C.
 async fn wait_for_shutdown_signal() {
-    let ctrl_c = tokio::signal::ctrl_c();
-
-    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        .expect("Failed to install SIGTERM handler (unsupported platform)");
-
-    tokio::select! {
-        _ = ctrl_c => {
-            info!("Received SIGINT (Ctrl+C)");
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let mut sigterm = signal(SignalKind::terminate()).expect("Failed to register SIGTERM handler");
+        tokio::select! {
+            _ = sigterm.recv() => {
+                info!("Received SIGTERM");
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received Ctrl+C (SIGINT)");
+            }
         }
-        _ = sigterm.recv() => {
-            info!("Received SIGTERM");
-        }
+    }
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
+        info!("Received Ctrl+C");
     }
 }

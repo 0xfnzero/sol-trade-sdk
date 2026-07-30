@@ -82,14 +82,14 @@ pub fn spawn_receive_loop(
                 // Stage-1 timestamp immediately on receipt
                 let received_at = fast_timing::fast_now_micros() as i64;
 
-                // Count received
+                // Count received (zero-allocation estimate)
                 metrics.packets_received.fetch_add(1, Ordering::Relaxed);
+                // Use bincode::serialized_size for zero-allocation size estimation
                 let bytes: u64 = transactions
                     .iter()
                     .map(|t| {
-                        // Estimate serialized size: message bytes + signatures overhead
-                        let msg_bytes = bincode::serialize(&t.message)
-                            .map(|v| v.len() as u64)
+                        // Zero-allocation serialized size from bincode
+                        let msg_bytes = bincode::serialized_size(&t.message)
                             .unwrap_or(0);
                         msg_bytes + (t.signatures.len() as u64 * 64)
                     })
@@ -102,10 +102,12 @@ pub fn spawn_receive_loop(
                     received_at_micros: received_at,
                 };
 
-                // Bounded enqueue — increment drop counter on full
+                // Bounded enqueue — drop-newest policy (new batches rejected when full)
                 if tx.try_send(batch).is_err() {
                     metrics.queue_drops_raw_packets.fetch_add(1, Ordering::Relaxed);
-                    tracing::warn!("ShredStream raw packet queue full — dropping oldest batch");
+                    // NOTE: Drop-oldest semantics would require a ring-buffer channel
+                    // (crossbeam Sender cannot pop). For now, try_send rejects new
+                    // items when full, preserving the oldest data.
                 }
             }
 

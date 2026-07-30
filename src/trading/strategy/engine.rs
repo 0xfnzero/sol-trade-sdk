@@ -179,8 +179,15 @@ impl StrategyEngine {
     // ── Event ingestion ──
 
     /// Process a classified event from the ShredStream pipeline.
+    ///
+    /// Uses the event's program_id as a proxy for the mint component of the
+    /// composite key. This provides program-level isolation until the classifier
+    /// is augmented to carry the actual token mint address.
     pub fn process_event(&mut self, event: &ClassifiedEvent, now_micros: i64) {
-        self.market_state.update(event, now_micros);
+        // Use program_id as mint proxy since ClassifiedEvent doesn't carry
+        // the token mint address yet. This provides per-program isolation.
+        self.market_state
+            .update(&event.program_id, &event.program_id.to_string(), event, now_micros);
 
         // Periodic eviction of stale mints
         if self.last_eviction.elapsed() >= self.eviction_interval {
@@ -213,28 +220,51 @@ impl StrategyEngine {
         }
         self.last_eval_micros = now_micros;
 
-        // Get market state for this mint
-        let state = match self.market_state.get(mint) {
-            Some(s) => s,
-            None => {
-                self.notrade_count += 1;
-                return Some(StrategyOutcome::NoTrade(NoTrade {
-                    reason: format!("No market state for mint {mint}"),
-                    composite_score: 0.0,
-                    factor_breakdown: vec![],
-                    rejected_by: Some("state_missing".into()),
-                }));
-            }
+        // ── Scope: mutable access to market_state ──
+        // Extract all needed data from state, then release the mutable borrow.
+        let (outputs, composite, spread_bps, age_micros, event_rate) = {
+            // Try exact mint match first, then fallback to protocol-level match
+            // This bridges the gap between update() storing with (program_id, program_id)
+            // and evaluate() receiving (protocol, mint) from the caller.
+            // TODO: When the classifier carries the actual token mint, update() will store
+            // with (program_id, real_mint) and this fallback can be removed.
+            let state = match self.market_state.find_by_mint_mut(mint) {
+                Some(s) => s,
+                None => match self.market_state.find_by_mint_mut(protocol) {
+                    Some(s) => s,
+                    None => {
+                        self.notrade_count += 1;
+                        return Some(StrategyOutcome::NoTrade(NoTrade {
+                            reason: format!("No market state for mint {mint}"),
+                            composite_score: 0.0,
+                            factor_breakdown: vec![],
+                            rejected_by: Some("state_missing".into()),
+                        }));
+                    }
+                },
+            };
+
+            // Evaluate factors (takes &mut for momentum eviction)
+            let (outputs, composite) = self.factors.evaluate(state, now_micros, protocol);
+            let spread_bps = state.spread_bps;
+            let age_micros = state.age_micros(now_micros);
+            let event_rate = state.event_rate_1s();
+            (outputs, composite, spread_bps, age_micros, event_rate)
         };
-
-        // Evaluate factors
-        let (outputs, composite) = self.factors.evaluate(state, now_micros, protocol);
-
-        // Apply gates
-        let gate_result = self.apply_gates(state, &outputs, composite, now_micros);
+        // ── market_state mutable borrow released ──
 
         let factor_breakdown: Vec<FactorContribution> =
             outputs.iter().map(|o| o.to_factor_contribution()).collect();
+
+        // Apply gates (only needs &self, no market state borrow)
+        let gate_result = self.apply_gates(
+            &outputs,
+            composite,
+            spread_bps,
+            age_micros,
+            event_rate,
+            now_micros,
+        );
 
         #[cfg(feature = "perf-trace")]
         {
@@ -263,7 +293,7 @@ impl StrategyEngine {
                     strength,
                     confidence,
                     protocol: protocol.to_string(),
-                    spread_bps: state.spread_bps,
+                    spread_bps,
                     midpoint_price,
                     slot,
                     composite_score: composite,
@@ -282,7 +312,7 @@ impl StrategyEngine {
                 }
 
                 Some(StrategyOutcome::NoTrade(NoTrade {
-                    reason: format!("Gate '{}' rejected: composite={:.3}", gate_name, composite),
+                    reason: format!("Gate '{gate_name}' rejected: composite={:.3}", composite),
                     composite_score: composite,
                     factor_breakdown,
                     rejected_by: Some(gate_name),
@@ -297,10 +327,12 @@ impl StrategyEngine {
     /// Returns `Ok(adjusted_score)` if all gates pass, or `Err(gate_name)` on failure.
     fn apply_gates(
         &self,
-        state: &crate::trading::strategy::market_state::MintMarketState,
         outputs: &[FactorOutput],
         composite: f64,
-        now_micros: i64,
+        spread_bps: f64,
+        state_age_micros: i64,
+        state_event_rate_1s: f64,
+        _now_micros: i64,
     ) -> Result<f64, String> {
         // Gate 1: Composite score threshold
         if composite.abs() < self.config.gates.min_composite_score {
@@ -308,19 +340,18 @@ impl StrategyEngine {
         }
 
         // Gate 2: Spread gate
-        if state.spread_bps > self.config.gates.max_spread_bps {
+        if spread_bps > self.config.gates.max_spread_bps {
             return Err("max_spread".into());
         }
 
         // Gate 3: Stale data gate
-        if state.age_micros(now_micros) > self.config.gates.max_age_micros {
+        if state_age_micros > self.config.gates.max_age_micros {
             return Err("stale_data".into());
         }
 
         // Gate 4: Event rate gate (optional)
         if self.config.gates.enable_event_rate_gate {
-            let rate = state.event_rate_1s();
-            if rate < self.config.gates.min_event_rate {
+            if state_event_rate_1s < self.config.gates.min_event_rate {
                 return Err("min_event_rate".into());
             }
         }
@@ -411,15 +442,17 @@ mod tests {
     use solana_sdk::signature::Signature;
 
     fn make_test_event(slot: u64, data: Vec<u8>) -> ClassifiedEvent {
+        let now = crate::common::fast_timing::fast_now_micros() as i64;
         ClassifiedEvent {
             slot,
             signature: Signature::new_unique(),
             event_type: EventType::Swap,
             instruction_index: 0,
             program_id: "So11111111111111111111111111111111111111112".parse().unwrap(),
-            received_at_micros: crate::common::fast_timing::fast_now_micros() as i64,
-            decoded_at_micros: crate::common::fast_timing::fast_now_micros() as i64,
+            received_at_micros: now,
+            decoded_at_micros: now,
             raw_instruction_data: data,
+            trace: crate::perf::shredstream::EventTrace::new(now, now),
         }
     }
 
@@ -454,7 +487,7 @@ mod tests {
         let mint = "So11111111111111111111111111111111111111112";
 
         // Set the state spread tight
-        if let Some(state) = engine.market_state.get_mut(mint) {
+        if let Some(state) = engine.market_state.get_mut(mint, mint) {
             state.spread_bps = 8.0;
             state.last_update_micros = now - 100_000;
         }
@@ -476,7 +509,7 @@ mod tests {
         let mint = "So11111111111111111111111111111111111111112";
 
         // Set very wide spread
-        if let Some(state) = engine.market_state.get_mut(mint) {
+        if let Some(state) = engine.market_state.get_mut(mint, mint) {
             state.spread_bps = 100.0;
             state.last_update_micros = now - 100_000;
         }
@@ -498,7 +531,7 @@ mod tests {
         let mint = "So11111111111111111111111111111111111111112";
 
         // Set very old data
-        if let Some(state) = engine.market_state.get_mut(mint) {
+        if let Some(state) = engine.market_state.get_mut(mint, mint) {
             state.spread_bps = 8.0;
             state.last_update_micros = now - 15_000_000; // 15s old
         }
@@ -516,7 +549,7 @@ mod tests {
         let now = crate::common::fast_timing::fast_now_micros() as i64;
         let mint = "So11111111111111111111111111111111111111112";
 
-        if let Some(state) = engine.market_state.get_mut(mint) {
+        if let Some(state) = engine.market_state.get_mut(mint, mint) {
             state.spread_bps = 8.0;
             state.last_update_micros = now - 100_000;
         }

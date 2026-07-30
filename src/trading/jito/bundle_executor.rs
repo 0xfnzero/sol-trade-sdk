@@ -59,7 +59,7 @@ pub fn spawn_trade_execution_loop(
     tip_config: TipConfig,
     swqos_clients: Arc<Vec<Arc<SwqosClient>>>,
     rpc: Arc<SolanaRpcClient>,
-    _app_config: AppConfig,
+    app_config: AppConfig,
     running: Arc<AtomicBool>,
 ) -> tokio::task::JoinHandle<()> {
     let executor = TradeFactory::create_executor(dex_type);
@@ -73,6 +73,8 @@ pub fn spawn_trade_execution_loop(
             target_mint,
             tip_config.strategy,
         );
+        let position_size_sol = app_config.strategy.position_size_sol;
+        let position_size_lamports = (position_size_sol * 1e9) as u64;
 
         let mut retry_state: Option<RetryState> = None;
         let mut last_eval_micros: i64 = 0;
@@ -101,11 +103,12 @@ pub fn spawn_trade_execution_loop(
                         &swqos_clients,
                         &rpc,
                         &tip_config,
+                        position_size_sol,
                     )
                     .await;
 
                     match outcome {
-                        BundleOutcome::Landed { tip_sol, landing_ms, attempts } => {
+                        BundleOutcome::Landed { tip_sol, landing_ms, attempts, .. } => {
                             BundleMetrics::landed(tip_sol, landing_ms, attempts);
                             info!(target: "sol_trade_sdk", "jito: bundle landed for {m} after {a} attempts — tip={t:.6} SOL landed_in={l}ms",
                                 m = target_mint, a = attempts, t = tip_sol, l = landing_ms);
@@ -171,7 +174,7 @@ pub fn spawn_trade_execution_loop(
                 };
 
                 let mid_price =
-                    engine.market_state.get(&mint_str).map(|s| s.last_price).unwrap_or(0.0);
+                    engine.market_state.find_by_mint(&mint_str).map(|s| s.last_price).unwrap_or(0.0);
 
                 let now_micros = crate::common::fast_timing::fast_now_micros() as i64;
 
@@ -201,6 +204,18 @@ pub fn spawn_trade_execution_loop(
                 _ => continue, // neutral — skip
             };
 
+            // ── Derive min output from swap-implied price and slippage ──
+            // price = quote/token (SOL per token from instruction data)
+            // For BUY: expected_tokens = position_size_sol / price
+            // For SELL: expected_sol = token_amount * price
+            // Apply 500 bps slippage as floor (configurable via P1-06 fix)
+            let min_output_amount = if signal.midpoint_price > 0.0 {
+                let expected_tokens = (position_size_sol / signal.midpoint_price) * 1e9; // token lamports
+                (expected_tokens * (1.0 - 500.0f64 / 10000.0)) as u64
+            } else {
+                0u64
+            };
+
             // ── Compute strategy-aware tip ──
             let tip_sol =
                 TipCalculator::compute(signal.composite_score, signal.confidence, &tip_config);
@@ -208,8 +223,10 @@ pub fn spawn_trade_execution_loop(
             // ── Compute expected profit for profit/tip ratio gate ──
             // For buys: expected profit ~ price * amount * composite_score (simplified)
             // For sells: expected profit ~ price * amount * |composite_score|
-            let expected_profit_sol =
-                signal.midpoint_price * (signal.composite_score.abs() as f64) * 100.0; // rough estimate for 100 SOL position
+            // NOTE: position_size_sol matches the actual input_amount used below.
+            let expected_profit_sol = signal.midpoint_price
+                * (signal.composite_score.abs() as f64)
+                * position_size_sol;
 
             // ── Profit/tip ratio gate ──
             if tip_config.strategy == crate::trading::jito::TipStrategy::StrategyAware
@@ -235,11 +252,12 @@ pub fn spawn_trade_execution_loop(
                     &target_mint,
                     &direction,
                     &signal.protocol,
-                    100_000_000, // 0.1 SOL (TODO: configurable)
-                    0,           // min output
+                    position_size_lamports, // from AppConfig.strategy.position_size_sol
+                    min_output_amount,
                     None,
                     &swqos_clients,
                     &rpc,
+                    position_size_sol,
                 )
                 .await;
 
@@ -253,8 +271,8 @@ pub fn spawn_trade_execution_loop(
             }
 
             // ── Execute with strategy-aware tip ──
-            let input_amount = 100_000_000u64; // 0.1 SOL (TODO: configurable)
-            let min_output_amount = 0u64;
+            let input_amount = position_size_lamports; // from AppConfig.strategy.position_size_sol
+
 
             let outcome = execute_bundle_with_tip(
                 &orchestrator,
@@ -269,11 +287,12 @@ pub fn spawn_trade_execution_loop(
                 &swqos_clients,
                 &rpc,
                 &tip_config,
+                position_size_sol,
             )
             .await;
 
             match outcome {
-                BundleOutcome::Landed { tip_sol, landing_ms, attempts } => {
+                BundleOutcome::Landed { tip_sol, landing_ms, attempts, .. } => {
                     BundleMetrics::landed(tip_sol, landing_ms, attempts);
                     info!(target: "sol_trade_sdk",
                         "jito: bundle landed for {m} — tip={t:.6} SOL landed_in={l}ms attempts={a}",
@@ -352,6 +371,7 @@ async fn simulate_bundle(
     detected_slot: Option<u64>,
     swqos_clients: &[Arc<SwqosClient>],
     rpc: &Arc<SolanaRpcClient>,
+    position_size_sol: f64,
 ) -> bool {
     let plan = orchestrator
         .plan_trade(
@@ -361,8 +381,7 @@ async fn simulate_bundle(
             input_amount,
             min_output_amount,
             detected_slot,
-            &crate::constants::risk::RiskContext::default(),
-            &crate::constants::risk::TradeRiskParams::new(0.1, 0, 500),
+            &crate::constants::risk::TradeRiskParams::new(position_size_sol, 0, 500), // TODO: P1-10 — populate expected_output and net_profit from real quote
         )
         .await;
 
@@ -441,6 +460,7 @@ async fn execute_bundle_with_tip(
     swqos_clients: &[Arc<SwqosClient>],
     rpc: &Arc<SolanaRpcClient>,
     _tip_config: &TipConfig,
+    position_size_sol: f64,
 ) -> BundleOutcome {
     BundleMetrics::submitted();
 
@@ -452,8 +472,7 @@ async fn execute_bundle_with_tip(
             input_amount,
             min_output_amount,
             detected_slot,
-            &crate::constants::risk::RiskContext::default(),
-            &crate::constants::risk::TradeRiskParams::new(0.1, 0, 500),
+            &crate::constants::risk::TradeRiskParams::new(position_size_sol, 0, 500), // TODO: P1-10 — populate expected_output and net_profit from real quote
         )
         .await
     {
@@ -525,17 +544,18 @@ async fn execute_bundle_with_tip(
 
     if result.success {
         let elapsed = start.elapsed().as_millis() as u64;
-        BundleOutcome::Landed { tip_sol, landing_ms: elapsed, attempts }
+        BundleOutcome::Landed { tip_sol, landing_ms: elapsed, attempts, bundle_id: None }
     } else if result.signatures.is_empty() && result.error.is_some() {
         // No signatures = submission failed entirely (not just nack, but RPC/network error)
         BundleOutcome::Nacked {
             tip_sol,
             attempts,
             reason: result.error.unwrap_or_else(|| "unknown error".into()),
+            bundle_id: None,
         }
     } else {
         // Signatures exist but confirmation failed = nack or timeout
         let reason = result.error.unwrap_or_else(|| "confirmation failed / nack".into());
-        BundleOutcome::Nacked { tip_sol, attempts, reason }
+        BundleOutcome::Nacked { tip_sol, attempts, reason, bundle_id: None }
     }
 }

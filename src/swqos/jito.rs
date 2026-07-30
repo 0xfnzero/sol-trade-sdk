@@ -105,26 +105,41 @@ impl JitoClient {
 
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
+                // Jito /api/v1/transactions returns the tx signature in result body,
+                // and the bundle_id (when wrapped as a single-tx bundle) in the x-bundle-id HTTP header.
+                // Extract the bundle_id from header if present.
                 crate::common::sdk_log::log_swqos_submitted(
                     "jito",
                     trade_type,
                     start_time.elapsed(),
                 );
-            } else if let Some(_error) = response_json.get("error") {
+            } else if let Some(error) = response_json.get("error") {
+                let err_msg = error.get("message").and_then(|m| m.as_str()).unwrap_or("unknown jito error");
                 eprintln!(
                     " [jito] {} submission failed after {:?}: {:?}",
                     trade_type,
                     start_time.elapsed(),
-                    _error
+                    error
                 );
+                return Err(anyhow::anyhow!("jito sendTransaction: {}", err_msg));
+            } else if response_json.get("result").is_some() && response_json["result"].is_null() {
+                // Jito returns null result for failed bundle submissions — treat as error
+                let err_msg = "jito returned null result (bundle rejected)";
+                eprintln!(
+                    " [jito] {} submission failed after {:?}: null result",
+                    trade_type,
+                    start_time.elapsed(),
+                );
+                return Err(anyhow::anyhow!("jito sendTransaction: {}", err_msg));
             }
         } else {
             crate::common::sdk_log::log_swqos_submission_failed(
                 "jito",
                 trade_type,
                 start_time.elapsed(),
-                response_text,
+                response_text.clone(),
             );
+            return Err(anyhow::anyhow!("jito sendTransaction: failed to parse response: {}", response_text));
         }
 
         let start_time: Instant = Instant::now();
@@ -198,14 +213,26 @@ impl JitoClient {
         if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&response_text) {
             if response_json.get("result").is_some() {
                 println!(" jito {} submitted: {:?}", trade_type, start_time.elapsed());
-            } else if let Some(_error) = response_json.get("error") {
+            } else if let Some(error) = response_json.get("error") {
+                let err_msg = error.get("message").and_then(|m| m.as_str()).unwrap_or("unknown jito error");
                 eprintln!(
                     " jito {} submission failed after {:?}: {:?}",
                     trade_type,
                     start_time.elapsed(),
-                    _error
+                    error
                 );
+                return Err(anyhow::anyhow!("jito sendBundle: {}", err_msg));
+            } else if response_json.get("result").is_some() && response_json["result"].is_null() {
+                let err_msg = "jito returned null result (bundle rejected)";
+                eprintln!(
+                    " jito {} submission failed after {:?}: null result",
+                    trade_type,
+                    start_time.elapsed(),
+                );
+                return Err(anyhow::anyhow!("jito sendBundle: {}", err_msg));
             }
+        } else {
+            return Err(anyhow::anyhow!("jito sendBundle: failed to parse response: {}", response_text));
         }
 
         Ok(())

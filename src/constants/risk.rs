@@ -6,6 +6,8 @@
 
 // Risk gates — no serde deps needed for the error type.
 
+use crate::trading::core::state::TradeDirection;
+
 // ---------------------------------------------------------------------------
 // Error type
 // ---------------------------------------------------------------------------
@@ -96,7 +98,26 @@ impl RiskEngine {
         self.check_switches(protocol, provider, mint)?;
         self.check_per_trade(trade)?;
         self.check_global(ctx)?;
-        self.check_fee_ceilings(ctx)?;
+        self.check_fee_ceilings(ctx, trade)?;
+        self.check_health(ctx)?;
+        Ok(())
+    }
+
+    /// Run all gates with trade direction awareness.
+    /// Preferred over `check()` when direction is known.
+    pub fn check_with_direction(
+        &self,
+        ctx: &RiskContext,
+        trade: &TradeRiskParams,
+        protocol: &str,
+        provider: &str,
+        mint: &str,
+        direction: TradeDirection,
+    ) -> Result<(), RiskError> {
+        self.check_switches_with_direction(protocol, provider, mint, direction)?;
+        self.check_per_trade(trade)?;
+        self.check_global(ctx)?;
+        self.check_fee_ceilings(ctx, trade)?;
         self.check_health(ctx)?;
         Ok(())
     }
@@ -110,11 +131,32 @@ impl RiskEngine {
                 protocol, provider, mint
             )));
         }
-        if self.config.switches.buy_only && trade_direction_is_sell() {
-            return Err(RiskError::Switch("sell-only mode, buys blocked".into()));
+        // buy_only/sell_only require TradeDirection — without it, skip direction checks
+        Ok(())
+    }
+
+    fn check_switches_with_direction(
+        &self,
+        protocol: &str,
+        provider: &str,
+        mint: &str,
+        direction: TradeDirection,
+    ) -> Result<(), RiskError> {
+        if !self.config.switches.is_allowed(protocol, provider, mint) {
+            return Err(RiskError::Switch(format!(
+                "blocked by switch: protocol={}, provider={}, mint={}",
+                protocol, provider, mint
+            )));
         }
-        if self.config.switches.sell_only && trade_direction_is_buy() {
-            return Err(RiskError::Switch("buy-only mode, sells blocked".into()));
+        if self.config.switches.buy_only && direction == TradeDirection::Sell {
+            return Err(RiskError::Switch(
+                "buy-only mode, sells blocked".into(),
+            ));
+        }
+        if self.config.switches.sell_only && direction == TradeDirection::Buy {
+            return Err(RiskError::Switch(
+                "sell-only mode, buys blocked".into(),
+            ));
         }
         Ok(())
     }
@@ -167,7 +209,7 @@ impl RiskEngine {
         Ok(())
     }
 
-    // ── Global (8 checks) ──
+    // ── Global (9 checks) ──
 
     fn check_global(&self, ctx: &RiskContext) -> Result<(), RiskError> {
         if ctx.current_open_exposure_sol > self.config.global.max_open_exposure_sol {
@@ -212,14 +254,54 @@ impl RiskEngine {
                 ctx.daily_trades, self.config.global.max_daily_trades
             )));
         }
+        // Check max_exposure_per_mint_pct against current_mint_exposure_sol
+        let mint_exposure_pct = if ctx.current_open_exposure_sol > 0.0 {
+            (ctx.current_mint_exposure_sol / ctx.current_open_exposure_sol) * 100.0
+        } else {
+            0.0
+        };
+        if mint_exposure_pct > self.config.global.max_exposure_per_mint_pct {
+            return Err(RiskError::Global(format!(
+                "mint exposure: {:.2}% of total > limit {:.2}%",
+                mint_exposure_pct, self.config.global.max_exposure_per_mint_pct
+            )));
+        }
+        // Check max_exposure_per_protocol_pct against current_protocol_exposure_sol
+        let protocol_exposure_pct = if ctx.current_open_exposure_sol > 0.0 {
+            (ctx.current_protocol_exposure_sol / ctx.current_open_exposure_sol) * 100.0
+        } else {
+            0.0
+        };
+        if protocol_exposure_pct > self.config.global.max_exposure_per_protocol_pct {
+            return Err(RiskError::Global(format!(
+                "protocol exposure: {:.2}% of total > limit {:.2}%",
+                protocol_exposure_pct, self.config.global.max_exposure_per_protocol_pct
+            )));
+        }
         Ok(())
     }
 
     // ── Fee ceilings (7 checks) ──
 
-    fn check_fee_ceilings(&self, ctx: &RiskContext) -> Result<(), RiskError> {
-        // Priority fee, relay tip, and total tx cost are checked per-trade
-        // in `TradeRiskParams`; daily/consecutive loss checks use context.
+    fn check_fee_ceilings(&self, ctx: &RiskContext, trade: &TradeRiskParams) -> Result<(), RiskError> {
+        if trade.fee_cost_lamports > self.config.fee_ceilings.max_priority_fee_lamports {
+            return Err(RiskError::FeeCeiling(format!(
+                "priority fee: {} lamports > limit {}",
+                trade.fee_cost_lamports, self.config.fee_ceilings.max_priority_fee_lamports
+            )));
+        }
+        if trade.fee_cost_lamports > self.config.fee_ceilings.max_relay_tip_lamports {
+            return Err(RiskError::FeeCeiling(format!(
+                "relay tip: {} lamports > limit {}",
+                trade.fee_cost_lamports, self.config.fee_ceilings.max_relay_tip_lamports
+            )));
+        }
+        if trade.fee_cost_lamports > self.config.fee_ceilings.max_total_tx_cost_lamports {
+            return Err(RiskError::FeeCeiling(format!(
+                "total tx cost: {} lamports > limit {}",
+                trade.fee_cost_lamports, self.config.fee_ceilings.max_total_tx_cost_lamports
+            )));
+        }
         if ctx.daily_loss_lamports > self.config.fee_ceilings.max_daily_loss_lamports {
             return Err(RiskError::FeeCeiling(format!(
                 "daily loss: {} lamports > limit {}",
@@ -230,6 +312,25 @@ impl RiskEngine {
             return Err(RiskError::FeeCeiling(format!(
                 "consecutive losses: {} > limit {}",
                 ctx.consecutive_losses, self.config.fee_ceilings.max_consecutive_losses
+            )));
+        }
+        if trade.net_profit_lamports < self.config.fee_ceilings.max_net_loss_per_trade_lamports
+            && trade.net_profit_lamports < self.config.min_expected_net_profit_lamports
+        {
+            return Err(RiskError::FeeCeiling(format!(
+                "net loss per trade: {} lamports > limit {}",
+                trade.net_profit_lamports, self.config.fee_ceilings.max_net_loss_per_trade_lamports
+            )));
+        }
+        // Check max_loss_rate_per_100_trades_pct using net_loss_last_100_trades_lamports
+        let avg_trade_size = if trade.sol_amount > 0.0 { trade.sol_amount } else { 1.0 };
+        let loss_rate_pct = (ctx.net_loss_last_100_trades_lamports as f64)
+            / (avg_trade_size * 1e9 * 100.0)
+            * 100.0;
+        if loss_rate_pct > self.config.fee_ceilings.max_loss_rate_per_100_trades_pct {
+            return Err(RiskError::FeeCeiling(format!(
+                "loss rate last 100 trades: {:.2}% > limit {:.2}%",
+                loss_rate_pct, self.config.fee_ceilings.max_loss_rate_per_100_trades_pct
             )));
         }
         Ok(())
@@ -312,16 +413,183 @@ impl TradeRiskParams {
 }
 
 // ---------------------------------------------------------------------------
-// Direction helpers (stub — real impl from trade params)
+// TradeLedger — tracks live open positions, daily trade counts, and P&L
 // ---------------------------------------------------------------------------
 
-fn trade_direction_is_buy() -> bool {
-    // Placeholder: real impl reads from active trade context
-    false
+use std::collections::HashMap;
+
+/// A single open position tracked by the ledger.
+#[derive(Debug, Clone)]
+pub struct OpenPosition {
+    /// The mint address of the token.
+    pub mint: String,
+    /// Protocol this position was opened on.
+    pub protocol: String,
+    /// Position size in SOL.
+    pub size_sol: f64,
+    /// Slot at which the position was opened.
+    pub open_slot: u64,
+    /// Direction of the position.
+    pub direction: crate::trading::core::state::TradeDirection,
+    /// Cost basis in lamports of SOL.
+    pub cost_basis_lamports: u64,
 }
 
-fn trade_direction_is_sell() -> bool {
-    !trade_direction_is_buy()
+/// Runtime trade ledger that feeds [`RiskContext`] before every risk check.
+///
+/// # Thread safety
+/// Wrapped behind `Mutex<TradeLedger>` in the orchestrator — all mutation is
+/// single-threaded so no interior complexity needed.
+#[derive(Debug, Clone)]
+pub struct TradeLedger {
+    /// Open positions keyed by mint.
+    pub positions: HashMap<String, OpenPosition>,
+    /// Trades executed today (resets daily).
+    pub daily_trade_count: u32,
+    /// Daily P&L in lamports (positive = profit, negative = loss).
+    pub daily_pnl_lamports: i64,
+    /// Total net loss across the last 100 trades in lamports.
+    pub net_loss_last_100_trades_lamports: u64,
+    /// Circular buffer of recent trade P&L values (lamports, negative = loss).
+    pub recent_pnl_window: Vec<i64>,
+    /// Consecutive losing trades.
+    pub consecutive_losses: u32,
+    /// Last daily reset timestamp (Unix micros).
+    pub last_reset_micros: u64,
+}
+
+impl Default for TradeLedger {
+    fn default() -> Self {
+        Self {
+            positions: HashMap::new(),
+            daily_trade_count: 0,
+            daily_pnl_lamports: 0,
+            net_loss_last_100_trades_lamports: 0,
+            recent_pnl_window: Vec::with_capacity(100),
+            consecutive_losses: 0,
+            last_reset_micros: crate::common::fast_timing::fast_now_micros(),
+        }
+    }
+}
+
+impl TradeLedger {
+    /// Reset daily counters if a new day has started.
+    pub fn daily_reset_if_needed(&mut self) {
+        let now = crate::common::fast_timing::fast_now_micros();
+        // 24 hours in micros
+        const DAY_MICROS: u64 = 86_400_000_000;
+        if now.saturating_sub(self.last_reset_micros) >= DAY_MICROS {
+            self.daily_trade_count = 0;
+            self.daily_pnl_lamports = 0;
+            self.last_reset_micros = now;
+        }
+    }
+
+    /// Record a new open position.
+    pub fn open_position(
+        &mut self,
+        mint: &str,
+        protocol: &str,
+        size_sol: f64,
+        slot: u64,
+        direction: crate::trading::core::state::TradeDirection,
+        cost_basis_lamports: u64,
+    ) {
+        self.positions.insert(
+            mint.to_string(),
+            OpenPosition {
+                mint: mint.to_string(),
+                protocol: protocol.to_string(),
+                size_sol,
+                open_slot: slot,
+                direction,
+                cost_basis_lamports,
+            },
+        );
+        self.daily_reset_if_needed();
+        self.daily_trade_count += 1;
+    }
+
+    /// Record a closed position and its P&L impact.
+    pub fn close_position(&mut self, mint: &str, profit_lamports: i64) -> Option<OpenPosition> {
+        let pos = self.positions.remove(mint)?;
+        self.daily_reset_if_needed();
+        self.daily_trade_count += 1;
+        self.daily_pnl_lamports += profit_lamports;
+
+        // Track net loss for the last-100-trades risk gate
+        if profit_lamports < 0 {
+            self.consecutive_losses += 1;
+            let loss = (-profit_lamports) as u64;
+            self.net_loss_last_100_trades_lamports += loss;
+        } else {
+            self.consecutive_losses = 0;
+        }
+
+        // Maintain sliding window of 100 trades
+        self.recent_pnl_window.push(profit_lamports);
+        if self.recent_pnl_window.len() > 100 {
+            // Remove the oldest entry from net loss tracking
+            let oldest = self.recent_pnl_window.remove(0);
+            if oldest < 0 {
+                self.net_loss_last_100_trades_lamports =
+                    self.net_loss_last_100_trades_lamports.saturating_sub((-oldest) as u64);
+            }
+        }
+
+        Some(pos)
+    }
+
+    /// Record a failed trade (no position was opened).
+    pub fn record_failed_trade(&mut self) {
+        self.daily_reset_if_needed();
+        self.daily_trade_count += 1;
+    }
+
+    /// Build a [`RiskContext`] snapshot from the current ledger state.
+    pub fn build_context(&self) -> RiskContext {
+        let mut open_exposure_sol = 0.0_f64;
+        let mut positions_by_protocol: HashMap<&str, u32> = HashMap::new();
+        let mut exposure_by_mint: HashMap<&str, f64> = HashMap::new();
+        let mut exposure_by_protocol: HashMap<&str, f64> = HashMap::new();
+
+        for pos in self.positions.values() {
+            open_exposure_sol += pos.size_sol;
+            *positions_by_protocol.entry(&pos.protocol).or_insert(0) += 1;
+            *exposure_by_mint.entry(&pos.mint).or_insert(0.0) += pos.size_sol;
+            *exposure_by_protocol.entry(&pos.protocol).or_insert(0.0) += pos.size_sol;
+        }
+
+        // Pick the highest mint/protocol exposure for context limits
+        let current_mint_exposure_sol = exposure_by_mint.values().copied().fold(0.0_f64, f64::max);
+        let current_protocol_exposure_sol =
+            exposure_by_protocol.values().copied().fold(0.0_f64, f64::max);
+        let max_protocol_positions = positions_by_protocol.values().copied().max().unwrap_or(0);
+
+        RiskContext {
+            current_open_exposure_sol: open_exposure_sol,
+            current_mint_exposure_sol,
+            current_protocol_exposure_sol,
+            trades_last_minute: self.daily_trade_count.min(u32::MAX as u32) as u32,
+            failures_last_5min: 0, // Tracked externally or by reconciliation
+            open_positions: self.positions.len() as u32,
+            open_positions_protocol: max_protocol_positions,
+            daily_trades: self.daily_trade_count,
+            daily_loss_lamports: if self.daily_pnl_lamports < 0 {
+                (-self.daily_pnl_lamports) as u64
+            } else {
+                0
+            },
+            consecutive_losses: self.consecutive_losses,
+            rpc_slot_lag: 0,      // Populated externally by health monitor
+            packet_loss_pct: 0.0,  // Populated externally by health monitor
+            queue_delay_ms: 0,     // Populated externally by health monitor
+            blockhash_age_ms: 0,   // Populated externally by health monitor
+            reconciliation_backlog: 0, // Populated externally by reconciliation service
+            shred_loss_pct: 0.0,   // Populated externally by health monitor
+            net_loss_last_100_trades_lamports: self.net_loss_last_100_trades_lamports,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

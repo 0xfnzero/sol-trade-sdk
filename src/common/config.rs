@@ -227,7 +227,7 @@ impl Default for ShredStreamConfig {
                 "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".into(), // Raydium AMM V4
                 "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C".into(), // Raydium CPMM
                 "LBUZKhRxPF3XUpBCjp4YzTKgY6bE1UEsLzD2jF5K5oM".into(), // Meteora
-                "po9o1HhL9G9BKkBCiJN6KSm4hK7j4G4G4K4G4K4G4K4G".into(), // Bonk
+                "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj".into(), // Raydium LaunchLab / LetsBonk
             ],
             cpu_affinity: CpuAffinityConfig::default(),
         }
@@ -239,6 +239,7 @@ impl ShredStreamConfig {
         if self.enabled && self.receive_buffer_bytes < 1_048_576 {
             anyhow::bail!("shredstream.receive_buffer_bytes must be >= 1 MiB when enabled");
         }
+        self.cpu_affinity.validate()?;
         Ok(())
     }
 }
@@ -255,6 +256,29 @@ pub struct CpuAffinityConfig {
 impl Default for CpuAffinityConfig {
     fn default() -> Self {
         Self { receive_core: 0, reconstruct_core: 1, state_strategy_core: 2, execute_core: 3 }
+    }
+}
+
+impl CpuAffinityConfig {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let mut cores =
+            [self.receive_core, self.reconstruct_core, self.state_strategy_core, self.execute_core];
+        cores.sort();
+        for i in 1..cores.len() {
+            if cores[i] == cores[i - 1] {
+                anyhow::bail!(
+                    "shredstream.cpu_affinity cores must be distinct, found duplicate core {}",
+                    cores[i]
+                );
+            }
+        }
+        if cores[3] > 255 {
+            anyhow::bail!(
+                "shredstream.cpu_affinity cores must be <= 255, got max core {}",
+                cores[3]
+            );
+        }
+        Ok(())
     }
 }
 
@@ -383,6 +407,16 @@ pub struct JitoSubmissionConfig {
     pub tip_min_lamports: u64,
     pub tip_max_lamports: u64,
     pub bundle_tip_strategy: String,
+    /// Global multiplier on computed tip.
+    pub tip_multiplier: f64,
+    /// Maximum bundle retry attempts.
+    pub max_bundle_retries: u32,
+    /// Tip escalation factor per retry (e.g. 2.0 = double tip each retry).
+    pub tip_escalation_factor: f64,
+    /// Enable simulation gating before bundle submission.
+    pub enable_simulation_gate: bool,
+    /// Minimum profit-to-tip ratio; skip if expected_profit / tip < this.
+    pub min_profit_to_tip_ratio: f64,
 }
 
 impl Default for JitoSubmissionConfig {
@@ -393,6 +427,11 @@ impl Default for JitoSubmissionConfig {
             tip_min_lamports: 1_000,
             tip_max_lamports: 100_000,
             bundle_tip_strategy: "fixed".into(),
+            tip_multiplier: 1.0,
+            max_bundle_retries: 3,
+            tip_escalation_factor: 2.0,
+            enable_simulation_gate: true,
+            min_profit_to_tip_ratio: 2.0,
         }
     }
 }
@@ -440,6 +479,7 @@ impl WalletConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BlockhashConfig {
+    pub cache_capacity: usize,
     pub refresh_interval_ms: u64,
     pub max_age_slots: u64,
     pub stale_threshold_ms: u64,
@@ -450,6 +490,7 @@ pub struct BlockhashConfig {
 impl Default for BlockhashConfig {
     fn default() -> Self {
         Self {
+            cache_capacity: 3,
             refresh_interval_ms: 200,
             max_age_slots: 150,
             stale_threshold_ms: 500,
@@ -461,6 +502,9 @@ impl Default for BlockhashConfig {
 
 impl BlockhashConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
+        if self.cache_capacity == 0 {
+            anyhow::bail!("blockhash.cache_capacity must be >= 1");
+        }
         if self.refresh_interval_ms < 50 {
             anyhow::bail!("blockhash.refresh_interval_ms must be >= 50ms");
         }
@@ -479,6 +523,8 @@ impl BlockhashConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FeeConfig {
+    pub fee_window_size: usize,
+    pub fee_percentile: f64,
     pub compute_unit_limit: u32,
     pub compute_unit_price: u64,
     pub max_priority_fee_lamports: u64,
@@ -492,6 +538,8 @@ pub struct FeeConfig {
 impl Default for FeeConfig {
     fn default() -> Self {
         Self {
+            fee_window_size: 100,
+            fee_percentile: 50.0,
             compute_unit_limit: 400_000,
             compute_unit_price: 1_000,
             max_priority_fee_lamports: 10_000,
@@ -506,6 +554,12 @@ impl Default for FeeConfig {
 
 impl FeeConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
+        if self.fee_window_size < 10 {
+            anyhow::bail!("fees.fee_window_size must be >= 10");
+        }
+        if self.fee_percentile <= 0.0 || self.fee_percentile > 100.0 {
+            anyhow::bail!("fees.fee_percentile must be in (0.0, 100.0]");
+        }
         if self.compute_unit_limit < 100_000 {
             anyhow::bail!("fees.compute_unit_limit must be >= 100_000");
         }
@@ -571,6 +625,9 @@ impl RiskConfig {
             anyhow::bail!("risk.max_slippage_basis_points must be <= 10000 (100%)");
         }
         self.global.validate()?;
+        self.fee_ceilings.validate()?;
+        self.health.validate()?;
+        self.switches.validate()?;
         Ok(())
     }
 }
@@ -640,6 +697,41 @@ impl Default for FeeCeilingConfig {
     }
 }
 
+impl FeeCeilingConfig {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let ceiling = self.max_total_tx_cost_lamports;
+        let priority = self.max_priority_fee_lamports;
+        let relay = self.max_relay_tip_lamports;
+        if ceiling < priority + relay {
+            anyhow::bail!(
+                "risk.fee_ceilings.max_total_tx_cost_lamports ({}) must be >= \
+                 max_priority_fee_lamports ({}) + max_relay_tip_lamports ({})",
+                ceiling,
+                priority,
+                relay,
+            );
+        }
+        if self.max_daily_loss_lamports == 0 {
+            anyhow::bail!("risk.fee_ceilings.max_daily_loss_lamports must be > 0");
+        }
+        if self.max_consecutive_losses == 0 || self.max_consecutive_losses > 100 {
+            anyhow::bail!(
+                "risk.fee_ceilings.max_consecutive_losses must be 1-100, got {}",
+                self.max_consecutive_losses,
+            );
+        }
+        if self.max_loss_rate_per_100_trades_pct <= 0.0
+            || self.max_loss_rate_per_100_trades_pct > 100.0
+        {
+            anyhow::bail!(
+                "risk.fee_ceilings.max_loss_rate_per_100_trades_pct must be 0-100, got {}",
+                self.max_loss_rate_per_100_trades_pct,
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HealthRiskConfig {
@@ -661,6 +753,30 @@ impl Default for HealthRiskConfig {
             max_reconciliation_backlog: 100,
             max_shred_loss_pct: 2.0,
         }
+    }
+}
+
+impl HealthRiskConfig {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.max_packet_loss_pct <= 0.0 || self.max_packet_loss_pct > 100.0 {
+            anyhow::bail!(
+                "risk.health.max_packet_loss_pct must be 0-100, got {}",
+                self.max_packet_loss_pct,
+            );
+        }
+        if self.max_shred_loss_pct <= 0.0 || self.max_shred_loss_pct > 100.0 {
+            anyhow::bail!(
+                "risk.health.max_shred_loss_pct must be 0-100, got {}",
+                self.max_shred_loss_pct,
+            );
+        }
+        if self.max_queue_delay_ms == 0 {
+            anyhow::bail!("risk.health.max_queue_delay_ms must be > 0");
+        }
+        if self.max_rpc_slot_lag == 0 {
+            anyhow::bail!("risk.health.max_rpc_slot_lag must be > 0");
+        }
+        Ok(())
     }
 }
 
@@ -689,6 +805,13 @@ impl Default for SwitchConfig {
 }
 
 impl SwitchConfig {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.buy_only && self.sell_only {
+            anyhow::bail!("risk.switches.buy_only and sell_only cannot both be true");
+        }
+        Ok(())
+    }
+
     pub fn is_allowed(&self, protocol: &str, provider: &str, mint: &str) -> bool {
         if self.global_kill {
             return false;
@@ -926,6 +1049,9 @@ impl StorageConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RuntimeConfig {
+    pub alt_cache_capacity: usize,
+    pub confirmation_timeout_secs: u64,
+    pub enable_reconciliation: bool,
     pub graceful_shutdown_timeout_secs: u64,
     pub restart_max_retries: u32,
     pub restart_delay_ms: u64,
@@ -937,6 +1063,9 @@ pub struct RuntimeConfig {
 impl Default for RuntimeConfig {
     fn default() -> Self {
         Self {
+            alt_cache_capacity: 1024,
+            confirmation_timeout_secs: 30,
+            enable_reconciliation: true,
             graceful_shutdown_timeout_secs: 10,
             restart_max_retries: 3,
             restart_delay_ms: 1_000,
@@ -949,6 +1078,9 @@ impl Default for RuntimeConfig {
 
 impl RuntimeConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
+        if self.alt_cache_capacity < 64 {
+            anyhow::bail!("runtime.alt_cache_capacity must be >= 64");
+        }
         if self.graceful_shutdown_timeout_secs < 1 {
             anyhow::bail!("runtime.graceful_shutdown_timeout_secs must be >= 1");
         }

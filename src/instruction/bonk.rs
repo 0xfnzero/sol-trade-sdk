@@ -6,8 +6,8 @@ use crate::{
             push_create_user_token_account,
         },
         utils::bonk::{
-            accounts, get_pool_pda, get_vault_pda, BUY_EXECT_IN_DISCRIMINATOR,
-            BUY_EXECT_OUT_DISCRIMINATOR, SELL_EXECT_IN_DISCRIMINATOR, SELL_EXECT_OUT_DISCRIMINATOR,
+            accounts, get_pool_pda, get_vault_pda, BUY_EXACT_IN_DISCRIMINATOR,
+            BUY_EXACT_OUT_DISCRIMINATOR, SELL_EXACT_IN_DISCRIMINATOR, SELL_EXACT_OUT_DISCRIMINATOR,
         },
     },
     trading::core::{
@@ -145,11 +145,11 @@ impl InstructionBuilder for BonkInstructionBuilder {
 
         let mut data = [0u8; 32];
         if let Some(amount_out) = params.fixed_output_amount {
-            data[..8].copy_from_slice(&BUY_EXECT_OUT_DISCRIMINATOR);
+            data[..8].copy_from_slice(&BUY_EXACT_OUT_DISCRIMINATOR);
             data[8..16].copy_from_slice(&amount_out.to_le_bytes());
             data[16..24].copy_from_slice(&amount_in.to_le_bytes());
         } else {
-            data[..8].copy_from_slice(&BUY_EXECT_IN_DISCRIMINATOR);
+            data[..8].copy_from_slice(&BUY_EXACT_IN_DISCRIMINATOR);
             data[8..16].copy_from_slice(&amount_in.to_le_bytes());
             data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
         }
@@ -285,11 +285,11 @@ impl InstructionBuilder for BonkInstructionBuilder {
 
         let mut data = [0u8; 32];
         if let Some(amount_out) = params.fixed_output_amount {
-            data[..8].copy_from_slice(&SELL_EXECT_OUT_DISCRIMINATOR);
+            data[..8].copy_from_slice(&SELL_EXACT_OUT_DISCRIMINATOR);
             data[8..16].copy_from_slice(&amount_out.to_le_bytes());
             data[16..24].copy_from_slice(&amount.to_le_bytes());
         } else {
-            data[..8].copy_from_slice(&SELL_EXECT_IN_DISCRIMINATOR);
+            data[..8].copy_from_slice(&SELL_EXACT_IN_DISCRIMINATOR);
             data[8..16].copy_from_slice(&amount.to_le_bytes());
             data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
         }
@@ -403,7 +403,7 @@ mod tests {
 
         assert_eq!(ix.accounts.len(), 15);
         assert_eq!(ix.accounts[14].pubkey, accounts::BONK);
-        assert_eq!(&ix.data[..8], BUY_EXECT_OUT_DISCRIMINATOR);
+        assert_eq!(&ix.data[..8], BUY_EXACT_OUT_DISCRIMINATOR);
         assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
         assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 100_000);
     }
@@ -418,7 +418,7 @@ mod tests {
 
         assert_eq!(ix.accounts.len(), 15);
         assert_eq!(ix.accounts[14].pubkey, accounts::BONK);
-        assert_eq!(&ix.data[..8], SELL_EXECT_OUT_DISCRIMINATOR);
+        assert_eq!(&ix.data[..8], SELL_EXACT_OUT_DISCRIMINATOR);
         assert_eq!(u64::from_le_bytes(ix.data[8..16].try_into().unwrap()), 42);
         assert_eq!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()), 100_000);
     }

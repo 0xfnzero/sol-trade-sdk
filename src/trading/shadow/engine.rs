@@ -203,7 +203,7 @@ impl ShadowEngine {
         let mint = event.program_id.to_string();
         self.strategy_engine
             .market_state
-            .get(&mint)
+            .get(&mint, &mint)
             .map(|s| s.last_price)
             .unwrap_or(100.0)
     }

@@ -20,7 +20,7 @@ pub mod receive_loop;
 pub mod reconstruction;
 
 pub use adapter::ShredstreamAdapter;
-pub use classifier::{ClassifiedEvent, EventClassifier, EventType};
+pub use classifier::{ClassifiedEvent, EventClassifier, EventTrace, EventType};
 pub use config::ShredstreamConfig;
 pub use dedup::{DedupCache, DedupKey};
 pub use metrics::{MetricsSnapshot, ShredstreamMetrics};

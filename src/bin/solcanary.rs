@@ -245,7 +245,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 8. Create Orchestrator
     let orchestrator =
-        Orchestrator::from_config(app_config.clone(), payer).context("Failed to create orchestrator")?;
+        Orchestrator::from_config(app_config.clone(), payer, Arc::new(vec![])).context("Failed to create orchestrator")?;
 
     // 9. Create canary components
     let approval_gate = Arc::new(ManualApprovalGate::new(

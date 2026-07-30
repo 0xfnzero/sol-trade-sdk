@@ -116,11 +116,11 @@ impl TipConfig {
             fixed_tip_sol: (jito.tip_min_lamports as f64) / 1e9,
             min_tip_sol: (jito.tip_min_lamports as f64) / 1e9,
             max_tip_sol: (jito.tip_max_lamports as f64) / 1e9,
-            multiplier: 1.0,
-            max_retries: 3,
-            tip_escalation_factor: 2.0,
-            enable_simulation_gate: true,
-            min_profit_to_tip_ratio: 2.0,
+            multiplier: jito.tip_multiplier,
+            max_retries: jito.max_bundle_retries,
+            tip_escalation_factor: jito.tip_escalation_factor,
+            enable_simulation_gate: jito.enable_simulation_gate,
+            min_profit_to_tip_ratio: jito.min_profit_to_tip_ratio,
         }
     }
 }
@@ -193,12 +193,14 @@ pub enum BundleOutcome {
         tip_sol: f64,
         landing_ms: u64,
         attempts: u32,
+        bundle_id: Option<String>,
     },
     /// Bundle was rejected by Jito (nack).
     Nacked {
         tip_sol: f64,
         attempts: u32,
         reason: String,
+        bundle_id: Option<String>,
     },
     /// Bundle simulation failed.
     SimulationFailed {
@@ -218,10 +220,10 @@ pub enum BundleOutcome {
 impl fmt::Display for BundleOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Landed { tip_sol, landing_ms, attempts } => {
+            Self::Landed { tip_sol, landing_ms, attempts, .. } => {
                 write!(f, "LANDED tip={:.6} SOL landed_in={}ms attempts={}", tip_sol, landing_ms, attempts)
             }
-            Self::Nacked { tip_sol, attempts, reason } => {
+            Self::Nacked { tip_sol, attempts, reason, .. } => {
                 write!(f, "NACKED tip={:.6} SOL attempts={} reason={}", tip_sol, attempts, reason)
             }
             Self::SimulationFailed { reason } => {
@@ -288,14 +290,14 @@ impl BundleMetrics {
 
     /// Record a successfully landed bundle.
     #[inline]
-    pub fn landed(tip_sol: f64, landing_ms: u64, attempts: u32) {
+    pub fn landed(_tip_sol: f64, _landing_ms: u64, _attempts: u32) {
         #[cfg(feature = "perf-trace")]
         {
             perf_bundle_metrics::BUNDLE_LANDED.increment(1);
-            let tip_lamports = (tip_sol * 1e9) as u64;
+            let tip_lamports = (_tip_sol * 1e9) as u64;
             perf_bundle_metrics::BUNDLE_TIP_LAMPORTS.observe(tip_lamports as i64);
-            perf_bundle_metrics::BUNDLE_LANDING_MS.observe(landing_ms as i64);
-            perf_bundle_metrics::BUNDLE_RETRY_COUNT.observe(attempts as i64);
+            perf_bundle_metrics::BUNDLE_LANDING_MS.observe(_landing_ms as i64);
+            perf_bundle_metrics::BUNDLE_RETRY_COUNT.observe(_attempts as i64);
         }
     }
 

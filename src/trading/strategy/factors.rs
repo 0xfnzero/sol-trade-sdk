@@ -184,16 +184,15 @@ impl SignalFactors {
     /// Returns a tuple of `(Vec<FactorOutput>, composite_score)`.
     pub fn evaluate(
         &self,
-        state: &MintMarketState,
+        state: &mut MintMarketState,
         now_micros: i64,
         protocol: &str,
     ) -> (Vec<FactorOutput>, f64) {
         let mut outputs = Vec::with_capacity(6);
 
-        // 1. Momentum factor
+        // 1. Momentum factor — call directly on state to evict stale events
         if self.momentum.enabled && self.momentum.weight > 0.0 {
-            let mut momentum_tracker = state.momentum.clone();
-            let fast_m = momentum_tracker.fast_momentum(now_micros);
+            let fast_m = state.momentum.fast_momentum(now_micros);
             let output = self.eval_momentum(fast_m);
             outputs.push(output);
         }
@@ -222,10 +221,9 @@ impl SignalFactors {
             outputs.push(output);
         }
 
-        // 6. Momentum divergence factor
+        // 6. Momentum divergence factor — call directly on state to evict stale events
         if self.momentum_divergence.enabled && self.momentum_divergence.weight > 0.0 {
-            let mut momentum_tracker = state.momentum.clone();
-            let divergence = momentum_tracker.divergence(now_micros);
+            let divergence = state.momentum.divergence(now_micros);
             let output = self.eval_momentum_divergence(divergence);
             outputs.push(output);
         }
@@ -433,7 +431,7 @@ mod tests {
         state.last_update_micros = now - 100_000;
         state.spread_bps = 8.0;
 
-        let (outputs, composite) = factors.evaluate(&state, now, "raydium_amm_v4");
+        let (outputs, composite) = factors.evaluate(&mut state, now, "raydium_amm_v4");
 
         assert!(!outputs.is_empty(), "Should have factor outputs");
         assert!(composite > 0.0, "Composite should be positive in bullish scenario: {composite}");

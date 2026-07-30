@@ -92,6 +92,7 @@ pub fn is_valid_transition(from: TradeState, to: TradeState) -> bool {
             | (Validated, Rejected)
             | (Validated, Expired)
             | (Validated, Cancelled)
+            | (Built, Failed)
             | (Built, Expired)
             | (Built, Cancelled)
             | (Signed, Expired)

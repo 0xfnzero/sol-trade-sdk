@@ -361,11 +361,11 @@ impl ReconciliationService {
                     err,
                     pre_sol_balance: meta.pre_balances.first().copied().unwrap_or(0),
                     post_sol_balance: meta.post_balances.first().copied().unwrap_or(0),
-                    pre_token_balances: Vec::new(),
-                    post_token_balances: Vec::new(),
+                    pre_token_balances: Vec::new(), // TODO: P2-06 — parse pre_token_balances from meta.pre_token_balances
+                    post_token_balances: Vec::new(), // TODO: P2-06 — parse post_token_balances from meta.post_token_balances
                     fee_lamports: meta.fee,
                     cu_consumed: meta.compute_units_consumed.into(),
-                    slot: 0,
+                    slot: 0, // Note: slot is not on UiTransactionStatusMeta; fetch from tx_response.slot if needed
                 })
             }
             Ok(Err(e)) => {

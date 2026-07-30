@@ -36,6 +36,93 @@ impl From<u8> for EventType {
     }
 }
 
+/// Per-event latency trace with 7 stage timestamps.
+///
+/// Always present in the hot path for observability (not gated behind `perf-trace`).
+/// Each field is populated at the corresponding pipeline stage with a monotonic
+/// microsecond timestamp from `fast_timing::fast_now_micros()`.
+#[derive(Debug, Clone, Copy)]
+pub struct EventTrace {
+    /// Stage 1: Raw packet received from UDP socket (`receive_loop`)
+    pub packet_received_micros: i64,
+    /// Stage 2: Transaction decoded from shred data (SDK internal)
+    pub decoded_micros: i64,
+    /// Stage 3: Event classified — program filter + instruction decode + dedup pass
+    pub classified_micros: i64,
+    /// Stage 4: Event fed into strategy engine via `process_event()`
+    pub evaluated_micros: i64,
+    /// Stage 5: Strategy signal detected from `evaluate()`
+    pub signal_detected_micros: i64,
+    /// Stage 6: Trade planned via `plan_trade()`
+    pub trade_planned_micros: i64,
+    /// Stage 7: Strategy complete — trade submitted or decision finalized
+    pub strategy_complete_micros: i64,
+}
+
+impl EventTrace {
+    /// Create an `EventTrace` with stage-1 and stage-2 populated.
+    /// Remaining stages default to 0 and are filled by downstream pipeline steps.
+    #[inline]
+    pub fn new(packet_received_micros: i64, decoded_micros: i64) -> Self {
+        Self {
+            packet_received_micros,
+            decoded_micros,
+            classified_micros: 0,
+            evaluated_micros: 0,
+            signal_detected_micros: 0,
+            trade_planned_micros: 0,
+            strategy_complete_micros: 0,
+        }
+    }
+
+    /// Record stage 3: classified timestamp.
+    #[inline]
+    pub fn record_classified(&mut self) {
+        self.classified_micros = crate::common::fast_timing::fast_now_micros() as i64;
+    }
+
+    /// Record stage 4: evaluated timestamp.
+    #[inline]
+    pub fn record_evaluated(&mut self) {
+        self.evaluated_micros = crate::common::fast_timing::fast_now_micros() as i64;
+    }
+
+    /// Record stage 5: signal detected timestamp.
+    #[inline]
+    pub fn record_signal_detected(&mut self) {
+        self.signal_detected_micros = crate::common::fast_timing::fast_now_micros() as i64;
+    }
+
+    /// Record stage 6: trade planned timestamp.
+    #[inline]
+    pub fn record_trade_planned(&mut self) {
+        self.trade_planned_micros = crate::common::fast_timing::fast_now_micros() as i64;
+    }
+
+    /// Record stage 7: strategy complete timestamp.
+    #[inline]
+    pub fn record_strategy_complete(&mut self) {
+        self.strategy_complete_micros = crate::common::fast_timing::fast_now_micros() as i64;
+    }
+
+    /// Return the pipeline latency from packet received through the
+    /// highest-populated stage, or 0 if only stage-1 is populated.
+    pub fn total_latency_micros(&self) -> i64 {
+        let end = self
+            .strategy_complete_micros
+            .max(self.trade_planned_micros)
+            .max(self.signal_detected_micros)
+            .max(self.evaluated_micros)
+            .max(self.classified_micros)
+            .max(self.decoded_micros);
+        if end > 0 {
+            end.saturating_sub(self.packet_received_micros)
+        } else {
+            0
+        }
+    }
+}
+
 /// A classified event after program filtering, instruction decode, and dedup.
 #[derive(Debug, Clone)]
 pub struct ClassifiedEvent {
@@ -47,10 +134,12 @@ pub struct ClassifiedEvent {
     pub received_at_micros: i64,
     pub decoded_at_micros: i64,
     pub raw_instruction_data: Vec<u8>,
+    /// Per-event latency trace (not gated behind perf-trace).
+    pub trace: EventTrace,
 }
 
 /// The vote program ID (constant).
-const VOTE_PROGRAM_ID: &str = "Vote111111111111111111111111111111111111111";
+const VOTE_PROGRAM_ID: Pubkey = solana_sdk::pubkey!("Vote111111111111111111111111111111111111111");
 
 /// Classifier that filters transactions and produces classified events.
 pub struct EventClassifier {
@@ -146,6 +235,10 @@ impl EventClassifier {
 
                 let decoded_at = crate::common::fast_timing::fast_now_micros();
 
+                // Build per-event latency trace with stages 1–3 populated
+                let mut trace = EventTrace::new(received_at_micros, decoded_at as i64);
+                trace.record_classified();
+
                 events.push(ClassifiedEvent {
                     slot,
                     signature,
@@ -155,6 +248,7 @@ impl EventClassifier {
                     received_at_micros,
                     decoded_at_micros: decoded_at as i64,
                     raw_instruction_data: ix.data.clone(),
+                    trace,
                 });
 
                 self.metrics.events_classified.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -166,9 +260,7 @@ impl EventClassifier {
 
     /// Returns `true` if a transaction targets the vote program.
     fn is_vote_transaction(&self, tx: &VersionedTransaction) -> bool {
-        tx.message.static_account_keys().iter().any(|pk| {
-            pk.to_string() == VOTE_PROGRAM_ID
-        })
+        tx.message.static_account_keys().iter().any(|pk| pk.eq(&VOTE_PROGRAM_ID))
     }
 
     /// Return a reference to the dedup cache (for stats/exposure).
@@ -240,7 +332,7 @@ mod tests {
     #[test]
     fn test_vote_program_detection() {
         // Vote program ID string
-        assert_eq!(VOTE_PROGRAM_ID, "Vote111111111111111111111111111111111111111");
+        assert_eq!(VOTE_PROGRAM_ID, solana_sdk::pubkey!("Vote111111111111111111111111111111111111111"));
     }
 
     #[test]
