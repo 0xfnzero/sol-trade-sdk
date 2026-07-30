@@ -17,7 +17,7 @@ jobs:
       run:
         shell: bash
     env:
-      PATH: "$HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      PATH: /home/runner/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - uses: actions/checkout@v4
 
@@ -27,15 +27,17 @@ jobs:
           toolchain: stable
           components: clippy
 
-      - name: Verify toolchain versions
+      - name: Refresh rustup and install latest stable
         run: |
-          rustup update stable 2>&1
+          # The pre-installed rustup on the runner image is stale (resolves
+          # stable to 1.82.0 from 2024). Force a fresh rustup install.
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain stable --profile minimal 2>&1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "=== Rust toolchain ==="
           rustc --version
           cargo --version
           which cargo
-          echo "=== CARGO_HOME ==="
-          echo "$CARGO_HOME"
 
       - name: Cache cargo registry
         uses: actions/cache@v4
