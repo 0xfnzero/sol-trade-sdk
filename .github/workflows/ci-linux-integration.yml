@@ -24,16 +24,15 @@ jobs:
       - name: Install and verify Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.85.1
           components: clippy
 
-      - name: Refresh rustup and install latest stable
+      - name: Update rustup and verify toolchain
         run: |
-          # The pre-installed rustup on the runner image is stale (resolves
-          # stable to 1.82.0 from 2024). Force a fresh rustup install.
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain stable --profile minimal 2>&1
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          # Explicit version pin to bypass stale rustup release channel
+          rustup install 1.85.1 --profile minimal 2>&1 || true
+          rustup default 1.85.1 2>&1 || true
+          echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
           echo "=== Rust toolchain ==="
           rustc --version
           cargo --version
