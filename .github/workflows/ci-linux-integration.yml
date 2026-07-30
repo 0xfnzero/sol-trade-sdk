@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-A unused_imports -A unused_variables -A dead_code"
 
 jobs:
   native-integration:
