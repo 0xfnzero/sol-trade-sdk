@@ -18,15 +18,16 @@ jobs:
 
       - name: Install fresh Rust via rustup.rs
         run: |
-          # The ubuntu-24.04 runner ships rustup that resolves stable=1.82.0.
-          # Install a fresh rustup with a higher default toolchain.
+          # The ubuntu-24.04 runner ships an old rustup that resolves
+          # stable=1.82.0 (too old for Cargo.lock deps).
+          # Patch the stale settings, then install rustup with 1.89.0.
+          if [ -f /home/runner/.rustup/settings.toml ]; then
+            sed -i 's/^default_toolchain = .*/default_toolchain = "1.89.0"/' \
+              /home/runner/.rustup/settings.toml
+          fi
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain none 2>&1
-          # Install a toolchain that supports the resolved Cargo.lock deps
-          /home/runner/.cargo/bin/rustup toolchain install 1.89.0 --profile minimal 2>&1
-          /home/runner/.cargo/bin/rustup default 1.89.0 2>&1
+            | sh -s -- -y --default-toolchain 1.89.0 2>&1
           /home/runner/.cargo/bin/rustup component add clippy 2>&1
-          # Print versions using the new rustup's cargo/rustc
           echo "=== Rust toolchain ==="
           /home/runner/.cargo/bin/rustc --version
           /home/runner/.cargo/bin/cargo --version
