@@ -25,15 +25,15 @@ jobs:
             sed -i 's/^default_toolchain = .*/default_toolchain = "1.89.0"/' \
               /home/runner/.rustup/settings.toml
           fi
-          # IMPORTANT: unset RUSTUP_TOOLCHAIN override left by dtolnay action.
-          # The dtolnay action pins the active toolchain via this env var.
-          unset RUSTUP_TOOLCHAIN
+          # Override RUSTUP_TOOLCHAIN (dtolnay action pins it to "stable"
+          # which resolves to 1.82.0 on this runner, making it ACTIVE).
+          export RUSTUP_TOOLCHAIN=1.89.0
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
             | sh -s -- -y --default-toolchain 1.89.0 2>&1
           /home/runner/.cargo/bin/rustup component add clippy 2>&1
           /home/runner/.cargo/bin/rustup override unset 2>&1 || true
-          # Clear RUSTUP_TOOLCHAIN globally for all subsequent steps
-          echo "RUSTUP_TOOLCHAIN=" >> "$GITHUB_ENV"
+          # Set RUSTUP_TOOLCHAIN to 1.89.0 globally for all subsequent steps
+          echo "RUSTUP_TOOLCHAIN=1.89.0" >> "$GITHUB_ENV"
           echo "=== Rust toolchain ==="
           /home/runner/.cargo/bin/rustc --version
           /home/runner/.cargo/bin/cargo --version
