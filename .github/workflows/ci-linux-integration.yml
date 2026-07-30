@@ -21,17 +21,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install and verify Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.85.1
-          components: clippy
-
-      - name: Update rustup and verify toolchain
+      - name: Install fresh rustup and Rust 1.85.0
         run: |
-          # Explicit version pin to bypass stale rustup release channel
-          rustup install 1.85.1 --profile minimal 2>&1 || true
-          rustup default 1.85.1 2>&1 || true
+          # The pre-installed rustup on the runner is from 2024 and can't
+          # resolve any version newer than 1.82.0. Install a fresh rustup.
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain none --profile minimal 2>&1
+          # Now install a specific modern version that supports edition2024
+          /home/runner/.cargo/bin/rustup toolchain install 1.85.0 --profile minimal 2>&1
+          /home/runner/.cargo/bin/rustup default 1.85.0 2>&1
+          /home/runner/.cargo/bin/rustup component add clippy 2>&1
           echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
           echo "=== Rust toolchain ==="
           rustc --version
