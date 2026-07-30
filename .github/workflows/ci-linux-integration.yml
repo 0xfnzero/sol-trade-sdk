@@ -19,14 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust 1.85.0 (edition2024 support) and set as default
+      - name: Install Rust 1.89.0 (compatible with resolved deps)
         run: |
-          # rustup on runner is old and resolves stable=1.82.0.
-          # Install 1.85.0 explicitly and override the default.
-          rustup toolchain install 1.85.0 --profile minimal
-          rustup default 1.85.0
+          # Runner's rustup is old and resolves stable=1.82.0.
+          # Install a specific modern version compatible with Cargo.lock deps.
+          rustup toolchain install 1.89.0 --profile minimal
+          rustup default 1.89.0
           rustup component add clippy
-          # Clear shell hash cache so new rustc/cargo are found
           hash -r
           echo "=== Rust toolchain ==="
           rustc --version
@@ -43,23 +42,23 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: cargo check --all-targets
-        run: cargo +1.85.0 check --features dev-insecure-tls --all-targets 2>&1
+        run: cargo check --features dev-insecure-tls --all-targets 2>&1
         continue-on-error: false
 
       - name: cargo test --lib (unit tests)
-        run: cargo +1.85.0 test --features dev-insecure-tls --lib 2>&1
+        run: cargo test --features dev-insecure-tls --lib 2>&1
         continue-on-error: false
 
       - name: cargo test --test runtime_behaviour (integration)
-        run: cargo +1.85.0 test --features dev-insecure-tls --test runtime_behaviour 2>&1
+        run: cargo test --features dev-insecure-tls --test runtime_behaviour 2>&1
         continue-on-error: false
 
       - name: cargo test (all tests + integration)
-        run: cargo +1.85.0 test --features dev-insecure-tls 2>&1
+        run: cargo test --features dev-insecure-tls 2>&1
         continue-on-error: false
 
       - name: cargo clippy --all-targets
-        run: cargo +1.85.0 clippy --features dev-insecure-tls --all-targets 2>&1
+        run: cargo clippy --features dev-insecure-tls --all-targets 2>&1
         continue-on-error: false
 
       - name: Print Rust version
