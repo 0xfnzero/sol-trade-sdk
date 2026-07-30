@@ -16,22 +16,18 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      PATH: /home/runner/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install fresh rustup and Rust 1.85.0
+      - name: Install Rust 1.85.0 (edition2024 support) and set as default
         run: |
-          # Completely wipe the stale rustup from the runner image
-          rm -rf /home/runner/.rustup
-          rm -f /home/runner/.cargo/bin/rustc /home/runner/.cargo/bin/cargo /home/runner/.cargo/bin/rustup /home/runner/.cargo/bin/rustfmt /home/runner/.cargo/bin/rustdoc /home/runner/.cargo/bin/rust-analyzer /home/runner/.cargo/bin/clippy-* 2>/dev/null || true
-          # Install fresh rustup with specific version
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- -y --default-toolchain 1.85.0 --profile minimal 2>&1
-          # Add clippy
-          /home/runner/.cargo/bin/rustup component add clippy 2>&1
-          echo "/home/runner/.cargo/bin" >> "$GITHUB_PATH"
+          # rustup on runner is old and resolves stable=1.82.0.
+          # Install 1.85.0 explicitly and override the default.
+          rustup toolchain install 1.85.0 --profile minimal
+          rustup default 1.85.0
+          rustup component add clippy
+          # Clear shell hash cache so new rustc/cargo are found
+          hash -r
           echo "=== Rust toolchain ==="
           rustc --version
           cargo --version
@@ -47,27 +43,27 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: cargo check --all-targets
-        run: ~/.cargo/bin/cargo check --features dev-insecure-tls --all-targets 2>&1
+        run: cargo +1.85.0 check --features dev-insecure-tls --all-targets 2>&1
         continue-on-error: false
 
       - name: cargo test --lib (unit tests)
-        run: ~/.cargo/bin/cargo test --features dev-insecure-tls --lib 2>&1
+        run: cargo +1.85.0 test --features dev-insecure-tls --lib 2>&1
         continue-on-error: false
 
       - name: cargo test --test runtime_behaviour (integration)
-        run: ~/.cargo/bin/cargo test --features dev-insecure-tls --test runtime_behaviour 2>&1
+        run: cargo +1.85.0 test --features dev-insecure-tls --test runtime_behaviour 2>&1
         continue-on-error: false
 
       - name: cargo test (all tests + integration)
-        run: ~/.cargo/bin/cargo test --features dev-insecure-tls 2>&1
+        run: cargo +1.85.0 test --features dev-insecure-tls 2>&1
         continue-on-error: false
 
       - name: cargo clippy --all-targets
-        run: ~/.cargo/bin/cargo clippy --features dev-insecure-tls --all-targets 2>&1
+        run: cargo +1.85.0 clippy --features dev-insecure-tls --all-targets 2>&1
         continue-on-error: false
 
       - name: Print Rust version
         run: |
           rustc --version
-          ~/.cargo/bin/cargo --version
+          cargo --version
           uname -a
