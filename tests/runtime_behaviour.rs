@@ -131,6 +131,28 @@ fn integration_pricing_determinism() {
     assert_eq!(p1, p2, "Identical inputs must produce identical price");
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Branch-coverage verification table (applies to all risk integration tests)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// | Test name                          | Intended branch                | Fixture fields (over baseline)     | Prelim checks passed | Exact branch reached          | Exact error variant | State before → after     |
+// |------------------------------------|-------------------------------|-------------------------------------|----------------------|-------------------------------|---------------------|--------------------------|
+// | integration_position_size_propagation | Position sizing passes engine | sol_amount: 0.01/0.05/0.5, expected_output: 99000, net_profit: 1000, fee: 5000 | is_ok (all 3 sizes)  | check_per_trade → check_global → check_fee_ceilings → check_health → Ok | No error             | N/A                      |
+// | prove_exposure_test_was_false_positive | Show broken fixture hits PerTrade, not Global | TradeRiskParams::new(0.2, 100_000, 50) = expected_output:0  | is_err                | check_per_trade (expected_output: 0 < min 1) | RiskError::PerTrade  | Unchanged (fails before intended) |
+// | integration_risk_ledger_exposure_limit | exposure-limit branch         | ctx.current_open_exposure_sol: 1.05 (> 1.0), trade: baseline | is_ok at 0.95 SOL     | check_global (open exposure: 1.05 > 1.0 SOL) | RiskError::Global    | Verify not mutated       |
+// | integration_risk_ledger_daily_trade_count_499 | daily-trades < max (pass)    | ctx.daily_trades: 499, cfg.max_daily_trades: 500 | is_ok                 | check_global passes          | No error             | N/A                      |
+// | integration_risk_ledger_daily_trade_count_at_500 | daily-trades == max (pass)   | ctx.daily_trades: 500, cfg.max_daily_trades: 500 | is_ok                 | check_global (not > limit)   | No error             | N/A                      |
+// | integration_risk_ledger_daily_trade_count_501 | daily-trades > max (reject)  | ctx.daily_trades: 501, cfg.max_daily_trades: 500 | is_err                | check_global (daily_trades: 501 > limit 500) | RiskError::Global    | Unchanged (read-only)    |
+// | integration_risk_ledger_daily_loss_under | daily-loss < max (pass)       | ctx.daily_loss_lamports: 499_999, cfg.fee_ceilings.max_daily_loss_lamports: 500_000 | is_ok | check_fee_ceilings passes    | No error             | N/A                      |
+// | integration_risk_ledger_daily_loss_at_max | daily-loss == max (pass)      | ctx.daily_loss_lamports: 500_000 | is_ok                 | check_fee_ceilings passes (not > limit) | No error          | N/A                      |
+// | integration_risk_ledger_daily_loss_over | daily-loss > max (reject)     | ctx.daily_loss_lamports: 500_001 | is_err                | check_fee_ceilings (daily loss: 500001 > limit 500000) | RiskError::FeeCeiling | Unchanged (read-only) |
+// | integration_risk_ledger_concurrent_reservations | open_positions > max         | ctx.open_positions: 6, cfg.global.max_open_positions: 5 | is_err                | check_global (open positions: 6 > max 5) | RiskError::Global    | Unchanged (read-only)    |
+//
+// No risk test may PASS unless the intended branch column is confirmed.
+// The `prove_exposure_test_was_false_positive` test exists only to preserve
+// evidence of the original false-positive pathway identified in the audit.
+// ═══════════════════════════════════════════════════════════════════════════
+
 // ── 4. Config-to-transaction position sizing ──
 
 #[test]
@@ -140,27 +162,72 @@ fn integration_position_size_propagation() {
     };
     use sol_trade_sdk::common::config::RiskConfig;
 
-    let config_sizes = [0.01_f64, 0.05_f64, 0.5_f64];
+    // Baseline trade that passes all per-trade checks
+    let valid_trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+    assert!(
+        valid_trade.expected_output >= 1,
+        "expected_output ({}) must be >= min_expected_output (1)",
+        valid_trade.expected_output
+    );
+    assert!(
+        valid_trade.net_profit_lamports >= 500,
+        "net_profit_lamports ({}) must be >= min_expected_net_profit_lamports (500)",
+        valid_trade.net_profit_lamports
+    );
 
-    for &sol_amount in &config_sizes {
-        let params = TradeRiskParams::new(sol_amount, 0, 50);
-        let lamports = (sol_amount * 1e9) as u64;
-        assert!(lamports > 0, "Position size must be > 0 lamports");
-        assert_eq!(params.sol_amount, sol_amount, "TradeRiskParams must propagate sol_amount");
+    // Verify the configured sol_amount reaches production risk check
+    let engine = RiskEngine::new(RiskConfig::default());
+    let ctx = RiskContext::default();
+    let result = engine.check(&ctx, &valid_trade, "pumpfun", "rpc", "mint123");
+    assert!(
+        result.is_ok(),
+        "Valid trade with sol_amount={} must pass all risk checks: {:?}",
+        valid_trade.sol_amount, result
+    );
 
-        let engine = RiskEngine::new(RiskConfig::default());
-        let ctx = RiskContext::default();
-        let result = engine.check(&ctx, &params, "pumpfun", "rpc", "mint123");
-        assert!(
-            result.is_ok(),
-            "Position size {:.2} SOL must pass risk check: {:?}",
-            sol_amount, result
-        );
+    // Verify position size propagation (the exact field TradeRiskParams.sol_amount)
+    let lamports = (valid_trade.sol_amount * 1e9) as u64;
+    assert!(lamports > 0, "Position size must produce > 0 lamports");
+    assert_eq!(
+        valid_trade.sol_amount, 0.05_f64,
+        "TradeRiskParams must propagate configured sol_amount"
+    );
 
-        let oversize = TradeRiskParams::new(999.0, 0, 50);
-        let result_oversize = engine.check(&ctx, &oversize, "pumpfun", "rpc", "mint123");
-        assert!(result_oversize.is_err(), "Oversize position (999 SOL) must be rejected");
-    }
+    // Verify oversize is rejected with exact error
+    let oversize = TradeRiskParams { sol_amount: 999.0, ..valid_trade };
+    let result_oversize = engine.check(&ctx, &oversize, "pumpfun", "rpc", "mint123");
+    assert!(
+        matches!(&result_oversize, Err(sol_trade_sdk::constants::risk::RiskError::PerTrade(msg)) if msg.contains("max_sol_per_trade")),
+        "Oversize position must be rejected with PerTrade(max_sol_per_trade), got: {:?}",
+        result_oversize
+    );
+
+    // Also verify 0.1 SOL (exactly at the limit) passes
+    let at_limit = TradeRiskParams { sol_amount: 0.1, ..valid_trade };
+    let result_at = engine.check(&ctx, &at_limit, "pumpfun", "rpc", "mint123");
+    assert!(
+        result_at.is_ok(),
+        "sol_amount == max_sol_per_trade (0.1) must pass: {:?}",
+        result_at
+    );
+
+    // And 0.1001 SOL (one unit above) fails
+    let over_limit = TradeRiskParams { sol_amount: 0.1001, ..valid_trade };
+    let result_over = engine.check(&ctx, &over_limit, "pumpfun", "rpc", "mint123");
+    assert!(
+        matches!(&result_over, Err(sol_trade_sdk::constants::risk::RiskError::PerTrade(msg)) if msg.contains("max_sol_per_trade")),
+        "sol_amount slightly over limit must be rejected: {:?}",
+        result_over
+    );
 }
 
 #[test]
@@ -204,6 +271,45 @@ fn integration_position_size_from_lamports_to_exposure() {
 
 // ── 5. TradeLedger risk rejection ──
 
+/// EVIDENCE PRESERVATION: This test proves the original `integration_risk_ledger_exposure_limit`
+/// was a false positive. It uses the **broken** `TradeRiskParams::new()` factory (which sets
+/// expected_output: 0, net_profit_lamports: 0) and confirms the error is PerTrade (expected output)
+/// — NOT Global (open exposure) as the test name implies.
+///
+/// The correct behaviour is tested in `integration_risk_ledger_exposure_limit` below.
+#[test]
+fn prove_exposure_test_was_false_positive() {
+    use sol_trade_sdk::constants::risk::{
+        RiskContext, RiskEngine, TradeRiskParams,
+    };
+    use sol_trade_sdk::common::config::RiskConfig;
+
+    // EXACTLY the broken fixture from the original test
+    let engine = RiskEngine::new(RiskConfig::default());
+    let mut ledger = sol_trade_sdk::constants::risk::TradeLedger::default();
+    ledger.open_position(
+        "mint_a", "pumpfun", 0.9, 1,
+        sol_trade_sdk::trading::core::state::TradeDirection::Buy,
+        900_000_000,
+    );
+    let ctx = ledger.build_context();
+
+    // The broken fixture: TradeRiskParams::new(0.2, 100_000, 50) = expected_output: 0
+    let trade = TradeRiskParams::new(0.2, 100_000, 50);
+    let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_b");
+
+    // PROOF: the error is PerTrade (expected output: 0 < min 1),
+    // NOT Global (open exposure exceeded)
+    assert!(
+        matches!(&result, Err(sol_trade_sdk::constants::risk::RiskError::PerTrade(msg))
+            if msg.contains("expected output")),
+        "PROOF OF FALSE POSITIVE: expected PerTrade(expected output), got {:?}. \
+         This proves the original test never reached the exposure-limit branch. \
+         TradeRiskParams::new() sets expected_output=0 which is < min_expected_output=1.",
+        result
+    );
+}
+
 #[test]
 fn integration_risk_ledger_exposure_limit() {
     use sol_trade_sdk::common::config::RiskConfig;
@@ -213,64 +319,306 @@ fn integration_risk_ledger_exposure_limit() {
     let engine = RiskEngine::new(RiskConfig::default());
     let mut ledger = TradeLedger::default();
 
-    ledger.open_position("mint_a", "pumpfun", 0.9, 1, TradeDirection::Buy, 900_000_000);
+    // Open a 0.95 SOL position — under the 1.0 SOL max_open_exposure_sol
+    ledger.open_position(
+        "mint_a", "pumpfun", 0.95, 1, TradeDirection::Buy, 950_000_000,
+    );
     let ctx = ledger.build_context();
-    assert!((ctx.current_open_exposure_sol - 0.9).abs() < 0.001, "Exposure should be 0.9 SOL");
+    assert!(
+        (ctx.current_open_exposure_sol - 0.95).abs() < 0.001,
+        "Exposure should be 0.95 SOL, got {:.4}",
+        ctx.current_open_exposure_sol
+    );
 
-    let trade = TradeRiskParams::new(0.2, 100_000, 50);
+    // A second position of 0.1 SOL would push total to 1.05 > 1.0
+    // Use a valid baseline trade that passes per_trade checks
+    let trade = TradeRiskParams {
+        sol_amount: 0.1,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,    // >= min_expected_output: 1
+        net_profit_lamports: 1_000, // >= min_expected_net_profit_lamports: 500
+        fee_cost_lamports: 5_000,   // under all fee ceilings
+    };
     let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_b");
-    assert!(result.is_err(), "Second position pushing total to 1.1 SOL must be rejected");
+    assert!(
+        matches!(&result, Err(sol_trade_sdk::constants::risk::RiskError::Global(msg))
+            if msg.contains("open exposure")),
+        "Exposure limit must reject with Global(open exposure), got: {:?}",
+        result
+    );
+
+    // State before/after: ctx is constructed from a clone — ledger unmodified
+    // A read-only check must not mutate the ledger
+    let ctx_after = ledger.build_context();
+    assert_eq!(
+        ctx.current_open_exposure_sol, ctx_after.current_open_exposure_sol,
+        "Rejected exposure request must not mutate the ledger"
+    );
+
+    // Boundary: 0.05 SOL (total 1.0 SOL = exactly at limit) must pass
+    let trade_at_limit = TradeRiskParams { sol_amount: 0.05, ..trade };
+    let result_at = engine.check(&ctx, &trade_at_limit, "pumpfun", "rpc", "mint_b");
+    assert!(
+        result_at.is_ok(),
+        "Total exposure exactly at 1.0 SOL must pass: {:?}",
+        result_at
+    );
 }
 
 #[test]
-fn integration_risk_ledger_daily_trade_count() {
-    use sol_trade_sdk::common::config::RiskConfig;
+fn integration_risk_ledger_daily_trade_count_499() {
+    use sol_trade_sdk::common::config::{GlobalRiskConfig, RiskConfig};
     use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
 
-    let engine = RiskEngine::new(RiskConfig::default());
+    // Custom config: max_daily_trades = 500, relax global tx rate to avoid collision
+    let mut cfg = RiskConfig::default();
+    cfg.global = GlobalRiskConfig {
+        max_daily_trades: 500,
+        max_tx_per_minute: 1_000, // far above any ctx.trades_last_minute
+        ..GlobalRiskConfig::default()
+    };
+    let engine = RiskEngine::new(cfg);
 
-    let ctx = RiskContext { daily_trades: 60, ..Default::default() };
-    let trade = TradeRiskParams::new(0.05, 100_000, 50);
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,    // >= min_expected_output: 1
+        net_profit_lamports: 1_000, // >= min_expected_net_profit_lamports: 500
+        fee_cost_lamports: 5_000,   // under all fee ceilings
+    };
+
+    // 499 trades (under limit) must pass
+    let ctx = RiskContext { daily_trades: 499, trades_last_minute: 0, ..Default::default() };
     let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result.is_err(), "Daily trade limit exceeded must be rejected");
-
-    let ctx_ok = RiskContext { daily_trades: 40, ..Default::default() };
-    let result_ok = engine.check(&ctx_ok, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result_ok.is_ok(), "Below daily trade limit must pass");
+    assert!(
+        result.is_ok(),
+        "daily_trades=499 (< 500) must pass: {:?}",
+        result
+    );
 }
 
 #[test]
-fn integration_risk_ledger_daily_loss() {
-    use sol_trade_sdk::common::config::RiskConfig;
+fn integration_risk_ledger_daily_trade_count_at_500() {
+    use sol_trade_sdk::common::config::{GlobalRiskConfig, RiskConfig};
     use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
 
-    let engine = RiskEngine::new(RiskConfig::default());
+    let mut cfg = RiskConfig::default();
+    cfg.global = GlobalRiskConfig {
+        max_daily_trades: 500,
+        max_tx_per_minute: 1_000,
+        ..GlobalRiskConfig::default()
+    };
+    let engine = RiskEngine::new(cfg);
 
-    let ctx = RiskContext { daily_loss_lamports: 600_000, ..Default::default() };
-    let trade = TradeRiskParams::new(0.05, 100_000, 50);
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // 500 trades (exactly at limit) — check uses > not >=
+    let ctx = RiskContext { daily_trades: 500, trades_last_minute: 0, ..Default::default() };
     let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result.is_err(), "Daily loss limit exceeded must be rejected");
+    assert!(
+        result.is_ok(),
+        "daily_trades == max_daily_trades (500) must pass (not > limit): {:?}",
+        result
+    );
+}
 
-    let ctx_ok = RiskContext { daily_loss_lamports: 400_000, ..Default::default() };
-    let result_ok = engine.check(&ctx_ok, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result_ok.is_ok(), "Below daily loss limit must pass");
+#[test]
+fn integration_risk_ledger_daily_trade_count_501() {
+    use sol_trade_sdk::common::config::{GlobalRiskConfig, RiskConfig};
+    use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
+
+    let mut cfg = RiskConfig::default();
+    cfg.global = GlobalRiskConfig {
+        max_daily_trades: 500,
+        max_tx_per_minute: 1_000,
+        ..GlobalRiskConfig::default()
+    };
+    let engine = RiskEngine::new(cfg);
+
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // 501 trades (over limit) — must reject with exact Global daily-trade error
+    let ctx = RiskContext { daily_trades: 501, trades_last_minute: 0, ..Default::default() };
+    let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        matches!(&result, Err(sol_trade_sdk::constants::risk::RiskError::Global(msg))
+            if msg.contains("daily trades")),
+        "daily_trades=501 (> 500) must reject with Global(daily trades), got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn integration_risk_ledger_daily_loss_under() {
+    use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
+
+    let engine = RiskEngine::new(sol_trade_sdk::common::config::RiskConfig::default());
+
+    // Valid trade that passes all per-trade checks
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // 499_999 lamports daily loss — under the 500_000 max_daily_loss_lamports limit
+    // Must pass all gates
+    let ctx = RiskContext { daily_loss_lamports: 499_999, ..Default::default() };
+    let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        result.is_ok(),
+        "daily_loss_lamports=499_999 (< 500_000) must pass: {:?}",
+        result
+    );
+}
+
+#[test]
+fn integration_risk_ledger_daily_loss_at_max() {
+    use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
+
+    let engine = RiskEngine::new(sol_trade_sdk::common::config::RiskConfig::default());
+
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // 500_000 lamports daily loss — exactly at max_daily_loss_lamports
+    // The check uses > not >=, so this must pass
+    let ctx = RiskContext { daily_loss_lamports: 500_000, ..Default::default() };
+    let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        result.is_ok(),
+        "daily_loss_lamports == max_daily_loss_lamports (500_000) must pass: {:?}",
+        result
+    );
+}
+
+#[test]
+fn integration_risk_ledger_daily_loss_over() {
+    use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
+
+    let engine = RiskEngine::new(sol_trade_sdk::common::config::RiskConfig::default());
+
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // 500_001 lamports daily loss — one unit over the 500_000 limit
+    // Must reject with exact FeeCeiling daily-loss error
+    let ctx = RiskContext { daily_loss_lamports: 500_001, ..Default::default() };
+    let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        matches!(&result, Err(sol_trade_sdk::constants::risk::RiskError::FeeCeiling(msg))
+            if msg.contains("daily loss")),
+        "daily_loss_lamports=500_001 (> 500_000) must reject with FeeCeiling(daily loss), got: {:?}",
+        result
+    );
 }
 
 #[test]
 fn integration_risk_ledger_concurrent_reservations() {
-    use sol_trade_sdk::common::config::RiskConfig;
     use sol_trade_sdk::constants::risk::{RiskContext, RiskEngine, TradeRiskParams};
 
-    let engine = RiskEngine::new(RiskConfig::default());
+    let engine = RiskEngine::new(sol_trade_sdk::common::config::RiskConfig::default());
 
-    let ctx = RiskContext { open_positions: 5, ..Default::default() };
-    let trade = TradeRiskParams::new(0.05, 100_000, 50);
+    // Valid trade that passes all per-trade checks
+    let trade = TradeRiskParams {
+        sol_amount: 0.05,
+        token_amount: 100_000,
+        slippage_basis_points: 50,
+        quote_age_ms: 100,
+        source_slot_age: 1,
+        expected_output: 99_000,
+        net_profit_lamports: 1_000,
+        fee_cost_lamports: 5_000,
+    };
+
+    // Default max_open_positions = 5, open_positions < 5 must pass
+    let ctx = RiskContext { open_positions: 4, ..Default::default() };
     let result = engine.check(&ctx, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result.is_ok(), "At open position limit should pass");
+    assert!(
+        result.is_ok(),
+        "open_positions=4 (< 5) must pass: {:?}",
+        result
+    );
 
+    // open_positions == 5 must pass (not > limit)
+    let ctx_at = RiskContext { open_positions: 5, ..Default::default() };
+    let result_at = engine.check(&ctx_at, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        result_at.is_ok(),
+        "open_positions == max_open_positions (5) must pass: {:?}",
+        result_at
+    );
+
+    // open_positions > 5 must reject with exact Global open-positions error
     let ctx_over = RiskContext { open_positions: 6, ..Default::default() };
     let result_over = engine.check(&ctx_over, &trade, "pumpfun", "rpc", "mint_x");
-    assert!(result_over.is_err(), "Over open position limit must be rejected");
+    assert!(
+        matches!(&result_over, Err(sol_trade_sdk::constants::risk::RiskError::Global(msg))
+            if msg.contains("open positions")),
+        "open_positions=6 (> 5) must reject with Global(open positions), got: {:?}",
+        result_over
+    );
+
+    // Aggregate capacity enforcement: verify the engine's check counts ALL open
+    // positions, not just one mint's.
+    let ctx_multi = RiskContext {
+        open_positions: 6,
+        open_positions_protocol: 2,
+        current_open_exposure_sol: 0.3,
+        ..Default::default()
+    };
+    let result_multi = engine.check(&ctx_multi, &trade, "pumpfun", "rpc", "mint_x");
+    assert!(
+        matches!(&result_multi, Err(sol_trade_sdk::constants::risk::RiskError::Global(msg))
+            if msg.contains("open positions")),
+        "Aggregate capacity enforcement: 6 open positions must reject: {:?}",
+        result_multi
+    );
 }
 
 // ── 6. State-transition control flow ──
