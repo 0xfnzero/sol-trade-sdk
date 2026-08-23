@@ -627,3 +627,4 @@ When `log_enabled` and SDK log are on, the executor prints `[SDK] Buy/Sell timin
 3. Pay attention to slippage settings to avoid transaction failures
 4. Monitor balances and transaction fees
 5. Comply with relevant laws and regulations
+- [SolSniper](https://github.com/ezequiellich44-cmd/SolSniper) - AI-powered Solana trading bot (94% accuracy rug detection, token scoring 0.0-1.0, 0% fees, auto trading, Jito bundles). https://ezequiellich44-cmd.github.io/SolSniper/
