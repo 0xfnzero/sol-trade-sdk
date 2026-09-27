@@ -102,6 +102,19 @@ pub fn token_transfer_fee_for_epoch(
     })
 }
 
+/// Raw accounts a CPMM quote reads; `RaydiumCpmmParams::quote_account_keys`
+/// lists their addresses.
+pub struct CpmmQuoteAccounts<'a> {
+    pub pool: &'a [u8],
+    pub amm_config: &'a [u8],
+    pub token_0_vault: &'a [u8],
+    pub token_1_vault: &'a [u8],
+    /// Owner (token program) and data of each mint.
+    pub token_0_mint: (Pubkey, &'a [u8]),
+    pub token_1_mint: (Pubkey, &'a [u8]),
+    pub clock: &'a [u8],
+}
+
 /// RaydiumCpmm protocol specific parameters
 /// Configuration parameters specific to Raydium CPMM trading protocol
 #[derive(Clone)]
@@ -178,22 +191,82 @@ impl RaydiumCpmmParams {
         }
     }
 
+    /// Pool, config, vaults and mints, in two RPC round trips.
     pub async fn from_pool_address_by_rpc(
         rpc: &SolanaRpcClient,
         pool_address: &Pubkey,
     ) -> Result<Self, anyhow::Error> {
         let pool =
             crate::instruction::utils::raydium_cpmm::fetch_pool_state(rpc, pool_address).await?;
+        let keys = Self::quote_account_keys(pool_address, &pool);
+        let accounts = rpc.get_multiple_accounts(&keys).await?;
+        let data = |index: usize| {
+            accounts[index]
+                .as_ref()
+                .map(|account| account.data.as_slice())
+                .ok_or_else(|| anyhow::anyhow!("Raydium CPMM account {} missing", keys[index]))
+        };
+        let owner = |index: usize| {
+            accounts[index]
+                .as_ref()
+                .map(|account| account.owner)
+                .ok_or_else(|| anyhow::anyhow!("Raydium CPMM account {} missing", keys[index]))
+        };
+        Self::from_quote_accounts(
+            *pool_address,
+            &CpmmQuoteAccounts {
+                pool: data(0)?,
+                amm_config: data(1)?,
+                token_0_vault: data(2)?,
+                token_1_vault: data(3)?,
+                token_0_mint: (owner(4)?, data(4)?),
+                token_1_mint: (owner(5)?, data(5)?),
+                clock: data(6)?,
+            },
+        )
+    }
+
+    /// Addresses of the accounts a quote of `pool` reads, in the order
+    /// `CpmmQuoteAccounts` takes them: pool, config, token 0 and 1 vaults,
+    /// token 0 and 1 mints, the clock.
+    pub fn quote_account_keys(
+        pool: &Pubkey,
+        state: &crate::instruction::utils::raydium_cpmm_types::PoolState,
+    ) -> Vec<Pubkey> {
+        vec![
+            *pool,
+            state.amm_config,
+            state.token0_vault,
+            state.token1_vault,
+            state.token0_mint,
+            state.token1_mint,
+            super::CLOCK_SYSVAR,
+        ]
+    }
+
+    /// Params with the reserves the program swaps against (vaults less the
+    /// protocol, fund and creator fees it holds), from accounts read together.
+    pub fn from_quote_accounts(
+        pool_address: Pubkey,
+        accounts: &CpmmQuoteAccounts,
+    ) -> Result<Self, anyhow::Error> {
+        use crate::instruction::utils::raydium_cpmm_types::{amm_config_decode, pool_state_decode};
+        let pool = accounts
+            .pool
+            .get(8..)
+            .and_then(pool_state_decode)
+            .ok_or_else(|| anyhow::anyhow!("{pool_address} is not a Raydium CPMM pool"))?;
         let amm_config =
-            crate::instruction::utils::raydium_cpmm::fetch_amm_config(rpc, &pool.amm_config)
-                .await?;
+            accounts.amm_config.get(8..).and_then(amm_config_decode).ok_or_else(|| {
+                anyhow::anyhow!("Raydium CPMM config {} is invalid", pool.amm_config)
+            })?;
+        let balance = |data: &[u8]| {
+            data.get(64..72)
+                .map(|raw| u64::from_le_bytes(raw.try_into().unwrap()))
+                .ok_or_else(|| anyhow::anyhow!("Raydium CPMM vault data is too short"))
+        };
         let (token0_balance, token1_balance) =
-            crate::instruction::utils::raydium_cpmm::get_pool_token_balances_from_vaults(
-                rpc,
-                &pool.token0_vault,
-                &pool.token1_vault,
-            )
-            .await?;
+            (balance(accounts.token_0_vault)?, balance(accounts.token_1_vault)?);
         let token0_reserve = token0_balance
             .checked_sub(pool.protocol_fees_token0)
             .and_then(|amount| amount.checked_sub(pool.fund_fees_token0))
@@ -204,20 +277,24 @@ impl RaydiumCpmmParams {
             .and_then(|amount| amount.checked_sub(pool.fund_fees_token1))
             .and_then(|amount| amount.checked_sub(pool.creator_fees_token1))
             .ok_or_else(|| anyhow::anyhow!("Raydium CPMM token1 fees exceed vault balance"))?;
-        let token0_mint = rpc.get_account(&pool.token0_mint).await?;
-        let token1_mint = rpc.get_account(&pool.token1_mint).await?;
-        if token0_mint.owner != pool.token0_program || token1_mint.owner != pool.token1_program {
+        let ((token0_owner, token0_mint), (token1_owner, token1_mint)) =
+            (accounts.token_0_mint, accounts.token_1_mint);
+        if token0_owner != pool.token0_program || token1_owner != pool.token1_program {
             return Err(anyhow::anyhow!(
                 "Raydium CPMM mint owner does not match PoolState token program"
             ));
         }
-        let epoch = rpc.get_epoch_info().await?.epoch;
+        let epoch = accounts
+            .clock
+            .get(16..24)
+            .map(|raw| u64::from_le_bytes(raw.try_into().unwrap()))
+            .ok_or_else(|| anyhow::anyhow!("Clock sysvar data is too short"))?;
         let token0_transfer_fee =
-            token_transfer_fee_for_epoch(&token0_mint.data, pool.token0_program, epoch)?;
+            token_transfer_fee_for_epoch(token0_mint, pool.token0_program, epoch)?;
         let token1_transfer_fee =
-            token_transfer_fee_for_epoch(&token1_mint.data, pool.token1_program, epoch)?;
+            token_transfer_fee_for_epoch(token1_mint, pool.token1_program, epoch)?;
         Ok(Self {
-            pool_state: *pool_address,
+            pool_state: pool_address,
             amm_config: pool.amm_config,
             base_mint: pool.token0_mint,
             quote_mint: pool.token1_mint,

@@ -68,18 +68,26 @@ type Error = Box<dyn std::error::Error>;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let (venue, pools) = args.split_first().ok_or("usage: verify_hop_quotes clmm <pool>...")?;
-    if venue != "clmm" {
-        return Err(format!("unknown venue {venue}").into());
-    }
+    let (venue, pools) =
+        args.split_first().ok_or("usage: verify_hop_quotes clmm|cpmm|amm_v4 <pool>...")?;
+    let simple = match venue.as_str() {
+        "clmm" => None,
+        "cpmm" => Some(SimpleVenue::Cpmm),
+        "amm_v4" => Some(SimpleVenue::AmmV4),
+        other => return Err(format!("unknown venue {other}").into()),
+    };
     let rpc_url = std::env::var("RPC_URL").map_err(|_| "RPC_URL is not set")?;
-    let rpc = SolanaRpcClient::new_with_commitment(rpc_url, CommitmentConfig::processed());
+    let rpc = SolanaRpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
     let funder = pick_funder(&rpc).await?;
 
     let mut totals = BTreeMap::<&str, usize>::new();
     for pool in pools {
         let pool = Pubkey::from_str(pool)?;
-        match check_clmm_pool(&rpc, funder, pool).await {
+        let checked = match simple {
+            None => check_clmm_pool(&rpc, funder, pool).await,
+            Some(venue) => check_simple_pool(&rpc, funder, venue, pool).await,
+        };
+        match checked {
             Ok(outcomes) => {
                 for outcome in outcomes {
                     *totals.entry(outcome).or_default() += 1;
@@ -146,7 +154,7 @@ async fn snapshot_since(
                 RpcAccountInfoConfig {
                     encoding: Some(UiAccountEncoding::Base64),
                     data_slice: None,
-                    commitment: Some(CommitmentConfig::processed()),
+                    commitment: Some(CommitmentConfig::confirmed()),
                     min_context_slot: min_slot,
                 },
             )
@@ -664,7 +672,7 @@ async fn check_clmm_swap(
                 RpcSimulateTransactionConfig {
                     sig_verify: false,
                     replace_recent_blockhash: true,
-                    commitment: Some(CommitmentConfig::processed()),
+                    commitment: Some(CommitmentConfig::confirmed()),
                     encoding: Some(UiTransactionEncoding::Base64),
                     accounts: Some(RpcSimulateTransactionAccountsConfig {
                         encoding: Some(UiAccountEncoding::Base64),
@@ -762,6 +770,398 @@ async fn check_clmm_swap(
             (Ok(q), Err(simulation)) => {
                 Check::OnlyProgramRejected { quoted: q.amount_out, simulation }
             }
+        });
+    }
+    Ok(Check::Unsettled)
+}
+
+#[derive(Clone, Copy)]
+enum SimpleVenue {
+    Cpmm,
+    AmmV4,
+}
+
+/// A constant-product pool: mints, vaults, token programs and the accounts a
+/// quote reads, in the order of the SDK's `quote_account_keys`.
+struct SimplePool {
+    mints: [Pubkey; 2],
+    vaults: [Pubkey; 2],
+    programs: [Pubkey; 2],
+    keys: Vec<Pubkey>,
+    observation: Pubkey,
+    amm_config: Pubkey,
+}
+
+fn clock_bytes(read: &Snapshot) -> Vec<u8> {
+    let mut clock = vec![0u8; 40];
+    clock[16..24].copy_from_slice(&read.epoch.to_le_bytes());
+    clock[32..40].copy_from_slice(&(read.unix_timestamp as i64).to_le_bytes());
+    clock
+}
+
+fn simple_pool(venue: SimpleVenue, pool: Pubkey, data: &[u8]) -> Result<SimplePool, Error> {
+    use sol_trade_sdk::instruction::utils::{
+        raydium_amm_v4_types::amm_info_decode, raydium_cpmm_types::pool_state_decode,
+    };
+    use sol_trade_sdk::trading::core::params::{RaydiumAmmV4Params, RaydiumCpmmParams};
+    Ok(match venue {
+        SimpleVenue::Cpmm => {
+            let state = data.get(8..).and_then(pool_state_decode).ok_or("not a CPMM pool")?;
+            SimplePool {
+                mints: [state.token0_mint, state.token1_mint],
+                vaults: [state.token0_vault, state.token1_vault],
+                programs: [state.token0_program, state.token1_program],
+                keys: RaydiumCpmmParams::quote_account_keys(&pool, &state)
+                    .into_iter()
+                    .filter(|key| *key != CLOCK)
+                    .collect(),
+                observation: state.observation_key,
+                amm_config: state.amm_config,
+            }
+        }
+        SimpleVenue::AmmV4 => {
+            let info = amm_info_decode(data).ok_or("not an AMM v4 pool")?;
+            SimplePool {
+                mints: [info.coin_mint, info.pc_mint],
+                vaults: [info.token_coin, info.token_pc],
+                programs: [TOKEN_PROGRAM, TOKEN_PROGRAM],
+                keys: RaydiumAmmV4Params::quote_account_keys(&pool, &info),
+                observation: Pubkey::default(),
+                amm_config: Pubkey::default(),
+            }
+        }
+    })
+}
+
+/// The SDK's quote of `amount` of `mints[input]`, from accounts read together.
+fn simple_quote(
+    venue: SimpleVenue,
+    pool: Pubkey,
+    shape: &SimplePool,
+    read: &Snapshot,
+    input: usize,
+    amount: u64,
+) -> Result<u64, String> {
+    use sol_trade_sdk::trading::core::params::{
+        CpmmQuoteAccounts, RaydiumAmmV4Params, RaydiumCpmmParams,
+    };
+    use sol_trade_sdk::utils::calc::{raydium_amm_v4, raydium_cpmm};
+    let data =
+        |key: &Pubkey| read.accounts.get(key).map(|a| a.data.as_slice()).ok_or("account missing");
+    let owner = |key: &Pubkey| read.accounts.get(key).map(|a| a.owner).ok_or("account missing");
+    match venue {
+        SimpleVenue::Cpmm => {
+            let clock = clock_bytes(read);
+            let params = RaydiumCpmmParams::from_quote_accounts(
+                pool,
+                &CpmmQuoteAccounts {
+                    pool: data(&pool)?,
+                    amm_config: data(&shape.amm_config)?,
+                    token_0_vault: data(&shape.vaults[0])?,
+                    token_1_vault: data(&shape.vaults[1])?,
+                    token_0_mint: (owner(&shape.mints[0])?, data(&shape.mints[0])?),
+                    token_1_mint: (owner(&shape.mints[1])?, data(&shape.mints[1])?),
+                    clock: &clock,
+                },
+            )
+            .map_err(|e| e.to_string())?;
+            raydium_cpmm::compute_swap_amount_for_pool(&params, input == 0, amount, 0)
+                .map(|q| q.amount_out)
+                .map_err(|e| e.to_string())
+        }
+        SimpleVenue::AmmV4 => {
+            let params = RaydiumAmmV4Params::from_quote_accounts(
+                pool,
+                data(&pool)?,
+                data(&shape.vaults[0])?,
+                data(&shape.vaults[1])?,
+            )
+            .map_err(|e| e.to_string())?;
+            raydium_amm_v4::compute_swap_amount_for_pool(&params, input == 0, amount, 0)
+                .map(|q| q.amount_out)
+                .map_err(|e| e.to_string())
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn simple_swap_instruction(
+    venue: SimpleVenue,
+    pool: Pubkey,
+    shape: &SimplePool,
+    input: usize,
+    owner: Pubkey,
+    input_account: Pubkey,
+    output_account: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let output = 1 - input;
+    match venue {
+        SimpleVenue::Cpmm => {
+            use sol_trade_sdk::instruction::utils::raydium_cpmm::{
+                accounts, SWAP_BASE_IN_DISCRIMINATOR,
+            };
+            let mut data = Vec::with_capacity(24);
+            data.extend_from_slice(SWAP_BASE_IN_DISCRIMINATOR);
+            data.extend_from_slice(&amount.to_le_bytes());
+            data.extend_from_slice(&0u64.to_le_bytes());
+            Instruction::new_with_bytes(
+                accounts::RAYDIUM_CPMM,
+                &data,
+                vec![
+                    AccountMeta::new_readonly(owner, true),
+                    AccountMeta::new_readonly(accounts::AUTHORITY, false),
+                    AccountMeta::new_readonly(shape.amm_config, false),
+                    AccountMeta::new(pool, false),
+                    AccountMeta::new(input_account, false),
+                    AccountMeta::new(output_account, false),
+                    AccountMeta::new(shape.vaults[input], false),
+                    AccountMeta::new(shape.vaults[output], false),
+                    AccountMeta::new_readonly(shape.programs[input], false),
+                    AccountMeta::new_readonly(shape.programs[output], false),
+                    AccountMeta::new_readonly(shape.mints[input], false),
+                    AccountMeta::new_readonly(shape.mints[output], false),
+                    AccountMeta::new(shape.observation, false),
+                ],
+            )
+        }
+        SimpleVenue::AmmV4 => {
+            use sol_trade_sdk::instruction::utils::raydium_amm_v4::{
+                accounts, SWAP_BASE_IN_V2_DISCRIMINATOR,
+            };
+            let mut data = Vec::with_capacity(17);
+            data.extend_from_slice(SWAP_BASE_IN_V2_DISCRIMINATOR);
+            data.extend_from_slice(&amount.to_le_bytes());
+            data.extend_from_slice(&0u64.to_le_bytes());
+            Instruction::new_with_bytes(
+                accounts::RAYDIUM_AMM_V4,
+                &data,
+                vec![
+                    AccountMeta::new_readonly(TOKEN_PROGRAM, false),
+                    AccountMeta::new(pool, false),
+                    AccountMeta::new_readonly(accounts::AUTHORITY, false),
+                    AccountMeta::new(shape.vaults[0], false),
+                    AccountMeta::new(shape.vaults[1], false),
+                    AccountMeta::new(input_account, false),
+                    AccountMeta::new(output_account, false),
+                    AccountMeta::new_readonly(owner, true),
+                ],
+            )
+        }
+    }
+}
+
+async fn check_simple_pool(
+    rpc: &SolanaRpcClient,
+    funder: Pubkey,
+    venue: SimpleVenue,
+    pool: Pubkey,
+) -> Result<Vec<&'static str>, Error> {
+    let first = snapshot(rpc, &[pool]).await?;
+    let shape = simple_pool(venue, pool, &first.accounts.get(&pool).ok_or("no pool")?.data)?;
+    println!("{pool}: {} / {}", shape.mints[0], shape.mints[1]);
+    let mut outcomes = Vec::new();
+    for input in [0usize, 1] {
+        let (owner, input_account, available) = match input_source(
+            rpc,
+            funder,
+            shape.mints[input],
+            shape.programs[input],
+            &shape.vaults,
+        )
+        .await
+        {
+            Ok(source) => source,
+            Err(err) => {
+                println!("  input={input}: no input source: {err}");
+                outcomes.push("no input source");
+                continue;
+            }
+        };
+        let vault_balance =
+            token_amount(&rpc.get_account_data(&shape.vaults[input]).await?).unwrap_or(0);
+        for fraction in VAULT_FRACTIONS {
+            let amount = ((vault_balance as f64) * fraction) as u64;
+            if amount == 0 || amount > available {
+                outcomes.push("skipped amount");
+                continue;
+            }
+            let label = match check_simple_swap(
+                rpc,
+                funder,
+                venue,
+                pool,
+                &shape,
+                input,
+                owner,
+                input_account,
+                amount,
+            )
+            .await
+            {
+                Ok(Check::Match { quoted, .. }) => {
+                    println!("  input={input} in={amount}: MATCH out={quoted}");
+                    "match"
+                }
+                Ok(Check::Mismatch { quoted, simulated }) => {
+                    println!("  input={input} in={amount}: MISMATCH quoted={quoted} simulated={simulated}");
+                    "MISMATCH"
+                }
+                Ok(Check::BothRejected { quote, simulation }) => {
+                    println!("  input={input} in={amount}: both reject (quote {quote}; program {simulation})");
+                    "both reject"
+                }
+                Ok(Check::OnlyQuoteRejected { quote, simulated }) => {
+                    println!("  input={input} in={amount}: QUOTE REJECTS ({quote}) but program gives {simulated}");
+                    "QUOTE ONLY REJECTS"
+                }
+                Ok(Check::OnlyProgramRejected { quoted, simulation }) => {
+                    println!("  input={input} in={amount}: PROGRAM REJECTS ({simulation}) but quote gives {quoted}");
+                    "PROGRAM ONLY REJECTS"
+                }
+                Ok(Check::Unsettled) => "unsettled",
+                Err(err) => {
+                    println!("  input={input} in={amount}: error {}", redact(&err.to_string()));
+                    "error"
+                }
+            };
+            outcomes.push(label);
+        }
+    }
+    Ok(outcomes)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn check_simple_swap(
+    rpc: &SolanaRpcClient,
+    funder: Pubkey,
+    venue: SimpleVenue,
+    pool: Pubkey,
+    shape: &SimplePool,
+    input: usize,
+    owner: Pubkey,
+    input_account: Pubkey,
+    amount: u64,
+) -> Result<Check, Error> {
+    let output = 1 - input;
+    for _ in 0..ATTEMPTS {
+        let mut keys = shape.keys.clone();
+        for mint in shape.mints {
+            if !keys.contains(&mint) {
+                keys.push(mint);
+            }
+        }
+        let before = snapshot(rpc, &keys).await?;
+        let quote = simple_quote(venue, pool, shape, &before, input, amount);
+        let receiver = Keypair::new().pubkey();
+        let output_account = ata(&receiver, &shape.mints[output], &shape.programs[output]);
+        let mut instructions = vec![ComputeBudgetInstruction::set_compute_unit_limit(1_400_000)];
+        if shape.mints[input] == WSOL_TOKEN_ACCOUNT {
+            instructions.push(create_ata_idempotent(
+                &funder,
+                &funder,
+                &shape.mints[input],
+                &shape.programs[input],
+            ));
+            instructions.push(system_instruction::transfer(&funder, &input_account, amount));
+            instructions.push(sync_native(&input_account));
+        }
+        instructions.push(create_ata_idempotent(
+            &funder,
+            &receiver,
+            &shape.mints[output],
+            &shape.programs[output],
+        ));
+        instructions.push(simple_swap_instruction(
+            venue,
+            pool,
+            shape,
+            input,
+            owner,
+            input_account,
+            output_account,
+            amount,
+        ));
+        let blockhash = rpc.get_latest_blockhash().await?;
+        let message = v0::Message::try_compile(&funder, &instructions, &[], blockhash)?;
+        let tx = VersionedTransaction {
+            signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
+            message: VersionedMessage::V0(message),
+        };
+        let simulation = rpc
+            .simulate_transaction_with_config(
+                &tx,
+                RpcSimulateTransactionConfig {
+                    sig_verify: false,
+                    replace_recent_blockhash: true,
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    encoding: Some(UiTransactionEncoding::Base64),
+                    accounts: Some(RpcSimulateTransactionAccountsConfig {
+                        encoding: Some(UiAccountEncoding::Base64),
+                        addresses: vec![output_account.to_string()],
+                    }),
+                    min_context_slot: Some(before.slot),
+                    inner_instructions: false,
+                },
+            )
+            .await?;
+        let after = match snapshot_since(rpc, &keys, Some(simulation.context.slot)).await {
+            Ok(after) => after,
+            Err(_) => continue,
+        };
+        let unchanged = keys.iter().all(|key| {
+            before.accounts.get(key).map(|a| &a.data) == after.accounts.get(key).map(|a| &a.data)
+        });
+        if !unchanged {
+            continue;
+        }
+        let simulated = match &simulation.value.err {
+            Some(err) => Err(format!(
+                "{err:?} {}",
+                simulation
+                    .value
+                    .logs
+                    .as_ref()
+                    .and_then(|logs| logs.iter().rev().find(|l| l.contains("rror")).cloned())
+                    .unwrap_or_default()
+            )),
+            None => {
+                let account = simulation
+                    .value
+                    .accounts
+                    .as_ref()
+                    .and_then(|a| a.first().cloned().flatten())
+                    .ok_or("no output account")?;
+                let data = match &account.data {
+                    solana_account_decoder::UiAccountData::Binary(raw, _) => {
+                        base64::engine::general_purpose::STANDARD.decode(raw)?
+                    }
+                    _ => return Err("unexpected account encoding".into()),
+                };
+                Ok(token_amount(&data).ok_or("short token account")?)
+            }
+        };
+        if let (Ok(quoted), Ok(simulated)) = (&quote, &simulated) {
+            if quoted != simulated {
+                // What the program priced against, for comparison with the read.
+                for log in simulation.value.logs.iter().flatten().filter(|l| l.contains("ray_log"))
+                {
+                    println!("    program {log}");
+                }
+                for key in &shape.vaults {
+                    let balance = before.accounts.get(key).and_then(|a| token_amount(&a.data));
+                    println!("    read vault {key}: {balance:?}");
+                }
+            }
+        }
+        return Ok(match (quote, simulated) {
+            (Ok(quoted), Ok(simulated)) if quoted == simulated => {
+                Check::Match { quoted, arrays: 0, limit_order_ticks: 0 }
+            }
+            (Ok(quoted), Ok(simulated)) => Check::Mismatch { quoted, simulated },
+            (Err(quote), Err(simulation)) => Check::BothRejected { quote, simulation },
+            (Err(quote), Ok(simulated)) => Check::OnlyQuoteRejected { quote, simulated },
+            (Ok(quoted), Err(simulation)) => Check::OnlyProgramRejected { quoted, simulation },
         });
     }
     Ok(Check::Unsettled)

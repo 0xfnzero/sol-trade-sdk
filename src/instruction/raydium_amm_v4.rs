@@ -13,7 +13,7 @@ use crate::{
         params::{RaydiumAmmV4Params, SwapParams},
         traits::InstructionBuilder,
     },
-    utils::calc::raydium_amm_v4::compute_swap_amount,
+    utils::calc::raydium_amm_v4::compute_swap_amount_for_pool,
 };
 use anyhow::{anyhow, Result};
 use solana_sdk::{
@@ -141,13 +141,12 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             data[1..9].copy_from_slice(&amount_in.to_le_bytes());
             data[9..17].copy_from_slice(&amount_out.to_le_bytes());
         } else {
-            let minimum_amount_out = compute_swap_amount(
-                protocol_params.coin_reserve,
-                protocol_params.pc_reserve,
+            let minimum_amount_out = compute_swap_amount_for_pool(
+                protocol_params,
                 is_base_in,
                 amount_in,
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-            )
+            )?
             .min_amount_out;
             data[..1].copy_from_slice(disc_in);
             data[1..9].copy_from_slice(&amount_in.to_le_bytes());
@@ -253,13 +252,12 @@ impl InstructionBuilder for RaydiumAmmV4InstructionBuilder {
             data[1..9].copy_from_slice(&amount_in.to_le_bytes());
             data[9..17].copy_from_slice(&amount_out.to_le_bytes());
         } else {
-            let minimum_amount_out = compute_swap_amount(
-                protocol_params.coin_reserve,
-                protocol_params.pc_reserve,
+            let minimum_amount_out = compute_swap_amount_for_pool(
+                protocol_params,
                 is_base_in,
                 amount_in,
                 params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-            )
+            )?
             .min_amount_out;
             data[..1].copy_from_slice(disc_in);
             data[1..9].copy_from_slice(&amount_in.to_le_bytes());

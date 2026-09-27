@@ -157,6 +157,41 @@ impl RaydiumAmmV4Params {
             swap_fee_denominator: amm_info.fees.swap_fee_denominator,
         })
     }
+
+    /// Addresses of the accounts a quote of `amm` reads: the pool, its coin
+    /// vault, its pc vault. `swap_base_in_v2` needs no market accounts.
+    pub fn quote_account_keys(amm: &Pubkey, amm_info: &AmmInfo) -> Vec<Pubkey> {
+        vec![*amm, amm_info.token_coin, amm_info.token_pc]
+    }
+
+    /// Params for `swap_base_in_v2` from the pool and vault accounts read
+    /// together, with the pool's swap fee and its reserves net of pnl.
+    pub fn from_quote_accounts(
+        amm: Pubkey,
+        amm_data: &[u8],
+        coin_vault: &[u8],
+        pc_vault: &[u8],
+    ) -> Result<Self, anyhow::Error> {
+        let amm_info = crate::instruction::utils::raydium_amm_v4_types::amm_info_decode(amm_data)
+            .ok_or_else(|| anyhow::anyhow!("{amm} is not a Raydium AMM v4 pool"))?;
+        let balance = |data: &[u8]| {
+            data.get(64..72)
+                .map(|raw| u64::from_le_bytes(raw.try_into().unwrap()))
+                .ok_or_else(|| anyhow::anyhow!("Raydium AMM v4 vault data is too short"))
+        };
+        let (coin_reserve, pc_reserve) =
+            reserves_without_take_pnl(&amm_info, balance(coin_vault)?, balance(pc_vault)?)?;
+        Ok(Self::new(
+            amm,
+            amm_info.coin_mint,
+            amm_info.pc_mint,
+            amm_info.token_coin,
+            amm_info.token_pc,
+            coin_reserve,
+            pc_reserve,
+        )
+        .with_swap_fee(amm_info.fees.swap_fee_numerator, amm_info.fees.swap_fee_denominator))
+    }
 }
 
 /// The reserves the program swaps against: vault balances without the pnl it

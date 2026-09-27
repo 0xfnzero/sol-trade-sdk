@@ -25,7 +25,9 @@ pub use raydium_clmm::{
     ClmmHopQuote, ClmmQuoteAccounts, ClmmQuoteState, RaydiumClmmParams, CLOCK_SYSVAR,
     QUOTE_TICK_ARRAYS,
 };
-pub use raydium_cpmm::{token_transfer_fee_for_epoch, RaydiumCpmmParams, TokenTransferFee};
+pub use raydium_cpmm::{
+    token_transfer_fee_for_epoch, CpmmQuoteAccounts, RaydiumCpmmParams, TokenTransferFee,
+};
 pub use stonkfun_via_sol::{StonkFunMemeLeg, StonkFunSolHop, StonkFunViaSolParams};
 pub use whirlpool::WhirlpoolParams;
 /// User-facing parameters for a graduated StonkFun pool on the external CPMM venue.
