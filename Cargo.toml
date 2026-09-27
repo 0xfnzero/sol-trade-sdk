@@ -37,6 +37,7 @@ members = [
     "examples/meteora_damm_v2_direct_trading",
     "examples/simple_trading",
     "examples/stonkfun_via_sol_simulate",
+    "examples/verify_hop_quotes",
 ]
 [workspace.dependencies]
 sol-parser-sdk = { version = "=0.7.6", path = "../sol-parser-sdk" }
@@ -100,6 +101,8 @@ smallvec = "1.15.1"
 parking_lot = "0.12"
 arc-swap = "1.7"
 sha2 = "0.10"
+# Big integers of the vendored Raydium CLMM swap math (the program's uint fork is 0.9.5).
+uint = "=0.9.5"
 # 须含 runtime-tokio，否则 quinn::Endpoint::client 报 no async runtime found，QUIC（Speedlanding/Soyas）无法初始化
 quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
 lunar-lander-quic-client = "0.4"

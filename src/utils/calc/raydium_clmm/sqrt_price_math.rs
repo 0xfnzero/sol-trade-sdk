@@ -1,0 +1,167 @@
+// Vendored from https://github.com/raydium-io/raydium-clmm at ed7c84a54ced59c55981780546adb0b4583dcf85
+// (programs/amm/src/libraries/sqrt_price_math.rs), Apache-2.0: see LICENSE in this directory.
+// Changes: tests removed; formatted with this repository's rustfmt; Anchor errors
+// replaced by the local `ErrorCode`.
+
+use super::error::ErrorCode;
+use super::error::Result;
+use super::full_math::MulDiv;
+use super::tick_math;
+use super::unsafe_math::UnsafeMathTrait;
+use super::{fixed_point_64, U128, U256};
+
+/// Gets the next sqrt price √P' given a delta of token_0
+///
+/// Always round up because
+/// 1. In the exact output case, token 0 supply decreases leading to price increase.
+/// Move price up so that exact output is met.
+/// 2. In the exact input case, token 0 supply increases leading to price decrease.
+/// Do not round down to minimize price impact. We only need to meet input
+/// change and not guarantee exact output.
+///
+/// Use function for exact input or exact output swaps for token 0
+///
+/// # Formula
+///
+/// * `√P' = √P * L / (L + Δx * √P)`
+/// * If Δx * √P overflows, use alternate form `√P' = L / (L/√P + Δx)`
+///
+/// # Proof
+///
+/// For constant y,
+/// √P * L = y
+/// √P' * L' = √P * L
+/// √P' = √P * L / L'
+/// √P' = √P * L / L'
+/// √P' = √P * L / (L + Δx*√P)
+///
+pub fn get_next_sqrt_price_from_amount_0_rounding_up(
+    sqrt_price_x64: u128,
+    liquidity: u128,
+    amount: u64,
+    add: bool,
+) -> Result<u128> {
+    if amount == 0 {
+        return Ok(sqrt_price_x64);
+    };
+    let numerator_1 = U256::from(liquidity) << fixed_point_64::RESOLUTION;
+
+    if add {
+        if let Some(product) = U256::from(amount).checked_mul(U256::from(sqrt_price_x64)) {
+            let denominator = numerator_1 + product;
+            if denominator >= numerator_1 {
+                return Ok(numerator_1
+                    .mul_div_ceil(U256::from(sqrt_price_x64), denominator)
+                    .ok_or(ErrorCode::CalculateOverflow)?
+                    .as_u128());
+            };
+        }
+
+        Ok(U256::div_rounding_up(
+            numerator_1,
+            (numerator_1 / U256::from(sqrt_price_x64))
+                .checked_add(U256::from(amount))
+                .ok_or(ErrorCode::CalculateOverflow)?,
+        )
+        .as_u128())
+    } else {
+        let product = U256::from(amount)
+            .checked_mul(U256::from(sqrt_price_x64))
+            .ok_or(ErrorCode::CalculateOverflow)?;
+        let denominator = numerator_1.checked_sub(product).ok_or(ErrorCode::CalculateOverflow)?;
+        Ok(numerator_1
+            .mul_div_ceil(U256::from(sqrt_price_x64), denominator)
+            .ok_or(ErrorCode::CalculateOverflow)?
+            .as_u128())
+    }
+}
+
+/// Gets the next sqrt price given a delta of token_1
+///
+/// Always round down because
+/// 1. In the exact output case, token 1 supply decreases leading to price decrease.
+///    Move price down by rounding down so that exact output of token 0 is met.
+/// 2. In the exact input case, token 1 supply increases leading to price increase.
+///    We still round down to avoid giving away extra token 0; we only need to meet the
+///    input amount and do not guarantee exact output for token 0.
+///
+///
+/// # Formula
+///
+/// * `√P' = √P + Δy / L`
+///
+pub fn get_next_sqrt_price_from_amount_1_rounding_down(
+    sqrt_price_x64: u128,
+    liquidity: u128,
+    amount: u64,
+    add: bool,
+) -> Result<u128> {
+    if amount == 0 {
+        return Ok(sqrt_price_x64);
+    }
+
+    if add {
+        let quotient = (U128::from(amount) << fixed_point_64::RESOLUTION) / U128::from(liquidity);
+        sqrt_price_x64.checked_add(quotient.as_u128()).ok_or(ErrorCode::CalculateOverflow.into())
+    } else {
+        let quotient = U128::div_rounding_up(
+            U128::from(amount) << fixed_point_64::RESOLUTION,
+            U128::from(liquidity),
+        );
+        sqrt_price_x64.checked_sub(quotient.as_u128()).ok_or(ErrorCode::CalculateOverflow.into())
+    }
+}
+
+/// Gets the next sqrt price given an input amount of token_0 or token_1
+/// Throws if price is outside the valid CLMM range, liquidity is 0, or the
+/// next price is out of bounds.
+pub fn get_next_sqrt_price_from_input(
+    sqrt_price_x64: u128,
+    liquidity: u128,
+    amount_in: u64,
+    zero_for_one: bool,
+) -> Result<u128> {
+    require!(
+        sqrt_price_x64 >= tick_math::MIN_SQRT_PRICE_X64
+            && sqrt_price_x64 < tick_math::MAX_SQRT_PRICE_X64,
+        ErrorCode::SqrtPriceX64
+    );
+    require_gt!(liquidity, 0, ErrorCode::ZeroLiquidity);
+
+    // round to make sure that we don't pass the target price
+    if zero_for_one {
+        get_next_sqrt_price_from_amount_0_rounding_up(sqrt_price_x64, liquidity, amount_in, true)
+    } else {
+        get_next_sqrt_price_from_amount_1_rounding_down(sqrt_price_x64, liquidity, amount_in, true)
+    }
+}
+
+/// Gets the next sqrt price given an output amount of token0 or token1
+///
+/// Throws if price is outside the valid CLMM range, liquidity is 0, or the
+/// next price is out of bounds.
+///
+pub fn get_next_sqrt_price_from_output(
+    sqrt_price_x64: u128,
+    liquidity: u128,
+    amount_out: u64,
+    zero_for_one: bool,
+) -> Result<u128> {
+    require!(
+        sqrt_price_x64 >= tick_math::MIN_SQRT_PRICE_X64
+            && sqrt_price_x64 < tick_math::MAX_SQRT_PRICE_X64,
+        ErrorCode::SqrtPriceX64
+    );
+    require_gt!(liquidity, 0, ErrorCode::ZeroLiquidity);
+
+    if zero_for_one {
+        get_next_sqrt_price_from_amount_1_rounding_down(
+            sqrt_price_x64,
+            liquidity,
+            amount_out,
+            false,
+        )
+    } else {
+        get_next_sqrt_price_from_amount_0_rounding_up(sqrt_price_x64, liquidity, amount_out, false)
+    }
+}

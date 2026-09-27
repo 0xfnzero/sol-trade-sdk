@@ -68,7 +68,9 @@ mod transfer_fee_tests {
     }
 }
 
-pub(crate) fn token_transfer_fee_for_epoch(
+/// The transfer fee a mint charges in `epoch`: none for SPL Token mints, the
+/// Token-2022 `TransferFeeConfig` for that epoch otherwise.
+pub fn token_transfer_fee_for_epoch(
     data: &[u8],
     token_program: Pubkey,
     epoch: u64,

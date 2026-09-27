@@ -20,6 +20,7 @@ use crate::{
     },
     utils::calc::{
         bonk::{get_buy_quote, get_sell_min_amount_out},
+        common::calculate_min_amount_out,
         raydium_amm_v4::compute_swap_amount_for_pool as compute_amm_v4_swap_amount_for_pool,
         raydium_cpmm::compute_swap_amount_for_pool,
     },
@@ -252,14 +253,10 @@ fn sol_hop_min_out(
             )?
             .min_amount_out)
         }
-        StonkFunSolHop::RaydiumClmm(pool) => spot_min_out(
-            sol_hop,
-            pool.spot,
-            amount_in,
-            input_mint,
-            output_mint,
-            slippage_basis_points,
-        ),
+        StonkFunSolHop::RaydiumClmm(pool) => {
+            let quote = pool.quote_exact_in(&normalize_native_sol(input_mint), amount_in)?;
+            Ok(calculate_min_amount_out(quote.amount_out, slippage_basis_points))
+        }
         StonkFunSolHop::OrcaWhirlpool(pool) => spot_min_out(
             sol_hop,
             pool.spot,
@@ -276,6 +273,32 @@ fn sol_hop_min_out(
             output_mint,
             slippage_basis_points,
         ),
+    }
+}
+
+/// The hop as built for `amount_in`, and its minimum output: a CLMM hop gets
+/// the tick arrays its exact quote crosses.
+fn quote_hop(
+    sol_hop: &StonkFunSolHop,
+    amount_in: u64,
+    input_mint: Pubkey,
+    output_mint: Pubkey,
+    slippage_basis_points: u64,
+) -> Result<(StonkFunSolHop, u64)> {
+    match sol_hop {
+        StonkFunSolHop::RaydiumClmm(pool) => {
+            let quote = pool.quote_exact_in(&normalize_native_sol(input_mint), amount_in)?;
+            let mut pool = pool.clone();
+            pool.tick_arrays = quote.tick_arrays;
+            Ok((
+                StonkFunSolHop::RaydiumClmm(pool),
+                calculate_min_amount_out(quote.amount_out, slippage_basis_points),
+            ))
+        }
+        _ => Ok((
+            sol_hop.clone(),
+            sol_hop_min_out(sol_hop, amount_in, input_mint, output_mint, slippage_basis_points)?,
+        )),
     }
 }
 
@@ -438,11 +461,12 @@ async fn build_buy_via_sol(
     let mut bridges = Vec::with_capacity(hops.len());
     let mut amount = sol_amount;
     for (sol_hop, pair) in hops.iter().zip(route.windows(2)) {
-        amount = sol_hop_min_out(sol_hop, amount, pair[0], pair[1], hop_slippage)?;
+        let (hop, min_out) = quote_hop(sol_hop, amount, pair[0], pair[1], hop_slippage)?;
+        amount = min_out;
         if amount == 0 {
             return Err(anyhow!("StonkFunViaSol SOL hop produced zero quote output"));
         }
-        bridges.push(amount);
+        bridges.push((hop, amount));
     }
     let quote_bridge = amount;
 
@@ -460,9 +484,7 @@ async fn build_buy_via_sol(
     // Hops: WSOL → (currency →) quote. The first wraps WSOL; its close waits
     // for the whole route.
     let mut amount_in = sol_amount;
-    for (index, ((sol_hop, pair), bridge)) in
-        hops.iter().zip(route.windows(2)).zip(&bridges).enumerate()
-    {
+    for (index, (pair, (sol_hop, bridge))) in route.windows(2).zip(&bridges).enumerate() {
         let hop = build_leg_buy(
             &hop_params,
             sol_hop_as_dex_param(sol_hop),
@@ -555,11 +577,12 @@ async fn build_sell_via_sol(
     let mut bridges = Vec::with_capacity(hops.len());
     let mut amount = quote_bridge;
     for (sol_hop, pair) in hops.iter().zip(route.windows(2)).rev() {
-        amount = sol_hop_min_out(sol_hop, amount, pair[1], pair[0], hop_slippage)?;
+        let (hop, min_out) = quote_hop(sol_hop, amount, pair[1], pair[0], hop_slippage)?;
+        amount = min_out;
         if amount == 0 {
             return Err(anyhow!("StonkFunViaSol SOL hop produced zero output"));
         }
-        bridges.push(amount);
+        bridges.push((hop, amount));
     }
 
     // Same persistence policy as buy: do not force-create or close stock quote ATAs.
@@ -587,9 +610,7 @@ async fn build_sell_via_sol(
     // the caller's output ATA flags.
     let mut amount_in = quote_bridge;
     let last = hops.len() - 1;
-    for (step, ((sol_hop, pair), bridge)) in
-        hops.iter().zip(route.windows(2)).rev().zip(&bridges).enumerate()
-    {
+    for (step, (pair, (sol_hop, bridge))) in route.windows(2).rev().zip(&bridges).enumerate() {
         let to_sol = step == last;
         let fixed_output = hop_fixed_output(sol_hop, *bridge);
         let hop = build_leg_sell(
@@ -1025,10 +1046,66 @@ mod tests {
         }
     }
 
+    /// A CLMM pool at `price` (raw token 1 per token 0), loaded for exact quotes,
+    /// with one position from the start of the current tick array to the start
+    /// of the next.
     fn clmm_pool(mint_0: Pubkey, mint_1: Pubkey, price: f64) -> RaydiumClmmParams {
-        RaydiumClmmParams::new(
+        use crate::trading::core::params::{ClmmQuoteState, TokenTransferFee};
+        use crate::utils::calc::raydium_clmm::{
+            config::AmmConfig,
+            state::{DynamicFeeInfo, PoolState, TickArrayState, TickState},
+            tick_math,
+        };
+        let (pool, tick_spacing, liquidity) = (pk(102), 60u16, 10u128.pow(15));
+        let sqrt_price_x64 = (price.sqrt() * 2f64.powi(64)) as u128;
+        let tick_current = tick_math::get_tick_at_sqrt_price(sqrt_price_x64).unwrap();
+        let ticks_per_array = TickArrayState::tick_count(tick_spacing);
+        let start = TickArrayState::get_array_start_index(tick_current, tick_spacing);
+        let mut tick_array_bitmap = [0u64; 16];
+        let arrays: Vec<TickArrayState> = [start, start + ticks_per_array]
+            .into_iter()
+            .map(|array_start| {
+                let bit = (array_start / ticks_per_array + 512) as usize;
+                tick_array_bitmap[bit / 64] |= 1 << (bit % 64);
+                let mut ticks: Vec<TickState> = (0..60)
+                    .map(|i| TickState {
+                        tick: array_start + i * i32::from(tick_spacing),
+                        ..TickState::default()
+                    })
+                    .collect();
+                // Lower bound at this array's start, upper bound at the next one's.
+                let net =
+                    if array_start == start { liquidity as i128 } else { -(liquidity as i128) };
+                ticks[0].liquidity_gross = liquidity;
+                ticks[0].liquidity_net = net;
+                TickArrayState {
+                    pool_id: pool,
+                    start_tick_index: array_start,
+                    ticks,
+                    initialized_tick_count: 1,
+                }
+            })
+            .collect();
+        let state = PoolState {
+            amm_config: pk(101),
+            token_mint_0: mint_0,
+            token_mint_1: mint_1,
+            token_vault_0: pk(104),
+            token_vault_1: pk(105),
+            observation_key: pk(103),
+            tick_spacing,
+            liquidity,
+            sqrt_price_x64,
+            tick_current,
+            status: 0,
+            fee_on: 0,
+            tick_array_bitmap,
+            open_time: 0,
+            dynamic_fee_info: DynamicFeeInfo::default(),
+        };
+        let mut params = RaydiumClmmParams::new(
             pk(101),
-            pk(102),
+            pool,
             pk(103),
             mint_0,
             mint_1,
@@ -1036,9 +1113,23 @@ mod tests {
             pk(105),
             crate::constants::TOKEN_PROGRAM,
             crate::constants::TOKEN_PROGRAM,
-            vec![pk(106)],
-        )
-        .with_spot(spot(price))
+            Vec::new(),
+        );
+        params.quote_state = Some(Box::new(ClmmQuoteState {
+            pool: state,
+            config: AmmConfig {
+                protocol_fee_rate: 120_000,
+                trade_fee_rate: 2_500,
+                tick_spacing,
+                fund_fee_rate: 40_000,
+            },
+            tick_arrays: arrays,
+            bitmap_extension: None,
+            token_0_transfer_fee: TokenTransferFee::default(),
+            token_1_transfer_fee: TokenTransferFee::default(),
+            unix_timestamp: 1,
+        }));
+        params
     }
 
     fn dlmm_pair(mint_x: Pubkey, mint_y: Pubkey, price: f64) -> MeteoraDlmmParams {
@@ -1105,16 +1196,23 @@ mod tests {
         let (usdc, stock, meme) = (pk(130), pk(131), pk(132));
         let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
         // SOL → USDC on DLMM, then USDC → stock on CLMM, where the stock is token 0.
+        let clmm = clmm_pool(stock, usdc, 3.0);
         let via = StonkFunViaSolParams::curve(curve_params(stock), dlmm_pair(wsol, usdc, 0.2))
-            .with_quote_hop(clmm_pool(stock, usdc, 3.0))
+            .with_quote_hop(clmm.clone())
             .with_hop_slippage_basis_points(100);
         let params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
 
         let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
         let usdc_out = spot(0.2).min_amount_out(1_000_000, true, 100);
-        let stock_out = spot(3.0).min_amount_out(usdc_out, false, 100);
+        // The CLMM hop is quoted exactly and reads the tick arrays that quote crosses.
+        let clmm_quote = clmm.quote_exact_in(&usdc, usdc_out).unwrap();
+        let stock_out = calculate_min_amount_out(clmm_quote.amount_out, 100);
         assert_eq!(amounts(only(&ixs, DLMM)), (1_000_000, usdc_out));
-        assert_eq!(amounts(only(&ixs, CLMM)), (usdc_out, stock_out));
+        let clmm_ix = only(&ixs, CLMM);
+        assert_eq!(amounts(clmm_ix), (usdc_out, stock_out));
+        let clmm_arrays: Vec<Pubkey> =
+            clmm_ix.accounts[13..].iter().map(|meta| meta.pubkey).collect();
+        assert_eq!(clmm_arrays, clmm_quote.tick_arrays);
         assert_eq!(amounts(only(&ixs, launchlab_accounts::BONK)).0, stock_out);
         let order: Vec<_> = ixs
             .iter()
