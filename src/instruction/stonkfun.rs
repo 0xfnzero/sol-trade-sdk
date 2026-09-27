@@ -1268,4 +1268,29 @@ mod tests {
     fn calculate_min_amount_out_is_used_for_bridge_matching() {
         assert_eq!(calculate_min_amount_out(10_000, 100), 9_900);
     }
+
+    #[test]
+    fn sol_hops_quote_what_their_pools_pay() {
+        let (quote, other) = (pk(170), pk(171));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let cpmm = cpmm_pool(wsol, quote);
+        assert_eq!(
+            StonkFunSolHop::RaydiumCpmm(cpmm.clone()).quote_exact_in(&wsol, 1_000_000).unwrap(),
+            compute_swap_amount_for_pool(&cpmm, true, 1_000_000, 0).unwrap().amount_out
+        );
+        let amm_v4 = amm_v4_pool(quote, wsol);
+        let sol = crate::constants::SOL_TOKEN_ACCOUNT;
+        assert_eq!(
+            StonkFunSolHop::RaydiumAmmV4(amm_v4.clone()).quote_exact_in(&sol, 1_000_000).unwrap(),
+            compute_amm_v4_swap_amount_for_pool(&amm_v4, false, 1_000_000, 0).unwrap().amount_out
+        );
+        let clmm = clmm_pool(wsol, quote, 2.0);
+        assert_eq!(
+            StonkFunSolHop::RaydiumClmm(clmm.clone()).quote_exact_in(&quote, 1_000_000).unwrap(),
+            clmm.quote_exact_in(&quote, 1_000_000).unwrap().amount_out
+        );
+        assert!(StonkFunSolHop::RaydiumCpmm(cpmm).quote_exact_in(&other, 1_000_000).is_err());
+        let whirlpool = StonkFunSolHop::OrcaWhirlpool(whirlpool_pool(wsol, quote, Some(spot(2.0))));
+        assert!(whirlpool.quote_exact_in(&wsol, 1_000_000).is_err());
+    }
 }
