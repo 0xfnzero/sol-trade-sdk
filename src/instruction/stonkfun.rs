@@ -5,15 +5,16 @@
 //! quote tokens.
 
 use super::{
-    bonk::BonkInstructionBuilder, raydium_amm_v4::RaydiumAmmV4InstructionBuilder,
-    raydium_cpmm::RaydiumCpmmInstructionBuilder,
+    bonk::BonkInstructionBuilder, meteora_dlmm::MeteoraDlmmInstructionBuilder,
+    raydium_amm_v4::RaydiumAmmV4InstructionBuilder, raydium_clmm::RaydiumClmmInstructionBuilder,
+    raydium_cpmm::RaydiumCpmmInstructionBuilder, whirlpool::WhirlpoolInstructionBuilder,
 };
 use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     trading::core::{
         params::{
-            DexParamEnum, RaydiumAmmV4Params, RaydiumCpmmParams, StonkFunMemeLeg, StonkFunSolHop,
-            StonkFunViaSolParams, SwapParams,
+            DexParamEnum, HopSpot, RaydiumAmmV4Params, RaydiumCpmmParams, StonkFunMemeLeg,
+            StonkFunSolHop, StonkFunViaSolParams, SwapParams,
         },
         traits::InstructionBuilder,
     },
@@ -88,6 +89,20 @@ fn sol_hop_as_dex_param(sol_hop: &StonkFunSolHop) -> DexParamEnum {
     match sol_hop {
         StonkFunSolHop::RaydiumCpmm(params) => DexParamEnum::RaydiumCpmm(params.clone()),
         StonkFunSolHop::RaydiumAmmV4(params) => DexParamEnum::RaydiumAmmV4(params.clone()),
+        StonkFunSolHop::RaydiumClmm(params) => DexParamEnum::RaydiumClmm(params.clone()),
+        StonkFunSolHop::OrcaWhirlpool(params) => DexParamEnum::OrcaWhirlpool(params.clone()),
+        StonkFunSolHop::MeteoraDlmm(params) => DexParamEnum::MeteoraDlmm(params.clone()),
+    }
+}
+
+/// Concentrated-liquidity builders take their minimum output from the
+/// caller; CPMM and AMM v4 price their own from reserves.
+fn hop_fixed_output(sol_hop: &StonkFunSolHop, min_out: u64) -> Option<u64> {
+    match sol_hop {
+        StonkFunSolHop::RaydiumCpmm(_) | StonkFunSolHop::RaydiumAmmV4(_) => None,
+        StonkFunSolHop::RaydiumClmm(_)
+        | StonkFunSolHop::OrcaWhirlpool(_)
+        | StonkFunSolHop::MeteoraDlmm(_) => Some(min_out),
     }
 }
 
@@ -131,39 +146,87 @@ fn amm_v4_is_coin_in(
     }
 }
 
-fn ensure_sol_hop_pair(sol_hop: &StonkFunSolHop, quote_mint: Pubkey) -> Result<()> {
+fn hop_mints(sol_hop: &StonkFunSolHop) -> (Pubkey, Pubkey) {
+    let (first, second) = sol_hop.mints();
+    (normalize_native_sol(first), normalize_native_sol(second))
+}
+
+/// Mints along the route from WSOL to `quote_mint`: WSOL, the currency of a
+/// second hop if there is one, then the quote.
+fn sol_route_mints(via: &StonkFunViaSolParams, quote_mint: Pubkey) -> Result<Vec<Pubkey>> {
     let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
     let quote = normalize_native_sol(quote_mint);
-    match sol_hop {
-        StonkFunSolHop::RaydiumCpmm(pool) => {
-            let a = normalize_native_sol(pool.base_mint);
-            let b = normalize_native_sol(pool.quote_mint);
-            if (a == wsol && b == quote) || (b == wsol && a == quote) {
-                Ok(())
-            } else {
-                Err(anyhow!(
-                    "SOL hop CPMM pool {}/{} does not match WSOL/{}",
-                    pool.base_mint,
-                    pool.quote_mint,
-                    quote
-                ))
-            }
+    let (a, b) = hop_mints(&via.sol_hop);
+    let first = match (a == wsol, b == wsol) {
+        (true, false) => b,
+        (false, true) => a,
+        _ => {
+            return Err(anyhow!(
+                "SOL hop pool {}/{} does not match WSOL/{}",
+                a,
+                b,
+                quote
+            ))
         }
-        StonkFunSolHop::RaydiumAmmV4(pool) => {
-            let a = normalize_native_sol(pool.coin_mint);
-            let b = normalize_native_sol(pool.pc_mint);
-            if (a == wsol && b == quote) || (b == wsol && a == quote) {
-                Ok(())
+    };
+    match &via.quote_hop {
+        None if first == quote => Ok(vec![wsol, quote]),
+        None => Err(anyhow!(
+            "SOL hop pool {}/{} does not match WSOL/{}",
+            a,
+            b,
+            quote
+        )),
+        Some(quote_hop) => {
+            let (c, d) = hop_mints(quote_hop);
+            if first != quote && ((c == first && d == quote) || (c == quote && d == first)) {
+                Ok(vec![wsol, first, quote])
             } else {
                 Err(anyhow!(
-                    "SOL hop AMM v4 pool {}/{} does not match WSOL/{}",
-                    pool.coin_mint,
-                    pool.pc_mint,
+                    "Quote hop pool {}/{} does not match {}/{}",
+                    c,
+                    d,
+                    first,
                     quote
                 ))
             }
         }
     }
+}
+
+/// The route's pools, from the SOL side.
+fn sol_route_hops(via: &StonkFunViaSolParams) -> Vec<&StonkFunSolHop> {
+    std::iter::once(&via.sol_hop).chain(via.quote_hop.as_ref()).collect()
+}
+
+/// Minimum output of a swap quoted at a concentrated-liquidity pool's spot price.
+fn spot_min_out(
+    sol_hop: &StonkFunSolHop,
+    spot: Option<HopSpot>,
+    amount_in: u64,
+    input_mint: Pubkey,
+    output_mint: Pubkey,
+    slippage_basis_points: u64,
+) -> Result<u64> {
+    let spot = spot.ok_or_else(|| {
+        anyhow!("Hop pool {} needs its spot price to quote the hop", sol_hop.pool())
+    })?;
+    let (first, second) = hop_mints(sol_hop);
+    let (input, output) = (normalize_native_sol(input_mint), normalize_native_sol(output_mint));
+    let first_to_second = if input == first && output == second {
+        true
+    } else if input == second && output == first {
+        false
+    } else {
+        return Err(anyhow!(
+            "Requested swap pair {}/{} does not match hop pool {}/{}",
+            input,
+            output,
+            first,
+            second
+        ));
+    };
+    Ok(spot.min_amount_out(amount_in, first_to_second, slippage_basis_points))
 }
 
 fn sol_hop_min_out(
@@ -190,6 +253,30 @@ fn sol_hop_min_out(
             )
             .min_amount_out)
         }
+        StonkFunSolHop::RaydiumClmm(pool) => spot_min_out(
+            sol_hop,
+            pool.spot,
+            amount_in,
+            input_mint,
+            output_mint,
+            slippage_basis_points,
+        ),
+        StonkFunSolHop::OrcaWhirlpool(pool) => spot_min_out(
+            sol_hop,
+            pool.spot,
+            amount_in,
+            input_mint,
+            output_mint,
+            slippage_basis_points,
+        ),
+        StonkFunSolHop::MeteoraDlmm(pool) => spot_min_out(
+            sol_hop,
+            pool.spot,
+            amount_in,
+            input_mint,
+            output_mint,
+            slippage_basis_points,
+        ),
     }
 }
 
@@ -343,15 +430,22 @@ async fn build_buy_via_sol(
         .await;
     }
 
-    ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    let route = sol_route_mints(via, quote_mint)?;
+    let hops = sol_route_hops(via);
     let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
 
-    // Match legs on hop1 min-out so hop2 cannot overspend the quote ATA.
-    let quote_bridge =
-        sol_hop_min_out(&via.sol_hop, sol_amount, wsol, quote_mint, hop_slippage)?;
-    if quote_bridge == 0 {
-        return Err(anyhow!("StonkFunViaSol SOL hop produced zero quote output"));
+    // Each leg spends the minimum output of the one before, so none can
+    // overspend the account it draws from.
+    let mut bridges = Vec::with_capacity(hops.len());
+    let mut amount = sol_amount;
+    for (sol_hop, pair) in hops.iter().zip(route.windows(2)) {
+        amount = sol_hop_min_out(sol_hop, amount, pair[0], pair[1], hop_slippage)?;
+        if amount == 0 {
+            return Err(anyhow!("StonkFunViaSol SOL hop produced zero quote output"));
+        }
+        bridges.push(amount);
     }
+    let quote_bridge = amount;
 
     // Validate the meme leg can absorb that quote amount (also warms error paths).
     let _ = meme_leg_buy_min_out(&via.meme_leg, quote_bridge, meme_mint, slippage)?;
@@ -359,29 +453,36 @@ async fn build_buy_via_sol(
     // Persistent ATAs: WSOL / stock-quote accounts are expected to live across trades.
     // Only create them when the caller opts in (CreateMissing / Auto). HotPathMinimal
     // and AssumePrepared keep create/close flags false and skip ATA ix entirely.
-    // Never close the intermediate quote ATA — leftover stock dust is intentional.
+    // Never close intermediate ATAs — leftover dust is intentional.
     let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
 
     let mut instructions = Vec::with_capacity(12);
 
-    // Hop 1: WSOL → quote. Defer WSOL close until after both hops.
-    let hop1 = build_leg_buy(
-        &hop_params,
-        sol_hop_as_dex_param(&via.sol_hop),
-        wsol,
-        quote_mint,
-        sol_amount,
-        params.create_input_mint_ata,
-        false,
-        create_quote_ata,
-        false,
-        None,
-    )
-    .await?;
-    instructions.extend(hop1);
+    // Hops: WSOL → (currency →) quote. The first wraps WSOL; its close waits
+    // for the whole route.
+    let mut amount_in = sol_amount;
+    for (index, ((sol_hop, pair), bridge)) in
+        hops.iter().zip(route.windows(2)).zip(&bridges).enumerate()
+    {
+        let hop = build_leg_buy(
+            &hop_params,
+            sol_hop_as_dex_param(sol_hop),
+            pair[0],
+            pair[1],
+            amount_in,
+            index == 0 && params.create_input_mint_ata,
+            false,
+            create_quote_ata,
+            false,
+            hop_fixed_output(sol_hop, *bridge),
+        )
+        .await?;
+        instructions.extend(hop);
+        amount_in = *bridge;
+    }
 
-    // Hop 2: quote → meme. Never create/close the quote ATA on this leg.
-    let hop2 = build_leg_buy(
+    // Meme leg: quote → meme. Never create/close the quote ATA on this leg.
+    let meme_leg = build_leg_buy(
         params,
         meme_leg_as_dex_param(&via.meme_leg),
         quote_mint,
@@ -394,7 +495,7 @@ async fn build_buy_via_sol(
         params.fixed_output_amount,
     )
     .await?;
-    instructions.extend(hop2);
+    instructions.extend(meme_leg);
 
     if params.close_input_mint_ata {
         crate::instruction::token_account_setup::push_close_wsol_if_needed(
@@ -442,7 +543,8 @@ async fn build_sell_via_sol(
         .await;
     }
 
-    ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    let route = sol_route_mints(via, quote_mint)?;
+    let hops = sol_route_hops(via);
     let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
 
     let quote_bridge =
@@ -450,15 +552,24 @@ async fn build_sell_via_sol(
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol meme leg produced zero quote output"));
     }
-    let _ = sol_hop_min_out(&via.sol_hop, quote_bridge, quote_mint, wsol, hop_slippage)?;
+    // Back along the route; each hop sells the minimum output of the leg before.
+    let mut bridges = Vec::with_capacity(hops.len());
+    let mut amount = quote_bridge;
+    for (sol_hop, pair) in hops.iter().zip(route.windows(2)).rev() {
+        amount = sol_hop_min_out(sol_hop, amount, pair[1], pair[0], hop_slippage)?;
+        if amount == 0 {
+            return Err(anyhow!("StonkFunViaSol SOL hop produced zero output"));
+        }
+        bridges.push(amount);
+    }
 
     // Same persistence policy as buy: do not force-create or close stock quote ATAs.
     let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
 
     let mut instructions = Vec::with_capacity(12);
 
-    // Hop 1: meme → quote. Never close the stock quote ATA after the sell hop.
-    let hop1 = build_leg_sell(
+    // Meme leg: meme → quote. Never close the stock quote ATA after the sale.
+    let meme_leg = build_leg_sell(
         params,
         meme_leg_as_dex_param(&via.meme_leg),
         meme_mint,
@@ -471,23 +582,33 @@ async fn build_sell_via_sol(
         None,
     )
     .await?;
-    instructions.extend(hop1);
+    instructions.extend(meme_leg);
 
-    // Hop 2: quote → WSOL. WSOL create/close follows the caller's output ATA flags.
-    let hop2 = build_leg_sell(
-        &hop_params,
-        sol_hop_as_dex_param(&via.sol_hop),
-        quote_mint,
-        wsol,
-        quote_bridge,
-        false,
-        false,
-        params.create_output_mint_ata,
-        params.close_output_mint_ata,
-        params.fixed_output_amount,
-    )
-    .await?;
-    instructions.extend(hop2);
+    // Then quote → (currency →) WSOL. The last leg's WSOL create/close follows
+    // the caller's output ATA flags.
+    let mut amount_in = quote_bridge;
+    let last = hops.len() - 1;
+    for (step, ((sol_hop, pair), bridge)) in
+        hops.iter().zip(route.windows(2)).rev().zip(&bridges).enumerate()
+    {
+        let to_sol = step == last;
+        let fixed_output = hop_fixed_output(sol_hop, *bridge);
+        let hop = build_leg_sell(
+            &hop_params,
+            sol_hop_as_dex_param(sol_hop),
+            pair[1],
+            pair[0],
+            amount_in,
+            false,
+            false,
+            if to_sol { params.create_output_mint_ata } else { create_quote_ata },
+            to_sol && params.close_output_mint_ata,
+            if to_sol { params.fixed_output_amount.or(fixed_output) } else { fixed_output },
+        )
+        .await?;
+        instructions.extend(hop);
+        amount_in = *bridge;
+    }
 
     Ok(instructions)
 }
@@ -512,6 +633,15 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
             DexParamEnum::RaydiumAmmV4(_) => {
                 RaydiumAmmV4InstructionBuilder.build_buy_instructions(params).await
             }
+            DexParamEnum::RaydiumClmm(_) => {
+                RaydiumClmmInstructionBuilder.build_buy_instructions(params).await
+            }
+            DexParamEnum::OrcaWhirlpool(_) => {
+                WhirlpoolInstructionBuilder.build_buy_instructions(params).await
+            }
+            DexParamEnum::MeteoraDlmm(_) => {
+                MeteoraDlmmInstructionBuilder.build_buy_instructions(params).await
+            }
             _ => Err(anyhow!("Invalid protocol params for StonkFun")),
         }
     }
@@ -534,6 +664,15 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
             DexParamEnum::RaydiumAmmV4(_) => {
                 RaydiumAmmV4InstructionBuilder.build_sell_instructions(params).await
             }
+            DexParamEnum::RaydiumClmm(_) => {
+                RaydiumClmmInstructionBuilder.build_sell_instructions(params).await
+            }
+            DexParamEnum::OrcaWhirlpool(_) => {
+                WhirlpoolInstructionBuilder.build_sell_instructions(params).await
+            }
+            DexParamEnum::MeteoraDlmm(_) => {
+                MeteoraDlmmInstructionBuilder.build_sell_instructions(params).await
+            }
             _ => Err(anyhow!("Invalid protocol params for StonkFun")),
         }
     }
@@ -549,7 +688,10 @@ mod tests {
             raydium_cpmm::{accounts as cpmm_accounts, SWAP_BASE_IN_DISCRIMINATOR},
         },
         swqos::TradeType,
-        trading::core::params::{BonkParams, RaydiumAmmV4Params, RaydiumCpmmParams},
+        trading::core::params::{
+            BonkParams, MeteoraDlmmParams, RaydiumAmmV4Params, RaydiumClmmParams,
+            RaydiumCpmmParams, WhirlpoolParams,
+        },
         utils::calc::common::calculate_min_amount_out,
     };
     use solana_sdk::{pubkey::Pubkey, signature::Keypair};
@@ -861,6 +1003,168 @@ mod tests {
         assert!(programs
             .contains(&crate::instruction::utils::raydium_amm_v4::accounts::RAYDIUM_AMM_V4));
         assert!(programs.contains(&launchlab_accounts::BONK));
+    }
+
+    fn spot(price: f64) -> HopSpot {
+        HopSpot { price, fee: 0.003 }
+    }
+
+    fn whirlpool_pool(mint_a: Pubkey, mint_b: Pubkey, spot: Option<HopSpot>) -> WhirlpoolParams {
+        let pool = WhirlpoolParams::new(
+            pk(91),
+            mint_a,
+            mint_b,
+            pk(92),
+            pk(93),
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+            vec![pk(94), pk(95), pk(96)],
+        );
+        match spot {
+            Some(spot) => pool.with_spot(spot),
+            None => pool,
+        }
+    }
+
+    fn clmm_pool(mint_0: Pubkey, mint_1: Pubkey, price: f64) -> RaydiumClmmParams {
+        RaydiumClmmParams::new(
+            pk(101),
+            pk(102),
+            pk(103),
+            mint_0,
+            mint_1,
+            pk(104),
+            pk(105),
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+            vec![pk(106)],
+        )
+        .with_spot(spot(price))
+    }
+
+    fn dlmm_pair(mint_x: Pubkey, mint_y: Pubkey, price: f64) -> MeteoraDlmmParams {
+        MeteoraDlmmParams::new(
+            pk(111),
+            pk(112),
+            pk(113),
+            mint_x,
+            mint_y,
+            pk(114),
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+            vec![pk(115)],
+        )
+        .with_spot(spot(price))
+    }
+
+    /// Input amount and minimum output of a swap instruction.
+    fn amounts(ix: &Instruction) -> (u64, u64) {
+        (
+            u64::from_le_bytes(ix.data[8..16].try_into().unwrap()),
+            u64::from_le_bytes(ix.data[16..24].try_into().unwrap()),
+        )
+    }
+
+    fn only(ixs: &[Instruction], program: Pubkey) -> &Instruction {
+        let mut found = ixs.iter().filter(|ix| ix.program_id == program);
+        let ix = found.next().expect("instruction of the program");
+        assert!(found.next().is_none(), "one instruction of the program");
+        ix
+    }
+
+    #[tokio::test]
+    async fn via_sol_curve_buy_through_a_whirlpool_spends_its_spot_min_out() {
+        use crate::instruction::utils::whirlpool::PROGRAM_ID as WHIRLPOOL;
+        let (stock, meme) = (pk(120), pk(121));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let via = StonkFunViaSolParams::curve(
+            curve_params(stock),
+            whirlpool_pool(wsol, stock, Some(spot(50.0))),
+        )
+        .with_hop_slippage_basis_points(100);
+        let params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
+
+        let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let hop = only(&ixs, WHIRLPOOL);
+        let expected = spot(50.0).min_amount_out(1_000_000, true, 100);
+        assert_eq!(amounts(hop), (1_000_000, expected));
+        // Exact in, A (WSOL) to B.
+        assert_eq!(&hop.data[40..42], &[1, 1]);
+        let curve = only(&ixs, launchlab_accounts::BONK);
+        assert_eq!(amounts(curve).0, expected);
+        let order: Vec<_> = ixs.iter().map(|ix| ix.program_id).collect();
+        let hop_at = order.iter().position(|program| *program == WHIRLPOOL).unwrap();
+        let curve_at = order.iter().position(|program| *program == launchlab_accounts::BONK).unwrap();
+        assert!(hop_at < curve_at);
+    }
+
+    #[tokio::test]
+    async fn via_sol_two_hop_buy_chains_min_outs_through_a_currency() {
+        use crate::instruction::utils::{
+            meteora_dlmm::PROGRAM_ID as DLMM, raydium_clmm::PROGRAM_ID as CLMM,
+        };
+        let (usdc, stock, meme) = (pk(130), pk(131), pk(132));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        // SOL → USDC on DLMM, then USDC → stock on CLMM, where the stock is token 0.
+        let via = StonkFunViaSolParams::curve(curve_params(stock), dlmm_pair(wsol, usdc, 0.2))
+            .with_quote_hop(clmm_pool(stock, usdc, 3.0))
+            .with_hop_slippage_basis_points(100);
+        let params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
+
+        let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let usdc_out = spot(0.2).min_amount_out(1_000_000, true, 100);
+        let stock_out = spot(3.0).min_amount_out(usdc_out, false, 100);
+        assert_eq!(amounts(only(&ixs, DLMM)), (1_000_000, usdc_out));
+        assert_eq!(amounts(only(&ixs, CLMM)), (usdc_out, stock_out));
+        assert_eq!(amounts(only(&ixs, launchlab_accounts::BONK)).0, stock_out);
+        let order: Vec<_> = ixs
+            .iter()
+            .map(|ix| ix.program_id)
+            .filter(|program| [DLMM, CLMM, launchlab_accounts::BONK].contains(program))
+            .collect();
+        assert_eq!(order, [DLMM, CLMM, launchlab_accounts::BONK]);
+    }
+
+    #[tokio::test]
+    async fn via_sol_graduated_sell_through_a_whirlpool_cashes_out_the_meme_legs_min_out() {
+        use crate::instruction::utils::whirlpool::PROGRAM_ID as WHIRLPOOL;
+        let (stock, meme) = (pk(140), pk(141));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let via = StonkFunViaSolParams::graduated(
+            cpmm_pool(stock, meme),
+            whirlpool_pool(stock, wsol, Some(spot(0.02))),
+        );
+        let params = swap_params(TradeType::Sell, meme, wsol, DexParamEnum::StonkFunViaSol(via));
+
+        let ixs = StonkFunInstructionBuilder.build_sell_instructions(&params).await.unwrap();
+        let (meme_in, quote_bridge) = amounts(only(&ixs, cpmm_accounts::RAYDIUM_CPMM));
+        assert_eq!(meme_in, 1_000_000);
+        let hop = only(&ixs, WHIRLPOOL);
+        // The trade's 1% slippage covers the hop too.
+        assert_eq!(amounts(hop), (quote_bridge, spot(0.02).min_amount_out(quote_bridge, true, 100)));
+    }
+
+    #[tokio::test]
+    async fn via_sol_concentrated_hop_needs_its_spot_price() {
+        let (stock, meme) = (pk(150), pk(151));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let via = StonkFunViaSolParams::curve(curve_params(stock), whirlpool_pool(wsol, stock, None));
+        let params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
+        let err = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap_err();
+        assert!(err.to_string().contains("spot price"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn via_sol_rejects_a_quote_hop_that_misses_the_quote() {
+        let (usdc, stock, other, meme) = (pk(160), pk(161), pk(162), pk(163));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        for quote_hop in [clmm_pool(usdc, other, 1.0), clmm_pool(wsol, stock, 1.0)] {
+            let via = StonkFunViaSolParams::curve(curve_params(stock), dlmm_pair(wsol, usdc, 0.2))
+                .with_quote_hop(quote_hop);
+            let params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
+            let err = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap_err();
+            assert!(err.to_string().contains("does not match"), "{err}");
+        }
     }
 
     #[test]

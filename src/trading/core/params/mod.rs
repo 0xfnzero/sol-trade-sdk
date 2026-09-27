@@ -2,6 +2,7 @@
 
 mod bonk;
 mod dex_swap;
+mod hop_spot;
 mod meteora_damm_v2;
 mod meteora_dlmm;
 mod pumpfun;
@@ -14,6 +15,7 @@ mod whirlpool;
 
 pub use bonk::{BonkParams, LaunchLabParams, StonkFunParams};
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
+pub use hop_spot::HopSpot;
 pub use meteora_damm_v2::MeteoraDammV2Params;
 pub use meteora_dlmm::MeteoraDlmmParams;
 pub use pumpfun::PumpFunParams;

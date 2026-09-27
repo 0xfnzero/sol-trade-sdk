@@ -7,8 +7,11 @@
 //! - sell: `meme → quote → SOL/WSOL`
 //!
 //! [`StonkFunViaSolParams`] covers both the LaunchLab curve (inner) and graduated
-//! CPMM (outer) meme legs. The SOL↔quote hop currently supports Raydium CPMM and
-//! Raydium AMM v4 pools.
+//! CPMM (outer) meme legs. The SOL↔quote hop goes through a Raydium CPMM, Raydium
+//! AMM v4, Raydium CLMM, Orca Whirlpool or Meteora DLMM pool; a quote that only
+//! trades against another currency (USDC) takes a second hop from it. Hops
+//! through concentrated-liquidity pools are quoted at the pool's spot price
+//! ([`super::HopSpot`]), which their loaders fill in.
 //!
 //! # Quick start
 //!
@@ -27,7 +30,12 @@
 //! );
 //! ```
 
-use super::{BonkParams, RaydiumAmmV4Params, RaydiumCpmmParams};
+use solana_sdk::pubkey::Pubkey;
+
+use super::{
+    BonkParams, MeteoraDlmmParams, RaydiumAmmV4Params, RaydiumClmmParams, RaydiumCpmmParams,
+    WhirlpoolParams,
+};
 
 /// Meme ↔ StonkFun-quote leg: either the LaunchLab curve or a graduated CPMM pool.
 #[derive(Clone)]
@@ -38,11 +46,42 @@ pub enum StonkFunMemeLeg {
     Graduated(RaydiumCpmmParams),
 }
 
-/// SOL/WSOL ↔ StonkFun-quote hop used when the wallet does not hold the quote mint.
+/// A pool on the route between SOL/WSOL and the StonkFun quote, used when the
+/// wallet does not hold the quote mint.
 #[derive(Clone)]
 pub enum StonkFunSolHop {
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
+    /// Quoted at the pool's `spot` price.
+    RaydiumClmm(RaydiumClmmParams),
+    /// Quoted at the pool's `spot` price.
+    OrcaWhirlpool(WhirlpoolParams),
+    /// Quoted at the pair's `spot` price.
+    MeteoraDlmm(MeteoraDlmmParams),
+}
+
+impl StonkFunSolHop {
+    /// The pool's address.
+    pub fn pool(&self) -> Pubkey {
+        match self {
+            Self::RaydiumCpmm(pool) => pool.pool_state,
+            Self::RaydiumAmmV4(pool) => pool.amm,
+            Self::RaydiumClmm(pool) => pool.pool_state,
+            Self::OrcaWhirlpool(pool) => pool.whirlpool,
+            Self::MeteoraDlmm(pool) => pool.lb_pair,
+        }
+    }
+
+    /// The pool's two mints, in the pool's own order.
+    pub fn mints(&self) -> (Pubkey, Pubkey) {
+        match self {
+            Self::RaydiumCpmm(pool) => (pool.base_mint, pool.quote_mint),
+            Self::RaydiumAmmV4(pool) => (pool.coin_mint, pool.pc_mint),
+            Self::RaydiumClmm(pool) => (pool.token_0_mint, pool.token_1_mint),
+            Self::OrcaWhirlpool(pool) => (pool.mint_a, pool.mint_b),
+            Self::MeteoraDlmm(pool) => (pool.token_x_mint, pool.token_y_mint),
+        }
+    }
 }
 
 impl From<RaydiumCpmmParams> for StonkFunSolHop {
@@ -54,6 +93,24 @@ impl From<RaydiumCpmmParams> for StonkFunSolHop {
 impl From<RaydiumAmmV4Params> for StonkFunSolHop {
     fn from(params: RaydiumAmmV4Params) -> Self {
         Self::RaydiumAmmV4(params)
+    }
+}
+
+impl From<RaydiumClmmParams> for StonkFunSolHop {
+    fn from(params: RaydiumClmmParams) -> Self {
+        Self::RaydiumClmm(params)
+    }
+}
+
+impl From<WhirlpoolParams> for StonkFunSolHop {
+    fn from(params: WhirlpoolParams) -> Self {
+        Self::OrcaWhirlpool(params)
+    }
+}
+
+impl From<MeteoraDlmmParams> for StonkFunSolHop {
+    fn from(params: MeteoraDlmmParams) -> Self {
+        Self::MeteoraDlmm(params)
     }
 }
 
@@ -72,10 +129,14 @@ impl From<RaydiumAmmV4Params> for StonkFunSolHop {
 #[derive(Clone)]
 pub struct StonkFunViaSolParams {
     pub meme_leg: StonkFunMemeLeg,
+    /// The pool trading SOL: against the quote itself, or against the
+    /// currency `quote_hop` trades the quote against.
     pub sol_hop: StonkFunSolHop,
-    /// Slippage of the SOL↔quote hop; `None` uses the trade's slippage. On buys
-    /// the meme leg spends the hop's minimum output, so every basis point of hop
-    /// slippage the pool does not use stays behind as quote.
+    /// Second hop, between the currency `sol_hop` trades and the quote.
+    pub quote_hop: Option<StonkFunSolHop>,
+    /// Slippage of each hop; `None` uses the trade's slippage. On buys each leg
+    /// spends the minimum output of the one before, so every basis point of hop
+    /// slippage a pool does not use stays behind in that currency.
     pub hop_slippage_basis_points: Option<u64>,
 }
 
@@ -85,6 +146,7 @@ impl StonkFunViaSolParams {
         Self {
             meme_leg: StonkFunMemeLeg::Curve(meme_leg),
             sol_hop: sol_hop.into(),
+            quote_hop: None,
             hop_slippage_basis_points: None,
         }
     }
@@ -94,13 +156,21 @@ impl StonkFunViaSolParams {
         Self {
             meme_leg: StonkFunMemeLeg::Graduated(meme_leg),
             sol_hop: sol_hop.into(),
+            quote_hop: None,
             hop_slippage_basis_points: None,
         }
     }
 
-    /// Slippage of the SOL↔quote hop, separate from the meme leg's.
+    /// Slippage of the hops, separate from the meme leg's.
     pub fn with_hop_slippage_basis_points(mut self, basis_points: u64) -> Self {
         self.hop_slippage_basis_points = Some(basis_points);
+        self
+    }
+
+    /// A second hop from the currency `sol_hop` trades to the quote, for a
+    /// quote that does not trade against SOL.
+    pub fn with_quote_hop(mut self, quote_hop: impl Into<StonkFunSolHop>) -> Self {
+        self.quote_hop = Some(quote_hop.into());
         self
     }
 

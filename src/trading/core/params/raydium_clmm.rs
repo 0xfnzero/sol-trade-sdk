@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use solana_sdk::pubkey::Pubkey;
 
+use super::HopSpot;
 use crate::common::SolanaRpcClient;
 
 /// Raydium CLMM `swap_v2` parameters (exact-in).
@@ -19,6 +20,8 @@ pub struct RaydiumClmmParams {
     pub tick_array_bitmap_extension: Option<Pubkey>,
     /// `0` → full-range limit derived from swap direction.
     pub sqrt_price_limit_x64: u128,
+    /// Spot price and fee when loaded; quotes a swap through the pool.
+    pub spot: Option<HopSpot>,
 }
 
 impl RaydiumClmmParams {
@@ -47,7 +50,13 @@ impl RaydiumClmmParams {
             tick_arrays,
             tick_array_bitmap_extension: None,
             sqrt_price_limit_x64: 0,
+            spot: None,
         }
+    }
+
+    pub fn with_spot(mut self, spot: HopSpot) -> Self {
+        self.spot = Some(spot);
+        self
     }
 
     pub fn with_bitmap_extension(mut self, ext: Pubkey) -> Self {
@@ -60,7 +69,8 @@ impl RaydiumClmmParams {
         self
     }
 
-    /// Load pool state + neighboring tick arrays for `input_mint → output_mint`.
+    /// Pool accounts, spot price and the tick arrays of an `input_mint →
+    /// output_mint` swap, in two RPC round trips.
     pub async fn from_pool_address_by_rpc(
         rpc: &SolanaRpcClient,
         pool: &Pubkey,
@@ -68,9 +78,17 @@ impl RaydiumClmmParams {
         output_mint: &Pubkey,
     ) -> Result<Self> {
         use crate::instruction::utils::raydium_clmm::{
-            fetch_pool, resolve_tick_arrays_for_swap, tick_array_bitmap_extension,
+            decode_amm_config_trade_fee_rate, decode_pool_state, initialized_tick_arrays,
+            tick_array_bitmap_extension, tick_array_candidates, PROGRAM_ID,
         };
-        let state = fetch_pool(rpc, pool).await?;
+        let bitmap = tick_array_bitmap_extension(pool);
+        let accounts =
+            rpc.get_multiple_accounts(&[*pool, *input_mint, *output_mint, bitmap]).await?;
+        let pool_account = accounts[0]
+            .as_ref()
+            .filter(|account| account.owner == PROGRAM_ID)
+            .ok_or_else(|| anyhow!("{pool} is not a Raydium CLMM pool"))?;
+        let state = decode_pool_state(&pool_account.data)?;
         let zero_for_one = if input_mint == &state.token_mint_0 && output_mint == &state.token_mint_1
         {
             true
@@ -79,31 +97,31 @@ impl RaydiumClmmParams {
         } else {
             anyhow::bail!("CLMM swap mints do not match pool");
         };
-        let tick_arrays = resolve_tick_arrays_for_swap(
-            rpc,
-            pool,
-            state.tick_current,
-            state.tick_spacing,
-            zero_for_one,
-        )
-        .await?;
-        let mint_accounts =
-            rpc.get_multiple_accounts(&[state.token_mint_0, state.token_mint_1]).await?;
-        let token_0_program = mint_accounts
-            .first()
-            .and_then(|a| a.as_ref())
-            .map(|a| a.owner)
-            .ok_or_else(|| anyhow::anyhow!("token0 mint missing"))?;
-        let token_1_program = mint_accounts
-            .get(1)
-            .and_then(|a| a.as_ref())
-            .map(|a| a.owner)
-            .ok_or_else(|| anyhow::anyhow!("token1 mint missing"))?;
-        let bitmap = tick_array_bitmap_extension(pool);
-        let bitmap_extension = match rpc.get_account(&bitmap).await {
-            Ok(_) => Some(bitmap),
-            Err(_) => None,
+        let program = |index: usize| {
+            accounts[index]
+                .as_ref()
+                .map(|account| account.owner)
+                .ok_or_else(|| anyhow!("CLMM mint account missing"))
         };
+        let (input_program, output_program) = (program(1)?, program(2)?);
+        let (token_0_program, token_1_program) = if zero_for_one {
+            (input_program, output_program)
+        } else {
+            (output_program, input_program)
+        };
+        let bitmap_extension = accounts[3].as_ref().map(|_| bitmap);
+
+        let candidates =
+            tick_array_candidates(pool, state.tick_current, state.tick_spacing, zero_for_one);
+        let mut keys = candidates.clone();
+        keys.push(state.amm_config);
+        let mut found = rpc.get_multiple_accounts(&keys).await?;
+        let config = found
+            .pop()
+            .flatten()
+            .ok_or_else(|| anyhow!("CLMM AmmConfig {} missing", state.amm_config))?;
+        let tick_arrays = initialized_tick_arrays(candidates, &found)?;
+        let spot = state.spot(decode_amm_config_trade_fee_rate(&config.data)?);
         Ok(Self {
             amm_config: state.amm_config,
             pool_state: *pool,
@@ -117,6 +135,7 @@ impl RaydiumClmmParams {
             tick_arrays,
             tick_array_bitmap_extension: bitmap_extension,
             sqrt_price_limit_x64: 0,
+            spot: Some(spot),
         })
     }
 }

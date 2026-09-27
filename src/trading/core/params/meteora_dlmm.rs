@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use solana_sdk::pubkey::Pubkey;
 
+use super::HopSpot;
 use crate::common::SolanaRpcClient;
 
 /// Meteora DLMM `swap2` parameters (exact-in).
@@ -16,6 +17,8 @@ pub struct MeteoraDlmmParams {
     pub token_x_program: Pubkey,
     pub token_y_program: Pubkey,
     pub bin_arrays: Vec<Pubkey>,
+    /// Spot price and fee when loaded; quotes a swap through the pool.
+    pub spot: Option<HopSpot>,
 }
 
 impl MeteoraDlmmParams {
@@ -41,7 +44,13 @@ impl MeteoraDlmmParams {
             token_x_program,
             token_y_program,
             bin_arrays,
+            spot: None,
         }
+    }
+
+    pub fn with_spot(mut self, spot: HopSpot) -> Self {
+        self.spot = Some(spot);
+        self
     }
 
     pub fn with_bitmap_extension(mut self, ext: Pubkey) -> Self {
@@ -49,7 +58,8 @@ impl MeteoraDlmmParams {
         self
     }
 
-    /// Load LbPair + bin arrays for `input_mint → output_mint`.
+    /// Pair accounts, spot price and the bin arrays of an `input_mint →
+    /// output_mint` swap, in two RPC round trips.
     pub async fn from_pool_address_by_rpc(
         rpc: &SolanaRpcClient,
         lb_pair: &Pubkey,
@@ -57,10 +67,16 @@ impl MeteoraDlmmParams {
         output_mint: &Pubkey,
     ) -> Result<Self> {
         use crate::instruction::utils::meteora_dlmm::{
-            fetch_lb_pair, maybe_bitmap_extension, resolve_bin_arrays_for_swap,
+            bitmap_extension_pda, decode_lb_pair, resolve_bin_arrays_for_swap, PROGRAM_ID,
         };
-        let state = fetch_lb_pair(rpc, lb_pair).await?;
-        // swap_for_y = true when selling X for Y.
+        let bitmap = bitmap_extension_pda(lb_pair);
+        let accounts =
+            rpc.get_multiple_accounts(&[*lb_pair, *input_mint, *output_mint, bitmap]).await?;
+        let pair = accounts[0]
+            .as_ref()
+            .filter(|account| account.owner == PROGRAM_ID)
+            .ok_or_else(|| anyhow!("{lb_pair} is not a Meteora DLMM pair"))?;
+        let state = decode_lb_pair(&pair.data)?;
         let swap_for_y =
             if input_mint == &state.token_x_mint && output_mint == &state.token_y_mint {
                 true
@@ -69,23 +85,23 @@ impl MeteoraDlmmParams {
             } else {
                 anyhow::bail!("DLMM swap mints do not match pool");
             };
+        let program = |index: usize| {
+            accounts[index]
+                .as_ref()
+                .map(|account| account.owner)
+                .ok_or_else(|| anyhow!("DLMM mint account missing"))
+        };
+        let (input_program, output_program) = (program(1)?, program(2)?);
+        let (token_x_program, token_y_program) = if swap_for_y {
+            (input_program, output_program)
+        } else {
+            (output_program, input_program)
+        };
         let bin_arrays =
             resolve_bin_arrays_for_swap(rpc, lb_pair, state.active_id, swap_for_y).await?;
-        let mint_accounts =
-            rpc.get_multiple_accounts(&[state.token_x_mint, state.token_y_mint]).await?;
-        let token_x_program = mint_accounts
-            .first()
-            .and_then(|a| a.as_ref())
-            .map(|a| a.owner)
-            .ok_or_else(|| anyhow::anyhow!("token_x mint missing"))?;
-        let token_y_program = mint_accounts
-            .get(1)
-            .and_then(|a| a.as_ref())
-            .map(|a| a.owner)
-            .ok_or_else(|| anyhow::anyhow!("token_y mint missing"))?;
         Ok(Self {
             lb_pair: *lb_pair,
-            bitmap_extension: maybe_bitmap_extension(rpc, lb_pair).await,
+            bitmap_extension: accounts[3].as_ref().map(|_| bitmap),
             reserve_x: state.reserve_x,
             reserve_y: state.reserve_y,
             token_x_mint: state.token_x_mint,
@@ -94,6 +110,7 @@ impl MeteoraDlmmParams {
             token_x_program,
             token_y_program,
             bin_arrays,
+            spot: Some(state.spot()),
         })
     }
 }

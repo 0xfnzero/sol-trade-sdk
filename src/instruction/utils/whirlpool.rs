@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use solana_sdk::{pubkey, pubkey::Pubkey};
 
 use crate::common::SolanaRpcClient;
+use crate::trading::core::params::HopSpot;
 
 pub const PROGRAM_ID: Pubkey = pubkey!("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc");
 pub const MEMO_PROGRAM: Pubkey = pubkey!("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
@@ -21,11 +22,23 @@ pub const TICK_ARRAY_SIZE: i32 = 88;
 #[derive(Clone, Debug)]
 pub struct WhirlpoolState {
     pub tick_spacing: u16,
+    /// Fee in hundredths of a basis point.
+    pub fee_rate: u16,
+    pub liquidity: u128,
+    /// Q64.64 square root of the B-per-A price.
+    pub sqrt_price: u128,
     pub tick_current_index: i32,
     pub token_mint_a: Pubkey,
     pub token_vault_a: Pubkey,
     pub token_mint_b: Pubkey,
     pub token_vault_b: Pubkey,
+}
+
+impl WhirlpoolState {
+    /// Spot price (B per A) and fee of the pool.
+    pub fn spot(&self) -> HopSpot {
+        HopSpot::from_sqrt_price_x64(self.sqrt_price, f64::from(self.fee_rate) / 1_000_000.0)
+    }
 }
 
 #[inline]
@@ -75,6 +88,9 @@ pub fn decode_whirlpool(data: &[u8]) -> Result<WhirlpoolState> {
     }
     let body = &data[8..];
     let tick_spacing = u16::from_le_bytes(body[33..35].try_into().unwrap());
+    let fee_rate = u16::from_le_bytes(body[37..39].try_into().unwrap());
+    let liquidity = u128::from_le_bytes(body[41..57].try_into().unwrap());
+    let sqrt_price = u128::from_le_bytes(body[57..73].try_into().unwrap());
     let tick_current_index = i32::from_le_bytes(body[73..77].try_into().unwrap());
     let token_mint_a = Pubkey::new_from_array(body[93..125].try_into().unwrap());
     let token_vault_a = Pubkey::new_from_array(body[125..157].try_into().unwrap());
@@ -82,6 +98,9 @@ pub fn decode_whirlpool(data: &[u8]) -> Result<WhirlpoolState> {
     let token_vault_b = Pubkey::new_from_array(body[205..237].try_into().unwrap());
     Ok(WhirlpoolState {
         tick_spacing,
+        fee_rate,
+        liquidity,
+        sqrt_price,
         tick_current_index,
         token_mint_a,
         token_vault_a,

@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use solana_sdk::{pubkey, pubkey::Pubkey};
 
 use crate::common::SolanaRpcClient;
+use crate::trading::core::params::HopSpot;
 
 pub const PROGRAM_ID: Pubkey = pubkey!("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK");
 pub const MEMO_PROGRAM: Pubkey = pubkey!("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
@@ -22,7 +23,26 @@ pub struct ClmmPoolState {
     pub token_vault_1: Pubkey,
     pub observation_key: Pubkey,
     pub tick_spacing: u16,
+    pub liquidity: u128,
+    /// Q64.64 square root of the token-1-per-token-0 price.
+    pub sqrt_price_x64: u128,
     pub tick_current: i32,
+}
+
+impl ClmmPoolState {
+    /// Spot price (token 1 per token 0) at the AMM config's `trade_fee_rate`.
+    pub fn spot(&self, trade_fee_rate: u32) -> HopSpot {
+        HopSpot::from_sqrt_price_x64(self.sqrt_price_x64, f64::from(trade_fee_rate) / 1_000_000.0)
+    }
+}
+
+/// `trade_fee_rate` (millionths) of a Raydium CLMM `AmmConfig` account:
+/// discriminator, bump, index, owner, protocol fee rate, then the trade fee.
+pub fn decode_amm_config_trade_fee_rate(data: &[u8]) -> Result<u32> {
+    let bytes = data
+        .get(47..51)
+        .ok_or_else(|| anyhow!("Raydium CLMM AmmConfig account too short"))?;
+    Ok(u32::from_le_bytes(bytes.try_into().unwrap()))
 }
 
 /// PDA: `["pool_tick_array_bitmap_extension", pool_state]` under CLMM program.
@@ -78,6 +98,8 @@ pub fn decode_pool_state(data: &[u8]) -> Result<ClmmPoolState> {
     let token_vault_1 = Pubkey::new_from_array(body[161..193].try_into().unwrap());
     let observation_key = Pubkey::new_from_array(body[193..225].try_into().unwrap());
     let tick_spacing = u16::from_le_bytes(body[227..229].try_into().unwrap());
+    let liquidity = u128::from_le_bytes(body[229..245].try_into().unwrap());
+    let sqrt_price_x64 = u128::from_le_bytes(body[245..261].try_into().unwrap());
     let tick_current = i32::from_le_bytes(body[261..265].try_into().unwrap());
     Ok(ClmmPoolState {
         amm_config,
@@ -87,8 +109,44 @@ pub fn decode_pool_state(data: &[u8]) -> Result<ClmmPoolState> {
         token_vault_1,
         observation_key,
         tick_spacing,
+        liquidity,
+        sqrt_price_x64,
         tick_current,
     })
+}
+
+/// Tick-array PDAs from the current one on, in the swap's direction (price
+/// down, to lower indices, for `zero_for_one`).
+pub fn tick_array_candidates(
+    pool: &Pubkey,
+    tick_current: i32,
+    tick_spacing: u16,
+    zero_for_one: bool,
+) -> Vec<Pubkey> {
+    let start = get_array_start_index(tick_current, tick_spacing);
+    let step = tick_count(tick_spacing);
+    (0..5)
+        .map(|i| if zero_for_one { start - i * step } else { start + i * step })
+        .map(|start| tick_array_pda(pool, start))
+        .collect()
+}
+
+/// Up to three of `candidates` that exist, in order.
+pub fn initialized_tick_arrays(
+    candidates: Vec<Pubkey>,
+    accounts: &[Option<solana_sdk::account::Account>],
+) -> Result<Vec<Pubkey>> {
+    let out: Vec<Pubkey> = candidates
+        .into_iter()
+        .zip(accounts)
+        .filter(|(_, account)| account.is_some())
+        .map(|(pda, _)| pda)
+        .take(3)
+        .collect();
+    if out.is_empty() {
+        return Err(anyhow!("no initialized Raydium CLMM tick arrays near current tick"));
+    }
+    Ok(out)
 }
 
 /// Derive consecutive initialized tick-array PDAs for a `zero_for_one` swap.
@@ -99,29 +157,9 @@ pub async fn resolve_tick_arrays_for_swap(
     tick_spacing: u16,
     zero_for_one: bool,
 ) -> Result<Vec<Pubkey>> {
-    let start = get_array_start_index(tick_current, tick_spacing);
-    let step = tick_count(tick_spacing);
-    // Walk current + next arrays in swap direction (price down → lower indices).
-    let candidates: Vec<i32> = if zero_for_one {
-        (0..5).map(|i| start - i * step).collect()
-    } else {
-        (0..5).map(|i| start + i * step).collect()
-    };
-    let pdas: Vec<Pubkey> = candidates.iter().map(|s| tick_array_pda(pool, *s)).collect();
-    let accounts = rpc.get_multiple_accounts(&pdas).await?;
-    let mut out = Vec::new();
-    for (pda, acc) in pdas.into_iter().zip(accounts) {
-        if acc.is_some() {
-            out.push(pda);
-        }
-        if out.len() >= 3 {
-            break;
-        }
-    }
-    if out.is_empty() {
-        return Err(anyhow!("no initialized Raydium CLMM tick arrays near current tick"));
-    }
-    Ok(out)
+    let candidates = tick_array_candidates(pool, tick_current, tick_spacing, zero_for_one);
+    let accounts = rpc.get_multiple_accounts(&candidates).await?;
+    initialized_tick_arrays(candidates, &accounts)
 }
 
 pub async fn fetch_pool(rpc: &SolanaRpcClient, pool: &Pubkey) -> Result<ClmmPoolState> {
