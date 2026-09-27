@@ -131,6 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         transaction_version: sol_trade_sdk::common::TradeTransactionVersion::V0,
         grpc_recv_us: None,
         use_exact_sol_amount: None,
+        precheck: None,
     };
 
     let business = StonkFunInstructionBuilder.build_buy_instructions(&params).await?;

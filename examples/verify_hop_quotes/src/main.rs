@@ -380,9 +380,9 @@ async fn check_clmm_pool(
             )
             .await;
             let label = match outcome {
-                Ok(Check::Match { quoted, arrays, limit_order_ticks }) => {
+                Ok(Check::Match { quoted, arrays, limit_order_ticks, cu }) => {
                     println!(
-                        "  zero_for_one={zero_for_one} in={amount}: MATCH out={quoted} arrays={arrays} limit_order_ticks={limit_order_ticks}"
+                        "  zero_for_one={zero_for_one} in={amount}: MATCH out={quoted} arrays={arrays} limit_order_ticks={limit_order_ticks} cu={cu:?}"
                     );
                     if limit_order_ticks > 0 {
                         "match with limit orders"
@@ -497,12 +497,29 @@ struct SwapSide {
 }
 
 enum Check {
-    Match { quoted: u64, arrays: usize, limit_order_ticks: usize },
+    Match { quoted: u64, arrays: usize, limit_order_ticks: usize, cu: Option<u64> },
     Mismatch { quoted: u64, simulated: u64 },
     BothRejected { quote: String, simulation: String },
     OnlyQuoteRejected { quote: String, simulated: u64 },
     OnlyProgramRejected { quoted: u64, simulation: String },
     Unsettled,
+}
+
+/// Compute units the swap program's own invocation consumed, its CPIs
+/// included, from the simulation's logs.
+fn swap_units(logs: &Option<Vec<String>>) -> Option<u64> {
+    const SWAP_PROGRAMS: [&str; 3] = [
+        "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+        "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+        "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    ];
+    logs.as_ref()?.iter().find_map(|log| {
+        let (program, rest) = log.strip_prefix("Program ")?.split_once(' ')?;
+        if !SWAP_PROGRAMS.contains(&program) {
+            return None;
+        }
+        rest.strip_prefix("consumed ")?.split_whitespace().next()?.parse().ok()
+    })
 }
 
 /// Writes a matched case as a fixture: the raw accounts the quote read, the
@@ -756,6 +773,7 @@ async fn check_clmm_swap(
                         quoted,
                         arrays: q.tick_array_start_indexes.len(),
                         limit_order_ticks: q.limit_order_ticks,
+                        cu: swap_units(&simulation.value.logs),
                     }
                 } else {
                     Check::Mismatch { quoted, simulated }
@@ -999,8 +1017,8 @@ async fn check_simple_pool(
             )
             .await
             {
-                Ok(Check::Match { quoted, .. }) => {
-                    println!("  input={input} in={amount}: MATCH out={quoted}");
+                Ok(Check::Match { quoted, cu, .. }) => {
+                    println!("  input={input} in={amount}: MATCH out={quoted} cu={cu:?}");
                     "match"
                 }
                 Ok(Check::Mismatch { quoted, simulated }) => {
@@ -1155,9 +1173,12 @@ async fn check_simple_swap(
             }
         }
         return Ok(match (quote, simulated) {
-            (Ok(quoted), Ok(simulated)) if quoted == simulated => {
-                Check::Match { quoted, arrays: 0, limit_order_ticks: 0 }
-            }
+            (Ok(quoted), Ok(simulated)) if quoted == simulated => Check::Match {
+                quoted,
+                arrays: 0,
+                limit_order_ticks: 0,
+                cu: swap_units(&simulation.value.logs),
+            },
             (Ok(quoted), Ok(simulated)) => Check::Mismatch { quoted, simulated },
             (Err(quote), Err(simulation)) => Check::BothRejected { quote, simulation },
             (Err(quote), Ok(simulated)) => Check::OnlyQuoteRejected { quote, simulated },
