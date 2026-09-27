@@ -11,10 +11,14 @@ use std::sync::Arc;
 
 use super::bonk::BonkParams;
 use super::meteora_damm_v2::MeteoraDammV2Params;
+use super::meteora_dlmm::MeteoraDlmmParams;
 use super::pumpfun::PumpFunParams;
 use super::pumpswap::PumpSwapParams;
 use super::raydium_amm_v4::RaydiumAmmV4Params;
+use super::raydium_clmm::RaydiumClmmParams;
 use super::raydium_cpmm::RaydiumCpmmParams;
+use super::stonkfun_via_sol::StonkFunViaSolParams;
+use super::whirlpool::WhirlpoolParams;
 
 /// Concurrency + core binding config for parallel submit (precomputed at SDK init, one param on hot path). Uses Arc so no borrow of SwapParams.
 #[derive(Clone)]
@@ -34,9 +38,16 @@ pub enum DexParamEnum {
     StonkFun(BonkParams),
     /// Graduated StonkFun pool parameters backed by the external CPMM venue.
     StonkFunSwap(RaydiumCpmmParams),
+    /// SOL ↔ quote ↔ meme two-hop for wallets that do not hold the StonkFun quote.
+    ///
+    /// Works for both the LaunchLab curve and graduated CPMM meme legs.
+    StonkFunViaSol(StonkFunViaSolParams),
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
     MeteoraDammV2(MeteoraDammV2Params),
+    RaydiumClmm(RaydiumClmmParams),
+    OrcaWhirlpool(WhirlpoolParams),
+    MeteoraDlmm(MeteoraDlmmParams),
 }
 
 impl DexParamEnum {
@@ -50,9 +61,13 @@ impl DexParamEnum {
             DexParamEnum::Bonk(p) => p,
             DexParamEnum::StonkFun(p) => p,
             DexParamEnum::StonkFunSwap(p) => p,
+            DexParamEnum::StonkFunViaSol(p) => p,
             DexParamEnum::RaydiumCpmm(p) => p,
             DexParamEnum::RaydiumAmmV4(p) => p,
             DexParamEnum::MeteoraDammV2(p) => p,
+            DexParamEnum::RaydiumClmm(p) => p,
+            DexParamEnum::OrcaWhirlpool(p) => p,
+            DexParamEnum::MeteoraDlmm(p) => p,
         }
     }
 }

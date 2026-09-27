@@ -6,6 +6,8 @@ pub mod fast_timing;
 pub mod gas_fee_strategy;
 pub mod global;
 pub mod keypair;
+#[cfg(test)]
+pub mod mainnet_sim;
 pub mod nonce_cache;
 pub mod sdk_log;
 pub mod seed;

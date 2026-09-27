@@ -6,5 +6,7 @@ pub mod trade_platform {
     pub const STONKFUN: &'static str = "stonkfun";
     pub const RAYDIUM_CPMM: &'static str = "raydium_cpmm";
     pub const RAYDIUM_CLMM: &'static str = "raydium_clmm";
+    pub const ORCA_WHIRLPOOL: &'static str = "orca_whirlpool";
+    pub const METEORA_DLMM: &'static str = "meteora_dlmm";
     pub const RAYDIUM_AMM_V4: &'static str = "raydium_amm_v4";
 }

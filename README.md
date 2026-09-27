@@ -3,6 +3,15 @@
     <h3><em>A comprehensive Rust SDK for seamless Solana DEX trading</em></h3>
 </div>
 
+## Concentrated-liquidity instruction builders
+
+`instruction::{raydium_clmm, whirlpool, meteora_dlmm}` provides zero-RPC
+builders for Raydium CLMM `swap_v2`, Orca Whirlpool `swap_v2`, and Meteora DLMM
+`swap2`. Callers supply all pool and tick/bin-array accounts from streamer
+snapshots. These low-level builders are not yet wired into `DexType`/the trading
+factory because that path currently assumes protocol-specific RPC-backed
+parameter decoding.
+
 <p align="center">
     <strong>A high-performance Rust SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
 </p>
@@ -88,15 +97,44 @@ This SDK is available in multiple languages:
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "5.0.4"`
+**Rust crate:** `sol-trade-sdk = "5.0.5"`
 
-This release adds first-class shared-program trading through `DexType::LaunchLab`, `DexParamEnum::LaunchLab`, and `LaunchLabParams`, plus platform-specific StonkFun names through `DexType::StonkFun`, `DexParamEnum::StonkFun`, and `StonkFunParams`. It supports dynamic quote mints and token programs, reads current LaunchLab pool and fee configuration by RPC, and builds the current 18-account buy/sell instruction layout. The same `DexType::StonkFun` routes graduated pools when paired with `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams`: arbitrary token pairs, mixed SPL Token/Token-2022 programs, current AmmConfig and creator fees, transfer fees, vault balances, and both swap directions are resolved from mainnet state. Buy quotes also reduce the submitted input at the curve graduation boundary, matching the official LaunchLab SDK. Existing Bonk and `RaydiumCpmm` names remain available for compatibility and direct underlying-protocol access.
+This release adds first-class shared-program trading through `DexType::LaunchLab`, `DexParamEnum::LaunchLab`, and `LaunchLabParams`, plus platform-specific StonkFun names through `DexType::StonkFun`, `DexParamEnum::StonkFun`, and `StonkFunParams`. It supports dynamic quote mints and token programs, reads current LaunchLab pool and fee configuration by RPC, and builds the current 18-account buy/sell instruction layout. The same `DexType::StonkFun` routes graduated pools when paired with `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams`: arbitrary token pairs, mixed SPL Token/Token-2022 programs, current AmmConfig and creator fees, transfer fees, vault balances, and both swap directions are resolved from mainnet state. Buy quotes also reduce the submitted input at the curve graduation boundary, matching the official LaunchLab SDK. For wallets that only hold SOL, `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` builds an atomic `SOL ↔ quote ↔ meme` two-hop for both the LaunchLab curve and graduated CPMM legs; the SOL↔quote hop currently supports Raydium CPMM and AMM v4. Existing Bonk and `RaydiumCpmm` names remain available for compatibility and direct underlying-protocol access.
 
 The gated mainnet regressions use a current StonkFun reward pool and the graduated KNOTS/STONK CPMM pool. Run them without submitting a transaction:
 
 ```bash
-RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_reward_pool_decodes_and_builds_both_trade_directions -- --nocapture
-RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_graduated_pool_decodes_and_builds_both_swap_directions -- --nocapture
+# All mainnet simulate suites (ViaSol / direct StonkFun / Raydium CPMM)
+# Prefer a private RPC — public mainnet endpoints rate-limit under this suite.
+SOLANA_RPC_URL=... RUN_MAINNET_TESTS=1 cargo test --lib mainnet -- --nocapture --test-threads=1
+
+# Optional live PumpFun bonding-curve buy:
+PUMPFUN_MINT=<mint> RUN_MAINNET_TESTS=1 cargo test --lib pumpfun_mainnet -- --nocapture
+```
+
+Tests create an ephemeral `Keypair::new()` wallet and virtually fund it inside `simulateTransaction(sigVerify=false)` from a high-balance mainnet account. No `PRIVATE_KEY` and no on-chain submit. Shared helpers live in `src/common/mainnet_sim.rs` (retry + soft-skip on transient RPC errors).
+
+Coverage:
+
+| Suite | Paths |
+|---|---|
+| `stonkfun_via_sol_mainnet` | graduated buy, curve buy, buy+sell, HotPathMinimal, wider slip, close-WSOL sell |
+| `stonkfun_mainnet` | direct curve quote↔meme, graduated StonkFunSwap, roundtrips, Bonk/LaunchLab aliases |
+| `raydium_cpmm_mainnet` | WSOL↔STONK, WSOL↔CARDS, graduated KNOTS/STONK, exact-out (STONK+CARDS) |
+| `raydium_amm_v4_mainnet` | WSOL↔USDT buy/sell/roundtrip, WSOL→USDC buy/exact-out, seed-optimize |
+| `raydium_clmm_mainnet` | SOL↔USDC buy/roundtrip, reverse after hop, SOL↔USDT, larger+wide-slip |
+| `whirlpool_mainnet` | SOL→USDC buy/roundtrip, USDC→SOL after hop, SOL→USDT, USDT reverse |
+| `pumpswap_mainnet` | from_mint, canonical/seed buy+sell, close-WSOL, USDC combined, classic/tiny/seed-optimize |
+| `meteora_damm_v2_mainnet` | USDC meme hop, exact-out, sell build, SOL/USDC direct buy + reverse build |
+| `meteora_dlmm_mainnet` | SOL→USDC buy/roundtrip, reverse after hop, high-TVL alt both dirs |
+| `cross_dex_mainnet` | CLMM↔Whirlpool compose, AMM→DAMM/DLMM/CLMM, triangle AMM→Whirlpool, CLMM→PumpSwap |
+| `pumpfun_mainnet` | optional `PUMPFUN_MINT=...` bonding-curve buy + buy/sell |
+
+Example:
+
+```bash
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
 ```
 
 ## ✨ Features
@@ -104,7 +142,7 @@ RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_graduated_pool_decodes_and
 1. **PumpFun Trading**: Unified SDK-side `buy`, `sell`, and `buy_exact_quote_in` flow, preferring V1 for native SOL and selecting V2 for USDC/non-native quote mints or explicit WSOL settlement
 2. **PumpSwap Trading**: Support for PumpSwap pool trading operations
 3. **LaunchLab Trading**: First-class generic LaunchLab routing with Bonk compatibility names
-4. **StonkFun Trading**: First-class StonkFun routing over LaunchLab, plus graduated-pool swaps through CPMM, with arbitrary quote mints and Token-2022 support
+4. **StonkFun Trading**: First-class StonkFun routing over LaunchLab, plus graduated-pool swaps through CPMM, with arbitrary quote mints and Token-2022 support; when the wallet only holds **SOL/WSOL**, use `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` for an atomic `SOL ↔ quote ↔ meme` two-hop without pre-holding stock quotes
 5. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
 6. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
 7. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
@@ -142,14 +180,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.4" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.5" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "5.0.4"
+sol-trade-sdk = "5.0.5"
 ```
 
 ## 🛠️ Usage Examples
@@ -278,6 +316,54 @@ let buy_params = SimpleBuyParams::new(
 .account_policy(AccountPolicy::HotPathMinimal);
 ```
 
+#### 3b. StonkFun: buy meme with SOL / WSOL in one transaction
+
+Most StonkFun pools are priced in a stock quote (SPYx / NVDAx / STONK / CARDS, etc.). If the wallet only holds native SOL (or WSOL), you do **not** need to pre-buy the quote — use `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` for an atomic `SOL ↔ quote ↔ meme` two-hop in one transaction:
+
+```rust
+use sol_trade_sdk::{
+    BuyAmount, SellAmount, SimpleBuyParams, SimpleSellParams, StonkFunViaSolParams,
+};
+
+// Inner curve: curve params + a WSOL/stock-quote CPMM (or AMM v4) hop
+let via = StonkFunViaSolParams::curve_with_cpmm(curve_params, wsol_stock_cpmm);
+// Graduated pool:
+// let via = StonkFunViaSolParams::graduated_with_cpmm(graduated_cpmm, wsol_stock_cpmm);
+
+// Spend 0.1 SOL and buy the meme in one tx (wrap SOL→WSOL, swap to quote, then buy meme)
+let buy = SimpleBuyParams::stonkfun_with_sol(
+    meme_mint,
+    BuyAmount::ExactInput(100_000_000),
+    via.clone(),
+    recent_blockhash,
+    gas_fee_strategy.clone(),
+)
+.slippage_basis_points(300);
+
+client.buy_simple(buy).await?;
+
+// Sell meme and receive native SOL (WSOL is unwrapped at the end)
+let sell = SimpleSellParams::stonkfun_to_sol(
+    meme_mint,
+    SellAmount::ExactInput(token_amount),
+    via,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.slippage_basis_points(300);
+
+client.sell_simple(sell).await?;
+```
+
+Simulate without submitting:
+
+```bash
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
+```
+
+ATA policies (`Auto` / `HotPathMinimal`) are documented in the [Trading Parameters Reference](docs/TRADING_PARAMETERS.md#stonkfun-pay-with-sol-stock-quote-two-hop).
+
 #### 4. Execute Trading
 
 ```rust
@@ -338,6 +424,7 @@ The complete bilingual index and safety classification are available in [`exampl
 | Share infrastructure across wallets | `cargo run --package shared_infrastructure` | [README](examples/shared_infrastructure/README.md) |
 | PumpFun sniper | `cargo run --package pumpfun_sniper_trading` | [README](examples/pumpfun_sniper_trading/README.md) |
 | PumpFun copy trading | `cargo run --package pumpfun_copy_trading` | [README](examples/pumpfun_copy_trading/README.md) |
+| StonkFun buy/sell with SOL (simulate) | `cargo run -p stonkfun_via_sol_simulate` | [source](examples/stonkfun_via_sol_simulate/src/main.rs) |
 | PumpSwap low-latency stream | `cargo run --package pumpswap_trading` | [README](examples/pumpswap_trading/README.md) |
 | PumpSwap direct RPC flow | `cargo run --package pumpswap_direct_trading` | [README](examples/pumpswap_direct_trading/README.md) |
 | Raydium CPMM | `cargo run --package raydium_cpmm_trading` | [README](examples/raydium_cpmm_trading/README.md) |

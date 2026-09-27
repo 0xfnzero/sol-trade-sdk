@@ -186,6 +186,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
         let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
+        } else if let Some(recipient) = protocol_params.protocol_fee_recipient_override {
+            (recipient, AccountMeta::new_readonly(recipient, false))
         } else {
             let recipient = get_protocol_fee_recipient_random();
             (recipient, AccountMeta::new_readonly(recipient, false))
@@ -275,7 +277,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             accounts.push(AccountMeta::new_readonly(pool_v2, false));
         }
         // Trailing accounts: GlobalConfig.buyback_fee_recipients 中任 pubkey + quote ATA（与 pump-swap-sdk 静态池对齐；轮换时需查链上）。
-        let protocol_extra = get_protocol_extra_fee_recipient_random();
+        let protocol_extra = protocol_params
+            .protocol_extra_fee_recipient_override
+            .unwrap_or_else(get_protocol_extra_fee_recipient_random);
         accounts.push(AccountMeta::new_readonly(protocol_extra, false));
         accounts.push(AccountMeta::new(
             crate::instruction::utils::pumpswap::fee_recipient_ata(
@@ -428,6 +432,8 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
         let (fee_recipient, fee_recipient_meta) = if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
+        } else if let Some(recipient) = protocol_params.protocol_fee_recipient_override {
+            (recipient, AccountMeta::new_readonly(recipient, false))
         } else {
             let recipient = get_protocol_fee_recipient_random();
             (recipient, AccountMeta::new_readonly(recipient, false))
@@ -509,7 +515,9 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
             })?;
             accounts.push(AccountMeta::new_readonly(pool_v2, false));
         }
-        let protocol_extra = get_protocol_extra_fee_recipient_random();
+        let protocol_extra = protocol_params
+            .protocol_extra_fee_recipient_override
+            .unwrap_or_else(get_protocol_extra_fee_recipient_random);
         accounts.push(AccountMeta::new_readonly(protocol_extra, false));
         accounts.push(AccountMeta::new(
             crate::instruction::utils::pumpswap::fee_recipient_ata(

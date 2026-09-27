@@ -35,6 +35,10 @@ pub mod accounts {
 
 pub const SWAP_BASE_IN_DISCRIMINATOR: &[u8] = &[9];
 pub const SWAP_BASE_OUT_DISCRIMINATOR: &[u8] = &[11];
+/// `swapBaseInV2` — no OpenBook (instruction enum index 16).
+pub const SWAP_BASE_IN_V2_DISCRIMINATOR: &[u8] = &[16];
+/// `swapBaseOutV2` — no OpenBook (instruction enum index 17).
+pub const SWAP_BASE_OUT_V2_DISCRIMINATOR: &[u8] = &[17];
 
 pub async fn fetch_amm_info(rpc: &SolanaRpcClient, amm: Pubkey) -> Result<AmmInfo, anyhow::Error> {
     let amm_info = rpc.get_account_data(&amm).await?;

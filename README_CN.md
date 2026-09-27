@@ -88,15 +88,44 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "5.0.4"`
+**Rust crate:** `sol-trade-sdk = "5.0.5"`
 
-本版本新增共享程序的一等交易入口：`DexType::LaunchLab`、`DexParamEnum::LaunchLab` 与 `LaunchLabParams`，并通过 `DexType::StonkFun`、`DexParamEnum::StonkFun` 与 `StonkFunParams` 提供平台专用命名。同一个 `DexType::StonkFun` 搭配 `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams` 时会路由毕业后的外盘：从主网状态解析任意交易对、SPL Token/Token-2022 混合 token program、当前 AmmConfig、creator fee、transfer fee、vault 余额与两个 swap 方向。曲线买入在毕业边界还会按官方 LaunchLab SDK 反算并缩小实际输入。旧 Bonk 与 `RaydiumCpmm` 名称继续兼容，可用于直接访问底层协议。
+本版本新增共享程序的一等交易入口：`DexType::LaunchLab`、`DexParamEnum::LaunchLab` 与 `LaunchLabParams`，并通过 `DexType::StonkFun`、`DexParamEnum::StonkFun` 与 `StonkFunParams` 提供平台专用命名。同一个 `DexType::StonkFun` 搭配 `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams` 时会路由毕业后的外盘：从主网状态解析任意交易对、SPL Token/Token-2022 混合 token program、当前 AmmConfig、creator fee、transfer fee、vault 余额与两个 swap 方向。曲线买入在毕业边界还会按官方 LaunchLab SDK 反算并缩小实际输入。对只持有 SOL、未提前准备股票 quote 的钱包，可用 `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` 在同一笔交易内完成 `SOL ↔ quote ↔ meme` 两跳，内盘曲线与毕业外盘均支持；SOL↔quote 跳目前支持 Raydium CPMM 与 AMM v4。旧 Bonk 与 `RaydiumCpmm` 名称继续兼容，可用于直接访问底层协议。
 
-以下真实主网回归测试分别使用当前 StonkFun reward 内盘和毕业后的 KNOTS/STONK CPMM 池，仅解析和构造交易，不会提交交易：
+以下真实主网回归测试分别使用当前 StonkFun reward 内盘和毕业后的 KNOTS/STONK CPMM 池，仅模拟不上链：
 
 ```bash
-RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_reward_pool_decodes_and_builds_both_trade_directions -- --nocapture
-RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_graduated_pool_decodes_and_builds_both_swap_directions -- --nocapture
+# 全部主网 simulate 套件（ViaSol / 直买直卖 / Raydium CPMM 等）
+# 建议使用私有 RPC；公共节点在本套件下容易限流。
+SOLANA_RPC_URL=... RUN_MAINNET_TESTS=1 cargo test --lib mainnet -- --nocapture --test-threads=1
+
+# 可选：指定当前仍在内盘的 PumpFun mint
+PUMPFUN_MINT=<mint> RUN_MAINNET_TESTS=1 cargo test --lib pumpfun_mainnet -- --nocapture
+```
+
+测试会自动 `Keypair::new()` 创建临时钱包，并在 `simulateTransaction(sigVerify=false)` 内从主网大户账户虚拟转入 SOL，**无需 PRIVATE_KEY，也不会上链**。共享工具在 `src/common/mainnet_sim.rs`（含 RPC 重试；瞬时限流会 soft-skip）。
+
+覆盖：
+
+| 套件 | 路径 |
+|---|---|
+| `stonkfun_via_sol_mainnet` | 外盘买、内盘买、买卖往返、HotPathMinimal、更大滑点、卖出关 WSOL |
+| `stonkfun_mainnet` | 直连曲线、毕业 StonkFunSwap、往返、Bonk/LaunchLab 别名 |
+| `raydium_cpmm_mainnet` | WSOL↔STONK、WSOL↔CARDS、毕业 KNOTS/STONK、exact-out（STONK+CARDS） |
+| `raydium_amm_v4_mainnet` | WSOL↔USDT 买卖/往返、WSOL→USDC buy/exact-out、seed-optimize |
+| `raydium_clmm_mainnet` | SOL↔USDC buy/往返、hop 后反向、SOL↔USDT、大额宽滑点 |
+| `whirlpool_mainnet` | SOL→USDC buy/往返、hop 后 USDC→SOL、SOL→USDT、USDT 反向 |
+| `pumpswap_mainnet` | from_mint、主池/seed 买+卖、close-WSOL、USDC 合笔、classic/tiny/seed-optimize |
+| `meteora_damm_v2_mainnet` | USDC meme hop、exact-out、sell build、SOL/USDC 直买+双向 build |
+| `meteora_dlmm_mainnet` | SOL→USDC buy/往返、hop 后反向、高 TVL 备用池双向 |
+| `cross_dex_mainnet` | CLMM↔Whirlpool 组合、AMM→DAMM/DLMM/CLMM、三角 AMM→Whirlpool、CLMM→PumpSwap |
+| `pumpfun_mainnet` | 可选 `PUMPFUN_MINT=...` 内盘买、买卖往返 |
+
+示例：
+
+```bash
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
 ```
 
 ## ✨ 项目特性
@@ -104,7 +133,7 @@ RUN_MAINNET_TESTS=1 cargo test --lib current_stonkfun_graduated_pool_decodes_and
 1. **PumpFun 交易**: SDK 侧统一为 `buy`、`sell`、`buy_exact_quote_in` 流程，native SOL 优先走 V1，USDC/非 SOL quote 或显式 WSOL 结算才走 V2
 2. **PumpSwap 交易**: 支持 PumpSwap 池的交易操作
 3. **LaunchLab 交易**: 提供一等通用 LaunchLab 路由，并保留 Bonk 兼容名称
-4. **StonkFun 交易**: 基于 LaunchLab 提供独立 StonkFun 路由，并通过 CPMM 支持毕业后的外盘 swap，支持任意 quote mint 与 Token-2022
+4. **StonkFun 交易**: 基于 LaunchLab 提供独立 StonkFun 路由，并通过 CPMM 支持毕业后的外盘 swap，支持任意 quote mint 与 Token-2022；**钱包只需 SOL/WSOL** 时，用 `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` 即可一键完成 `SOL ↔ quote ↔ meme` 两跳，无需预持股票代币
 5. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 6. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
 7. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
@@ -142,14 +171,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.4" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.5" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "5.0.4"
+sol-trade-sdk = "5.0.5"
 ```
 
 ## 🛠️ 使用示例
@@ -274,6 +303,54 @@ let buy_params = SimpleBuyParams::new(
 .account_policy(AccountPolicy::HotPathMinimal);
 ```
 
+#### 3b. StonkFun：只用 SOL / WSOL 一步买到 meme
+
+多数 StonkFun 池以股票代币（SPYx / NVDAx / STONK / CARDS 等）计价。钱包只有原生 SOL（或 WSOL）时，不必先换 quote，再用 `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` 在**同一笔交易**内完成 `SOL ↔ quote ↔ meme`：
+
+```rust
+use sol_trade_sdk::{
+    BuyAmount, SellAmount, SimpleBuyParams, SimpleSellParams, StonkFunViaSolParams,
+};
+
+// 内盘曲线：curve_params + WSOL/股票 quote 的 CPMM（或 AMM v4）hop
+let via = StonkFunViaSolParams::curve_with_cpmm(curve_params, wsol_stock_cpmm);
+// 外盘毕业池：
+// let via = StonkFunViaSolParams::graduated_with_cpmm(graduated_cpmm, wsol_stock_cpmm);
+
+// 花 0.1 SOL，一步买到 meme（SDK 内部 wrap SOL→WSOL、换 quote、再买 meme）
+let buy = SimpleBuyParams::stonkfun_with_sol(
+    meme_mint,
+    BuyAmount::ExactInput(100_000_000),
+    via.clone(),
+    recent_blockhash,
+    gas_fee_strategy.clone(),
+)
+.slippage_basis_points(300);
+
+client.buy_simple(buy).await?;
+
+// 卖出 meme，一步收回原生 SOL（结束时 unwrap WSOL）
+let sell = SimpleSellParams::stonkfun_to_sol(
+    meme_mint,
+    SellAmount::ExactInput(token_amount),
+    via,
+    recent_blockhash,
+    gas_fee_strategy,
+)
+.slippage_basis_points(300);
+
+client.sell_simple(sell).await?;
+```
+
+可跑模拟示例（不上链）：
+
+```bash
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate
+RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
+```
+
+更细的 ATA 策略（`Auto` / `HotPathMinimal`）见 [交易参数参考手册](docs/TRADING_PARAMETERS_CN.md#stonkfun-用-sol-买卖股票-quote-两跳)。
+
 #### 4. 执行交易
 
 ```rust
@@ -334,6 +411,7 @@ client.buy_simple(buy_params).await?;
 | 多钱包共享基础设施 | `cargo run --package shared_infrastructure` | [README](examples/shared_infrastructure/README_CN.md) |
 | PumpFun 狙击 | `cargo run --package pumpfun_sniper_trading` | [README](examples/pumpfun_sniper_trading/README_CN.md) |
 | PumpFun 跟单 | `cargo run --package pumpfun_copy_trading` | [README](examples/pumpfun_copy_trading/README_CN.md) |
+| StonkFun 用 SOL 一步买卖（模拟） | `cargo run -p stonkfun_via_sol_simulate` | [源码](examples/stonkfun_via_sol_simulate/src/main.rs) |
 | PumpSwap 低延迟事件流 | `cargo run --package pumpswap_trading` | [README](examples/pumpswap_trading/README_CN.md) |
 | PumpSwap 直接 RPC 流程 | `cargo run --package pumpswap_direct_trading` | [README](examples/pumpswap_direct_trading/README_CN.md) |
 | Raydium CPMM | `cargo run --package raydium_cpmm_trading` | [README](examples/raydium_cpmm_trading/README_CN.md) |

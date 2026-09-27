@@ -118,9 +118,13 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         }
 
         // Create buy instruction
+        //
+        // cp-amm swap2 (pinocchio path) always expects a fixed referral slot.
+        // When there is no referral, Anchor/optional encoding uses the program
+        // id as the None placeholder; omitting it shifts event_authority and
+        // triggers ConstraintSeeds (2006).
         let mut account_metas = Vec::with_capacity(
-            13 + usize::from(protocol_params.referral_token_account.is_some())
-                + usize::from(protocol_params.include_rate_limiter_sysvar),
+            14 + usize::from(protocol_params.include_rate_limiter_sysvar),
         );
         account_metas.extend([
             accounts::AUTHORITY_META,                      // Pool Authority (readonly)
@@ -131,14 +135,13 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             AccountMeta::new(protocol_params.token_b_vault, false), // Token B Vault
             AccountMeta::new_readonly(protocol_params.token_a_mint, false), // Token A Mint (readonly)
             AccountMeta::new_readonly(protocol_params.token_b_mint, false), // Token B Mint (readonly)
-            AccountMeta::new(params.payer.pubkey(), true), // User Transfer Authority
+            AccountMeta::new_readonly(params.payer.pubkey(), true), // User Transfer Authority (IDL: signer only)
             AccountMeta::new_readonly(protocol_params.token_a_program, false), // Token Program (readonly)
             AccountMeta::new_readonly(protocol_params.token_b_program, false), // Token Program (readonly)
-        ]);
-        if let Some(referral_token_account) = protocol_params.referral_token_account {
-            account_metas.push(AccountMeta::new(referral_token_account, false));
-        }
-        account_metas.extend([
+            match protocol_params.referral_token_account {
+                Some(referral) => AccountMeta::new(referral, false),
+                None => accounts::METEORA_DAMM_V2_META,
+            },
             AccountMeta::new_readonly(get_event_authority_pda(), false), // Event Authority (readonly)
             accounts::METEORA_DAMM_V2_META,                              // Program (readonly)
         ]);
@@ -247,10 +250,9 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             );
         }
 
-        // Create buy instruction
+        // Same fixed referral slot rule as buy (see comment there).
         let mut account_metas = Vec::with_capacity(
-            13 + usize::from(protocol_params.referral_token_account.is_some())
-                + usize::from(protocol_params.include_rate_limiter_sysvar),
+            14 + usize::from(protocol_params.include_rate_limiter_sysvar),
         );
         account_metas.extend([
             accounts::AUTHORITY_META,                      // Pool Authority (readonly)
@@ -261,14 +263,13 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             AccountMeta::new(protocol_params.token_b_vault, false), // Token B Vault
             AccountMeta::new_readonly(protocol_params.token_a_mint, false), // Token A Mint (readonly)
             AccountMeta::new_readonly(protocol_params.token_b_mint, false), // Token B Mint (readonly)
-            AccountMeta::new(params.payer.pubkey(), true), // User Transfer Authority
+            AccountMeta::new_readonly(params.payer.pubkey(), true), // User Transfer Authority (IDL: signer only)
             AccountMeta::new_readonly(protocol_params.token_a_program, false), // Token Program (readonly)
             AccountMeta::new_readonly(protocol_params.token_b_program, false), // Token Program (readonly)
-        ]);
-        if let Some(referral_token_account) = protocol_params.referral_token_account {
-            account_metas.push(AccountMeta::new(referral_token_account, false));
-        }
-        account_metas.extend([
+            match protocol_params.referral_token_account {
+                Some(referral) => AccountMeta::new(referral, false),
+                None => accounts::METEORA_DAMM_V2_META,
+            },
             AccountMeta::new_readonly(get_event_authority_pda(), false), // Event Authority (readonly)
             accounts::METEORA_DAMM_V2_META,                              // Program (readonly)
         ]);
@@ -378,16 +379,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn meteora_omits_optional_referral_account() {
+    async fn meteora_uses_program_id_placeholder_when_referral_absent() {
         let instructions = MeteoraDammV2InstructionBuilder
             .build_buy_instructions(&swap_params(meteora_params(None)))
             .await
             .unwrap();
         let ix = instructions.last().unwrap();
 
-        assert_eq!(ix.accounts.len(), 13);
-        assert_eq!(ix.accounts[11].pubkey, get_event_authority_pda());
-        assert_eq!(ix.accounts[12].pubkey, accounts::METEORA_DAMM_V2);
+        assert_eq!(ix.accounts.len(), 14);
+        assert_eq!(ix.accounts[11].pubkey, accounts::METEORA_DAMM_V2);
+        assert!(!ix.accounts[11].is_writable);
+        assert_eq!(ix.accounts[12].pubkey, get_event_authority_pda());
+        assert_eq!(ix.accounts[13].pubkey, accounts::METEORA_DAMM_V2);
         assert_eq!(&ix.data[..8], SWAP2_DISCRIMINATOR);
         assert_eq!(ix.data[24], SWAP_MODE_PARTIAL_FILL);
     }
@@ -417,10 +420,11 @@ mod tests {
             .unwrap();
         let ix = instructions.last().unwrap();
 
-        assert_eq!(ix.accounts.len(), 14);
-        assert_eq!(ix.accounts[11].pubkey, get_event_authority_pda());
-        assert_eq!(ix.accounts[12].pubkey, accounts::METEORA_DAMM_V2);
-        assert_eq!(ix.accounts[13].pubkey, accounts::SYSVAR_INSTRUCTIONS);
+        assert_eq!(ix.accounts.len(), 15);
+        assert_eq!(ix.accounts[11].pubkey, accounts::METEORA_DAMM_V2);
+        assert_eq!(ix.accounts[12].pubkey, get_event_authority_pda());
+        assert_eq!(ix.accounts[13].pubkey, accounts::METEORA_DAMM_V2);
+        assert_eq!(ix.accounts[14].pubkey, accounts::SYSVAR_INSTRUCTIONS);
     }
 
     #[tokio::test]

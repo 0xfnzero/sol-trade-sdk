@@ -1,0 +1,15 @@
+[package]
+name = "stonkfun_via_sol_simulate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sol-trade-sdk = { path = "../.." }
+solana-sdk = { workspace = true }
+solana-commitment-config = { workspace = true }
+solana-client = "4.2.2"
+solana-message = "4.4.0"
+solana-compute-budget-interface = "3.0.0"
+solana-system-interface = { workspace = true }
+solana-transaction-status-client-types = "4.2.2"
+tokio = { version = "1", features = ["full"] }

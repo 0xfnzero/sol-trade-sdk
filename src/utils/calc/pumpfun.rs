@@ -45,12 +45,18 @@ pub fn get_buy_token_amount_from_sol_amount(
         .and_then(|v| v.checked_div(total_fee_basis_points_128 + 10_000))
         .unwrap_or(0);
 
-    let Some(denominator) = virtual_sol_reserves.checked_add(input_amount) else { return 0 };
+    // Official IDL `buy_exact_sol_in`: constant-product uses (net_sol - 1).
+    let curve_in = input_amount.saturating_sub(1);
+    if curve_in == 0 {
+        return 0;
+    }
+
+    let Some(denominator) = virtual_sol_reserves.checked_add(curve_in) else { return 0 };
     if denominator == 0 {
         return 0;
     }
 
-    let tokens_received = input_amount
+    let tokens_received = curve_in
         .checked_mul(virtual_token_reserves)
         .and_then(|v| v.checked_div(denominator))
         .unwrap_or(0)

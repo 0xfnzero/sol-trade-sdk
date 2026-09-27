@@ -11,7 +11,22 @@ use crate::common::{
 };
 use anyhow::anyhow;
 
-/// Get the balances of two tokens in the pool
+/// SPL Token account `amount` field (u64 LE at offset 64).
+const TOKEN_ACCOUNT_AMOUNT_OFFSET: usize = 64;
+const TOKEN_ACCOUNT_AMOUNT_END: usize = 72;
+
+fn token_account_amount(data: &[u8], label: &str) -> Result<u64, anyhow::Error> {
+    data.get(TOKEN_ACCOUNT_AMOUNT_OFFSET..TOKEN_ACCOUNT_AMOUNT_END)
+        .and_then(|bytes| bytes.try_into().ok())
+        .map(u64::from_le_bytes)
+        .ok_or_else(|| anyhow!("{label}: token account data too short for amount"))
+}
+
+/// Get the balances of two tokens in the pool.
+///
+/// Uses `getMultipleAccounts` + local SPL layout decode instead of
+/// `getTokenAccountBalance`, which some public RPCs (e.g. PublicNode/Allnodes)
+/// gate behind a personal token as an "indexed" method.
 ///
 /// # Returns
 /// Returns token0_balance, token1_balance
@@ -20,18 +35,21 @@ pub async fn get_multi_token_balances(
     token0_vault: &Pubkey,
     token1_vault: &Pubkey,
 ) -> Result<(u64, u64), anyhow::Error> {
-    let token0_balance = rpc.get_token_account_balance(&token0_vault).await?;
-    let token1_balance = rpc.get_token_account_balance(&token1_vault).await?;
-    // Parse balance string to u64
-    let token0_amount = token0_balance
-        .amount
-        .parse::<u64>()
-        .map_err(|e| anyhow!("Failed to parse token0 balance: {}", e))?;
-    let token1_amount = token1_balance
-        .amount
-        .parse::<u64>()
-        .map_err(|e| anyhow!("Failed to parse token1 balance: {}", e))?;
-    Ok((token0_amount, token1_amount))
+    let accounts = rpc.get_multiple_accounts(&[*token0_vault, *token1_vault]).await?;
+    let token0_data = accounts
+        .first()
+        .and_then(Option::as_ref)
+        .map(|a| a.data.as_slice())
+        .ok_or_else(|| anyhow!("token0 vault account not found: {token0_vault}"))?;
+    let token1_data = accounts
+        .get(1)
+        .and_then(Option::as_ref)
+        .map(|a| a.data.as_slice())
+        .ok_or_else(|| anyhow!("token1 vault account not found: {token1_vault}"))?;
+    Ok((
+        token_account_amount(token0_data, "token0")?,
+        token_account_amount(token1_data, "token1")?,
+    ))
 }
 
 #[inline]
@@ -58,10 +76,8 @@ pub async fn get_token_balance_with_options(
         token_program,
         use_seed,
     );
-    let balance = rpc.get_token_account_balance(&ata).await?;
-    let balance_u64 =
-        balance.amount.parse::<u64>().map_err(|_| anyhow!("Failed to parse token balance"))?;
-    Ok(balance_u64)
+    let account = rpc.get_account(&ata).await?;
+    token_account_amount(&account.data, "ata")
 }
 
 #[inline]

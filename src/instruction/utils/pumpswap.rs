@@ -157,11 +157,12 @@ pub mod accounts {
             is_writable: false,
         };
 
+    /// IDL `buy` / `buy_exact_quote_in` index 19: readonly.
     pub const GLOBAL_VOLUME_ACCUMULATOR_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: GLOBAL_VOLUME_ACCUMULATOR,
             is_signer: false,
-            is_writable: true,
+            is_writable: false,
         };
 
     pub const FEE_CONFIG_META: solana_sdk::instruction::AccountMeta =

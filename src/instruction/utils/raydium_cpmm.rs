@@ -125,26 +125,15 @@ pub async fn get_pool_token_balances(
 }
 
 /// Reads pool balances from the vault addresses stored in PoolState.
+///
+/// Prefer `getMultipleAccounts` over `getTokenAccountBalance` so public RPCs
+/// that gate indexed methods (PublicNode/Allnodes) still work.
 pub async fn get_pool_token_balances_from_vaults(
     rpc: &SolanaRpcClient,
     token0_vault: &Pubkey,
     token1_vault: &Pubkey,
 ) -> Result<(u64, u64), anyhow::Error> {
-    let token0_balance = rpc.get_token_account_balance(token0_vault).await?;
-    let token1_balance = rpc.get_token_account_balance(token1_vault).await?;
-
-    // Parse balance string to u64
-    let token0_amount = token0_balance
-        .amount
-        .parse::<u64>()
-        .map_err(|e| anyhow!("Failed to parse token0 balance: {}", e))?;
-
-    let token1_amount = token1_balance
-        .amount
-        .parse::<u64>()
-        .map_err(|e| anyhow!("Failed to parse token1 balance: {}", e))?;
-
-    Ok((token0_amount, token1_amount))
+    crate::trading::common::get_multi_token_balances(rpc, token0_vault, token1_vault).await
 }
 
 /// Calculate token price (token1/token0)

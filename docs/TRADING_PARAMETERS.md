@@ -69,10 +69,43 @@ Use `SimpleBuyParams` and `SimpleSellParams` for new integrations. They keep the
 
 | Variant | Behavior | Use when |
 |---------|----------|----------|
-| `Auto` | SDK creates practical ATAs when needed. Buy creates the target mint ATA; sell creates the output ATA for non-SOL outputs. | Normal apps and manual trading tools. |
+| `Auto` | SDK creates practical ATAs when needed. Buy creates the target mint ATA; sell creates the output ATA for non-SOL outputs. For `StonkFunViaSol`: buys also create and keep WSOL / stock-quote ATAs; sells to SOL unwrap WSOL back to native SOL while keeping the stock-quote ATA. | Normal apps and manual trading tools. |
 | `HotPathMinimal` | No ATA create/close instructions in the trade transaction. | Bots, sniping, arbitrage, and any path sensitive to transaction size. |
 | `CreateMissing` | Include ATA creation where possible. | Convenience matters more than smallest transaction size. |
 | `AssumePrepared` | Do not create or close token accounts; caller prepared everything. | Advanced deterministic flows. |
+
+### StonkFun pay-with-SOL (stock-quote two-hop)
+
+Many StonkFun pools are priced in a stock quote. When the wallet only holds SOL, use the first-class helpers instead of wiring both legs by hand:
+
+```rust
+use sol_trade_sdk::{
+    BuyAmount, SellAmount, SimpleBuyParams, SimpleSellParams, StonkFunViaSolParams,
+};
+
+// Inner curve
+let via = StonkFunViaSolParams::curve_with_cpmm(curve_params, wsol_stock_cpmm);
+// Or graduated: StonkFunViaSolParams::graduated_with_cpmm(graduated_cpmm, wsol_stock_cpmm);
+
+let buy = SimpleBuyParams::stonkfun_with_sol(
+    meme_mint,
+    BuyAmount::ExactInput(100_000_000), // 0.1 SOL
+    via.clone(),
+    recent_blockhash,
+    gas_fee_strategy.clone(),
+);
+
+let sell = SimpleSellParams::stonkfun_to_sol(
+    meme_mint,
+    SellAmount::ExactInput(token_amount),
+    via,
+    recent_blockhash,
+    gas_fee_strategy,
+);
+
+// Bot hot path: pre-create WSOL + common stock-quote ATAs, then:
+// buy.account_policy(AccountPolicy::HotPathMinimal)
+```
 
 ### Durable Nonce With Simple Params
 

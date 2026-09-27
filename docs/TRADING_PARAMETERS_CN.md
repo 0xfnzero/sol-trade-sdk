@@ -69,10 +69,43 @@
 
 | 枚举 | 行为 | 适用场景 |
 |------|------|----------|
-| `Auto` | SDK 按实际路径创建必要 ATA。买入会创建目标 token ATA；卖出接收非 SOL 时会创建输出 ATA。 | 普通应用、手动交易工具。 |
+| `Auto` | SDK 按实际路径创建必要 ATA。买入会创建目标 token ATA；卖出接收非 SOL 时会创建输出 ATA。对 `StonkFunViaSol`：买入还会创建并保留 WSOL/股票 quote ATA；卖出到 SOL 时会临时使用 WSOL 并在结束时 unwrap 回原生 SOL，股票 quote ATA 始终保留。 | 普通应用、手动交易工具。 |
 | `HotPathMinimal` | 交易内不创建/关闭 ATA。 | Bot、狙击、套利、对交易体积敏感的路径。 |
 | `CreateMissing` | 尽量在交易内创建缺失 ATA。 | 更重视方便，不追求最小交易体积。 |
 | `AssumePrepared` | 不创建也不关闭 token account，调用方保证都已准备好。 | 高级确定性流程。 |
+
+### StonkFun 用 SOL 买卖（股票 quote 两跳）
+
+很多 StonkFun 池以股票代币（SPYx / NVDAx / STONK 等）计价。钱包只有 SOL 时，用下面的一等入口即可，不必手写两腿 mint：
+
+```rust
+use sol_trade_sdk::{
+    BuyAmount, SellAmount, SimpleBuyParams, SimpleSellParams, StonkFunViaSolParams,
+};
+
+// 内盘曲线
+let via = StonkFunViaSolParams::curve_with_cpmm(curve_params, wsol_stock_cpmm);
+// 或外盘毕业池：StonkFunViaSolParams::graduated_with_cpmm(graduated_cpmm, wsol_stock_cpmm);
+
+let buy = SimpleBuyParams::stonkfun_with_sol(
+    meme_mint,
+    BuyAmount::ExactInput(100_000_000), // 0.1 SOL
+    via.clone(),
+    recent_blockhash,
+    gas_fee_strategy.clone(),
+);
+
+let sell = SimpleSellParams::stonkfun_to_sol(
+    meme_mint,
+    SellAmount::ExactInput(token_amount),
+    via,
+    recent_blockhash,
+    gas_fee_strategy,
+);
+
+// Bot 热路径：先预建 WSOL + 常用股票 quote ATA，再：
+// buy.account_policy(AccountPolicy::HotPathMinimal)
+```
 
 ### Simple 参数使用 Durable Nonce
 

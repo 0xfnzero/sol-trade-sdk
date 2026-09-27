@@ -468,16 +468,14 @@ mod tests {
 
     #[tokio::test]
     async fn current_stonkfun_reward_pool_decodes_and_builds_both_trade_directions() {
-        if std::env::var("RUN_MAINNET_TESTS").as_deref() != Ok("1") {
+        if !crate::common::mainnet_sim::enabled() {
             return;
         }
 
-        let rpc_url = std::env::var("SOLANA_RPC_URL")
-            .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_owned());
-        let rpc = crate::common::SolanaRpcClient::new(rpc_url);
-        let pool = solana_sdk::pubkey!("84XZdJNyBVVBqGe3BHY8n6x1jbcnxNWA5x4GetwQsjgp");
-        let base_mint = solana_sdk::pubkey!("BJ56gcrMNKDzVwjQXKToya9cAcMZvN9pz6ZzUejxQary");
-        let quote_mint = solana_sdk::pubkey!("CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp");
+        let rpc = crate::common::mainnet_sim::rpc_client();
+        let pool = crate::common::mainnet_sim::fixtures::CURVE_POOL;
+        let base_mint = crate::common::mainnet_sim::fixtures::CURVE_MEME;
+        let quote_mint = crate::common::mainnet_sim::fixtures::CURVE_QUOTE_CARDS;
         let protocol_params =
             crate::trading::core::params::StonkFunParams::from_pool_by_rpc(&rpc, &pool)
                 .await

@@ -331,6 +331,7 @@ fn build_buy_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
         accounts::FEE_PROGRAM_META,
     ];
     metas.push(AccountMeta::new_readonly(bonding_curve_v2, false));
+    // Official @pump-fun/pump-sdk@2.0.0: buybackFeeRecipient remaining is writable.
     metas.push(AccountMeta::new(get_protocol_extra_fee_recipient_random(), false));
 
     instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, buy_data.as_slice(), metas));
@@ -467,6 +468,7 @@ fn build_sell_legacy(params: &SwapParams) -> Result<Vec<Instruction>> {
     }
 
     metas.push(AccountMeta::new_readonly(bonding_curve_v2, false));
+    // Official @pump-fun/pump-sdk@2.0.0: buybackFeeRecipient remaining is writable.
     metas.push(AccountMeta::new(get_protocol_extra_fee_recipient_random(), false));
 
     instructions.push(Instruction::new_with_bytes(accounts::PUMPFUN, sell_data.as_slice(), metas));

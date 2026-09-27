@@ -15,3 +15,6 @@ pub use client::{
     PrecheckConfig, SellAmount, SimpleBuyParams, SimpleSellParams, SolanaTrade, TradeBuyParams,
     TradeRiskGate, TradeSellParams, TradeTokenType, TradingClient, TradingInfrastructure,
 };
+pub use trading::core::params::{
+    StonkFunMemeLeg, StonkFunSolHop, StonkFunViaSolParams, StonkFunParams, StonkFunSwapParams,
+};

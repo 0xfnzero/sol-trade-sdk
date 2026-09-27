@@ -156,11 +156,12 @@ pub mod accounts {
             is_writable: false,
         };
 
+    /// IDL `buy` / `buy_exact_sol_in` index 12: readonly.
     pub const GLOBAL_VOLUME_ACCUMULATOR_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: GLOBAL_VOLUME_ACCUMULATOR,
             is_signer: false,
-            is_writable: true,
+            is_writable: false,
         };
 
     pub const FEE_CONFIG_META: solana_sdk::instruction::AccountMeta =
@@ -201,6 +202,10 @@ pub fn is_mayhem_fee_recipient(pubkey: &Pubkey) -> bool {
     global_constants::MAYHEM_FEE_RECIPIENTS.contains(pubkey)
 }
 
+/// Historical name: these keys are **Normal Fee Recipients #1–7** in
+/// pump-public-docs `FEE_RECIPIENTS.md` (together with `FEE_RECIPIENT` = #0).
+/// They are valid for non-mayhem bonding-curve buy/sell — do NOT treat as
+/// PumpSwap-only / reject on bonding curve.
 #[inline]
 pub fn is_amm_fee_recipient(pubkey: &Pubkey) -> bool {
     pubkey == &global_constants::PUMPFUN_AMM_FEE_1
@@ -210,6 +215,11 @@ pub fn is_amm_fee_recipient(pubkey: &Pubkey) -> bool {
         || pubkey == &global_constants::PUMPFUN_AMM_FEE_5
         || pubkey == &global_constants::PUMPFUN_AMM_FEE_6
         || pubkey == &global_constants::PUMPFUN_AMM_FEE_7
+}
+
+#[inline]
+pub fn is_normal_fee_recipient(pubkey: &Pubkey) -> bool {
+    is_standard_bonding_fee_recipient(pubkey) || is_amm_fee_recipient(pubkey)
 }
 
 #[inline]
@@ -244,12 +254,13 @@ pub fn reconcile_mayhem_mode_for_trade(
 #[inline]
 pub fn fee_recipient_ok_for_bonding_curve_mode(pk: &Pubkey, is_mayhem_mode: bool) -> bool {
     let is_m = is_mayhem_fee_recipient(pk);
-    let is_amm = is_amm_fee_recipient(pk);
-    let is_s = is_standard_bonding_fee_recipient(pk);
+    let is_normal = is_normal_fee_recipient(pk);
     if is_mayhem_mode {
-        is_m || (!is_s && !is_amm && *pk != Pubkey::default())
+        // Mayhem: reserved pool, or unknown non-normal key (Global rotation).
+        is_m || (!is_normal && *pk != Pubkey::default())
     } else {
-        is_s || (!is_m && !is_amm && *pk != Pubkey::default())
+        // Official FEE_RECIPIENTS.md: Normal #0–7 are all valid for non-mayhem.
+        is_normal || (!is_m && *pk != Pubkey::default())
     }
 }
 
@@ -779,10 +790,11 @@ mod tests {
     }
 
     #[test]
-    fn pump_fee_meta_rejects_amm_fee_for_standard_ix() {
+    fn pump_fee_meta_accepts_normal_fee_pool_member_for_standard_ix() {
+        // Official FEE_RECIPIENTS.md Normal #7 — valid for non-mayhem bonding curve.
         let fee = global_constants::PUMPFUN_AMM_FEE_7;
         let m = pump_fun_fee_recipient_meta(fee, false);
-        assert_eq!(m.pubkey, global_constants::FEE_RECIPIENT);
+        assert_eq!(m.pubkey, fee);
         assert!(m.is_writable);
         assert!(!m.is_signer);
     }

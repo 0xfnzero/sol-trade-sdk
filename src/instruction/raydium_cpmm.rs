@@ -182,7 +182,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         // Create buy instruction
         let accounts: [AccountMeta; 13] = [
-            AccountMeta::new(params.payer.pubkey(), true), // Payer (signer)
+            AccountMeta::new_readonly(params.payer.pubkey(), true), // Payer (signer, IDL not writable)
             accounts::AUTHORITY_META,                      // Authority (readonly)
             AccountMeta::new_readonly(protocol_params.amm_config, false), // Amm Config (readonly)
             AccountMeta::new(context.pool_state, false),   // Pool State
@@ -278,7 +278,7 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         // Create sell instruction
         let accounts: [AccountMeta; 13] = [
-            AccountMeta::new(params.payer.pubkey(), true), // Payer (signer)
+            AccountMeta::new_readonly(params.payer.pubkey(), true), // Payer (signer, IDL not writable)
             accounts::AUTHORITY_META,                      // Authority (readonly)
             AccountMeta::new_readonly(protocol_params.amm_config, false), // Amm Config (readonly)
             AccountMeta::new(context.pool_state, false),   // Pool State
@@ -520,99 +520,77 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn current_stonkfun_graduated_pool_decodes_and_builds_both_swap_directions() {
-        if std::env::var("RUN_MAINNET_TESTS").as_deref() != Ok("1") {
+    async fn current_stonkfun_graduated_pool_decodes_builds_and_simulates_swap() {
+        if !crate::common::mainnet_sim::enabled() {
             return;
         }
 
-        let rpc_url = std::env::var("SOLANA_RPC_URL")
-            .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_owned());
-        let rpc = crate::common::SolanaRpcClient::new(rpc_url);
-        let pool = pubkey!("BUVzsLLLG7GWoyJVoU31pXiBveazA6GXTavZ9VD3CwS9");
-        let knots = pubkey!("8RVBk8vxLiUHueLUW1f4izFVqN3nWippLhkohKg6EGkS");
-        let stonk = pubkey!("6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx");
+        let rpc = crate::common::mainnet_sim::rpc_client();
+        let wallet = crate::common::mainnet_sim::create_wallet();
+        let pool = crate::common::mainnet_sim::fixtures::GRAD_POOL;
+        let knots = crate::common::mainnet_sim::fixtures::GRAD_MEME_KNOTS;
+        let stonk = crate::common::mainnet_sim::fixtures::GRAD_QUOTE_STONK;
+        let sol_hop_pool = crate::common::mainnet_sim::fixtures::WSOL_STONK_CPMM;
         let token_2022 = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
         let protocol_params = RaydiumCpmmParams::from_pool_address_by_rpc(&rpc, &pool)
             .await
             .expect("decode current StonkFun graduated CPMM pool");
         assert_eq!(protocol_params.pool_state, pool);
-        // Raydium stores token0/token1 in address order; these fields are not the
-        // StonkFun launch page's semantic base/quote ordering.
         assert_eq!(protocol_params.base_mint, stonk);
         assert_eq!(protocol_params.quote_mint, knots);
         assert_eq!(protocol_params.base_token_program, crate::constants::TOKEN_PROGRAM);
         assert_eq!(protocol_params.quote_token_program, token_2022);
-        assert_eq!(protocol_params.trade_fee_rate, 2_500);
-        assert_eq!(protocol_params.creator_fee_rate, 10_000);
-        assert_eq!(protocol_params.creator_fee_on, 1);
-        assert!(protocol_params.enable_creator_fee);
-        assert_eq!(protocol_params.base_transfer_fee.basis_points, 0);
-        assert_eq!(protocol_params.quote_transfer_fee.basis_points, 300);
 
-        let mut knots_to_stonk = swap_params(None);
-        knots_to_stonk.input_mint = knots;
-        knots_to_stonk.output_mint = stonk;
-        knots_to_stonk.protocol_params = DexParamEnum::StonkFunSwap(protocol_params.clone());
-        let sell_ix = crate::instruction::stonkfun::StonkFunInstructionBuilder
-            .build_sell_instructions(&knots_to_stonk)
+        // Acquire STONK via SOL hop, then STONK→KNOTS through StonkFunSwap, and simulate.
+        let sol_hop = RaydiumCpmmParams::from_pool_address_by_rpc(&rpc, &sol_hop_pool)
             .await
-            .expect("build KNOTS to STONK CPMM swap")
-            .pop()
-            .unwrap();
-
-        let mut stonk_to_knots = swap_params(None);
-        stonk_to_knots.input_mint = stonk;
-        stonk_to_knots.output_mint = knots;
-        stonk_to_knots.protocol_params = DexParamEnum::StonkFunSwap(protocol_params.clone());
-        let buy_ix = crate::instruction::stonkfun::StonkFunInstructionBuilder
-            .build_buy_instructions(&stonk_to_knots)
+            .expect("decode WSOL/STONK hop");
+        let hop = crate::common::mainnet_sim::swap_params(
+            wallet.clone(),
+            crate::swqos::TradeType::Buy,
+            crate::constants::WSOL_TOKEN_ACCOUNT,
+            stonk,
+            50_000,
+            300,
+            DexParamEnum::RaydiumCpmm(sol_hop),
+        );
+        let mut business = RaydiumCpmmInstructionBuilder.build_buy_instructions(&hop).await.unwrap();
+        let stonk_min = {
+            let swap = business
+                .iter()
+                .find(|ix| ix.program_id == accounts::RAYDIUM_CPMM)
+                .unwrap();
+            u64::from_le_bytes(swap.data[16..24].try_into().unwrap())
+        };
+        let mut meme_buy = crate::common::mainnet_sim::swap_params(
+            wallet.clone(),
+            crate::swqos::TradeType::Buy,
+            stonk,
+            knots,
+            stonk_min,
+            300,
+            DexParamEnum::StonkFunSwap(protocol_params),
+        );
+        meme_buy.create_input_mint_ata = false;
+        let meme_ixs = crate::instruction::stonkfun::StonkFunInstructionBuilder
+            .build_buy_instructions(&meme_buy)
             .await
-            .expect("build STONK to KNOTS CPMM swap")
-            .pop()
             .unwrap();
+        business.extend(meme_ixs);
 
-        for (
-            ix,
-            input_mint,
-            output_mint,
-            input_vault,
-            output_vault,
-            input_program,
-            output_program,
-        ) in [
-            (
-                sell_ix,
-                knots,
-                stonk,
-                protocol_params.quote_vault,
-                protocol_params.base_vault,
-                token_2022,
-                crate::constants::TOKEN_PROGRAM,
-            ),
-            (
-                buy_ix,
-                stonk,
-                knots,
-                protocol_params.base_vault,
-                protocol_params.quote_vault,
-                crate::constants::TOKEN_PROGRAM,
-                token_2022,
-            ),
-        ] {
-            assert_eq!(ix.program_id, accounts::RAYDIUM_CPMM);
-            assert_eq!(ix.accounts.len(), 13);
-            assert_eq!(&ix.data[..8], SWAP_BASE_IN_DISCRIMINATOR);
-            assert!(u64::from_le_bytes(ix.data[16..24].try_into().unwrap()) > 0);
-            assert_eq!(ix.accounts[2].pubkey, protocol_params.amm_config);
-            assert_eq!(ix.accounts[3].pubkey, pool);
-            assert_eq!(ix.accounts[6].pubkey, input_vault);
-            assert_eq!(ix.accounts[7].pubkey, output_vault);
-            assert_eq!(ix.accounts[8].pubkey, input_program);
-            assert_eq!(ix.accounts[9].pubkey, output_program);
-            assert_eq!(ix.accounts[10].pubkey, input_mint);
-            assert_eq!(ix.accounts[11].pubkey, output_mint);
-            assert_eq!(ix.accounts[12].pubkey, protocol_params.observation_state);
-        }
+        let alt = crate::common::mainnet_sim::load_alt(
+            &rpc,
+            &crate::common::mainnet_sim::fixtures::WSOL_STONK_LUT,
+        )
+        .await;
+        crate::common::mainnet_sim::run_business_sim(
+            &rpc,
+            &wallet,
+            business,
+            &[alt],
+            "graduated decode+sim stonk→knots",
+        )
+        .await;
     }
 }

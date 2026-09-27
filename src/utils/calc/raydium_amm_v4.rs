@@ -93,7 +93,9 @@ fn swap_base_input(
         / (input_vault_amount as u128).saturating_add(input_amount_less_fees as u128))
         as u64;
 
-    let output_amount = output_amount_swapped.saturating_sub(swap_fee);
+    // Official Raydium AMM V4: trade fee is taken from input; do not subtract
+    // input-denominated swap_fee from output units (matches router quote.rs).
+    let output_amount = output_amount_swapped;
 
     SwapResult {
         new_input_vault_amount: input_vault_amount.saturating_add(input_amount_less_fees),

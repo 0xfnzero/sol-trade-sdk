@@ -62,6 +62,12 @@ pub struct PumpSwapParams {
     /// Effective PumpSwap fee bps for this pool snapshot. Instruction building reads this
     /// only from params, so hot-path trading never adds an RPC call for fee discovery.
     pub fee_basis_points: PumpSwapFeeBasisPoints,
+    /// Optional fixed protocol fee recipient (non-mayhem). When set, buy/sell skip the
+    /// random GlobalConfig pick — useful for deterministic tests and for sharing the same
+    /// fee ATA across buy+sell so combined simulate txs stay under the size cap.
+    pub protocol_fee_recipient_override: Option<Pubkey>,
+    /// Optional fixed buyback / protocol-extra fee recipient (trailing remaining account).
+    pub protocol_extra_fee_recipient_override: Option<Pubkey>,
 }
 
 impl PumpSwapParams {
@@ -114,11 +120,24 @@ impl PumpSwapParams {
                 crate::instruction::utils::pumpswap::accounts::PROTOCOL_FEE_BASIS_POINTS,
                 creator_fee_basis_points,
             ),
+            protocol_fee_recipient_override: None,
+            protocol_extra_fee_recipient_override: None,
         }
     }
 
     pub fn with_pool_creator(mut self, pool_creator: Pubkey) -> Self {
         self.pool_creator = pool_creator;
+        self
+    }
+
+    /// Pin protocol + buyback fee recipients so buy/sell share the same fee ATAs.
+    pub fn with_fee_recipients(
+        mut self,
+        protocol_fee_recipient: Pubkey,
+        protocol_extra_fee_recipient: Pubkey,
+    ) -> Self {
+        self.protocol_fee_recipient_override = Some(protocol_fee_recipient);
+        self.protocol_extra_fee_recipient_override = Some(protocol_extra_fee_recipient);
         self
     }
 
@@ -350,6 +369,8 @@ impl PumpSwapParams {
                 raw_fee_basis_points.protocol_fee_basis_points,
                 creator_fee_basis_points,
             ),
+            protocol_fee_recipient_override: None,
+            protocol_extra_fee_recipient_override: None,
         })
     }
 }
