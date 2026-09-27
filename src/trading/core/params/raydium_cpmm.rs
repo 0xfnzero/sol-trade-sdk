@@ -212,6 +212,17 @@ impl RaydiumCpmmParams {
                 .map(|account| account.owner)
                 .ok_or_else(|| anyhow::anyhow!("Raydium CPMM account {} missing", keys[index]))
         };
+        // RPCs return the clock with the rest; one that leaves it out still
+        // gives the epoch the mints' transfer fees follow.
+        let clock = match &accounts[6] {
+            Some(account) => account.data.clone(),
+            None => {
+                let mut clock = vec![0u8; 40];
+                let epoch = rpc.get_epoch_info().await?.epoch;
+                clock[16..24].copy_from_slice(&epoch.to_le_bytes());
+                clock
+            }
+        };
         Self::from_quote_accounts(
             *pool_address,
             &CpmmQuoteAccounts {
@@ -221,7 +232,7 @@ impl RaydiumCpmmParams {
                 token_1_vault: data(3)?,
                 token_0_mint: (owner(4)?, data(4)?),
                 token_1_mint: (owner(5)?, data(5)?),
-                clock: data(6)?,
+                clock: &clock,
             },
         )
     }
