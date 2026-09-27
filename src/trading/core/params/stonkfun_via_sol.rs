@@ -73,17 +73,35 @@ impl From<RaydiumAmmV4Params> for StonkFunSolHop {
 pub struct StonkFunViaSolParams {
     pub meme_leg: StonkFunMemeLeg,
     pub sol_hop: StonkFunSolHop,
+    /// Slippage of the SOL↔quote hop; `None` uses the trade's slippage. On buys
+    /// the meme leg spends the hop's minimum output, so every basis point of hop
+    /// slippage the pool does not use stays behind as quote.
+    pub hop_slippage_basis_points: Option<u64>,
 }
 
 impl StonkFunViaSolParams {
     /// Inner-curve meme leg + arbitrary SOL hop.
     pub fn curve(meme_leg: BonkParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
-        Self { meme_leg: StonkFunMemeLeg::Curve(meme_leg), sol_hop: sol_hop.into() }
+        Self {
+            meme_leg: StonkFunMemeLeg::Curve(meme_leg),
+            sol_hop: sol_hop.into(),
+            hop_slippage_basis_points: None,
+        }
     }
 
     /// Graduated CPMM meme leg + arbitrary SOL hop.
     pub fn graduated(meme_leg: RaydiumCpmmParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
-        Self { meme_leg: StonkFunMemeLeg::Graduated(meme_leg), sol_hop: sol_hop.into() }
+        Self {
+            meme_leg: StonkFunMemeLeg::Graduated(meme_leg),
+            sol_hop: sol_hop.into(),
+            hop_slippage_basis_points: None,
+        }
+    }
+
+    /// Slippage of the SOL↔quote hop, separate from the meme leg's.
+    pub fn with_hop_slippage_basis_points(mut self, basis_points: u64) -> Self {
+        self.hop_slippage_basis_points = Some(basis_points);
+        self
     }
 
     /// Inner curve priced in a stock quote, with a Raydium CPMM `WSOL/quote` hop.

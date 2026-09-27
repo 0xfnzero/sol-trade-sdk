@@ -245,6 +245,18 @@ fn meme_leg_sell_min_out(
     }
 }
 
+/// The trade's params with the hop's slippage, for the SOL↔quote leg.
+fn hop_swap_params(
+    params: &SwapParams,
+    via: &StonkFunViaSolParams,
+    slippage: u64,
+) -> (SwapParams, u64) {
+    let hop_slippage = via.hop_slippage_basis_points.unwrap_or(slippage);
+    let mut hop = params.clone();
+    hop.slippage_basis_points = Some(hop_slippage);
+    (hop, hop_slippage)
+}
+
 async fn build_leg_buy(
     params: &SwapParams,
     protocol_params: DexParamEnum,
@@ -332,10 +344,11 @@ async fn build_buy_via_sol(
     }
 
     ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
 
     // Match legs on hop1 min-out so hop2 cannot overspend the quote ATA.
     let quote_bridge =
-        sol_hop_min_out(&via.sol_hop, sol_amount, wsol, quote_mint, slippage)?;
+        sol_hop_min_out(&via.sol_hop, sol_amount, wsol, quote_mint, hop_slippage)?;
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol SOL hop produced zero quote output"));
     }
@@ -353,7 +366,7 @@ async fn build_buy_via_sol(
 
     // Hop 1: WSOL → quote. Defer WSOL close until after both hops.
     let hop1 = build_leg_buy(
-        params,
+        &hop_params,
         sol_hop_as_dex_param(&via.sol_hop),
         wsol,
         quote_mint,
@@ -430,13 +443,14 @@ async fn build_sell_via_sol(
     }
 
     ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
 
     let quote_bridge =
         meme_leg_sell_min_out(&via.meme_leg, meme_amount, meme_mint, slippage)?;
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol meme leg produced zero quote output"));
     }
-    let _ = sol_hop_min_out(&via.sol_hop, quote_bridge, quote_mint, wsol, slippage)?;
+    let _ = sol_hop_min_out(&via.sol_hop, quote_bridge, quote_mint, wsol, hop_slippage)?;
 
     // Same persistence policy as buy: do not force-create or close stock quote ATAs.
     let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
@@ -461,7 +475,7 @@ async fn build_sell_via_sol(
 
     // Hop 2: quote → WSOL. WSOL create/close follows the caller's output ATA flags.
     let hop2 = build_leg_sell(
-        params,
+        &hop_params,
         sol_hop_as_dex_param(&via.sol_hop),
         quote_mint,
         wsol,
@@ -693,6 +707,40 @@ mod tests {
         let hop1_min_out = u64::from_le_bytes(cpmm_ix.data[16..24].try_into().unwrap());
         assert_eq!(curve_quote_in, hop1_min_out);
         assert!(curve_quote_in > 0);
+    }
+
+    #[tokio::test]
+    async fn via_sol_hop_slippage_sets_the_bridge_apart_from_the_meme_leg() {
+        let stock = pk(40);
+        let meme = pk(41);
+        let quote_in = |hop_slippage: Option<u64>| async move {
+            let mut via = StonkFunViaSolParams::curve(
+                curve_params(stock),
+                StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, stock)),
+            );
+            if let Some(bps) = hop_slippage {
+                via = via.with_hop_slippage_basis_points(bps);
+            }
+            let mut params = swap_params(
+                TradeType::Buy,
+                crate::constants::WSOL_TOKEN_ACCOUNT,
+                meme,
+                DexParamEnum::StonkFunViaSol(via),
+            );
+            params.slippage_basis_points = Some(1_500);
+            let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+            let hop = ixs.iter().find(|ix| ix.program_id == cpmm_accounts::RAYDIUM_CPMM).unwrap();
+            let curve = ixs.iter().find(|ix| ix.program_id == launchlab_accounts::BONK).unwrap();
+            let hop_min_out = u64::from_le_bytes(hop.data[16..24].try_into().unwrap());
+            let curve_quote_in = u64::from_le_bytes(curve.data[8..16].try_into().unwrap());
+            assert_eq!(curve_quote_in, hop_min_out);
+            curve_quote_in
+        };
+        let trade_slippage = quote_in(None).await;
+        let hop_slippage = quote_in(Some(50)).await;
+        // 0.5% instead of 15% off the hop's expected output.
+        let ratio = trade_slippage as f64 / hop_slippage as f64;
+        assert!((ratio - 8_500.0 / 9_950.0).abs() < 1e-3, "ratio {ratio}");
     }
 
     #[tokio::test]
