@@ -1,6 +1,7 @@
 use crate::instruction::utils::raydium_amm_v4::accounts::{
     SWAP_FEE_DENOMINATOR, SWAP_FEE_NUMERATOR, TRADE_FEE_DENOMINATOR, TRADE_FEE_NUMERATOR,
 };
+use crate::trading::core::params::RaydiumAmmV4Params;
 
 use super::common::calculate_min_amount_out;
 
@@ -152,10 +153,106 @@ pub fn compute_swap_amount(
     }
 }
 
+/// Output of the program's `swap_base_in`: the swap fee
+/// (`swap_fee_numerator / swap_fee_denominator` of the input, rounded up) comes off
+/// the input, then constant product on the reserves. `None` when the pool cannot
+/// fill it (zero denominator, or a fee that eats the input).
+pub fn swap_base_in_amount_out(
+    amount_in: u64,
+    input_reserve: u64,
+    output_reserve: u64,
+    swap_fee_numerator: u64,
+    swap_fee_denominator: u64,
+) -> Option<u64> {
+    if swap_fee_denominator == 0 {
+        return None;
+    }
+    let fee = (u128::from(amount_in) * u128::from(swap_fee_numerator))
+        .div_ceil(u128::from(swap_fee_denominator));
+    let amount_in_after_fee = u128::from(amount_in).checked_sub(fee)?;
+    let out = u128::from(output_reserve) * amount_in_after_fee
+        / (u128::from(input_reserve) + amount_in_after_fee);
+    u64::try_from(out).ok().filter(|out| *out > 0)
+}
+
+/// Swap parameters for `amount_in` through `pool`, at the pool's own swap fee and
+/// the reserves it holds (vaults net of `need_take_pnl` when loaded by RPC).
+pub fn compute_swap_amount_for_pool(
+    pool: &RaydiumAmmV4Params,
+    is_coin_in: bool,
+    amount_in: u64,
+    slippage_basis_points: u64,
+) -> Result<ComputeSwapParams, anyhow::Error> {
+    let (input_reserve, output_reserve) = if is_coin_in {
+        (pool.coin_reserve, pool.pc_reserve)
+    } else {
+        (pool.pc_reserve, pool.coin_reserve)
+    };
+    let amount_out = swap_base_in_amount_out(
+        amount_in,
+        input_reserve,
+        output_reserve,
+        pool.swap_fee_numerator,
+        pool.swap_fee_denominator,
+    )
+    .ok_or_else(|| anyhow::anyhow!("AMM v4 pool {} cannot fill {amount_in}", pool.amm))?;
+    let fee = (u128::from(amount_in) * u128::from(pool.swap_fee_numerator))
+        .div_ceil(u128::from(pool.swap_fee_denominator)) as u64;
+    Ok(ComputeSwapParams {
+        all_trade: true,
+        amount_in,
+        amount_out,
+        min_amount_out: calculate_min_amount_out(amount_out, slippage_basis_points),
+        fee,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::calc::common::{calculate_min_amount_out, MAX_SLIPPAGE_BASIS_POINTS};
+    use solana_sdk::pubkey::Pubkey;
+
+    #[test]
+    fn swap_base_in_takes_the_fee_off_the_input_rounded_up() {
+        // fee = ceil(1_000_001 * 25 / 10_000) = 2_501, so 997_500 is swapped.
+        let out = swap_base_in_amount_out(1_000_001, 50_000_000_000, 7_000_000_000, 25, 10_000);
+        let expected = 7_000_000_000u128 * 997_500 / (50_000_000_000u128 + 997_500);
+        assert_eq!(out, Some(expected as u64));
+    }
+
+    #[test]
+    fn swap_base_in_charges_the_pools_own_fee() {
+        let standard = swap_base_in_amount_out(1_000_000, 10_000_000, 10_000_000, 25, 10_000);
+        let dearer = swap_base_in_amount_out(1_000_000, 10_000_000, 10_000_000, 100, 10_000);
+        assert!(dearer < standard);
+        assert_eq!(swap_base_in_amount_out(1, 10_000, 10_000, 25, 0), None);
+    }
+
+    #[test]
+    fn pool_quotes_follow_the_direction_and_the_pool_fee() {
+        let pool = RaydiumAmmV4Params::new(
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            4_000_000,
+            9_000_000,
+        )
+        .with_swap_fee(30, 10_000);
+        let coin_in = compute_swap_amount_for_pool(&pool, true, 10_000, 100).unwrap();
+        assert_eq!(
+            Some(coin_in.amount_out),
+            swap_base_in_amount_out(10_000, 4_000_000, 9_000_000, 30, 10_000)
+        );
+        assert_eq!(coin_in.min_amount_out, calculate_min_amount_out(coin_in.amount_out, 100));
+        let pc_in = compute_swap_amount_for_pool(&pool, false, 10_000, 0).unwrap();
+        assert_eq!(
+            Some(pc_in.amount_out),
+            swap_base_in_amount_out(10_000, 9_000_000, 4_000_000, 30, 10_000)
+        );
+    }
 
     #[test]
     fn min_amount_out_uses_exact_integer_slippage() {

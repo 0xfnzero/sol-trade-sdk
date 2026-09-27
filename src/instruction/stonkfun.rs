@@ -20,7 +20,7 @@ use crate::{
     },
     utils::calc::{
         bonk::{get_buy_quote, get_sell_min_amount_out},
-        raydium_amm_v4::compute_swap_amount as compute_amm_v4_swap_amount,
+        raydium_amm_v4::compute_swap_amount_for_pool as compute_amm_v4_swap_amount_for_pool,
         raydium_cpmm::compute_swap_amount_for_pool,
     },
 };
@@ -244,13 +244,12 @@ fn sol_hop_min_out(
         }
         StonkFunSolHop::RaydiumAmmV4(pool) => {
             let is_coin_in = amm_v4_is_coin_in(pool, input_mint, output_mint)?;
-            Ok(compute_amm_v4_swap_amount(
-                pool.coin_reserve,
-                pool.pc_reserve,
+            Ok(compute_amm_v4_swap_amount_for_pool(
+                pool,
                 is_coin_in,
                 amount_in,
                 slippage_basis_points,
-            )
+            )?
             .min_amount_out)
         }
         StonkFunSolHop::RaydiumClmm(pool) => spot_min_out(
