@@ -11,6 +11,10 @@
 //! export RPC_URL=https://mainnet.helius-rpc.com/?api-key=...
 //! cargo run -p verify_hop_quotes -- clmm <pool> [<pool> ...]
 //! ```
+//!
+//! Venues: `clmm`, `cpmm`, `amm_v4` and `dlmm`.
+
+mod dlmm;
 
 use base64::Engine;
 use sol_trade_sdk::{
@@ -69,9 +73,9 @@ type Error = Box<dyn std::error::Error>;
 async fn main() -> Result<(), Error> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (venue, pools) =
-        args.split_first().ok_or("usage: verify_hop_quotes clmm|cpmm|amm_v4 <pool>...")?;
+        args.split_first().ok_or("usage: verify_hop_quotes clmm|cpmm|amm_v4|dlmm <pool>...")?;
     let simple = match venue.as_str() {
-        "clmm" => None,
+        "clmm" | "dlmm" => None,
         "cpmm" => Some(SimpleVenue::Cpmm),
         "amm_v4" => Some(SimpleVenue::AmmV4),
         other => return Err(format!("unknown venue {other}").into()),
@@ -84,6 +88,7 @@ async fn main() -> Result<(), Error> {
     for pool in pools {
         let pool = Pubkey::from_str(pool)?;
         let checked = match simple {
+            None if venue == "dlmm" => dlmm::check_dlmm_pool(&rpc, funder, pool).await,
             None => check_clmm_pool(&rpc, funder, pool).await,
             Some(venue) => check_simple_pool(&rpc, funder, venue, pool).await,
         };
@@ -508,18 +513,24 @@ enum Check {
 /// Compute units the swap program's own invocation consumed, its CPIs
 /// included, from the simulation's logs.
 fn swap_units(logs: &Option<Vec<String>>) -> Option<u64> {
-    const SWAP_PROGRAMS: [&str; 3] = [
+    const SWAP_PROGRAMS: [&str; 4] = [
         "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
         "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
         "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
     ];
-    logs.as_ref()?.iter().find_map(|log| {
-        let (program, rest) = log.strip_prefix("Program ")?.split_once(' ')?;
-        if !SWAP_PROGRAMS.contains(&program) {
-            return None;
-        }
-        rest.strip_prefix("consumed ")?.split_whitespace().next()?.parse().ok()
-    })
+    // DLMM emits its event through a call into itself, which logs its own
+    // consumption first: the swap's invocation consumed the most.
+    logs.as_ref()?
+        .iter()
+        .filter_map(|log| {
+            let (program, rest) = log.strip_prefix("Program ")?.split_once(' ')?;
+            if !SWAP_PROGRAMS.contains(&program) {
+                return None;
+            }
+            rest.strip_prefix("consumed ")?.split_whitespace().next()?.parse().ok()
+        })
+        .max()
 }
 
 /// Writes a matched case as a fixture: the raw accounts the quote read, the
