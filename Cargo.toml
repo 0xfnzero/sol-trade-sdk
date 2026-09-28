@@ -41,7 +41,7 @@ members = [
 ]
 [workspace.dependencies]
 sol-parser-sdk = { version = "=0.7.6", path = "../sol-parser-sdk" }
-solana-streamer-sdk = { version = "=3.0.5", path = "../solana-streamer" }
+solana-streamer-sdk = { version = "=3.0.4", path = "../solana-streamer" }
 solana-sdk = "4.0.1"
 solana-commitment-config = { version = "3.1.1", features = ["serde"] }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
