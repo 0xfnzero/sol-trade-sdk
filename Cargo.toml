@@ -103,6 +103,8 @@ arc-swap = "1.7"
 sha2 = "0.10"
 # Big integers of the vendored Raydium CLMM swap math (the program's uint fork is 0.9.5).
 uint = "=0.9.5"
+# Meteora DLMM swap math (MIT, no dependencies); pinned, as it is young.
+meteora-dlmm = "=0.2.0"
 # 须含 runtime-tokio，否则 quinn::Endpoint::client 报 no async runtime found，QUIC（Speedlanding/Soyas）无法初始化
 quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
 lunar-lander-quic-client = "0.4"

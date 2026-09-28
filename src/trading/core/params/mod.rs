@@ -17,7 +17,11 @@ pub use bonk::{BonkParams, LaunchLabParams, StonkFunParams};
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
 pub use hop_spot::HopSpot;
 pub use meteora_damm_v2::MeteoraDammV2Params;
-pub use meteora_dlmm::MeteoraDlmmParams;
+#[cfg(test)]
+pub(crate) use meteora_dlmm::fixture_pair as dlmm_fixture_pair;
+pub use meteora_dlmm::{
+    DlmmHopQuote, DlmmQuoteAccounts, DlmmQuoteState, MeteoraDlmmParams, QUOTE_BIN_ARRAYS,
+};
 pub use pumpfun::PumpFunParams;
 pub use pumpswap::PumpSwapParams;
 pub use raydium_amm_v4::RaydiumAmmV4Params;

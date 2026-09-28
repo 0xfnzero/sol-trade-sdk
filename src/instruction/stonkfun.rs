@@ -265,6 +265,10 @@ fn sol_hop_min_out(
             output_mint,
             slippage_basis_points,
         ),
+        StonkFunSolHop::MeteoraDlmm(pool) if pool.quote_state.is_some() => {
+            let quote = pool.quote_exact_in(&normalize_native_sol(input_mint), amount_in)?;
+            Ok(calculate_min_amount_out(quote.amount_out, slippage_basis_points))
+        }
         StonkFunSolHop::MeteoraDlmm(pool) => spot_min_out(
             sol_hop,
             pool.spot,
@@ -277,7 +281,8 @@ fn sol_hop_min_out(
 }
 
 /// The hop as built for `amount_in`, and its minimum output: a CLMM hop gets
-/// the tick arrays its exact quote crosses.
+/// the tick arrays its exact quote crosses, a DLMM hop quoted exactly the bin
+/// arrays its quote walks through.
 fn quote_hop(
     sol_hop: &StonkFunSolHop,
     amount_in: u64,
@@ -292,6 +297,15 @@ fn quote_hop(
             pool.tick_arrays = quote.tick_arrays;
             Ok((
                 StonkFunSolHop::RaydiumClmm(pool),
+                calculate_min_amount_out(quote.amount_out, slippage_basis_points),
+            ))
+        }
+        StonkFunSolHop::MeteoraDlmm(pool) if pool.quote_state.is_some() => {
+            let quote = pool.quote_exact_in(&normalize_native_sol(input_mint), amount_in)?;
+            let mut pool = pool.clone();
+            pool.bin_arrays = quote.bin_arrays;
+            Ok((
+                StonkFunSolHop::MeteoraDlmm(pool),
                 calculate_min_amount_out(quote.amount_out, slippage_basis_points),
             ))
         }
@@ -1220,6 +1234,37 @@ mod tests {
             .filter(|program| [DLMM, CLMM, launchlab_accounts::BONK].contains(program))
             .collect();
         assert_eq!(order, [DLMM, CLMM, launchlab_accounts::BONK]);
+    }
+
+    #[tokio::test]
+    async fn via_sol_buy_through_an_exactly_quoted_dlmm_pair_reads_the_bin_arrays_it_walks() {
+        use crate::instruction::utils::meteora_dlmm::PROGRAM_ID as DLMM;
+        use crate::trading::core::params::dlmm_fixture_pair;
+        // A SOL → USDC swap captured on mainnet: 79 bins over three bin arrays,
+        // limit orders filled on the way.
+        let (pair, lamports, usdc_credited) =
+            dlmm_fixture_pair("3D9MyL5iD9uqbe2FYvivHsywHWr3nJR1krEcEWXUCGzr-x2y-536870912000.json");
+        let (wsol, usdc, meme) = (crate::constants::WSOL_TOKEN_ACCOUNT, pair.token_y_mint, pk(150));
+        assert_eq!(pair.token_x_mint, wsol);
+        let quote = pair.quote_exact_in(&wsol, lamports).unwrap();
+        assert_eq!(quote.amount_out, usdc_credited);
+        assert_eq!(
+            StonkFunSolHop::MeteoraDlmm(pair.clone()).quote_exact_in(&wsol, lamports).unwrap(),
+            usdc_credited
+        );
+        let via = StonkFunViaSolParams::curve(curve_params(usdc), pair)
+            .with_hop_slippage_basis_points(100);
+        let mut params = swap_params(TradeType::Buy, wsol, meme, DexParamEnum::StonkFunViaSol(via));
+        params.input_amount = Some(lamports);
+
+        let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let hop = only(&ixs, DLMM);
+        let usdc_out = calculate_min_amount_out(usdc_credited, 100);
+        assert_eq!(amounts(hop), (lamports, usdc_out));
+        // After swap2's 16 accounts come the bin arrays the quote walks.
+        let arrays: Vec<Pubkey> = hop.accounts[16..].iter().map(|meta| meta.pubkey).collect();
+        assert_eq!(arrays, quote.bin_arrays);
+        assert_eq!(amounts(only(&ixs, launchlab_accounts::BONK)).0, usdc_out);
     }
 
     #[tokio::test]

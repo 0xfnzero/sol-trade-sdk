@@ -10,9 +10,10 @@
 //! CPMM (outer) meme legs. The SOL↔quote hop goes through a Raydium CPMM, Raydium
 //! AMM v4, Raydium CLMM, Orca Whirlpool or Meteora DLMM pool; a quote that only
 //! trades against another currency (USDC) takes a second hop from it. Raydium
-//! hops are quoted exactly ([`StonkFunSolHop::quote_exact_in`]); Whirlpool and
-//! DLMM hops at the pool's spot price ([`super::HopSpot`]), which their loaders
-//! fill in.
+//! and DLMM hops are quoted exactly ([`StonkFunSolHop::quote_exact_in`]), CLMM
+//! and DLMM ones when loaded with their quote state; Whirlpool hops, and those
+//! loaded without it, at the pool's spot price ([`super::HopSpot`]), which
+//! their loaders fill in.
 //!
 //! # Quick start
 //!
@@ -58,7 +59,7 @@ pub enum StonkFunSolHop {
     RaydiumClmm(RaydiumClmmParams),
     /// Quoted at the pool's `spot` price.
     OrcaWhirlpool(WhirlpoolParams),
-    /// Quoted at the pair's `spot` price.
+    /// Quoted exactly when loaded with its quote state, else at its `spot` price.
     MeteoraDlmm(MeteoraDlmmParams),
 }
 
@@ -87,7 +88,8 @@ impl StonkFunSolHop {
 
     /// What the wallet receives for `amount_in` of `input_mint` swapped
     /// through the pool, exactly as the program pays it. Raydium CPMM, AMM v4
-    /// and CLMM pools only: the others are quoted at a spot price.
+    /// and CLMM pools and Meteora DLMM pairs only: Whirlpools are quoted at a
+    /// spot price.
     pub fn quote_exact_in(&self, input_mint: &Pubkey, amount_in: u64) -> anyhow::Result<u64> {
         let input = if *input_mint == crate::constants::SOL_TOKEN_ACCOUNT {
             crate::constants::WSOL_TOKEN_ACCOUNT
@@ -114,7 +116,8 @@ impl StonkFunSolHop {
             )?
             .amount_out),
             Self::RaydiumClmm(pool) => Ok(pool.quote_exact_in(&input, amount_in)?.amount_out),
-            Self::OrcaWhirlpool(_) | Self::MeteoraDlmm(_) => {
+            Self::MeteoraDlmm(pool) => Ok(pool.quote_exact_in(&input, amount_in)?.amount_out),
+            Self::OrcaWhirlpool(_) => {
                 anyhow::bail!("pool {} is quoted at its spot price, not exactly", self.pool())
             }
         }
