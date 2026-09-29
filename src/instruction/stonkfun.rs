@@ -553,6 +553,18 @@ async fn build_sell_via_sol(
             params.output_mint
         ));
     }
+    // Selling the quote itself — what an earlier sale left behind — takes
+    // only the route back to SOL, spending exactly the input.
+    if let Ok(route) = sol_route_mints(via, params.input_mint) {
+        let quote_amount = params
+            .input_amount
+            .filter(|&a| a > 0)
+            .ok_or_else(|| anyhow!("StonkFunViaSol quote sale requires a non-zero amount"))?;
+        let slippage = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
+        let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
+        return build_route_to_sol(params, via, &route, quote_amount, slippage, create_quote_ata)
+            .await;
+    }
     let meme_mint = params.input_mint;
     let quote_mint = meme_leg_quote_mint(&via.meme_leg, meme_mint)?;
     let meme_amount = params
@@ -579,24 +591,10 @@ async fn build_sell_via_sol(
     }
 
     let route = sol_route_mints(via, quote_mint)?;
-    let hops = sol_route_hops(via);
-    let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
-
     let quote_bridge =
         meme_leg_sell_min_out(&via.meme_leg, meme_amount, meme_mint, slippage)?;
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol meme leg produced zero quote output"));
-    }
-    // Back along the route; each hop sells the minimum output of the leg before.
-    let mut bridges = Vec::with_capacity(hops.len());
-    let mut amount = quote_bridge;
-    for (sol_hop, pair) in hops.iter().zip(route.windows(2)).rev() {
-        let (hop, min_out) = quote_hop(sol_hop, amount, pair[1], pair[0], hop_slippage)?;
-        amount = min_out;
-        if amount == 0 {
-            return Err(anyhow!("StonkFunViaSol SOL hop produced zero output"));
-        }
-        bridges.push((hop, amount));
     }
 
     // Same persistence policy as buy: do not force-create or close stock quote ATAs.
@@ -619,10 +617,38 @@ async fn build_sell_via_sol(
     )
     .await?;
     instructions.extend(meme_leg);
+    instructions.extend(
+        build_route_to_sol(params, via, &route, quote_bridge, slippage, create_quote_ata).await?,
+    );
+    Ok(instructions)
+}
 
-    // Then quote → (currency →) WSOL. The last leg's WSOL create/close follows
-    // the caller's output ATA flags.
-    let mut amount_in = quote_bridge;
+/// Sell `quote_amount` of the quote along the route back to SOL: quote →
+/// (currency →) WSOL, each hop selling the minimum output of the one before.
+/// The last leg's WSOL create/close follows the caller's output ATA flags.
+async fn build_route_to_sol(
+    params: &SwapParams,
+    via: &StonkFunViaSolParams,
+    route: &[Pubkey],
+    quote_amount: u64,
+    slippage: u64,
+    create_quote_ata: bool,
+) -> Result<Vec<Instruction>> {
+    let hops = sol_route_hops(via);
+    let (hop_params, hop_slippage) = hop_swap_params(params, via, slippage);
+    let mut bridges = Vec::with_capacity(hops.len());
+    let mut amount = quote_amount;
+    for (sol_hop, pair) in hops.iter().zip(route.windows(2)).rev() {
+        let (hop, min_out) = quote_hop(sol_hop, amount, pair[1], pair[0], hop_slippage)?;
+        amount = min_out;
+        if amount == 0 {
+            return Err(anyhow!("StonkFunViaSol SOL hop produced zero output"));
+        }
+        bridges.push((hop, amount));
+    }
+
+    let mut instructions = Vec::with_capacity(8);
+    let mut amount_in = quote_amount;
     let last = hops.len() - 1;
     for (step, (pair, (sol_hop, bridge))) in route.windows(2).rev().zip(&bridges).enumerate() {
         let to_sol = step == last;
@@ -643,7 +669,6 @@ async fn build_sell_via_sol(
         instructions.extend(hop);
         amount_in = *bridge;
     }
-
     Ok(instructions)
 }
 
@@ -1284,6 +1309,34 @@ mod tests {
         let hop = only(&ixs, WHIRLPOOL);
         // The trade's 1% slippage covers the hop too.
         assert_eq!(amounts(hop), (quote_bridge, spot(0.02).min_amount_out(quote_bridge, true, 100)));
+    }
+
+    #[tokio::test]
+    async fn via_sol_quote_sale_takes_only_the_route_back_to_sol() {
+        use crate::instruction::utils::{
+            meteora_dlmm::PROGRAM_ID as DLMM, raydium_clmm::PROGRAM_ID as CLMM,
+        };
+        let (usdc, stock) = (pk(160), pk(161));
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let clmm = clmm_pool(stock, usdc, 3.0);
+        let via = StonkFunViaSolParams::quote_sale(dlmm_pair(wsol, usdc, 0.2))
+            .with_quote_hop(clmm.clone())
+            .with_hop_slippage_basis_points(100);
+        // What an earlier sale left behind: the stock itself goes back to SOL.
+        let params = swap_params(TradeType::Sell, stock, wsol, DexParamEnum::StonkFunViaSol(via));
+
+        let ixs = StonkFunInstructionBuilder.build_sell_instructions(&params).await.unwrap();
+        assert!(ixs.iter().all(|ix| ix.program_id != launchlab_accounts::BONK));
+        let clmm_quote = clmm.quote_exact_in(&stock, 1_000_000).unwrap();
+        let usdc_out = calculate_min_amount_out(clmm_quote.amount_out, 100);
+        assert_eq!(amounts(only(&ixs, CLMM)), (1_000_000, usdc_out));
+        assert_eq!(amounts(only(&ixs, DLMM)).0, usdc_out);
+        let order: Vec<_> = ixs
+            .iter()
+            .map(|ix| ix.program_id)
+            .filter(|program| [DLMM, CLMM].contains(program))
+            .collect();
+        assert_eq!(order, [CLMM, DLMM]);
     }
 
     #[tokio::test]
