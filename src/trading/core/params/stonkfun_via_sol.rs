@@ -191,6 +191,12 @@ impl StonkFunViaSolParams {
         }
     }
 
+    /// The route alone, to sell the quote itself back to SOL: a sale whose
+    /// input is the route's quote never builds the meme leg.
+    pub fn quote_sale(sol_hop: impl Into<StonkFunSolHop>) -> Self {
+        Self::curve(BonkParams::default(), sol_hop)
+    }
+
     /// Graduated CPMM meme leg + arbitrary SOL hop.
     pub fn graduated(meme_leg: RaydiumCpmmParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
         Self {
