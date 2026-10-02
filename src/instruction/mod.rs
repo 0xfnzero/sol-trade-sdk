@@ -10,6 +10,7 @@ pub mod raydium_amm_v4;
 pub mod raydium_clmm;
 pub mod raydium_cpmm;
 pub mod stonkfun;
+pub(crate) mod stonkfun_quote_route;
 #[cfg(test)]
 mod meteora_damm_v2_mainnet;
 #[cfg(test)]

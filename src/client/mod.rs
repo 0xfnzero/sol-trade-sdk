@@ -54,6 +54,7 @@ fn validate_protocol_params(dex_type: DexType, params: &DexParamEnum) -> bool {
                 DexParamEnum::StonkFun(_)
                     | DexParamEnum::StonkFunSwap(_)
                     | DexParamEnum::StonkFunViaSol(_)
+                    | DexParamEnum::StonkFunQuoteRoute(_)
             )
         }
         DexType::RaydiumCpmm => params.as_any().downcast_ref::<RaydiumCpmmParams>().is_some(),
@@ -442,9 +443,30 @@ impl SimpleBuyParams {
         recent_blockhash: Hash,
         gas_fee_strategy: GasFeeStrategy,
     ) -> Self {
+        Self::stonkfun_with_token(
+            mint,
+            TradeTokenType::SOL,
+            amount,
+            via,
+            recent_blockhash,
+            gas_fee_strategy,
+        )
+    }
+
+    /// Buy using SOL, existing WSOL, USDC or the pool's quote token. Only native SOL is wrapped;
+    /// WSOL spends the wallet's existing token balance. Funding pools/quotes
+    /// must match the selected asset. No router contract is invoked.
+    pub fn stonkfun_with_token(
+        mint: Pubkey,
+        pay_with: TradeTokenType,
+        amount: BuyAmount,
+        via: StonkFunViaSolParams,
+        recent_blockhash: Hash,
+        gas_fee_strategy: GasFeeStrategy,
+    ) -> Self {
         Self::new(
             DexType::StonkFun,
-            TradeTokenType::SOL,
+            pay_with,
             mint,
             amount,
             via.into_extension(),
@@ -592,9 +614,29 @@ impl SimpleSellParams {
         recent_blockhash: Hash,
         gas_fee_strategy: GasFeeStrategy,
     ) -> Self {
+        Self::stonkfun_to_token(
+            mint,
+            TradeTokenType::SOL,
+            amount,
+            via,
+            recent_blockhash,
+            gas_fee_strategy,
+        )
+    }
+
+    /// Sell into SOL, WSOL, USDC or the pool's quote token. Under Auto, SOL closes WSOL at the end;
+    /// WSOL and USDC stay in their token accounts.
+    pub fn stonkfun_to_token(
+        mint: Pubkey,
+        receive_as: TradeTokenType,
+        amount: SellAmount,
+        via: StonkFunViaSolParams,
+        recent_blockhash: Hash,
+        gas_fee_strategy: GasFeeStrategy,
+    ) -> Self {
         Self::new(
             DexType::StonkFun,
-            TradeTokenType::SOL,
+            receive_as,
             mint,
             amount,
             via.into_extension(),
@@ -999,7 +1041,11 @@ fn buy_account_flags(policy: AccountPolicy) -> (bool, bool, bool) {
 /// must stay open across buys so stock-quote hops stay cheap.
 #[inline]
 fn buy_account_flags_for(policy: AccountPolicy, extension: &DexParamEnum) -> (bool, bool, bool) {
-    if matches!(policy, AccountPolicy::Auto) && matches!(extension, DexParamEnum::StonkFunViaSol(_))
+    if matches!(policy, AccountPolicy::Auto)
+        && matches!(
+            extension,
+            DexParamEnum::StonkFunViaSol(_) | DexParamEnum::StonkFunQuoteRoute(_)
+        )
     {
         return (true, true, false);
     }
@@ -1024,7 +1070,10 @@ fn sell_account_flags_for(
     extension: &DexParamEnum,
 ) -> (bool, bool, bool) {
     if matches!(policy, AccountPolicy::Auto)
-        && matches!(extension, DexParamEnum::StonkFunViaSol(_))
+        && matches!(
+            extension,
+            DexParamEnum::StonkFunViaSol(_) | DexParamEnum::StonkFunQuoteRoute(_)
+        )
         && matches!(receive_as, TradeTokenType::SOL | TradeTokenType::WSOL)
     {
         // (create_output, close_output, close_mint)
@@ -2112,6 +2161,45 @@ mod tests {
         assert!(!low.create_input_token_ata);
     }
 
+    #[test]
+    fn stonkfun_asset_helpers_preserve_payment_receipt_and_auto_account_policy() {
+        let meme = Pubkey::new_unique();
+        let stock = Pubkey::new_unique();
+        let mut curve = crate::trading::core::params::BonkParams::default();
+        curve.quote_mint = stock;
+        let via = StonkFunViaSolParams::curve_direct(curve);
+        for asset in [
+            TradeTokenType::SOL,
+            TradeTokenType::WSOL,
+            TradeTokenType::USDC,
+            TradeTokenType::Token(stock),
+        ] {
+            let buy: TradeBuyParams = SimpleBuyParams::stonkfun_with_token(
+                meme,
+                asset,
+                BuyAmount::ExactInput(100),
+                via.clone(),
+                Hash::new_unique(),
+                GasFeeStrategy::new(),
+            )
+            .into();
+            assert_eq!(buy.input_token_type, asset);
+            assert!(buy.create_input_token_ata);
+            assert!(!buy.close_input_token_ata);
+            let sell: TradeSellParams = SimpleSellParams::stonkfun_to_token(
+                meme,
+                asset,
+                SellAmount::ExactInput(100),
+                via.clone(),
+                Hash::new_unique(),
+                GasFeeStrategy::new(),
+            )
+            .into();
+            assert_eq!(sell.output_token_type, asset);
+            assert!(sell.create_output_token_ata);
+            assert_eq!(sell.close_output_token_ata, asset == TradeTokenType::SOL);
+        }
+    }
     #[test]
     fn stonkfun_with_sol_helper_uses_via_sol_auto_ata_policy() {
         use crate::trading::core::params::{BonkParams, RaydiumCpmmParams, StonkFunViaSolParams};

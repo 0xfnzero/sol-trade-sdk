@@ -65,14 +65,11 @@ pub mod fixtures {
     pub const PUMPSWAP_BASE: Pubkey = pubkey!("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn");
 
     // --- PumpSwap (WSOL quote) from examples/seed_trading ---
-    pub const PUMPSWAP_SEED_POOL: Pubkey =
-        pubkey!("9qKxzRejsV6Bp2zkefXWCbGvg61c3hHei7ShXJ4FythA");
-    pub const PUMPSWAP_SEED_BASE: Pubkey =
-        pubkey!("2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv");
+    pub const PUMPSWAP_SEED_POOL: Pubkey = pubkey!("9qKxzRejsV6Bp2zkefXWCbGvg61c3hHei7ShXJ4FythA");
+    pub const PUMPSWAP_SEED_BASE: Pubkey = pubkey!("2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv");
 
     // --- PumpSwap PUMP/USDC ---
-    pub const PUMPSWAP_USDC_POOL: Pubkey =
-        pubkey!("2uF4Xh61rDwxnG9woyxsVQP7zuA6kLFpb3NvnRQeoiSd");
+    pub const PUMPSWAP_USDC_POOL: Pubkey = pubkey!("2uF4Xh61rDwxnG9woyxsVQP7zuA6kLFpb3NvnRQeoiSd");
 
     // --- Raydium AMM v4 WSOL pairs ---
     pub const AMM_V4_WSOL_USDT: Pubkey = pubkey!("7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX");
@@ -231,25 +228,38 @@ pub fn build_sim_tx(
     recent_blockhash: Hash,
     lookup_tables: &[AddressLookupTableAccount],
 ) -> VersionedTransaction {
+    build_sim_tx_with_compute_limit(
+        funder,
+        wallet,
+        business_instructions,
+        recent_blockhash,
+        lookup_tables,
+        Some(1_400_000),
+    )
+}
+
+/// Omit the explicit budget for fixtures where the default per-instruction
+/// budget suffices and the synthetic wallet-funding setup consumes wire space.
+pub fn build_sim_tx_with_compute_limit(
+    funder: Pubkey,
+    wallet: &Keypair,
+    business_instructions: Vec<Instruction>,
+    recent_blockhash: Hash,
+    lookup_tables: &[AddressLookupTableAccount],
+    compute_limit: Option<u32>,
+) -> VersionedTransaction {
     // Only CU limit (no price) to leave room for fat multi-hop txs under the
     // simulateTransaction base64 size cap (~1644 encoded bytes).
     let mut instructions = Vec::with_capacity(business_instructions.len() + 2);
-    instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(1_400_000));
-    instructions.push(system_instruction::transfer(
-        &funder,
-        &wallet.pubkey(),
-        SIM_FUND_LAMPORTS,
-    ));
+    if let Some(limit) = compute_limit {
+        instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
+    }
+    instructions.push(system_instruction::transfer(&funder, &wallet.pubkey(), SIM_FUND_LAMPORTS));
     instructions.extend(dedupe_create_ata_ixs(business_instructions));
 
-    let message =
-        v0::Message::try_compile(&funder, &instructions, lookup_tables, recent_blockhash)
-            .expect("compile simulation message");
-    println!(
-        "simulation alts={} static_keys={}",
-        lookup_tables.len(),
-        message.account_keys.len()
-    );
+    let message = v0::Message::try_compile(&funder, &instructions, lookup_tables, recent_blockhash)
+        .expect("compile simulation message");
+    println!("simulation alts={} static_keys={}", lookup_tables.len(), message.account_keys.len());
     VersionedTransaction {
         signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
         message: VersionedMessage::V0(message),
@@ -333,6 +343,25 @@ pub async fn run_business_sim(
     lookup_tables: &[AddressLookupTableAccount],
     label: &str,
 ) {
+    run_business_sim_with_compute_limit(
+        rpc,
+        wallet,
+        business,
+        lookup_tables,
+        label,
+        Some(1_400_000),
+    )
+    .await;
+}
+
+pub async fn run_business_sim_with_compute_limit(
+    rpc: &SolanaRpcClient,
+    wallet: &Keypair,
+    business: Vec<Instruction>,
+    lookup_tables: &[AddressLookupTableAccount],
+    label: &str,
+    compute_limit: Option<u32>,
+) {
     let funder = pick_funder(rpc).await;
     let blockhash = match rpc_retry("blockhash", || rpc.get_latest_blockhash()).await {
         Ok(v) => v,
@@ -344,7 +373,14 @@ pub async fn run_business_sim(
             panic!("{label} blockhash: {err}");
         }
     };
-    let tx = build_sim_tx(funder, wallet, business, blockhash, lookup_tables);
+    let tx = build_sim_tx_with_compute_limit(
+        funder,
+        wallet,
+        business,
+        blockhash,
+        lookup_tables,
+        compute_limit,
+    );
     let result = match rpc_retry("simulate", || async {
         // simulate() panics on oversized; call raw path with Result for retry of transport only.
         rpc.simulate_transaction_with_config(
@@ -921,11 +957,7 @@ mod harness_unit_tests {
         data.extend_from_slice(SWAP_BASE_IN_V2_DISCRIMINATOR);
         data.extend_from_slice(&100_u64.to_le_bytes()); // amount_in
         data.extend_from_slice(&42_u64.to_le_bytes()); // min_out
-        let ix = Instruction {
-            program_id: amm_accounts::RAYDIUM_AMM_V4,
-            accounts: vec![],
-            data,
-        };
+        let ix = Instruction { program_id: amm_accounts::RAYDIUM_AMM_V4, accounts: vec![], data };
         assert_eq!(amm_v4_min_out(&[ix]), Some(42));
     }
 
@@ -936,11 +968,7 @@ mod harness_unit_tests {
         data.extend_from_slice(&BUY_EXACT_QUOTE_IN_DISCRIMINATOR);
         data.extend_from_slice(&1_000_u64.to_le_bytes()); // spendable_quote
         data.extend_from_slice(&777_u64.to_le_bytes()); // min_base
-        let ix = Instruction {
-            program_id: accounts::AMM_PROGRAM,
-            accounts: vec![],
-            data,
-        };
+        let ix = Instruction { program_id: accounts::AMM_PROGRAM, accounts: vec![], data };
         assert_eq!(pumpswap_buy_min_base_out(&[ix]), Some(777));
     }
 
@@ -953,11 +981,7 @@ mod harness_unit_tests {
         data.extend_from_slice(SWAP_BASE_IN_DISCRIMINATOR);
         data.extend_from_slice(&50_u64.to_le_bytes());
         data.extend_from_slice(&99_u64.to_le_bytes());
-        let ix = Instruction {
-            program_id: cpmm_accounts::RAYDIUM_CPMM,
-            accounts: vec![],
-            data,
-        };
+        let ix = Instruction { program_id: cpmm_accounts::RAYDIUM_CPMM, accounts: vec![], data };
         assert_eq!(cpmm_min_out(&[ix]), Some(99));
     }
 

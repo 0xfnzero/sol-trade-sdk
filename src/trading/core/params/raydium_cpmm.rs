@@ -140,6 +140,8 @@ pub struct RaydiumCpmmParams {
 }
 
 impl RaydiumCpmmParams {
+    /// Legacy partial constructor with default fees and caller-managed orientation.
+    /// Prefer SubscriptionAccountCache::cpmm for current, validated state.
     pub fn from_trade(
         pool_state: Pubkey,
         amm_config: Pubkey,

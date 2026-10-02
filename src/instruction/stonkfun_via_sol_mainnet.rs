@@ -37,7 +37,7 @@ async fn via_sol_graduated_mainnet_creates_wallet_and_simulates_buy() {
     let params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::GRAD_MEME_KNOTS,
         50_000,
         300,
@@ -75,7 +75,7 @@ async fn via_sol_curve_mainnet_creates_wallet_and_simulates_buy() {
     let params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::CURVE_MEME,
         10_000,
         500,
@@ -110,7 +110,7 @@ async fn via_sol_graduated_mainnet_creates_wallet_and_simulates_sell_after_virtu
     let buy_params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::GRAD_MEME_KNOTS,
         50_000,
         300,
@@ -162,7 +162,7 @@ async fn via_sol_graduated_mainnet_hot_path_minimal_simulates_buy() {
     let setup = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::GRAD_MEME_KNOTS,
         50_000,
         300,
@@ -175,6 +175,8 @@ async fn via_sol_graduated_mainnet_hot_path_minimal_simulates_buy() {
         .collect();
 
     let mut hot = setup;
+    // Setup wraps SOL once; the hot trade spends that prepared WSOL balance.
+    hot.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
     hot.create_input_mint_ata = false;
     hot.close_input_mint_ata = false;
     hot.create_output_mint_ata = false;
@@ -215,7 +217,7 @@ async fn via_sol_graduated_mainnet_higher_slippage_and_larger_input_simulates() 
     let params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::GRAD_MEME_KNOTS,
         200_000,
         800,
@@ -250,7 +252,7 @@ async fn via_sol_curve_mainnet_creates_wallet_and_simulates_sell_after_virtual_b
     let buy_params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::CURVE_MEME,
         10_000,
         500,
@@ -374,7 +376,7 @@ async fn via_sol_graduated_mainnet_sell_closes_wsol() {
     let buy = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
-        crate::constants::WSOL_TOKEN_ACCOUNT,
+        crate::constants::SOL_TOKEN_ACCOUNT,
         fixtures::GRAD_MEME_KNOTS,
         50_000,
         300,

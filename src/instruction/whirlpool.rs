@@ -58,12 +58,11 @@ pub fn swap_v2(
             accounts.tick_arrays.len()
         ));
     }
-    let ticks = [
-        accounts.tick_arrays[0],
-        accounts.tick_arrays[1],
-        accounts.tick_arrays[2],
-    ];
-    let metas = vec![
+    let ticks = [accounts.tick_arrays[0], accounts.tick_arrays[1], accounts.tick_arrays[2]];
+    if accounts.tick_arrays.len() > 6 {
+        return Err(anyhow!("Whirlpool supports at most 3 supplemental tick arrays"));
+    }
+    let mut metas = vec![
         AccountMeta::new_readonly(accounts.token_program_a, false),
         AccountMeta::new_readonly(accounts.token_program_b, false),
         AccountMeta::new_readonly(MEMO_PROGRAM, false),
@@ -92,7 +91,15 @@ pub fn swap_v2(
     data.extend_from_slice(&sqrt_price_limit.to_le_bytes());
     data.push(u8::from(args.amount_specified_is_input));
     data.push(u8::from(args.a_to_b));
-    data.push(0); // remaining_accounts_info: None
+    if accounts.tick_arrays.len() > 3 {
+        data.push(1); // Some(RemainingAccountsInfo)
+        data.extend_from_slice(&1u32.to_le_bytes()); // one slice
+        data.push(6); // AccountsType::SupplementalTickArrays
+        data.push((accounts.tick_arrays.len() - 3) as u8);
+        metas.extend(accounts.tick_arrays[3..].iter().map(|key| AccountMeta::new(*key, false)));
+    } else {
+        data.push(0);
+    }
     Ok(Instruction::new_with_bytes(PROGRAM_ID, &data, metas))
 }
 

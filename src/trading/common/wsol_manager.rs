@@ -12,13 +12,6 @@ use solana_system_interface::instruction as system_instruction;
 
 #[inline]
 pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]> {
-    let wsol_token_account =
-        crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
-            &payer,
-            &crate::constants::WSOL_TOKEN_ACCOUNT,
-            &crate::constants::TOKEN_PROGRAM,
-        );
-
     let mut insts = SmallVec::<[Instruction; 3]>::new();
     insts.extend(create_associated_token_account_idempotent_fast(
         &payer,
@@ -26,7 +19,19 @@ pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]>
         &crate::constants::WSOL_TOKEN_ACCOUNT,
         &crate::constants::TOKEN_PROGRAM,
     ));
-    insts.extend([
+    insts.extend(fund_existing_wsol(payer, amount_in));
+    insts
+}
+
+/// Deposit native SOL into a prepared WSOL ATA without creating it.
+pub fn fund_existing_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 2]> {
+    let wsol_token_account =
+        crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+            payer,
+            &crate::constants::WSOL_TOKEN_ACCOUNT,
+            &crate::constants::TOKEN_PROGRAM,
+        );
+    SmallVec::from_buf([
         system_instruction::transfer(&payer, &wsol_token_account, amount_in),
         // sync_native
         Instruction {
@@ -34,9 +39,7 @@ pub fn handle_wsol(payer: &Pubkey, amount_in: u64) -> SmallVec<[Instruction; 3]>
             accounts: vec![AccountMeta::new(wsol_token_account, false)],
             data: vec![17],
         },
-    ]);
-
-    insts
+    ])
 }
 
 pub fn close_wsol(payer: &Pubkey) -> Vec<Instruction> {

@@ -1,14 +1,17 @@
-//! SOL ↔ stock-quote ↔ meme routing for StonkFun.
+//! SOL / WSOL / USDC ↔ stock-quote ↔ meme trading for StonkFun.
 //!
 //! Most StonkFun pools are priced in a non-SOL quote (xStocks, PreStocks, STONK,
 //! etc.). Wallets that only hold SOL need an atomic two-hop:
 //!
-//! - buy:  `SOL/WSOL → quote → meme`
-//! - sell: `meme → quote → SOL/WSOL`
+//! - buy:  `SOL/WSOL/USDC → quote → meme`
+//! - sell: `meme → quote → SOL/WSOL/USDC`
+//! Each buy or sell is a separate transaction. Already-held quote tokens trade
+//! directly with `curve_direct` / `graduated_direct`, without conversion hops.
 //!
 //! [`StonkFunViaSolParams`] covers both the LaunchLab curve (inner) and graduated
-//! CPMM (outer) meme legs. The SOL↔quote hop currently supports Raydium CPMM and
-//! Raydium AMM v4 pools.
+//! CPMM (outer) meme legs. Legacy single hops support CPMM and AMM v4;
+//! [`StonkFunSolHop::Route`] also accepts externally quoted CLMM, Whirlpool,
+//! DLMM and split/multi-hop conversion paths.
 //!
 //! # Quick start
 //!
@@ -29,6 +32,9 @@
 
 use super::{BonkParams, RaydiumAmmV4Params, RaydiumCpmmParams};
 
+/// SOL, WSOL or USDC ↔ quote ↔ meme routing. The legacy name remains compatible.
+pub type StonkFunViaQuoteParams = StonkFunViaSolParams;
+
 /// Meme ↔ StonkFun-quote leg: either the LaunchLab curve or a graduated CPMM pool.
 #[derive(Clone)]
 pub enum StonkFunMemeLeg {
@@ -38,11 +44,19 @@ pub enum StonkFunMemeLeg {
     Graduated(RaydiumCpmmParams),
 }
 
-/// SOL/WSOL ↔ StonkFun-quote hop used when the wallet does not hold the quote mint.
+/// Funding asset ↔ StonkFun-quote conversion. Legacy name retained for compatibility.
 #[derive(Clone)]
 pub enum StonkFunSolHop {
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
+    /// Explicit externally quoted paths, including concentrated venues and splits.
+    Route(super::StonkFunQuoteRoute),
+}
+
+impl From<super::StonkFunQuoteRoute> for StonkFunSolHop {
+    fn from(route: super::StonkFunQuoteRoute) -> Self {
+        Self::Route(route)
+    }
 }
 
 impl From<RaydiumCpmmParams> for StonkFunSolHop {
@@ -57,7 +71,7 @@ impl From<RaydiumAmmV4Params> for StonkFunSolHop {
     }
 }
 
-/// Pay-with-SOL / receive-SOL wrapper around an inner or graduated StonkFun leg.
+/// Funding/receipt wrapper around an inner or graduated StonkFun leg.
 ///
 /// Prefer the `curve_with_*` / `graduated_with_*` constructors, then pass the
 /// result to [`crate::client::SimpleBuyParams::stonkfun_with_sol`] or
@@ -76,6 +90,15 @@ pub struct StonkFunViaSolParams {
 }
 
 impl StonkFunViaSolParams {
+    /// Use an already-held pool quote directly, without conversion hops.
+    pub fn curve_direct(meme_leg: BonkParams) -> Self {
+        Self::curve(meme_leg, super::StonkFunQuoteRoute::default())
+    }
+
+    /// Direct quote↔meme trading on a graduated pool.
+    pub fn graduated_direct(meme_leg: RaydiumCpmmParams) -> Self {
+        Self::graduated(meme_leg, super::StonkFunQuoteRoute::default())
+    }
     /// Inner-curve meme leg + arbitrary SOL hop.
     pub fn curve(meme_leg: BonkParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
         Self { meme_leg: StonkFunMemeLeg::Curve(meme_leg), sol_hop: sol_hop.into() }

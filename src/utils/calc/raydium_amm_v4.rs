@@ -152,6 +152,36 @@ pub fn compute_swap_amount(
     }
 }
 
+/// Current v2 no-orderbook quote using the AMM's actual swap fee configuration.
+pub fn compute_swap_amount_for_pool(
+    pool: &crate::trading::core::params::RaydiumAmmV4Params,
+    is_coin_in: bool,
+    amount_in: u64,
+    slippage: u64,
+) -> anyhow::Result<ComputeSwapParams> {
+    anyhow::ensure!(
+        pool.swap_fee_denominator > 0 && pool.swap_fee_numerator < pool.swap_fee_denominator,
+        "Invalid AMM v4 swap fee"
+    );
+    let (input, output) = if is_coin_in {
+        (pool.coin_reserve, pool.pc_reserve)
+    } else {
+        (pool.pc_reserve, pool.coin_reserve)
+    };
+    anyhow::ensure!(input > 0 && output > 0, "AMM v4 reserves are empty");
+    let fee = (u128::from(amount_in) * u128::from(pool.swap_fee_numerator))
+        .div_ceil(u128::from(pool.swap_fee_denominator)) as u64;
+    let net = amount_in - fee;
+    let out = (u128::from(output) * u128::from(net) / (u128::from(input) + u128::from(net))) as u64;
+    Ok(ComputeSwapParams {
+        all_trade: true,
+        amount_in,
+        amount_out: out,
+        min_amount_out: calculate_min_amount_out(out, slippage),
+        fee,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

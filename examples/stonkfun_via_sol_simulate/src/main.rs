@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         rpc: None,
         payer: wallet.clone(),
         trade_type: TradeType::Buy,
-        input_mint: sol_trade_sdk::constants::WSOL_TOKEN_ACCOUNT,
+        input_mint: sol_trade_sdk::constants::SOL_TOKEN_ACCOUNT,
         input_token_program: None,
         output_mint: meme,
         output_token_program: None,

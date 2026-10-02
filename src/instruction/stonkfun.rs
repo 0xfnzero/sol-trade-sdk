@@ -19,7 +19,7 @@ use crate::{
     },
     utils::calc::{
         bonk::{get_buy_quote, get_sell_min_amount_out},
-        raydium_amm_v4::compute_swap_amount as compute_amm_v4_swap_amount,
+        raydium_amm_v4::compute_swap_amount_for_pool as compute_amm_v4_swap_amount,
         raydium_cpmm::compute_swap_amount_for_pool,
     },
 };
@@ -30,7 +30,7 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signer::Signer};
 /// SOL-routed two-hop path from the protocol params variant.
 pub struct StonkFunInstructionBuilder;
 
-fn normalize_native_sol(mint: Pubkey) -> Pubkey {
+pub(super) fn normalize_native_sol(mint: Pubkey) -> Pubkey {
     if mint == crate::constants::SOL_TOKEN_ACCOUNT {
         crate::constants::WSOL_TOKEN_ACCOUNT
     } else {
@@ -46,9 +46,7 @@ fn curve_quote_mint(params: &crate::trading::core::params::BonkParams) -> Result
     if params.quote_mint != Pubkey::default() {
         return Ok(normalize_native_sol(params.quote_mint));
     }
-    if params.global_config
-        == crate::instruction::utils::bonk::accounts::USD1_GLOBAL_CONFIG
-    {
+    if params.global_config == crate::instruction::utils::bonk::accounts::USD1_GLOBAL_CONFIG {
         return Ok(crate::constants::USD1_TOKEN_ACCOUNT);
     }
     Ok(crate::constants::WSOL_TOKEN_ACCOUNT)
@@ -77,6 +75,25 @@ fn meme_leg_quote_mint(meme_leg: &StonkFunMemeLeg, meme_mint: Pubkey) -> Result<
     }
 }
 
+fn meme_leg_quote_program(meme_leg: &StonkFunMemeLeg, quote_mint: Pubkey) -> Pubkey {
+    match meme_leg {
+        StonkFunMemeLeg::Curve(p) => {
+            if p.quote_token_program == Pubkey::default() {
+                crate::constants::TOKEN_PROGRAM
+            } else {
+                p.quote_token_program
+            }
+        }
+        StonkFunMemeLeg::Graduated(p) => {
+            if p.base_mint == quote_mint {
+                p.base_token_program
+            } else {
+                p.quote_token_program
+            }
+        }
+    }
+}
+
 fn meme_leg_as_dex_param(meme_leg: &StonkFunMemeLeg) -> DexParamEnum {
     match meme_leg {
         StonkFunMemeLeg::Curve(params) => DexParamEnum::StonkFun(params.clone()),
@@ -88,10 +105,15 @@ fn sol_hop_as_dex_param(sol_hop: &StonkFunSolHop) -> DexParamEnum {
     match sol_hop {
         StonkFunSolHop::RaydiumCpmm(params) => DexParamEnum::RaydiumCpmm(params.clone()),
         StonkFunSolHop::RaydiumAmmV4(params) => DexParamEnum::RaydiumAmmV4(params.clone()),
+        StonkFunSolHop::Route(route) => DexParamEnum::StonkFunQuoteRoute(route.clone()),
     }
 }
 
-fn cpmm_is_base_in(pool: &RaydiumCpmmParams, input_mint: Pubkey, output_mint: Pubkey) -> Result<bool> {
+pub(super) fn cpmm_is_base_in(
+    pool: &RaydiumCpmmParams,
+    input_mint: Pubkey,
+    output_mint: Pubkey,
+) -> Result<bool> {
     let input = normalize_native_sol(input_mint);
     let output = normalize_native_sol(output_mint);
     if input == pool.base_mint && output == pool.quote_mint {
@@ -109,7 +131,7 @@ fn cpmm_is_base_in(pool: &RaydiumCpmmParams, input_mint: Pubkey, output_mint: Pu
     }
 }
 
-fn amm_v4_is_coin_in(
+pub(super) fn amm_v4_is_coin_in(
     pool: &RaydiumAmmV4Params,
     input_mint: Pubkey,
     output_mint: Pubkey,
@@ -131,18 +153,24 @@ fn amm_v4_is_coin_in(
     }
 }
 
-fn ensure_sol_hop_pair(sol_hop: &StonkFunSolHop, quote_mint: Pubkey) -> Result<()> {
-    let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+fn ensure_sol_hop_pair(
+    sol_hop: &StonkFunSolHop,
+    funding_mint: Pubkey,
+    quote_mint: Pubkey,
+) -> Result<()> {
+    let funding_mint = normalize_native_sol(funding_mint);
     let quote = normalize_native_sol(quote_mint);
     match sol_hop {
+        // Direction, pool pairs, amounts and every branch are validated by plan_route.
+        StonkFunSolHop::Route(_) => Ok(()),
         StonkFunSolHop::RaydiumCpmm(pool) => {
             let a = normalize_native_sol(pool.base_mint);
             let b = normalize_native_sol(pool.quote_mint);
-            if (a == wsol && b == quote) || (b == wsol && a == quote) {
+            if (a == funding_mint && b == quote) || (b == funding_mint && a == quote) {
                 Ok(())
             } else {
                 Err(anyhow!(
-                    "SOL hop CPMM pool {}/{} does not match WSOL/{}",
+                    "Funding hop CPMM pool {}/{} does not match funding-asset/{}",
                     pool.base_mint,
                     pool.quote_mint,
                     quote
@@ -152,11 +180,11 @@ fn ensure_sol_hop_pair(sol_hop: &StonkFunSolHop, quote_mint: Pubkey) -> Result<(
         StonkFunSolHop::RaydiumAmmV4(pool) => {
             let a = normalize_native_sol(pool.coin_mint);
             let b = normalize_native_sol(pool.pc_mint);
-            if (a == wsol && b == quote) || (b == wsol && a == quote) {
+            if (a == funding_mint && b == quote) || (b == funding_mint && a == quote) {
                 Ok(())
             } else {
                 Err(anyhow!(
-                    "SOL hop AMM v4 pool {}/{} does not match WSOL/{}",
+                    "Funding hop AMM v4 pool {}/{} does not match funding-asset/{}",
                     pool.coin_mint,
                     pool.pc_mint,
                     quote
@@ -172,8 +200,18 @@ fn sol_hop_min_out(
     input_mint: Pubkey,
     output_mint: Pubkey,
     slippage_basis_points: u64,
+    is_buy: bool,
 ) -> Result<u64> {
     match sol_hop {
+        StonkFunSolHop::Route(route) => Ok(super::stonkfun_quote_route::plan_route(
+            route,
+            input_mint,
+            output_mint,
+            amount_in,
+            slippage_basis_points,
+            is_buy,
+        )?
+        .minimum_credit),
         StonkFunSolHop::RaydiumCpmm(pool) => {
             let is_base_in = cpmm_is_base_in(pool, input_mint, output_mint)?;
             Ok(compute_swap_amount_for_pool(pool, is_base_in, amount_in, slippage_basis_points)?
@@ -181,14 +219,8 @@ fn sol_hop_min_out(
         }
         StonkFunSolHop::RaydiumAmmV4(pool) => {
             let is_coin_in = amm_v4_is_coin_in(pool, input_mint, output_mint)?;
-            Ok(compute_amm_v4_swap_amount(
-                pool.coin_reserve,
-                pool.pc_reserve,
-                is_coin_in,
-                amount_in,
-                slippage_basis_points,
-            )
-            .min_amount_out)
+            Ok(compute_amm_v4_swap_amount(pool, is_coin_in, amount_in, slippage_basis_points)?
+                .min_amount_out)
         }
     }
 }
@@ -200,13 +232,10 @@ fn meme_leg_buy_min_out(
     slippage_basis_points: u64,
 ) -> Result<u64> {
     match meme_leg {
-        StonkFunMemeLeg::Curve(params) => Ok(get_buy_quote(
-            quote_amount_in,
-            params,
-            0,
-            slippage_basis_points as u128,
-        )?
-        .minimum_amount_out),
+        StonkFunMemeLeg::Curve(params) => {
+            Ok(get_buy_quote(quote_amount_in, params, 0, slippage_basis_points as u128)?
+                .minimum_amount_out)
+        }
         StonkFunMemeLeg::Graduated(pool) => {
             let quote_mint = graduated_quote_mint(pool, meme_mint)?;
             let is_base_in = cpmm_is_base_in(pool, quote_mint, meme_mint)?;
@@ -261,6 +290,15 @@ async fn build_leg_buy(
     leg.protocol_params = protocol_params;
     leg.input_mint = input_mint;
     leg.output_mint = output_mint;
+    // Endpoint programs must not leak into an intermediate mint's instruction.
+    leg.input_token_program = (normalize_native_sol(input_mint)
+        == normalize_native_sol(params.input_mint))
+    .then_some(params.input_token_program)
+    .flatten();
+    leg.output_token_program = (normalize_native_sol(output_mint)
+        == normalize_native_sol(params.output_mint))
+    .then_some(params.output_token_program)
+    .flatten();
     leg.input_amount = Some(input_amount);
     leg.create_input_mint_ata = create_input_mint_ata;
     leg.close_input_mint_ata = close_input_mint_ata;
@@ -286,6 +324,14 @@ async fn build_leg_sell(
     leg.protocol_params = protocol_params;
     leg.input_mint = input_mint;
     leg.output_mint = output_mint;
+    leg.input_token_program = (normalize_native_sol(input_mint)
+        == normalize_native_sol(params.input_mint))
+    .then_some(params.input_token_program)
+    .flatten();
+    leg.output_token_program = (normalize_native_sol(output_mint)
+        == normalize_native_sol(params.output_mint))
+    .then_some(params.output_token_program)
+    .flatten();
     leg.input_amount = Some(input_amount);
     leg.create_input_mint_ata = create_input_mint_ata;
     leg.close_input_mint_ata = close_input_mint_ata;
@@ -299,43 +345,78 @@ async fn build_buy_via_sol(
     params: &SwapParams,
     via: &StonkFunViaSolParams,
 ) -> Result<Vec<Instruction>> {
-    if !is_native_sol(params.input_mint) {
+    let meme_mint = params.output_mint;
+    let quote_mint = meme_leg_quote_mint(&via.meme_leg, meme_mint)?;
+    let funding_mint = normalize_native_sol(params.input_mint);
+    if !is_native_sol(params.input_mint)
+        && params.input_mint != crate::constants::USDC_TOKEN_ACCOUNT
+        && funding_mint != quote_mint
+    {
         return Err(anyhow!(
-            "StonkFunViaSol buy expects SOL/WSOL input mint, got {}",
+            "StonkFun routed buy expects SOL, WSOL or USDC input mint, got {}",
             params.input_mint
         ));
     }
-    let meme_mint = params.output_mint;
-    let quote_mint = meme_leg_quote_mint(&via.meme_leg, meme_mint)?;
-    let sol_amount = params
+    let input_amount = params
         .input_amount
         .filter(|&a| a > 0)
-        .ok_or_else(|| anyhow!("StonkFunViaSol buy requires a non-zero SOL input amount"))?;
+        .ok_or_else(|| anyhow!("StonkFun routed buy requires a non-zero input amount"))?;
     let slippage = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
-    let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
-
-    // Quote is already SOL: collapse to a single meme-leg buy.
-    if is_native_sol(quote_mint) {
-        return build_leg_buy(
-            params,
-            meme_leg_as_dex_param(&via.meme_leg),
-            wsol,
-            meme_mint,
-            sol_amount,
-            params.create_input_mint_ata,
-            params.close_input_mint_ata,
-            params.create_output_mint_ata,
-            false,
-            params.fixed_output_amount,
-        )
-        .await;
+    let source_program = if funding_mint == quote_mint {
+        meme_leg_quote_program(&via.meme_leg, quote_mint)
+    } else {
+        crate::constants::TOKEN_PROGRAM
+    };
+    if params.input_token_program.is_some_and(|p| p != source_program) {
+        return Err(anyhow!("StonkFun input token program does not match the funding asset"));
+    }
+    let mut instructions = Vec::with_capacity(12);
+    if params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT && !params.create_input_mint_ata {
+        instructions.extend(crate::trading::common::fund_existing_wsol(
+            &params.payer.pubkey(),
+            input_amount,
+        ));
+    }
+    if params.create_input_mint_ata {
+        if params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+            instructions
+                .extend(crate::trading::common::handle_wsol(&params.payer.pubkey(), input_amount));
+        } else {
+            super::token_account_setup::push_create_user_token_account(
+                &mut instructions,
+                &params.payer.pubkey(),
+                &funding_mint,
+                &source_program,
+                params.open_seed_optimize,
+            );
+        }
     }
 
-    ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    // The wallet already uses the pool quote: build one meme-leg buy.
+    if normalize_native_sol(quote_mint) == funding_mint {
+        instructions.extend(
+            build_leg_buy(
+                params,
+                meme_leg_as_dex_param(&via.meme_leg),
+                funding_mint,
+                meme_mint,
+                input_amount,
+                false,
+                params.close_input_mint_ata,
+                params.create_output_mint_ata,
+                false,
+                params.fixed_output_amount,
+            )
+            .await?,
+        );
+        return Ok(instructions);
+    }
+
+    ensure_sol_hop_pair(&via.sol_hop, funding_mint, quote_mint)?;
 
     // Match legs on hop1 min-out so hop2 cannot overspend the quote ATA.
     let quote_bridge =
-        sol_hop_min_out(&via.sol_hop, sol_amount, wsol, quote_mint, slippage)?;
+        sol_hop_min_out(&via.sol_hop, input_amount, funding_mint, quote_mint, slippage, true)?;
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol SOL hop produced zero quote output"));
     }
@@ -349,16 +430,14 @@ async fn build_buy_via_sol(
     // Never close the intermediate quote ATA — leftover stock dust is intentional.
     let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
 
-    let mut instructions = Vec::with_capacity(12);
-
-    // Hop 1: WSOL → quote. Defer WSOL close until after both hops.
+    // Hop 1: funding asset → quote. Defer WSOL close until after both hops.
     let hop1 = build_leg_buy(
         params,
         sol_hop_as_dex_param(&via.sol_hop),
-        wsol,
+        funding_mint,
         quote_mint,
-        sol_amount,
-        params.create_input_mint_ata,
+        input_amount,
+        false,
         false,
         create_quote_ata,
         false,
@@ -387,7 +466,7 @@ async fn build_buy_via_sol(
         crate::instruction::token_account_setup::push_close_wsol_if_needed(
             &mut instructions,
             &params.payer.pubkey(),
-            &wsol,
+            &funding_mint,
         );
     }
 
@@ -398,27 +477,30 @@ async fn build_sell_via_sol(
     params: &SwapParams,
     via: &StonkFunViaSolParams,
 ) -> Result<Vec<Instruction>> {
-    if !is_native_sol(params.output_mint) {
+    let meme_mint = params.input_mint;
+    let quote_mint = meme_leg_quote_mint(&via.meme_leg, meme_mint)?;
+    let funding_mint = normalize_native_sol(params.output_mint);
+    if !is_native_sol(params.output_mint)
+        && params.output_mint != crate::constants::USDC_TOKEN_ACCOUNT
+        && funding_mint != quote_mint
+    {
         return Err(anyhow!(
-            "StonkFunViaSol sell expects SOL/WSOL output mint, got {}",
+            "StonkFun routed sell expects SOL, WSOL or USDC output mint, got {}",
             params.output_mint
         ));
     }
-    let meme_mint = params.input_mint;
-    let quote_mint = meme_leg_quote_mint(&via.meme_leg, meme_mint)?;
     let meme_amount = params
         .input_amount
         .filter(|&a| a > 0)
         .ok_or_else(|| anyhow!("StonkFunViaSol sell requires a non-zero meme input amount"))?;
     let slippage = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
-    let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
 
-    if is_native_sol(quote_mint) {
+    if normalize_native_sol(quote_mint) == funding_mint {
         return build_leg_sell(
             params,
             meme_leg_as_dex_param(&via.meme_leg),
             meme_mint,
-            wsol,
+            funding_mint,
             meme_amount,
             false,
             params.close_input_mint_ata,
@@ -429,14 +511,13 @@ async fn build_sell_via_sol(
         .await;
     }
 
-    ensure_sol_hop_pair(&via.sol_hop, quote_mint)?;
+    ensure_sol_hop_pair(&via.sol_hop, funding_mint, quote_mint)?;
 
-    let quote_bridge =
-        meme_leg_sell_min_out(&via.meme_leg, meme_amount, meme_mint, slippage)?;
+    let quote_bridge = meme_leg_sell_min_out(&via.meme_leg, meme_amount, meme_mint, slippage)?;
     if quote_bridge == 0 {
         return Err(anyhow!("StonkFunViaSol meme leg produced zero quote output"));
     }
-    let _ = sol_hop_min_out(&via.sol_hop, quote_bridge, quote_mint, wsol, slippage)?;
+    let _ = sol_hop_min_out(&via.sol_hop, quote_bridge, quote_mint, funding_mint, slippage, false)?;
 
     // Same persistence policy as buy: do not force-create or close stock quote ATAs.
     let create_quote_ata = params.create_input_mint_ata || params.create_output_mint_ata;
@@ -459,12 +540,12 @@ async fn build_sell_via_sol(
     .await?;
     instructions.extend(hop1);
 
-    // Hop 2: quote → WSOL. WSOL create/close follows the caller's output ATA flags.
+    // Hop 2: quote → funding asset. WSOL create/close follows the caller's output ATA flags.
     let hop2 = build_leg_sell(
         params,
         sol_hop_as_dex_param(&via.sol_hop),
         quote_mint,
-        wsol,
+        funding_mint,
         quote_bridge,
         false,
         false,
@@ -492,6 +573,9 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
                 RaydiumCpmmInstructionBuilder.build_buy_instructions(params).await
             }
             DexParamEnum::StonkFunViaSol(via) => build_buy_via_sol(params, via).await,
+            DexParamEnum::StonkFunQuoteRoute(route) => {
+                super::stonkfun_quote_route::build_quote_route(params, route, true).await
+            }
             DexParamEnum::RaydiumCpmm(_) => {
                 RaydiumCpmmInstructionBuilder.build_buy_instructions(params).await
             }
@@ -514,6 +598,9 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
                 RaydiumCpmmInstructionBuilder.build_sell_instructions(params).await
             }
             DexParamEnum::StonkFunViaSol(via) => build_sell_via_sol(params, via).await,
+            DexParamEnum::StonkFunQuoteRoute(route) => {
+                super::stonkfun_quote_route::build_quote_route(params, route, false).await
+            }
             DexParamEnum::RaydiumCpmm(_) => {
                 RaydiumCpmmInstructionBuilder.build_sell_instructions(params).await
             }
@@ -526,7 +613,7 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{
         common::GasFeeStrategy,
@@ -545,7 +632,7 @@ mod tests {
         Pubkey::new_from_array([seed; 32])
     }
 
-    fn curve_params(quote_mint: Pubkey) -> BonkParams {
+    pub(crate) fn curve_params(quote_mint: Pubkey) -> BonkParams {
         BonkParams {
             virtual_base: 1_000_000_000,
             virtual_quote: 30_000_000_000,
@@ -607,7 +694,7 @@ mod tests {
         }
     }
 
-    fn swap_params(
+    pub(crate) fn swap_params(
         trade_type: TradeType,
         input_mint: Pubkey,
         output_mint: Pubkey,
@@ -658,10 +745,7 @@ mod tests {
         let meme = pk(41);
         let via = StonkFunViaSolParams::curve(
             curve_params(stock),
-            StonkFunSolHop::RaydiumCpmm(cpmm_pool(
-                crate::constants::WSOL_TOKEN_ACCOUNT,
-                stock,
-            )),
+            StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, stock)),
         );
         let params = swap_params(
             TradeType::Buy,
@@ -700,10 +784,7 @@ mod tests {
         let meme = pk(51);
         let via = StonkFunViaSolParams::graduated(
             cpmm_pool(stock, meme),
-            StonkFunSolHop::RaydiumCpmm(cpmm_pool(
-                crate::constants::WSOL_TOKEN_ACCOUNT,
-                stock,
-            )),
+            StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, stock)),
         );
         let params = swap_params(
             TradeType::Sell,
@@ -740,10 +821,7 @@ mod tests {
         let meme = pk(62);
         let via = StonkFunViaSolParams::curve(
             curve_params(stock),
-            StonkFunSolHop::RaydiumCpmm(cpmm_pool(
-                crate::constants::WSOL_TOKEN_ACCOUNT,
-                other,
-            )),
+            StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, other)),
         );
         let params = swap_params(
             TradeType::Buy,
@@ -752,7 +830,7 @@ mod tests {
             DexParamEnum::StonkFunViaSol(via),
         );
         let err = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap_err();
-        assert!(err.to_string().contains("does not match WSOL"));
+        assert!(err.to_string().contains("does not match funding-asset"));
     }
 
     #[tokio::test]
@@ -761,10 +839,7 @@ mod tests {
         let meme = pk(71);
         let via = StonkFunViaSolParams::curve(
             curve_params(stock),
-            StonkFunSolHop::RaydiumCpmm(cpmm_pool(
-                crate::constants::WSOL_TOKEN_ACCOUNT,
-                stock,
-            )),
+            StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, stock)),
         );
         let mut params = swap_params(
             TradeType::Buy,
@@ -809,9 +884,140 @@ mod tests {
             .await
             .expect("compose curve via-sol buy with amm v4 hop");
         let programs: Vec<_> = ixs.iter().map(|ix| ix.program_id).collect();
-        assert!(programs
-            .contains(&crate::instruction::utils::raydium_amm_v4::accounts::RAYDIUM_AMM_V4));
+        assert!(
+            programs.contains(&crate::instruction::utils::raydium_amm_v4::accounts::RAYDIUM_AMM_V4)
+        );
         assert!(programs.contains(&launchlab_accounts::BONK));
+    }
+
+    #[test]
+    fn direct_funding_pair_validation_accepts_usdc_and_rejects_wrong_pool() {
+        let quote = pk(60);
+        let usdc = crate::constants::USDC_TOKEN_ACCOUNT;
+        let hop = StonkFunSolHop::RaydiumCpmm(cpmm_pool(usdc, quote));
+        assert!(ensure_sol_hop_pair(&hop, usdc, quote).is_ok());
+        assert!(ensure_sol_hop_pair(&hop, crate::constants::WSOL_TOKEN_ACCOUNT, quote).is_err());
+    }
+
+    #[tokio::test]
+    async fn inner_and_graduated_buy_sell_support_sol_wsol_usdc_without_extra_wsol_funding() {
+        let stock = pk(60);
+        let meme = pk(61);
+        for graduated in [false, true] {
+            for asset in [
+                crate::constants::SOL_TOKEN_ACCOUNT,
+                crate::constants::WSOL_TOKEN_ACCOUNT,
+                crate::constants::USDC_TOKEN_ACCOUNT,
+            ] {
+                let hop = cpmm_pool(normalize_native_sol(asset), stock);
+                let via = if graduated {
+                    StonkFunViaSolParams::graduated(cpmm_pool(meme, stock), hop)
+                } else {
+                    StonkFunViaSolParams::curve(curve_params(stock), hop)
+                };
+                let mut buy = swap_params(TradeType::Buy, asset, meme, via.clone().into());
+                buy.close_input_mint_ata = false;
+                let buy_ixs =
+                    StonkFunInstructionBuilder.build_buy_instructions(&buy).await.unwrap();
+                let native_funding = buy_ixs
+                    .iter()
+                    .filter(|ix| {
+                        ix.program_id == crate::constants::SYSTEM_PROGRAM
+                            && ix.data.get(..4) == Some(&[2, 0, 0, 0])
+                    })
+                    .count();
+                assert_eq!(
+                    native_funding,
+                    usize::from(asset == crate::constants::SOL_TOKEN_ACCOUNT)
+                );
+                assert_eq!(
+                    buy_ixs
+                        .iter()
+                        .filter(|ix| ix.program_id == cpmm_accounts::RAYDIUM_CPMM)
+                        .count(),
+                    if graduated { 2 } else { 1 }
+                );
+                let mut sell = swap_params(TradeType::Sell, meme, asset, via.into());
+                sell.close_input_mint_ata = false;
+                sell.close_output_mint_ata = asset == crate::constants::SOL_TOKEN_ACCOUNT;
+                let sell_ixs =
+                    StonkFunInstructionBuilder.build_sell_instructions(&sell).await.unwrap();
+                let closes = sell_ixs
+                    .iter()
+                    .filter(|ix| ix.program_id == crate::constants::TOKEN_PROGRAM && ix.data == [9])
+                    .count();
+                assert_eq!(closes, usize::from(asset == crate::constants::SOL_TOKEN_ACCOUNT));
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn native_sol_still_funds_prepared_ata_while_existing_wsol_does_not() {
+        let quote = pk(60);
+        let meme = pk(61);
+        let via = StonkFunViaSolParams::curve(
+            curve_params(quote),
+            cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, quote),
+        );
+        for asset in [crate::constants::SOL_TOKEN_ACCOUNT, crate::constants::WSOL_TOKEN_ACCOUNT] {
+            let mut params = swap_params(TradeType::Buy, asset, meme, via.clone().into());
+            params.create_input_mint_ata = false;
+            params.create_output_mint_ata = false;
+            params.close_input_mint_ata = false;
+            let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+            assert_eq!(ixs.len(), if asset == crate::constants::SOL_TOKEN_ACCOUNT { 4 } else { 2 });
+            assert!(!ixs
+                .iter()
+                .any(|ix| ix.program_id == crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID));
+        }
+    }
+    #[tokio::test]
+    async fn direct_stock_quote_is_one_swap_for_both_venues_and_token_programs() {
+        let stock = pk(60);
+        let meme = pk(61);
+        for graduated in [false, true] {
+            for program in [crate::constants::TOKEN_PROGRAM, crate::constants::TOKEN_PROGRAM_2022] {
+                let via = if graduated {
+                    let mut pool = cpmm_pool(meme, stock);
+                    pool.quote_token_program = program;
+                    StonkFunViaSolParams::graduated_direct(pool)
+                } else {
+                    let mut curve = curve_params(stock);
+                    curve.quote_token_program = program;
+                    StonkFunViaSolParams::curve_direct(curve)
+                };
+                for is_buy in [true, false] {
+                    let mut params = if is_buy {
+                        swap_params(TradeType::Buy, stock, meme, via.clone().into())
+                    } else {
+                        swap_params(TradeType::Sell, meme, stock, via.clone().into())
+                    };
+                    params.close_input_mint_ata = false;
+                    params.close_output_mint_ata = false;
+                    if is_buy {
+                        params.input_token_program = Some(program);
+                    } else {
+                        params.output_token_program = Some(program);
+                    }
+                    let ixs = if is_buy {
+                        StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap()
+                    } else {
+                        StonkFunInstructionBuilder.build_sell_instructions(&params).await.unwrap()
+                    };
+                    assert_eq!(
+                        ixs.iter()
+                            .filter(|ix| ix.program_id == cpmm_accounts::RAYDIUM_CPMM
+                                || ix.program_id == launchlab_accounts::BONK)
+                            .count(),
+                        1
+                    );
+                    assert!(!ixs
+                        .iter()
+                        .any(|ix| ix.program_id == crate::constants::SYSTEM_PROGRAM
+                            && ix.data.get(..4) == Some(&[2, 0, 0, 0])));
+                }
+            }
+        }
     }
 
     #[test]

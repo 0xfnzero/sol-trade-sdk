@@ -45,7 +45,7 @@ pub fn bitmap_extension_pda(lb_pair: &Pubkey) -> Pubkey {
 
 pub fn decode_lb_pair(data: &[u8]) -> Result<LbPairState> {
     // Layout verified against IDL + memcmp on live SOL/USDC pairs (mint at offset 88).
-    if data.len() < TOKEN_X_MINT_OFFSET + 32 * 4 + 32 {
+    if data.len() < 584 {
         return Err(anyhow!("Meteora DLMM LbPair account too short"));
     }
     if data[..8] != LB_PAIR_DISC {

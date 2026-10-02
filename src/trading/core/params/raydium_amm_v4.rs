@@ -40,6 +40,8 @@ pub struct RaydiumAmmV4Params {
     pub coin_reserve: u64,
     /// Current pc reserve amount in the pool
     pub pc_reserve: u64,
+    pub swap_fee_numerator: u64,
+    pub swap_fee_denominator: u64,
 }
 
 impl RaydiumAmmV4Params {
@@ -70,6 +72,8 @@ impl RaydiumAmmV4Params {
             serum_vault_signer: Pubkey::default(),
             coin_reserve,
             pc_reserve,
+            swap_fee_numerator: 25,
+            swap_fee_denominator: 10_000,
         }
     }
 
@@ -132,8 +136,14 @@ impl RaydiumAmmV4Params {
             serum_coin_vault_account: market_state.serum_coin_vault_account,
             serum_pc_vault_account: market_state.serum_pc_vault_account,
             serum_vault_signer,
-            coin_reserve,
-            pc_reserve,
+            coin_reserve: coin_reserve
+                .checked_sub(amm_info.out_put.need_take_pnl_coin)
+                .ok_or_else(|| anyhow::anyhow!("AMM coin PnL exceeds vault balance"))?,
+            pc_reserve: pc_reserve
+                .checked_sub(amm_info.out_put.need_take_pnl_pc)
+                .ok_or_else(|| anyhow::anyhow!("AMM pc PnL exceeds vault balance"))?,
+            swap_fee_numerator: amm_info.fees.swap_fee_numerator,
+            swap_fee_denominator: amm_info.fees.swap_fee_denominator,
         })
     }
 }

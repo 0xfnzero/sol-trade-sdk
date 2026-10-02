@@ -97,9 +97,17 @@ This SDK is available in multiple languages:
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "5.0.5"`
+**Rust crate:** `sol-trade-sdk = "5.0.6"`
+
+Version 5.0.6 adds cache-backed StonkFun quote routes for independent SOL/WSOL/USDC/stock buys and sells, including direct USDC/stock conversion. The optional `parser-adapter` feature connects parser route clues and gRPC snapshots to local quote/build without hot-path RPC. See [gRPC simulations](docs/STONKFUN_GRPC_EXAMPLES.md) for verified V1 examples and cache boundaries.
 
 This release adds first-class shared-program trading through `DexType::LaunchLab`, `DexParamEnum::LaunchLab`, and `LaunchLabParams`, plus platform-specific StonkFun names through `DexType::StonkFun`, `DexParamEnum::StonkFun`, and `StonkFunParams`. It supports dynamic quote mints and token programs, reads current LaunchLab pool and fee configuration by RPC, and builds the current 18-account buy/sell instruction layout. The same `DexType::StonkFun` routes graduated pools when paired with `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams`: arbitrary token pairs, mixed SPL Token/Token-2022 programs, current AmmConfig and creator fees, transfer fees, vault balances, and both swap directions are resolved from mainnet state. Buy quotes also reduce the submitted input at the curve graduation boundary, matching the official LaunchLab SDK. For wallets that only hold SOL, `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` builds an atomic `SOL ↔ quote ↔ meme` two-hop for both the LaunchLab curve and graduated CPMM legs; the SOL↔quote hop currently supports Raydium CPMM and AMM v4. Existing Bonk and `RaydiumCpmm` names remain available for compatibility and direct underlying-protocol access.
+
+Explicit `StonkFunSolHop::Route` funding paths additionally support CLMM, Whirlpool, DLMM, intermediate mints and split/merge execution, with independently quoted buy/sell paths. See [StonkFun quote routes](docs/STONKFUN_ROUTES.md) for the API, fee handling and subscription-fed local quotes and remaining discovery requirements. With `parser-adapter`, `SubscriptionAccountCache::prepare_stonkfun_trade` prepares a complete independent buy or sell without hot-path RPC; see `examples/stonkfun_cached_prepare.rs`.
+
+PublicNode gRPC cache + mainnet simulation examples: [guide](docs/STONKFUN_GRPC_EXAMPLES.md).
+
+`SimpleBuyParams::stonkfun_with_token` / `SimpleSellParams::stonkfun_to_token` accept SOL, USDC, WSOL or the pool's stock quote. SOL funds wrapping; WSOL spends existing tokens. Under Auto, SOL receipt unwraps while WSOL/USDC accounts stay open. `StonkFunViaQuoteParams::curve_direct` / `graduated_direct` skip conversion for already-held quotes. Each buy/sell is a separate transaction composed directly from DEX instructions, requiring no router contract.
 
 The gated mainnet regressions use a current StonkFun reward pool and the graduated KNOTS/STONK CPMM pool. Run them without submitting a transaction:
 
@@ -180,14 +188,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.5" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.6" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "5.0.5"
+sol-trade-sdk = "5.0.6"
 ```
 
 ## 🛠️ Usage Examples
