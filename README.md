@@ -3,15 +3,6 @@
     <h3><em>A comprehensive Rust SDK for seamless Solana DEX trading</em></h3>
 </div>
 
-## Concentrated-liquidity instruction builders
-
-`instruction::{raydium_clmm, whirlpool, meteora_dlmm}` provides zero-RPC
-builders for Raydium CLMM `swap_v2`, Orca Whirlpool `swap_v2`, and Meteora DLMM
-`swap2`. Callers supply all pool and tick/bin-array accounts from streamer
-snapshots. These low-level builders are not yet wired into `DexType`/the trading
-factory because that path currently assumes protocol-specific RPC-backed
-parameter decoding.
-
 <p align="center">
     <strong>A high-performance Rust SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
 </p>
