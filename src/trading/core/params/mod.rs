@@ -4,6 +4,7 @@ mod bonk;
 mod dex_swap;
 mod hop_spot;
 mod meteora_damm_v2;
+mod meteora_dbc;
 mod meteora_dlmm;
 mod pumpfun;
 mod pumpswap;
@@ -17,6 +18,7 @@ pub use bonk::{BonkParams, LaunchLabParams, StonkFunParams};
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
 pub use hop_spot::HopSpot;
 pub use meteora_damm_v2::MeteoraDammV2Params;
+pub use meteora_dbc::{DbcQuoteState, DbcTransferHook, MeteoraDbcParams};
 #[cfg(test)]
 pub(crate) use meteora_dlmm::fixture_pair as dlmm_fixture_pair;
 pub use meteora_dlmm::{

@@ -5,7 +5,8 @@
 //! quote tokens.
 
 use super::{
-    bonk::BonkInstructionBuilder, meteora_dlmm::MeteoraDlmmInstructionBuilder,
+    bonk::BonkInstructionBuilder, meteora_damm_v2::MeteoraDammV2InstructionBuilder,
+    meteora_dbc::MeteoraDbcInstructionBuilder, meteora_dlmm::MeteoraDlmmInstructionBuilder,
     raydium_amm_v4::RaydiumAmmV4InstructionBuilder, raydium_clmm::RaydiumClmmInstructionBuilder,
     raydium_cpmm::RaydiumCpmmInstructionBuilder, whirlpool::WhirlpoolInstructionBuilder,
 };
@@ -13,14 +14,15 @@ use crate::{
     constants::trade::trade::DEFAULT_SLIPPAGE,
     trading::core::{
         params::{
-            DexParamEnum, HopSpot, RaydiumAmmV4Params, RaydiumCpmmParams, StonkFunMemeLeg,
-            StonkFunSolHop, StonkFunViaSolParams, SwapParams,
+            DexParamEnum, HopSpot, MeteoraDammV2Params, MeteoraDbcParams, RaydiumAmmV4Params,
+            RaydiumCpmmParams, StonkFunMemeLeg, StonkFunSolHop, StonkFunViaSolParams, SwapParams,
         },
         traits::InstructionBuilder,
     },
     utils::calc::{
         bonk::{get_buy_quote, get_sell_min_amount_out},
         common::calculate_min_amount_out,
+        meteora_damm_v2::quote_exact_in as quote_damm_v2_exact_in,
         raydium_amm_v4::compute_swap_amount_for_pool as compute_amm_v4_swap_amount_for_pool,
         raydium_cpmm::compute_swap_amount_for_pool,
     },
@@ -72,10 +74,29 @@ fn graduated_quote_mint(pool: &RaydiumCpmmParams, meme_mint: Pubkey) -> Result<P
     }
 }
 
+/// The side of a DAMM v2 pool that is not `meme_mint`.
+fn damm_v2_quote_mint(pool: &MeteoraDammV2Params, meme_mint: Pubkey) -> Result<Pubkey> {
+    let meme = normalize_native_sol(meme_mint);
+    if pool.token_a_mint == meme {
+        Ok(normalize_native_sol(pool.token_b_mint))
+    } else if pool.token_b_mint == meme {
+        Ok(normalize_native_sol(pool.token_a_mint))
+    } else {
+        Err(anyhow!(
+            "Meme mint {} is not part of Meteora DAMM v2 pool {}/{}",
+            meme,
+            pool.token_a_mint,
+            pool.token_b_mint
+        ))
+    }
+}
+
 fn meme_leg_quote_mint(meme_leg: &StonkFunMemeLeg, meme_mint: Pubkey) -> Result<Pubkey> {
     match meme_leg {
         StonkFunMemeLeg::Curve(params) => curve_quote_mint(params),
         StonkFunMemeLeg::Graduated(params) => graduated_quote_mint(params, meme_mint),
+        StonkFunMemeLeg::MeteoraDbc(params) => Ok(normalize_native_sol(params.quote_mint)),
+        StonkFunMemeLeg::MeteoraDammV2(params) => damm_v2_quote_mint(params, meme_mint),
     }
 }
 
@@ -83,7 +104,39 @@ fn meme_leg_as_dex_param(meme_leg: &StonkFunMemeLeg) -> DexParamEnum {
     match meme_leg {
         StonkFunMemeLeg::Curve(params) => DexParamEnum::StonkFun(params.clone()),
         StonkFunMemeLeg::Graduated(params) => DexParamEnum::StonkFunSwap(params.clone()),
+        StonkFunMemeLeg::MeteoraDbc(params) => DexParamEnum::MeteoraDbc(params.clone()),
+        StonkFunMemeLeg::MeteoraDammV2(params) => DexParamEnum::MeteoraDammV2(params.clone()),
     }
+}
+
+/// Minimum output of a Meteora DBC leg, quoted on the curve its params carry.
+fn dbc_leg_min_out(
+    pool: &MeteoraDbcParams,
+    is_buy: bool,
+    amount_in: u64,
+    slippage_basis_points: u64,
+) -> Result<u64> {
+    let curve = pool
+        .quote
+        .as_ref()
+        .ok_or_else(|| anyhow!("Meteora DBC pool {} needs its curve to quote a leg", pool.pool))?;
+    let quote = curve.quote_exact_in(is_buy, amount_in)?;
+    Ok(calculate_min_amount_out(quote.amount_out, slippage_basis_points))
+}
+
+/// Minimum output of a Meteora DAMM v2 leg, quoted on the state its params carry.
+fn damm_v2_leg_min_out(
+    pool: &MeteoraDammV2Params,
+    input_mint: Pubkey,
+    amount_in: u64,
+    slippage_basis_points: u64,
+) -> Result<u64> {
+    let state = pool.quote.as_ref().ok_or_else(|| {
+        anyhow!("Meteora DAMM v2 pool {} needs its state to quote a leg", pool.pool)
+    })?;
+    let a_to_b = normalize_native_sol(input_mint) == pool.token_a_mint;
+    let quote = quote_damm_v2_exact_in(state, a_to_b, amount_in)?;
+    Ok(calculate_min_amount_out(quote.amount_out, slippage_basis_points))
 }
 
 fn sol_hop_as_dex_param(sol_hop: &StonkFunSolHop) -> DexParamEnum {
@@ -341,6 +394,13 @@ fn meme_leg_buy_min_out(
             )?
             .min_amount_out)
         }
+        StonkFunMemeLeg::MeteoraDbc(pool) => {
+            dbc_leg_min_out(pool, true, quote_amount_in, slippage_basis_points)
+        }
+        StonkFunMemeLeg::MeteoraDammV2(pool) => {
+            let quote_mint = damm_v2_quote_mint(pool, meme_mint)?;
+            damm_v2_leg_min_out(pool, quote_mint, quote_amount_in, slippage_basis_points)
+        }
     }
 }
 
@@ -364,6 +424,12 @@ fn meme_leg_sell_min_out(
                 slippage_basis_points,
             )?
             .min_amount_out)
+        }
+        StonkFunMemeLeg::MeteoraDbc(pool) => {
+            dbc_leg_min_out(pool, false, meme_amount_in, slippage_basis_points)
+        }
+        StonkFunMemeLeg::MeteoraDammV2(pool) => {
+            damm_v2_leg_min_out(pool, meme_mint, meme_amount_in, slippage_basis_points)
         }
     }
 }
@@ -701,6 +767,12 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
             DexParamEnum::MeteoraDlmm(_) => {
                 MeteoraDlmmInstructionBuilder.build_buy_instructions(params).await
             }
+            DexParamEnum::MeteoraDbc(_) => {
+                MeteoraDbcInstructionBuilder.build_buy_instructions(params).await
+            }
+            DexParamEnum::MeteoraDammV2(_) => {
+                MeteoraDammV2InstructionBuilder.build_buy_instructions(params).await
+            }
             _ => Err(anyhow!("Invalid protocol params for StonkFun")),
         }
     }
@@ -731,6 +803,12 @@ impl InstructionBuilder for StonkFunInstructionBuilder {
             }
             DexParamEnum::MeteoraDlmm(_) => {
                 MeteoraDlmmInstructionBuilder.build_sell_instructions(params).await
+            }
+            DexParamEnum::MeteoraDbc(_) => {
+                MeteoraDbcInstructionBuilder.build_sell_instructions(params).await
+            }
+            DexParamEnum::MeteoraDammV2(_) => {
+                MeteoraDammV2InstructionBuilder.build_sell_instructions(params).await
             }
             _ => Err(anyhow!("Invalid protocol params for StonkFun")),
         }
@@ -1390,5 +1468,201 @@ mod tests {
         assert!(StonkFunSolHop::RaydiumCpmm(cpmm).quote_exact_in(&other, 1_000_000).is_err());
         let whirlpool = StonkFunSolHop::OrcaWhirlpool(whirlpool_pool(wsol, quote, Some(spot(2.0))));
         assert!(whirlpool.quote_exact_in(&wsol, 1_000_000).is_err());
+    }
+
+    // ---- Meteora DBC and DAMM v2 meme legs ----
+
+    const USDC: Pubkey = crate::constants::USDC_TOKEN_ACCOUNT;
+
+    /// The curve of mainnet pool 2Rz8zRLAqMtXKBGsxb8DwYN1Ed13TDwLtxNUrEUHtBJY.
+    fn dbc_pool(meme: Pubkey, quote_mint: Pubkey) -> MeteoraDbcParams {
+        use crate::instruction::utils::meteora_dbc_types::{DbcBaseFee, DbcConfig, DbcCurvePoint};
+        use crate::trading::core::params::DbcQuoteState;
+        MeteoraDbcParams::new(
+            pk(50),
+            pk(51),
+            meme,
+            quote_mint,
+            pk(52),
+            pk(53),
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+        )
+        .with_quote(DbcQuoteState {
+            config: Arc::new(DbcConfig {
+                base_fee: DbcBaseFee { cliff_fee_numerator: 20_000_000, ..Default::default() },
+                migration_sqrt_price: 1_750_011_800_614_054_764,
+                sqrt_start_price: 583_337_266_871_351_588,
+                curve: vec![DbcCurvePoint {
+                    sqrt_price: 1_837_512_390_644_757_503,
+                    liquidity: 2_916_686_334_356_757_942_357_946_112_045,
+                }],
+                ..Default::default()
+            }),
+            sqrt_price: 1_730_409_438_693_799_042,
+            fee_numerator: 20_000_000,
+            rate_limited_buys: false,
+        })
+    }
+
+    /// The state of mainnet pool EPy3Rnwz9G1eg1wx6a9wCoEsnSFCwb3r4keFFzxauLLX.
+    fn damm_v2_pool(token_a_mint: Pubkey, token_b_mint: Pubkey) -> MeteoraDammV2Params {
+        use crate::utils::calc::meteora_damm_v2::DammV2QuoteState;
+        MeteoraDammV2Params::new(
+            pk(60),
+            pk(61),
+            pk(62),
+            token_a_mint,
+            token_b_mint,
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+        )
+        .with_quote(DammV2QuoteState {
+            sqrt_price: 2_711_494_429_538_635_068,
+            liquidity: 582_338_177_451_872_515_801_881_719_705,
+            sqrt_min_price: 4_295_048_016,
+            sqrt_max_price: 79_226_673_521_066_979_257_578_248_091,
+            fee_numerator: 20_000_000,
+            collect_fee_mode: 1,
+        })
+    }
+
+    fn u64_at(data: &[u8], offset: usize) -> u64 {
+        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap())
+    }
+
+    fn usdc_hop() -> StonkFunSolHop {
+        StonkFunSolHop::RaydiumCpmm(cpmm_pool(crate::constants::WSOL_TOKEN_ACCOUNT, USDC))
+    }
+
+    #[tokio::test]
+    async fn via_sol_meteora_dbc_buy_spends_the_hops_minimum_output() {
+        use crate::instruction::utils::meteora_dbc::accounts as dbc_accounts;
+        let meme = pk(41);
+        let pool = dbc_pool(meme, USDC);
+        let curve = pool.quote.clone().unwrap();
+        let via = StonkFunViaSolParams::meteora_dbc(pool, usdc_hop());
+        let params = swap_params(
+            TradeType::Buy,
+            crate::constants::WSOL_TOKEN_ACCOUNT,
+            meme,
+            DexParamEnum::StonkFunViaSol(via),
+        );
+        let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+
+        let hop = ixs.iter().position(|ix| ix.program_id == cpmm_accounts::RAYDIUM_CPMM).unwrap();
+        let leg = ixs.iter().position(|ix| ix.program_id == dbc_accounts::METEORA_DBC).unwrap();
+        assert!(hop < leg);
+        // The curve leg buys with the hop's minimum output, and asks for its
+        // own quote on the curve less the trade's slippage.
+        let bridge = u64_at(&ixs[hop].data, 16);
+        assert_eq!(u64_at(&ixs[leg].data, 8), bridge);
+        let quoted = curve.quote_exact_in(true, bridge).unwrap().amount_out;
+        assert_eq!(u64_at(&ixs[leg].data, 16), calculate_min_amount_out(quoted, 100));
+        assert_eq!(ixs[leg].accounts[7].pubkey, meme);
+        assert_eq!(ixs[leg].accounts[8].pubkey, USDC);
+    }
+
+    #[tokio::test]
+    async fn meteora_dbc_pool_priced_in_sol_needs_no_hop() {
+        use crate::instruction::utils::meteora_dbc::accounts as dbc_accounts;
+        let meme = pk(41);
+        let pool = dbc_pool(meme, crate::constants::WSOL_TOKEN_ACCOUNT);
+        // Alone, or behind a route it does not use.
+        let via = StonkFunViaSolParams::meteora_dbc(pool.clone(), usdc_hop());
+        for protocol_params in [DexParamEnum::MeteoraDbc(pool), DexParamEnum::StonkFunViaSol(via)] {
+            let params = swap_params(
+                TradeType::Buy,
+                crate::constants::WSOL_TOKEN_ACCOUNT,
+                meme,
+                protocol_params,
+            );
+            let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+            assert!(ixs.iter().all(|ix| ix.program_id != cpmm_accounts::RAYDIUM_CPMM));
+            let leg = ixs.iter().find(|ix| ix.program_id == dbc_accounts::METEORA_DBC).unwrap();
+            assert_eq!(u64_at(&leg.data, 8), 1_000_000);
+            assert_eq!(leg.accounts[8].pubkey, crate::constants::WSOL_TOKEN_ACCOUNT);
+        }
+    }
+
+    #[tokio::test]
+    async fn via_sol_meteora_damm_v2_buy_quotes_the_migrated_pool() {
+        use crate::instruction::utils::meteora_damm_v2::accounts as damm_accounts;
+        use crate::utils::calc::meteora_damm_v2::quote_exact_in;
+        let meme = pk(41);
+        let pool = damm_v2_pool(meme, USDC);
+        let state = pool.quote.unwrap();
+        let via = StonkFunViaSolParams::meteora_damm_v2(pool, usdc_hop());
+        let params = swap_params(
+            TradeType::Buy,
+            crate::constants::WSOL_TOKEN_ACCOUNT,
+            meme,
+            DexParamEnum::StonkFunViaSol(via),
+        );
+        let ixs = StonkFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
+        let hop = ixs.iter().find(|ix| ix.program_id == cpmm_accounts::RAYDIUM_CPMM).unwrap();
+        let leg = ixs.iter().find(|ix| ix.program_id == damm_accounts::METEORA_DAMM_V2).unwrap();
+        let bridge = u64_at(&hop.data, 16);
+        assert_eq!(u64_at(&leg.data, 8), bridge);
+        // USDC is token B: the buy goes B to A.
+        let quoted = quote_exact_in(&state, false, bridge).unwrap().amount_out;
+        assert_eq!(u64_at(&leg.data, 16), calculate_min_amount_out(quoted, 100));
+    }
+
+    #[tokio::test]
+    async fn meteora_damm_v2_sale_pays_the_pools_other_side() {
+        use crate::instruction::utils::meteora_damm_v2::accounts as damm_accounts;
+        use crate::utils::calc::meteora_damm_v2::quote_exact_in;
+        let meme = pk(41);
+        // A quote that is neither WSOL nor USDC, with the token as token B.
+        let quote_mint = pk(42);
+        let mut pool = damm_v2_pool(quote_mint, meme);
+        pool.token_a_program = crate::constants::TOKEN_PROGRAM_2022;
+        let state = pool.quote.unwrap();
+        let mut params =
+            swap_params(TradeType::Sell, meme, quote_mint, DexParamEnum::MeteoraDammV2(pool));
+        params.open_seed_optimize = false;
+        params.create_output_mint_ata = false;
+        params.close_output_mint_ata = false;
+        params.close_input_mint_ata = false;
+        let payer = params.payer.pubkey();
+        let ixs = StonkFunInstructionBuilder.build_sell_instructions(&params).await.unwrap();
+        assert_eq!(ixs.len(), 1);
+        let leg = &ixs[0];
+        assert_eq!(leg.program_id, damm_accounts::METEORA_DAMM_V2);
+        let ata = |mint: &Pubkey, program: &Pubkey| {
+            crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
+                &payer, mint, program, false,
+            )
+        };
+        assert_eq!(leg.accounts[2].pubkey, ata(&meme, &crate::constants::TOKEN_PROGRAM));
+        assert_eq!(leg.accounts[3].pubkey, ata(&quote_mint, &crate::constants::TOKEN_PROGRAM_2022));
+        // The token is B: the sale goes B to A.
+        let quoted = quote_exact_in(&state, false, 1_000_000).unwrap().amount_out;
+        assert_eq!(u64_at(&leg.data, 16), calculate_min_amount_out(quoted, 100));
+    }
+
+    #[tokio::test]
+    async fn via_sol_meteora_legs_without_their_state_are_errors() {
+        let meme = pk(41);
+        let mut dbc = dbc_pool(meme, USDC);
+        dbc.quote = None;
+        let mut damm = damm_v2_pool(meme, USDC);
+        damm.quote = None;
+        // A DAMM v2 pool that does not hold the token has no quote side.
+        let other = damm_v2_pool(pk(70), USDC);
+        for via in [
+            StonkFunViaSolParams::meteora_dbc(dbc, usdc_hop()),
+            StonkFunViaSolParams::meteora_damm_v2(damm, usdc_hop()),
+            StonkFunViaSolParams::meteora_damm_v2(other, usdc_hop()),
+        ] {
+            let params = swap_params(
+                TradeType::Buy,
+                crate::constants::WSOL_TOKEN_ACCOUNT,
+                meme,
+                DexParamEnum::StonkFunViaSol(via),
+            );
+            assert!(StonkFunInstructionBuilder.build_buy_instructions(&params).await.is_err());
+        }
     }
 }

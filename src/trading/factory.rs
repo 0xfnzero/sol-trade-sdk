@@ -21,6 +21,10 @@ pub enum DexType {
     RaydiumCpmm,
     RaydiumAmmV4,
     MeteoraDammV2,
+    /// Meteora Dynamic Bonding Curve pools and the DAMM v2 pools they migrate
+    /// to, bought and sold in SOL through the quote's route when the pool is
+    /// priced in another token.
+    MeteoraDbc,
     RaydiumClmm,
     OrcaWhirlpool,
     MeteoraDlmm,
@@ -41,6 +45,7 @@ impl TradeFactory {
             DexType::RaydiumCpmm => Self::raydium_cpmm_executor(),
             DexType::RaydiumAmmV4 => Self::raydium_amm_v4_executor(),
             DexType::MeteoraDammV2 => Self::meteora_damm_v2_executor(),
+            DexType::MeteoraDbc => Self::meteora_dbc_executor(),
             DexType::RaydiumClmm => Self::raydium_clmm_executor(),
             DexType::OrcaWhirlpool => Self::whirlpool_executor(),
             DexType::MeteoraDlmm => Self::meteora_dlmm_executor(),
@@ -124,6 +129,19 @@ impl TradeFactory {
             std::sync::LazyLock::new(|| {
                 let instruction_builder = Arc::new(MeteoraDammV2InstructionBuilder);
                 Arc::new(GenericTradeExecutor::new(instruction_builder, "MeteoraDammV2"))
+            });
+        INSTANCE.clone()
+    }
+
+    /// The routed builder StonkFun trades use: it builds a DBC or DAMM v2 leg
+    /// alone, or behind the hops of a SOL route.
+    #[inline]
+    fn meteora_dbc_executor() -> Arc<dyn TradeExecutor> {
+        static INSTANCE: std::sync::LazyLock<Arc<dyn TradeExecutor>> =
+            std::sync::LazyLock::new(|| {
+                let instruction_builder =
+                    Arc::new(crate::instruction::stonkfun::StonkFunInstructionBuilder);
+                Arc::new(GenericTradeExecutor::new(instruction_builder, "MeteoraDbc"))
             });
         INSTANCE.clone()
     }

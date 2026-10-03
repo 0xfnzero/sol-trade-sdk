@@ -1,4 +1,5 @@
 use crate::common::SolanaRpcClient;
+use crate::utils::calc::meteora_damm_v2::{fee_numerator, DammV2QuoteState};
 use solana_sdk::pubkey::Pubkey;
 
 /// MeteoraDammV2 protocol specific parameters
@@ -17,6 +18,9 @@ pub struct MeteoraDammV2Params {
     pub swap_mode: u8,
     /// Include the instructions sysvar remaining account when the pool's rate limiter applies.
     pub include_rate_limiter_sysvar: bool,
+    /// The pool state to quote the minimum output from. Without it a swap
+    /// needs `fixed_output_amount`.
+    pub quote: Option<DammV2QuoteState>,
 }
 
 impl MeteoraDammV2Params {
@@ -40,7 +44,13 @@ impl MeteoraDammV2Params {
             referral_token_account: None,
             swap_mode: crate::instruction::utils::meteora_damm_v2::SWAP_MODE_PARTIAL_FILL,
             include_rate_limiter_sysvar: false,
+            quote: None,
         }
+    }
+
+    pub fn with_quote(mut self, quote: DammV2QuoteState) -> Self {
+        self.quote = Some(quote);
+        self
     }
 
     pub fn with_referral_token_account(mut self, referral_token_account: Pubkey) -> Self {
@@ -76,6 +86,19 @@ impl MeteoraDammV2Params {
             .and_then(|a| a.as_ref())
             .map(|a| a.owner)
             .ok_or_else(|| anyhow::anyhow!("Token B mint account not found"))?;
+        // The pool counts time in slots (activation type 0) or seconds; only a
+        // fee still on its schedule needs the slot.
+        let point = if pool_data.activation_type == 0 {
+            if pool_data.pool_fees.base_fee.period_frequency == 0 {
+                0
+            } else {
+                rpc.get_slot().await?
+            }
+        } else {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |time| time.as_secs())
+        };
         Ok(Self {
             pool: *pool_address,
             token_a_vault: pool_data.token_a_vault,
@@ -87,6 +110,7 @@ impl MeteoraDammV2Params {
             referral_token_account: None,
             swap_mode: crate::instruction::utils::meteora_damm_v2::SWAP_MODE_PARTIAL_FILL,
             include_rate_limiter_sysvar: false,
+            quote: Some(DammV2QuoteState::from_pool(&pool_data, fee_numerator(&pool_data, point))),
         })
     }
 }
