@@ -1,4 +1,5 @@
 use crate::common::SolanaRpcClient;
+use crate::instruction::utils::meteora_damm_v2_types::Pool;
 use crate::utils::calc::meteora_damm_v2::{fee_numerator, DammV2QuoteState};
 use solana_sdk::pubkey::Pubkey;
 
@@ -88,29 +89,42 @@ impl MeteoraDammV2Params {
             .ok_or_else(|| anyhow::anyhow!("Token B mint account not found"))?;
         // The pool counts time in slots (activation type 0) or seconds; only a
         // fee still on its schedule needs the slot.
-        let point = if pool_data.activation_type == 0 {
-            if pool_data.pool_fees.base_fee.period_frequency == 0 {
-                0
-            } else {
-                rpc.get_slot().await?
-            }
+        let slot = if pool_data.activation_type == 0
+            && pool_data.pool_fees.base_fee.period_frequency != 0
+        {
+            rpc.get_slot().await?
+        } else {
+            0
+        };
+        Ok(Self::from_pool_state(pool_address, &pool_data, token_a_program, token_b_program, slot))
+    }
+
+    /// The parameters of a pool account already read, whose mints' token
+    /// programs are known; `slot` is the current one, which a pool counting
+    /// time in slots prices its scheduled fee by.
+    pub fn from_pool_state(
+        pool_address: &Pubkey,
+        pool: &Pool,
+        token_a_program: Pubkey,
+        token_b_program: Pubkey,
+        slot: u64,
+    ) -> Self {
+        let point = if pool.activation_type == 0 {
+            slot
         } else {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |time| time.as_secs())
         };
-        Ok(Self {
-            pool: *pool_address,
-            token_a_vault: pool_data.token_a_vault,
-            token_b_vault: pool_data.token_b_vault,
-            token_a_mint: pool_data.token_a_mint,
-            token_b_mint: pool_data.token_b_mint,
+        Self::new(
+            *pool_address,
+            pool.token_a_vault,
+            pool.token_b_vault,
+            pool.token_a_mint,
+            pool.token_b_mint,
             token_a_program,
             token_b_program,
-            referral_token_account: None,
-            swap_mode: crate::instruction::utils::meteora_damm_v2::SWAP_MODE_PARTIAL_FILL,
-            include_rate_limiter_sysvar: false,
-            quote: Some(DammV2QuoteState::from_pool(&pool_data, fee_numerator(&pool_data, point))),
-        })
+        )
+        .with_quote(DammV2QuoteState::from_pool(pool, fee_numerator(pool, point)))
     }
 }

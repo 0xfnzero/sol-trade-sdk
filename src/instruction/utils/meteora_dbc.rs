@@ -88,19 +88,36 @@ pub fn get_migrated_damm_v2_pool(config: &DbcConfig, base_mint: &Pubkey) -> Opti
         return None;
     }
     let damm_config = DAMM_V2_MIGRATION_CONFIGS.get(usize::from(config.migration_fee_option))?;
-    // The pool's address orders its mints by their bytes.
-    let (first, second) = if base_mint.to_bytes() > config.quote_mint.to_bytes() {
-        (base_mint, &config.quote_mint)
+    Some(damm_v2_pool_address(damm_config, base_mint, &config.quote_mint))
+}
+
+/// The DAMM v2 pool of `damm_config` pairing two mints; its address orders
+/// the mints by their bytes.
+fn damm_v2_pool_address(damm_config: &Pubkey, mint: &Pubkey, other_mint: &Pubkey) -> Pubkey {
+    let (first, second) = if mint.to_bytes() > other_mint.to_bytes() {
+        (mint, other_mint)
     } else {
-        (&config.quote_mint, base_mint)
+        (other_mint, mint)
     };
-    Some(
-        Pubkey::find_program_address(
-            &[b"pool", damm_config.as_ref(), first.as_ref(), second.as_ref()],
-            &crate::instruction::utils::meteora_damm_v2::accounts::METEORA_DAMM_V2,
-        )
-        .0,
+    Pubkey::find_program_address(
+        &[b"pool", damm_config.as_ref(), first.as_ref(), second.as_ref()],
+        &crate::instruction::utils::meteora_damm_v2::accounts::METEORA_DAMM_V2,
     )
+    .0
+}
+
+/// Whether DAMM v2 `pool` pairing `token_a_mint` with `token_b_mint` is one a
+/// completed curve migrated to: the pool of one of the migration configs,
+/// which only the DBC program creates pools with. Such a pool holds the
+/// curve's base token as token A and its quote as token B.
+pub fn is_migrated_damm_v2_pool(
+    pool: &Pubkey,
+    token_a_mint: &Pubkey,
+    token_b_mint: &Pubkey,
+) -> bool {
+    DAMM_V2_MIGRATION_CONFIGS
+        .iter()
+        .any(|damm_config| damm_v2_pool_address(damm_config, token_a_mint, token_b_mint) == *pool)
 }
 
 static CONFIGS: Lazy<DashMap<Pubkey, Arc<DbcConfig>>> = Lazy::new(DashMap::new);
@@ -334,6 +351,19 @@ mod tests {
         config.migration_fee_option = 6;
         config.migration_option = 0;
         assert_eq!(get_migrated_damm_v2_pool(&config, &base_mint), None);
+    }
+
+    #[test]
+    fn migrated_pool_is_told_by_its_address() {
+        let base_mint = pubkey!("mAo7GAjCZ2LCW5yNoQW31Ce9kLttUMCjyjD2kP9ever");
+        let usdc = pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+        let pool = pubkey!("EPy3Rnwz9G1eg1wx6a9wCoEsnSFCwb3r4keFFzxauLLX");
+        assert!(is_migrated_damm_v2_pool(&pool, &base_mint, &usdc));
+        // The address orders the mints itself.
+        assert!(is_migrated_damm_v2_pool(&pool, &usdc, &base_mint));
+        // Another pair, or a pool of another config, is not a migrated curve.
+        assert!(!is_migrated_damm_v2_pool(&pool, &base_mint, &Pubkey::new_from_array([7; 32])));
+        assert!(!is_migrated_damm_v2_pool(&Pubkey::new_from_array([7; 32]), &base_mint, &usdc));
     }
 
     fn meta(discriminator: u8, config: &[u8], is_writable: bool) -> ExtraAccountMeta {
