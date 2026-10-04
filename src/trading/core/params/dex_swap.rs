@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use super::bonk::BonkParams;
 use super::meteora_damm_v2::MeteoraDammV2Params;
+use super::meteora_dbc::MeteoraDbcParams;
 use super::meteora_dlmm::MeteoraDlmmParams;
 use super::pumpfun::PumpFunParams;
 use super::pumpswap::PumpSwapParams;
@@ -45,6 +46,9 @@ pub enum DexParamEnum {
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
     MeteoraDammV2(MeteoraDammV2Params),
+    /// Meteora Dynamic Bonding Curve pool, the curve a token trades on before
+    /// it migrates to a DAMM pool.
+    MeteoraDbc(MeteoraDbcParams),
     RaydiumClmm(RaydiumClmmParams),
     OrcaWhirlpool(WhirlpoolParams),
     MeteoraDlmm(MeteoraDlmmParams),
@@ -65,6 +69,7 @@ impl DexParamEnum {
             DexParamEnum::RaydiumCpmm(p) => p,
             DexParamEnum::RaydiumAmmV4(p) => p,
             DexParamEnum::MeteoraDammV2(p) => p,
+            DexParamEnum::MeteoraDbc(p) => p,
             DexParamEnum::RaydiumClmm(p) => p,
             DexParamEnum::OrcaWhirlpool(p) => p,
             DexParamEnum::MeteoraDlmm(p) => p,

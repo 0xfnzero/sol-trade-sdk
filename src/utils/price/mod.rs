@@ -1,5 +1,6 @@
 pub mod bonk;
 pub mod common;
+pub mod meteora;
 pub mod pumpfun;
 pub mod pumpswap;
 pub mod raydium_amm_v4;

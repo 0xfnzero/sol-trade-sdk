@@ -1,4 +1,5 @@
 use crate::{
+    constants::trade::trade::DEFAULT_SLIPPAGE,
     instruction::{
         token_account_setup::{
             push_close_wsol_if_needed, push_create_or_wrap_user_token_account,
@@ -13,15 +14,77 @@ use crate::{
         params::{MeteoraDammV2Params, SwapParams},
         traits::InstructionBuilder,
     },
+    utils::calc::{common::calculate_min_amount_out, meteora_damm_v2::quote_exact_in},
 };
 use anyhow::{anyhow, Result};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
     signer::Signer,
 };
 
 /// Instruction builder for RaydiumCpmm protocol
 pub struct MeteoraDammV2InstructionBuilder;
+
+/// Whether the token a buy receives, or a sale spends, is the pool's token A.
+/// A caller that names neither pool mint trades the pool's token against its
+/// WSOL or USDC side.
+fn traded_is_token_a(
+    pool: &MeteoraDammV2Params,
+    traded_mint: Pubkey,
+    is_buy: bool,
+) -> Result<bool> {
+    let traded = if traded_mint == crate::constants::SOL_TOKEN_ACCOUNT {
+        crate::constants::WSOL_TOKEN_ACCOUNT
+    } else {
+        traded_mint
+    };
+    if traded == pool.token_a_mint {
+        return Ok(true);
+    }
+    if traded == pool.token_b_mint {
+        return Ok(false);
+    }
+    let is_currency = |mint: &Pubkey| {
+        *mint == crate::constants::WSOL_TOKEN_ACCOUNT
+            || *mint == crate::constants::USDC_TOKEN_ACCOUNT
+    };
+    if !is_currency(&pool.token_a_mint) && !is_currency(&pool.token_b_mint) {
+        return Err(anyhow!("Pool must contain WSOL or USDC"));
+    }
+    Ok(if is_buy { !is_currency(&pool.token_a_mint) } else { is_currency(&pool.token_b_mint) })
+}
+
+/// `swap2`'s `(amount_0, amount_1)`: the input and its minimum output, or for
+/// an exact-out swap the output and the most it may cost. The minimum output
+/// is `fixed_output_amount`, else the quote on the pool's state less slippage.
+fn swap_amounts(
+    params: &SwapParams,
+    pool: &MeteoraDammV2Params,
+    a_to_b: bool,
+    amount_in: u64,
+) -> Result<(u64, u64)> {
+    match pool.swap_mode {
+        SWAP_MODE_EXACT_OUT => {
+            let amount_out = params.fixed_output_amount.ok_or_else(|| {
+                anyhow!("fixed_output_amount must be set for MeteoraDammV2 exact-out swap2")
+            })?;
+            Ok((amount_out, amount_in))
+        }
+        SWAP_MODE_EXACT_IN | SWAP_MODE_PARTIAL_FILL => {
+            if let Some(minimum_amount_out) = params.fixed_output_amount {
+                return Ok((amount_in, minimum_amount_out));
+            }
+            let state = pool.quote.as_ref().ok_or_else(|| {
+                anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap2 min output")
+            })?;
+            let quote = quote_exact_in(state, a_to_b, amount_in)?;
+            let slippage = params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE);
+            Ok((amount_in, calculate_min_amount_out(quote.amount_out, slippage)))
+        }
+        mode => Err(anyhow!("Unsupported MeteoraDammV2 swap_mode {}", mode)),
+    }
+}
 
 #[async_trait::async_trait]
 impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
@@ -38,19 +101,10 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             .downcast_ref::<MeteoraDammV2Params>()
             .ok_or_else(|| anyhow!("Invalid protocol params for MeteoraDammV2"))?;
 
-        let is_wsol = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-        let is_usdc = protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_a_in = !traded_is_token_a(protocol_params, params.output_mint, true)?;
         let input_mint =
             if is_a_in { protocol_params.token_a_mint } else { protocol_params.token_b_mint };
         let input_token_program =
@@ -60,21 +114,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         let output_token_program =
             if is_a_in { protocol_params.token_b_program } else { protocol_params.token_a_program };
         let amount_in: u64 = params.input_amount.unwrap_or(0);
-        let (amount_0, amount_1) = match protocol_params.swap_mode {
-            SWAP_MODE_EXACT_OUT => {
-                let amount_out = params.fixed_output_amount.ok_or_else(|| {
-                    anyhow!("fixed_output_amount must be set for MeteoraDammV2 exact-out swap2")
-                })?;
-                (amount_out, amount_in)
-            }
-            SWAP_MODE_EXACT_IN | SWAP_MODE_PARTIAL_FILL => {
-                let minimum_amount_out = params.fixed_output_amount.ok_or_else(|| {
-                    anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap2 min output")
-                })?;
-                (amount_in, minimum_amount_out)
-            }
-            mode => return Err(anyhow!("Unsupported MeteoraDammV2 swap_mode {}", mode)),
-        };
+        let (amount_0, amount_1) = swap_amounts(params, protocol_params, is_a_in, amount_in)?;
 
         let input_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(
@@ -182,19 +222,10 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
             return Err(anyhow!("Token amount is not set"));
         }
 
-        let is_wsol = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.token_a_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
-        let is_usdc = protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT
-            || protocol_params.token_a_mint == crate::constants::USDC_TOKEN_ACCOUNT;
-        if !is_wsol && !is_usdc {
-            return Err(anyhow!("Pool must contain WSOL or USDC"));
-        }
-
         // ========================================
         // Trade calculation and account address preparation
         // ========================================
-        let is_a_in = protocol_params.token_b_mint == crate::constants::WSOL_TOKEN_ACCOUNT
-            || protocol_params.token_b_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+        let is_a_in = traded_is_token_a(protocol_params, params.input_mint, false)?;
         let input_mint =
             if is_a_in { protocol_params.token_a_mint } else { protocol_params.token_b_mint };
         let input_token_program =
@@ -204,21 +235,7 @@ impl InstructionBuilder for MeteoraDammV2InstructionBuilder {
         let output_token_program =
             if is_a_in { protocol_params.token_b_program } else { protocol_params.token_a_program };
         let amount_in = params.input_amount.unwrap_or(0);
-        let (amount_0, amount_1) = match protocol_params.swap_mode {
-            SWAP_MODE_EXACT_OUT => {
-                let amount_out = params.fixed_output_amount.ok_or_else(|| {
-                    anyhow!("fixed_output_amount must be set for MeteoraDammV2 exact-out swap2")
-                })?;
-                (amount_out, amount_in)
-            }
-            SWAP_MODE_EXACT_IN | SWAP_MODE_PARTIAL_FILL => {
-                let minimum_amount_out = params.fixed_output_amount.ok_or_else(|| {
-                    anyhow!("fixed_output_amount must be set for MeteoraDammV2 swap2 min output")
-                })?;
-                (amount_in, minimum_amount_out)
-            }
-            mode => return Err(anyhow!("Unsupported MeteoraDammV2 swap_mode {}", mode)),
-        };
+        let (amount_0, amount_1) = swap_amounts(params, protocol_params, is_a_in, amount_in)?;
 
         let input_token_account =
             crate::common::fast_fn::get_associated_token_address_with_program_id_fast_use_seed(

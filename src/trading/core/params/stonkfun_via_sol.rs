@@ -35,8 +35,8 @@
 use solana_sdk::pubkey::Pubkey;
 
 use super::{
-    BonkParams, MeteoraDlmmParams, RaydiumAmmV4Params, RaydiumClmmParams, RaydiumCpmmParams,
-    WhirlpoolParams,
+    BonkParams, MeteoraDammV2Params, MeteoraDbcParams, MeteoraDlmmParams, RaydiumAmmV4Params,
+    RaydiumClmmParams, RaydiumCpmmParams, WhirlpoolParams,
 };
 use crate::utils::calc::{raydium_amm_v4, raydium_cpmm};
 
@@ -47,6 +47,12 @@ pub enum StonkFunMemeLeg {
     Curve(BonkParams),
     /// Graduated external CPMM pool (`DexParamEnum::StonkFunSwap`).
     Graduated(RaydiumCpmmParams),
+    /// Meteora Dynamic Bonding Curve pool (`DexParamEnum::MeteoraDbc`): the
+    /// same routing serves a launch pool of any venue priced in another token.
+    MeteoraDbc(MeteoraDbcParams),
+    /// Meteora DAMM v2 pool a DBC curve migrated to
+    /// (`DexParamEnum::MeteoraDammV2`).
+    MeteoraDammV2(MeteoraDammV2Params),
 }
 
 /// A pool on the route between SOL/WSOL and the StonkFun quote, used when the
@@ -201,6 +207,29 @@ impl StonkFunViaSolParams {
     pub fn graduated(meme_leg: RaydiumCpmmParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
         Self {
             meme_leg: StonkFunMemeLeg::Graduated(meme_leg),
+            sol_hop: sol_hop.into(),
+            quote_hop: None,
+            hop_slippage_basis_points: None,
+        }
+    }
+
+    /// Meteora DBC curve meme leg + arbitrary SOL hop.
+    pub fn meteora_dbc(meme_leg: MeteoraDbcParams, sol_hop: impl Into<StonkFunSolHop>) -> Self {
+        Self {
+            meme_leg: StonkFunMemeLeg::MeteoraDbc(meme_leg),
+            sol_hop: sol_hop.into(),
+            quote_hop: None,
+            hop_slippage_basis_points: None,
+        }
+    }
+
+    /// Meteora DAMM v2 meme leg + arbitrary SOL hop.
+    pub fn meteora_damm_v2(
+        meme_leg: MeteoraDammV2Params,
+        sol_hop: impl Into<StonkFunSolHop>,
+    ) -> Self {
+        Self {
+            meme_leg: StonkFunMemeLeg::MeteoraDammV2(meme_leg),
             sol_hop: sol_hop.into(),
             quote_hop: None,
             hop_slippage_basis_points: None,
