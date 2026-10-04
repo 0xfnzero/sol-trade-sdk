@@ -97,21 +97,28 @@ pub async fn fetch_fee_config(
     if global.owner != accounts::BONK || platform.owner != accounts::BONK {
         return Err(anyhow!("LaunchLab config account has an unexpected owner"));
     }
-    if global.data.get(..8) != Some(GLOBAL_CONFIG_DISCRIMINATOR.as_slice()) {
+    decode_fee_config(&global.data, &platform.data)
+}
+
+/// Decodes subscription/cache bytes without network access. Owners must be checked by the caller.
+pub fn decode_fee_config(
+    global: &[u8],
+    platform: &[u8],
+) -> Result<LaunchLabFeeConfig, anyhow::Error> {
+    if global.get(..8) != Some(GLOBAL_CONFIG_DISCRIMINATOR.as_slice()) {
         return Err(anyhow!("Account discriminator is not LaunchLab GlobalConfig"));
     }
-    if platform.data.get(..8) != Some(PLATFORM_CONFIG_DISCRIMINATOR.as_slice()) {
+    if platform.get(..8) != Some(PLATFORM_CONFIG_DISCRIMINATOR.as_slice()) {
         return Err(anyhow!("Account discriminator is not LaunchLab PlatformConfig"));
     }
 
     Ok(LaunchLabFeeConfig {
         curve_type: *global
-            .data
             .get(16)
             .ok_or_else(|| anyhow!("LaunchLab GlobalConfig account is too short"))?,
-        trade_fee_rate: read_config_u64(&global.data, 27, "GlobalConfig")?,
-        platform_fee_rate: read_config_u64(&platform.data, 104, "PlatformConfig")?,
-        creator_fee_rate: read_config_u64(&platform.data, 720, "PlatformConfig")?,
+        trade_fee_rate: read_config_u64(global, 27, "GlobalConfig")?,
+        platform_fee_rate: read_config_u64(platform, 104, "PlatformConfig")?,
+        creator_fee_rate: read_config_u64(platform, 720, "PlatformConfig")?,
     })
 }
 

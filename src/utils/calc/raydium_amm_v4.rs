@@ -175,19 +175,25 @@ pub fn swap_base_in_amount_out(
     u64::try_from(out).ok().filter(|out| *out > 0)
 }
 
-/// Swap parameters for `amount_in` through `pool`, at the pool's own swap fee and
-/// the reserves it holds (vaults net of `need_take_pnl` when loaded by RPC).
+/// Swap parameters for `amount_in` through `pool` (the v2, no-orderbook swap), at
+/// the pool's own swap fee and the reserves it holds (vaults net of
+/// `need_take_pnl` when loaded by RPC or from a cache).
 pub fn compute_swap_amount_for_pool(
     pool: &RaydiumAmmV4Params,
     is_coin_in: bool,
     amount_in: u64,
     slippage_basis_points: u64,
 ) -> Result<ComputeSwapParams, anyhow::Error> {
+    anyhow::ensure!(
+        pool.swap_fee_denominator > 0 && pool.swap_fee_numerator < pool.swap_fee_denominator,
+        "Invalid AMM v4 swap fee"
+    );
     let (input_reserve, output_reserve) = if is_coin_in {
         (pool.coin_reserve, pool.pc_reserve)
     } else {
         (pool.pc_reserve, pool.coin_reserve)
     };
+    anyhow::ensure!(input_reserve > 0 && output_reserve > 0, "AMM v4 reserves are empty");
     let amount_out = swap_base_in_amount_out(
         amount_in,
         input_reserve,

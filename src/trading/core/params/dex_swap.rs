@@ -39,10 +39,12 @@ pub enum DexParamEnum {
     StonkFun(BonkParams),
     /// Graduated StonkFun pool parameters backed by the external CPMM venue.
     StonkFunSwap(RaydiumCpmmParams),
-    /// SOL ↔ quote ↔ meme two-hop for wallets that do not hold the StonkFun quote.
+    /// SOL/WSOL/USDC ↔ quote ↔ meme, or direct quote↔meme when the endpoint matches.
     ///
     /// Works for both the LaunchLab curve and graduated CPMM meme legs.
     StonkFunViaSol(StonkFunViaSolParams),
+    /// Standalone quote conversion, also used by StonkFunViaSol internally.
+    StonkFunQuoteRoute(super::StonkFunQuoteRoute),
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
     MeteoraDammV2(MeteoraDammV2Params),
@@ -66,6 +68,7 @@ impl DexParamEnum {
             DexParamEnum::StonkFun(p) => p,
             DexParamEnum::StonkFunSwap(p) => p,
             DexParamEnum::StonkFunViaSol(p) => p,
+            DexParamEnum::StonkFunQuoteRoute(p) => p,
             DexParamEnum::RaydiumCpmm(p) => p,
             DexParamEnum::RaydiumAmmV4(p) => p,
             DexParamEnum::MeteoraDammV2(p) => p,
@@ -144,6 +147,18 @@ pub struct SwapParams {
 }
 
 impl SwapParams {
+    /// Removes executor RPC access and rejects RPC-dependent simulation/confirmation.
+    /// Supply blockhash/nonce and ALTs from background caches. Configure submission
+    /// providers separately (an RPC sender still submits over RPC).
+    pub fn without_rpc(mut self) -> anyhow::Result<Self> {
+        anyhow::ensure!(!self.simulate, "RPC-free execution cannot simulate transactions");
+        anyhow::ensure!(
+            !self.wait_tx_confirmed,
+            "RPC-free execution requires subscription-based confirmation outside the executor"
+        );
+        self.rpc = None;
+        Ok(self)
+    }
     /// One struct for execute_parallel: merges sender_thread_cores, effective_core_ids, max_sender_concurrency. Arc clone only.
     #[inline]
     pub fn sender_concurrency_config(&self) -> SenderConcurrencyConfig {

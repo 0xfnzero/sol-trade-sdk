@@ -16,5 +16,7 @@ pub use client::{
     TradeRiskGate, TradeSellParams, TradeTokenType, TradingClient, TradingInfrastructure,
 };
 pub use trading::core::params::{
-    StonkFunMemeLeg, StonkFunSolHop, StonkFunViaSolParams, StonkFunParams, StonkFunSwapParams,
+    StonkFunMemeLeg, StonkFunParams, StonkFunQuoteHop, StonkFunQuoteHopPreview, StonkFunQuoteRoute,
+    StonkFunQuoteRoutePreview, StonkFunQuoteVenue, StonkFunSolHop, StonkFunSwapParams,
+    StonkFunViaQuoteParams, StonkFunViaSolParams,
 };

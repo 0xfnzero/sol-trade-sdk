@@ -63,7 +63,8 @@ impl Default for BonkParams {
 }
 
 impl BonkParams {
-    /// Builds parameters from a complete LaunchLab or StonkFun trade event.
+    /// Legacy event constructor: configured fees/total sell cap are still defaults.
+    /// Use SubscriptionAccountCache::launchlab for complete current parameters.
     pub fn from_launchlab_trade(
         virtual_base: u64,
         virtual_quote: u64,
@@ -115,6 +116,8 @@ impl BonkParams {
             ..Default::default()
         }
     }
+    /// Legacy partial constructor; quote and current fees are unavailable here.
+    /// Prefer SubscriptionAccountCache::launchlab for stock-quoted copy trades.
     pub fn from_trade(
         virtual_base: u64,
         virtual_quote: u64,

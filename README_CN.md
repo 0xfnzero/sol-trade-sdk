@@ -88,9 +88,17 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "5.0.5"`
+**Rust crate:** `sol-trade-sdk = "5.0.6"`
+
+v5.0.6 新增基于缓存的 StonkFun 路由，支持独立的 SOL/WSOL/USDC/股票买卖及直接 USDC/股票兑换。可选 `parser-adapter` 将 parser 路由线索、gRPC 快照连接到本地报价和构建，热路径无 RPC。实际验证的 V1 示例及缓存边界见 [gRPC 模拟文档](docs/STONKFUN_GRPC_EXAMPLES.md)。
 
 本版本新增共享程序的一等交易入口：`DexType::LaunchLab`、`DexParamEnum::LaunchLab` 与 `LaunchLabParams`，并通过 `DexType::StonkFun`、`DexParamEnum::StonkFun` 与 `StonkFunParams` 提供平台专用命名。同一个 `DexType::StonkFun` 搭配 `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams` 时会路由毕业后的外盘：从主网状态解析任意交易对、SPL Token/Token-2022 混合 token program、当前 AmmConfig、creator fee、transfer fee、vault 余额与两个 swap 方向。曲线买入在毕业边界还会按官方 LaunchLab SDK 反算并缩小实际输入。对只持有 SOL、未提前准备股票 quote 的钱包，可用 `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` 在同一笔交易内完成 `SOL ↔ quote ↔ meme` 两跳，内盘曲线与毕业外盘均支持；SOL↔quote 跳目前支持 Raydium CPMM 与 AMM v4。旧 Bonk 与 `RaydiumCpmm` 名称继续兼容，可用于直接访问底层协议。
+
+新增 `StonkFunSolHop::Route` 显式报价路径，支持 CLMM、Whirlpool、DLMM、中间币和分流合流；买卖路径分别准备。池发现由调用方负责；订阅缓存现支持本地报价，启用 `parser-adapter` 后可通过 `prepare_stonkfun_trade` 完成独立买入或卖出的无 RPC 参数准备，示例见 `examples/stonkfun_cached_prepare.rs`，详见 [StonkFun 路由说明](docs/STONKFUN_ROUTES.md)。
+
+PublicNode 免费 gRPC 缓存接入与主网模拟示例：[使用说明](docs/STONKFUN_GRPC_EXAMPLES.md)。
+
+`SimpleBuyParams::stonkfun_with_token` / `SimpleSellParams::stonkfun_to_token` 支持 SOL、USDC、WSOL，以及池子自身的股票 quote。SOL 买入会包装，WSOL 买入只花已有余额；默认 Auto 策略下，卖出收 SOL 会解包，收 WSOL／USDC 则保留 token 账户。股票 quote 使用 `StonkFunViaQuoteParams::curve_direct` / `graduated_direct` 直连一跳，不需兑换路径。买入和卖出各是一笔独立交易，直接组合 DEX 指令，不依赖 router 合约。
 
 以下真实主网回归测试分别使用当前 StonkFun reward 内盘和毕业后的 KNOTS/STONK CPMM 池，仅模拟不上链：
 
@@ -171,14 +179,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.5" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.6" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "5.0.5"
+sol-trade-sdk = "5.0.6"
 ```
 
 ## 🛠️ 使用示例

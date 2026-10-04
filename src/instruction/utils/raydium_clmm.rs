@@ -82,7 +82,7 @@ pub fn tick_array_pda(pool: &Pubkey, start_index: i32) -> Pubkey {
 
 /// Decode Raydium CLMM PoolState (8-byte Anchor discriminator + body).
 pub fn decode_pool_state(data: &[u8]) -> Result<ClmmPoolState> {
-    if data.len() < 8 + 235 {
+    if data.len() < 8 + 265 {
         return Err(anyhow!("Raydium CLMM pool account too short"));
     }
     if data[..8] != POOL_DISC {

@@ -1,6 +1,6 @@
 [package]
 name = "sol-trade-sdk"
-version = "5.0.5"
+version = "5.0.6"
 edition = "2021"
 authors = [
     "William <byteblock6@gmail.com>",
@@ -40,8 +40,8 @@ members = [
     "examples/verify_hop_quotes",
 ]
 [workspace.dependencies]
-sol-parser-sdk = { version = "=0.7.6", path = "../sol-parser-sdk" }
-solana-streamer-sdk = { version = "=3.0.4", path = "../solana-streamer" }
+sol-parser-sdk = { version = "=0.7.7", path = "../sol-parser-sdk" }
+solana-streamer-sdk = { version = "=3.0.6", path = "../solana-streamer" }
 solana-sdk = "4.0.1"
 solana-commitment-config = { version = "3.1.1", features = ["serde"] }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
@@ -51,9 +51,11 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+parser-adapter = ["dep:sol-parser-sdk"]
 perf-trace = []  # 性能追踪特性，生产环境应禁用以获得最佳性能
 
 [dependencies]
+sol-parser-sdk = { workspace = true, optional = true }
 solana-sdk = { workspace = true }
 solana-client = "4.2.2"
 solana-program = "4.0.0"
@@ -69,6 +71,9 @@ solana-transaction = { version = "4.1.6", features = ["serde", "wincode"] }
 solana-transaction-status-client-types = "4.2.2"
 solana-system-interface = { workspace = true }
 spl-token-2022-interface = "3.1.1"
+orca_whirlpools_core = { version = "=2.1.1", default-features = false, features = ["swap"] }
+solana-clmm-raydium = "=0.3.0"
+meteora-dlmm = "=0.2.0"
 
 borsh = { version = "1.5.3", features = ["derive"] }
 serde = { version = "1.0.215", features = ["derive"] }
@@ -103,8 +108,6 @@ arc-swap = "1.7"
 sha2 = "0.10"
 # Big integers of the vendored Raydium CLMM swap math (the program's uint fork is 0.9.5).
 uint = "=0.9.5"
-# Meteora DLMM swap math (MIT, no dependencies); pinned, as it is young.
-meteora-dlmm = "=0.2.0"
 # 须含 runtime-tokio，否则 quinn::Endpoint::client 报 no async runtime found，QUIC（Speedlanding/Soyas）无法初始化
 quinn = { version = "0.11", default-features = false, features = ["rustls", "runtime-tokio"] }
 lunar-lander-quic-client = "0.4"
@@ -119,6 +122,7 @@ num_cpus = "1.16"
 libc = "0.2"
 
 [dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sol-parser-sdk = { workspace = true }
 
 # Runtime-first release profile for latency-sensitive trading binaries.
@@ -151,3 +155,11 @@ opt-level = 3
 
 [profile.release.package.wincode]
 opt-level = 3
+
+[[example]]
+name = "stonkfun_cached_prepare"
+required-features = ["parser-adapter"]
+
+[[example]]
+name = "stonkfun_grpc_simulate"
+required-features = ["parser-adapter"]
