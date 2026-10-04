@@ -143,6 +143,35 @@ pub async fn fetch_config_cached(rpc: &SolanaRpcClient, config: &Pubkey) -> Resu
     Ok(cache_config(*config, fetch_config(rpc, config).await?))
 }
 
+/// [`fetch_config_cached`] for the first swap of a transfer-hook pool: its
+/// config and the hook's extra account list at `validation`, from one read.
+/// The list is `None` when the config is cached — nothing is read then — or
+/// when `validation` is missing or holds no list.
+pub async fn fetch_config_cached_with_hook_metas(
+    rpc: &SolanaRpcClient,
+    config: &Pubkey,
+    validation: &Pubkey,
+) -> Result<(Arc<DbcConfig>, Option<Vec<ExtraAccountMeta>>)> {
+    if let Some(cached) = cached_config(config) {
+        return Ok((cached, None));
+    }
+    let read = rpc.get_multiple_accounts(&[*config, *validation]).await?;
+    let account = read
+        .first()
+        .and_then(Option::as_ref)
+        .ok_or_else(|| anyhow!("Account {config} not found"))?;
+    if account.owner != accounts::METEORA_DBC {
+        return Err(anyhow!("Account {config} is not owned by the Meteora DBC program"));
+    }
+    let value = config_decode(&account.data)
+        .ok_or_else(|| anyhow!("Account {config} is not a Meteora DBC config"))?;
+    let metas = read
+        .get(1)
+        .and_then(Option::as_ref)
+        .and_then(|account| extra_account_metas_decode(&account.data));
+    Ok((cache_config(*config, value), metas))
+}
+
 // ---------------------------------------------------------------------------
 // Transfer hooks
 // ---------------------------------------------------------------------------
@@ -301,6 +330,53 @@ pub fn resolve_transfer_hook_accounts(
     resolved.push(AccountMeta::new_readonly(*hook_program, false));
     resolved.push(AccountMeta::new_readonly(validation, false));
     Ok(resolved)
+}
+
+/// Whether any extra account of a hook's list hangs off the wallet trading:
+/// its address derives from the transfer's source, destination or authority,
+/// or from an extra account that does, or is read from account or instruction
+/// data. Such accounts differ from one wallet's transfer to another's, so the
+/// accounts one swap passed do not serve another wallet's swap.
+pub fn hook_accounts_follow_the_wallet(metas: &[ExtraAccountMeta]) -> bool {
+    // The `Execute` accounts so far: source, mint, destination, authority and
+    // the validation account.
+    let mut follows = vec![true, false, true, true, false];
+    for meta in metas {
+        let follow = match meta.discriminator {
+            0 => false,
+            1 => seeds_follow(&meta.address_config, &follows),
+            index @ 128.. => {
+                follows.get(usize::from(index - 128)).copied().unwrap_or(true)
+                    || seeds_follow(&meta.address_config, &follows)
+            }
+            // An address read from account or instruction data.
+            _ => true,
+        };
+        follows.push(follow);
+    }
+    follows[EXECUTE_FIXED_ACCOUNTS..].contains(&true)
+}
+
+/// Whether the seeds packed in `address_config` name an account marked in
+/// `follows`, or data only the transfer itself knows.
+fn seeds_follow(address_config: &[u8; 32], follows: &[bool]) -> bool {
+    let mut offset = 0;
+    while offset < address_config.len() {
+        match address_config[offset] {
+            0 => break,
+            1 => offset += 2 + usize::from(*address_config.get(offset + 1).unwrap_or(&0)),
+            3 => {
+                let index = usize::from(*address_config.get(offset + 1).unwrap_or(&u8::MAX));
+                if follows.get(index).copied().unwrap_or(true) {
+                    return true;
+                }
+                offset += 2;
+            }
+            // The transfer's amount, or the data of one of its accounts.
+            _ => return true,
+        }
+    }
+    false
 }
 
 fn derive(program: &Pubkey, seeds: &[Vec<u8>]) -> Pubkey {
@@ -468,6 +544,87 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    /// Mainnet hook FKTNiFex… keeps an account per token account: the list of
+    /// mint 7S7gyfmv…, and the accounts a sale of it passed
+    /// (2CaJTPLTzxiNy8Pt…).
+    #[test]
+    fn a_hook_with_an_account_per_wallet_resolves_for_each_wallets_own() {
+        let hook = pubkey!("FKTNiFexa4dFRgKwGjJLwmwNH8pocfyUuKdGvcZGeSSa");
+        let mint = pubkey!("7S7gyfmvmnzaMQL2TtPKe92KaoGktcnrGW8E65aXpnNT");
+        let wallet_of = |account: u8| {
+            let mut config = literal_and_mint(b"wallet");
+            config.extend_from_slice(&[3, account]);
+            config
+        };
+        let metas = [
+            meta(1, &literal_and_mint(b"config"), true),
+            meta(0, super::accounts::SYSVAR_INSTRUCTIONS.as_ref(), false),
+            meta(1, &wallet_of(0), true),
+            meta(1, &wallet_of(2), true),
+        ];
+        assert!(hook_accounts_follow_the_wallet(&metas));
+
+        let seller_account = pubkey!("H4aBkqYhBEHepuRqsci32q1MjJyWspVaSqdGeJE7Cviu");
+        let vault = pubkey!("5ka2qK6AT1RZSxbTY2Vnbzyxte1q3WAmGRzEYnJcrite");
+        let seller = pubkey!("H19cRLRAcvXpRaeWyAhDhPsk3iCRVES8T56wAUJYE6BG");
+        let passed =
+            resolve_transfer_hook_accounts(&hook, &mint, &metas, &seller_account, &vault, &seller)
+                .unwrap();
+        assert_eq!(
+            passed,
+            vec![
+                AccountMeta::new(pubkey!("3iKkUqFpKCnU4g4Un82J3wzwQcmEQoL6STdaE4DdBigu"), false),
+                AccountMeta::new_readonly(super::accounts::SYSVAR_INSTRUCTIONS, false),
+                AccountMeta::new(pubkey!("Ct7GjU9q3fKTnXhE6UVYos8Dztrw74H5SLbyhfsnJJrx"), false),
+                AccountMeta::new(pubkey!("74aeiB8BdEt4W9yRz7ybkn2dPRMqU6D5XEvv62tQPUBr"), false),
+                AccountMeta::new_readonly(hook, false),
+                AccountMeta::new_readonly(
+                    pubkey!("2NuSE3BCd7UZVTApzfSZbYEt9fkhPmeYd2VBywUaTPLv"),
+                    false
+                ),
+            ]
+        );
+
+        // Another wallet's sale passes its own account for its side, and the
+        // same ones for the mint and the vault.
+        let ours = Pubkey::new_unique();
+        let other =
+            resolve_transfer_hook_accounts(&hook, &mint, &metas, &ours, &vault, &ours).unwrap();
+        assert_ne!(other[2], passed[2]);
+        assert_eq!((&other[..2], &other[3..]), (&passed[..2], &passed[3..]));
+    }
+
+    #[test]
+    fn a_list_tells_whether_its_accounts_follow_the_wallet() {
+        // The mint's own accounts and fixed ones serve every wallet.
+        assert!(!hook_accounts_follow_the_wallet(&[]));
+        assert!(!hook_accounts_follow_the_wallet(&[
+            meta(1, &literal_and_mint(b"cfg"), true),
+            meta(0, super::accounts::SYSVAR_INSTRUCTIONS.as_ref(), false),
+            meta(1, &literal_and_mint(b"ext"), false),
+        ]));
+        // A PDA of the mint's first extra account does too.
+        assert!(!hook_accounts_follow_the_wallet(&[
+            meta(1, &literal_and_mint(b"cfg"), true),
+            meta(1, &[3, 5], false),
+        ]));
+        // The source, the destination and the authority are the wallet's side.
+        for account in [0, 2, 3] {
+            assert!(hook_accounts_follow_the_wallet(&[meta(1, &[3, account], false)]));
+        }
+        // So is an account derived from one that follows the wallet, or by a
+        // program that is one.
+        assert!(hook_accounts_follow_the_wallet(&[
+            meta(1, &[3, 2], false),
+            meta(1, &[3, 5], false),
+        ]));
+        assert!(hook_accounts_follow_the_wallet(&[meta(128, &literal_and_mint(b"x"), false)]));
+        // And whatever is read from data when the transfer runs.
+        assert!(hook_accounts_follow_the_wallet(&[meta(1, &[4, 1, 0, 32], false)]));
+        assert!(hook_accounts_follow_the_wallet(&[meta(1, &[2, 8, 8], false)]));
+        assert!(hook_accounts_follow_the_wallet(&[meta(2, &[1, 8], false)]));
     }
 
     #[test]

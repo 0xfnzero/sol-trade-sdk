@@ -18,8 +18,9 @@ use crate::utils::calc::meteora_dbc::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DbcTransferHook {
     /// The accounts another swap of the pool passed. Right for every wallet
-    /// when the hook's accounts hang off the mint alone, as those of the
-    /// mainnet hooks seen so far do.
+    /// only when the hook's accounts hang off the mint alone
+    /// (`hook_accounts_follow_the_wallet` tells); a hook that keeps an
+    /// account per wallet needs `Metas`.
     Accounts(Vec<AccountMeta>),
     /// The hook's extra account list, resolved for each swap's own accounts.
     Metas { program: Pubkey, metas: Vec<ExtraAccountMeta> },
