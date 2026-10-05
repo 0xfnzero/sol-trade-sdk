@@ -2,7 +2,8 @@
 ///
 /// # Arguments
 /// * `base_reserve` - Base reserve in the pool
-/// * `quote_reserve` - Quote reserve in the pool
+/// * `quote_reserve` - Effective quote reserve (`quote_vault_balance + virtual_quote_reserves`),
+///   computed in signed i128 before conversion to u64
 /// * `base_decimals` - Base decimals
 /// * `quote_decimals` - Quote decimals
 ///
@@ -26,7 +27,8 @@ pub fn price_base_in_quote(
 ///
 /// # Arguments
 /// * `base_reserve` - Base reserve in the pool
-/// * `quote_reserve` - Quote reserve in the pool
+/// * `quote_reserve` - Effective quote reserve (`quote_vault_balance + virtual_quote_reserves`),
+///   computed in signed i128 before conversion to u64
 /// * `base_decimals` - Base decimals
 /// * `quote_decimals` - Quote decimals
 ///

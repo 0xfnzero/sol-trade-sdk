@@ -88,9 +88,11 @@ This SDK is available in multiple languages:
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "5.0.6"`
+**Rust crate:** `sol-trade-sdk = "5.0.7"`
 
-Version 5.0.6 adds cache-backed StonkFun quote routes for independent SOL/WSOL/USDC/stock buys and sells, including direct USDC/stock conversion. The optional `parser-adapter` feature connects parser route clues and gRPC snapshots to local quote/build without hot-path RPC. See [gRPC simulations](docs/STONKFUN_GRPC_EXAMPLES.md) for verified V1 examples and cache boundaries.
+Version 5.0.7 updates CPMM creator-fee collection to the protocol-share upgrade: both collection builders append the required share PDA/config accounts, and AmmConfig decoding exposes the share rate. Adds cached gRPC preparation and collection/swap/LP simulation examples with offline mainnet fixtures. Uses parser 0.7.8 and streamer 3.0.7. See [CPMM migration](docs/cpmm-creator-fee-share.md).
+
+Version 5.0.7 adds cache-backed StonkFun quote routes for independent SOL/WSOL/USDC/stock buys and sells, including direct USDC/stock conversion. The optional `parser-adapter` feature connects parser route clues and gRPC snapshots to local quote/build without hot-path RPC. See [gRPC simulations](docs/STONKFUN_GRPC_EXAMPLES.md) for verified V1 examples and cache boundaries.
 
 This release adds first-class shared-program trading through `DexType::LaunchLab`, `DexParamEnum::LaunchLab`, and `LaunchLabParams`, plus platform-specific StonkFun names through `DexType::StonkFun`, `DexParamEnum::StonkFun`, and `StonkFunParams`. It supports dynamic quote mints and token programs, reads current LaunchLab pool and fee configuration by RPC, and builds the current 18-account buy/sell instruction layout. The same `DexType::StonkFun` routes graduated pools when paired with `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams`: arbitrary token pairs, mixed SPL Token/Token-2022 programs, current AmmConfig and creator fees, transfer fees, vault balances, and both swap directions are resolved from mainnet state. Buy quotes also reduce the submitted input at the curve graduation boundary, matching the official LaunchLab SDK. For wallets that only hold SOL, `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` builds an atomic `SOL ↔ quote ↔ meme` two-hop for both the LaunchLab curve and graduated CPMM legs; the SOL↔quote hop currently supports Raydium CPMM and AMM v4. Existing Bonk and `RaydiumCpmm` names remain available for compatibility and direct underlying-protocol access.
 
@@ -179,14 +181,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.6" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.7" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "5.0.6"
+sol-trade-sdk = "5.0.7"
 ```
 
 ## 🛠️ Usage Examples

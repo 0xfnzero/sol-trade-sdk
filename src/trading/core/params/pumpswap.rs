@@ -62,7 +62,7 @@ pub struct PumpSwapParams {
     /// Effective PumpSwap fee bps for this pool snapshot. Instruction building reads this
     /// only from params, so hot-path trading never adds an RPC call for fee discovery.
     pub fee_basis_points: PumpSwapFeeBasisPoints,
-    /// Optional fixed protocol fee recipient (non-mayhem). When set, buy/sell skip the
+    /// Optional fixed protocol fee recipient (including mayhem). When set, buy/sell skip the
     /// random GlobalConfig pick — useful for deterministic tests and for sharing the same
     /// fee ATA across buy+sell so combined simulate txs stay under the size cap.
     pub protocol_fee_recipient_override: Option<Pubkey>,
@@ -178,6 +178,26 @@ impl PumpSwapParams {
         self
     }
 
+    /// Replace the cashback rate while preserving the configured creator rate.
+    /// Repeated calls replace the old cashback component rather than adding it again.
+    /// The cashback account flag is independent and remains sourced from Pool/events.
+    pub fn with_cashback_fee_basis_points(
+        mut self,
+        cashback_fee_basis_points: u64,
+    ) -> Result<Self, anyhow::Error> {
+        let creator_rate = self
+            .fee_basis_points
+            .coin_creator_fee_basis_points
+            .checked_sub(self.cashback_fee_basis_points)
+            .ok_or_else(|| anyhow::anyhow!("Inconsistent PumpSwap cashback fee component"))?;
+        let combined_rate = creator_rate
+            .checked_add(cashback_fee_basis_points)
+            .ok_or_else(|| anyhow::anyhow!("PumpSwap creator and cashback fee overflow"))?;
+        self.cashback_fee_basis_points = cashback_fee_basis_points;
+        self.fee_basis_points.coin_creator_fee_basis_points = combined_rate;
+        Ok(self)
+    }
+
     /// Fast-path constructor for building PumpSwap parameters directly from decoded
     /// trade/event data and the accompanying instruction accounts, avoiding RPC
     /// lookups and associated latency. Token program IDs should be sourced from
@@ -187,6 +207,11 @@ impl PumpSwapParams {
     /// When building from event/parser (e.g. sol-parser-sdk), pass `is_cashback_coin`
     /// from the event so that buy/sell instructions include the correct remaining
     /// accounts for cashback.
+    /// This constructor retains legacy default fees. For current fee schedules use
+    /// `from_trade_with_fee_basis_points`, or set fees computed from cached Pool,
+    /// FeeConfig and GlobalConfig via `compute_fee_basis_points_for_pool`.
+    /// Raw shred outer instructions do not contain executed reserves or fee bps;
+    /// populate those inputs from a coherent account cache before quoting.
     pub fn from_trade(
         pool: Pubkey,
         base_mint: Pubkey,
@@ -295,18 +320,88 @@ impl PumpSwapParams {
         Self::from_pool_data(rpc, pool_address, &pool_data).await
     }
 
-    /// Build params from an already-decoded Pool, only fetching token balances.
+    /// Build params using an already-decoded Pool as an address hint.
     ///
-    /// Saves 1 RPC `getAccount` call vs `from_pool_address_by_rpc` when pool data
-    /// is already available (e.g. from `pumpswap::find_by_mint` which returns the
-    /// decoded Pool).
+    /// Refreshes the Pool, both vaults and base mint in one RPC snapshot so a
+    /// changing virtual reserve cannot be combined with balances from another slot.
+    /// The hint avoids a separate Pool lookup before this batched read.
     pub async fn from_pool_data(
         rpc: &SolanaRpcClient,
         pool_address: &Pubkey,
         pool_data: &crate::instruction::utils::pumpswap_types::Pool,
     ) -> Result<Self, anyhow::Error> {
-        let snapshot =
-            crate::instruction::utils::pumpswap::get_pool_rpc_snapshot(pool_data, rpc).await?;
+        let (pool_data, snapshot) =
+            crate::instruction::utils::pumpswap::get_pool_rpc_snapshot_with_address(
+                pool_address,
+                pool_data,
+                rpc,
+            )
+            .await?;
+        let (fee_config, global_config) = tokio::join!(
+            crate::instruction::utils::pumpswap::fetch_fee_config(rpc),
+            crate::instruction::utils::pumpswap::fetch_global_config(rpc),
+        );
+        Self::from_cached_pool_snapshot(
+            pool_address,
+            &pool_data,
+            &snapshot,
+            fee_config.as_ref(),
+            global_config.as_ref(),
+        )
+    }
+
+    /// Build parameters without legacy fee or recipient fallbacks and without RPC.
+    /// Both current configurations are required. Cache account identity and freshness
+    /// must still be validated by the caller. Use this for current ShredStream quotes.
+    pub fn from_cached_pool_snapshot_strict(
+        pool_address: &Pubkey,
+        pool_data: &crate::instruction::utils::pumpswap_types::Pool,
+        snapshot: &crate::instruction::utils::pumpswap::PoolRpcSnapshot,
+        fee_config: &crate::instruction::utils::pumpswap::PumpSwapFeeConfig,
+        global_config: &crate::instruction::utils::pumpswap::GlobalConfig,
+    ) -> Result<Self, anyhow::Error> {
+        for token_program in [snapshot.base_token_program, snapshot.quote_token_program] {
+            if token_program != crate::constants::TOKEN_PROGRAM
+                && token_program != crate::constants::TOKEN_PROGRAM_2022
+            {
+                return Err(anyhow::anyhow!("Unsupported PumpSwap cached token program"));
+            }
+        }
+        let params = Self::from_cached_pool_snapshot(
+            pool_address,
+            pool_data,
+            snapshot,
+            Some(fee_config),
+            Some(global_config),
+        )?;
+        if params.pool_quote_token_reserves == 0 || params.effective_quote_reserves()? == 0 {
+            return Err(anyhow::anyhow!("PumpSwap quote reserves cannot be zero for trading"));
+        }
+        if params.protocol_fee_recipient_override.is_none() {
+            return Err(anyhow::anyhow!(
+                "PumpSwap config has no usable protocol/mayhem fee recipient"
+            ));
+        }
+        if params.protocol_extra_fee_recipient_override.is_none() {
+            return Err(anyhow::anyhow!("PumpSwap config has no usable buyback fee recipient"));
+        }
+        Ok(params)
+    }
+
+    /// Build current PumpSwap parameters without RPC from caller-maintained state.
+    /// Pool and vault balances must belong to a coherent snapshot. Configurations
+    /// must be refreshed by the caller when they change. This does not validate
+    /// account addresses or freshness; validate them when populating the cache.
+    /// Cashback bps are not present in Pool; supply them separately when needed.
+    /// Missing configurations or empty recipient sets retain legacy fallbacks;
+    /// prefer `from_cached_pool_snapshot_strict` for current account-cache trading.
+    pub fn from_cached_pool_snapshot(
+        pool_address: &Pubkey,
+        pool_data: &crate::instruction::utils::pumpswap_types::Pool,
+        snapshot: &crate::instruction::utils::pumpswap::PoolRpcSnapshot,
+        fee_config: Option<&crate::instruction::utils::pumpswap::PumpSwapFeeConfig>,
+        global_config: Option<&crate::instruction::utils::pumpswap::GlobalConfig>,
+    ) -> Result<Self, anyhow::Error> {
         let pool_base_token_reserves = snapshot.base_reserve;
         let pool_quote_token_reserves = snapshot.quote_reserve;
         let effective_quote_token_reserves =
@@ -322,15 +417,15 @@ impl PumpSwapParams {
                 )
             })?;
         let base_mint_supply = Some(snapshot.base_mint_supply);
-        let fee_config = crate::instruction::utils::pumpswap::fetch_fee_config(rpc).await;
-        let raw_fee_basis_points = crate::instruction::utils::pumpswap::compute_fee_basis_points(
-            fee_config.as_ref(),
-            pool_data.creator,
-            pool_data.base_mint,
-            base_mint_supply,
-            pool_base_token_reserves,
-            effective_quote_token_reserves,
-        );
+        let raw_fee_basis_points =
+            crate::instruction::utils::pumpswap::try_compute_fee_basis_points_for_pool(
+                fee_config,
+                global_config,
+                pool_data,
+                snapshot.base_mint_supply,
+                pool_base_token_reserves,
+                effective_quote_token_reserves,
+            )?;
         let creator_fee_basis_points = if pool_data.coin_creator == Pubkey::default() {
             0
         } else {
@@ -344,6 +439,19 @@ impl PumpSwapParams {
         );
         let coin_creator_vault_authority =
             crate::instruction::utils::pumpswap::coin_creator_vault_authority(creator);
+        let protocol_fee_recipient_override = global_config.and_then(|global| {
+            let mut mayhem_recipients = [Pubkey::default(); 8];
+            mayhem_recipients[0] = global.reserved_fee_recipient;
+            mayhem_recipients[1..].copy_from_slice(&global.reserved_fee_recipients);
+            crate::instruction::utils::pumpswap::choose_nonzero(if pool_data.is_mayhem_mode {
+                &mayhem_recipients
+            } else {
+                &global.protocol_fee_recipients
+            })
+        });
+        let protocol_extra_fee_recipient_override = global_config.and_then(|global| {
+            crate::instruction::utils::pumpswap::choose_nonzero(&global.buyback_fee_recipients)
+        });
 
         Ok(Self {
             pool: *pool_address,
@@ -369,8 +477,8 @@ impl PumpSwapParams {
                 raw_fee_basis_points.protocol_fee_basis_points,
                 creator_fee_basis_points,
             ),
-            protocol_fee_recipient_override: None,
-            protocol_extra_fee_recipient_override: None,
+            protocol_fee_recipient_override,
+            protocol_extra_fee_recipient_override,
         })
     }
 }

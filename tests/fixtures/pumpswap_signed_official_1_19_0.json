@@ -1,0 +1,494 @@
+{
+  "sdk": "@pump-fun/pump-swap-sdk@1.19.0",
+  "note": "Unmodified published buy/sell/util functions; fee discovery fixed to 20/5/30 bps. Integer quote math only; no RPC or chain execution.",
+  "sources": {
+    "util": {
+      "url": "https://unpkg.com/@pump-fun/pump-swap-sdk@1.19.0/src/sdk/util.ts",
+      "sha256": "dea6aaf8ddfaad83854a56b644b3a41e624fbc4f422b1d6b619e4ef0be7b7da7"
+    },
+    "buy": {
+      "url": "https://unpkg.com/@pump-fun/pump-swap-sdk@1.19.0/src/sdk/buy.ts",
+      "sha256": "a2c6c029cbe35d177c1ba21b6e1c465dec366988be3157f2c9eb8098060a1a38"
+    },
+    "sell": {
+      "url": "https://unpkg.com/@pump-fun/pump-swap-sdk@1.19.0/src/sdk/sell.ts",
+      "sha256": "40049d1f2848f2c551a9ce77be03c372a63350693982b71e4acee988fe3856ff"
+    }
+  },
+  "cases": [
+    {
+      "amount": "2",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-999999",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "1",
+          "uiQuote": "4",
+          "maxQuote": "4"
+        },
+        {
+          "base": "2000000",
+          "internalQuoteWithoutFees": "-1",
+          "maxQuote": "2"
+        },
+        {
+          "uiQuote": "0",
+          "minQuote": "0",
+          "internalQuoteAmountOut": "0"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "10000",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-999999",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "1",
+          "uiQuote": "4",
+          "maxQuote": "4"
+        },
+        {
+          "base": "999899",
+          "internalQuoteWithoutFees": "9945",
+          "maxQuote": "10125"
+        },
+        {
+          "uiQuote": "0",
+          "minQuote": "0",
+          "internalQuoteAmountOut": "0"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "999999",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-999999",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "999999",
+          "uiQuote": "1005499",
+          "maxQuote": "1018067"
+        },
+        {
+          "base": "999998",
+          "internalQuoteWithoutFees": "994527",
+          "maxQuote": "1012498"
+        },
+        {
+          "uiQuote": "0",
+          "minQuote": "0",
+          "internalQuoteAmountOut": "0"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "2",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "2",
+          "uiQuote": "5",
+          "maxQuote": "5"
+        },
+        {
+          "base": "-4",
+          "internalQuoteWithoutFees": "-1",
+          "maxQuote": "2"
+        },
+        {
+          "uiQuote": "0",
+          "minQuote": "0",
+          "internalQuoteAmountOut": "0"
+        },
+        {
+          "internalRawQuote": "3",
+          "base": "7",
+          "minQuote": "1"
+        }
+      ]
+    },
+    {
+      "amount": "10000",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "5051",
+          "uiQuote": "5081",
+          "maxQuote": "5144"
+        },
+        {
+          "base": "19500",
+          "internalQuoteWithoutFees": "9945",
+          "maxQuote": "10125"
+        },
+        {
+          "uiQuote": "4922",
+          "minQuote": "4860",
+          "internalQuoteAmountOut": "4950"
+        },
+        {
+          "internalRawQuote": "10056",
+          "base": "20525",
+          "minQuote": "9875"
+        }
+      ]
+    },
+    {
+      "amount": "999999",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "499999500000",
+          "uiQuote": "502749497250",
+          "maxQuote": "509033865965"
+        },
+        {
+          "base": "665445",
+          "internalQuoteWithoutFees": "994527",
+          "maxQuote": "1012498"
+        },
+        {
+          "uiQuote": "248624",
+          "minQuote": "245516",
+          "internalQuoteAmountOut": "249999"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "2",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-1",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "3",
+          "uiQuote": "6",
+          "maxQuote": "6"
+        },
+        {
+          "base": "-2",
+          "internalQuoteWithoutFees": "-1",
+          "maxQuote": "2"
+        },
+        null,
+        {
+          "internalRawQuote": "3",
+          "base": "4",
+          "minQuote": "1"
+        }
+      ]
+    },
+    {
+      "amount": "10000",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-1",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "10101",
+          "uiQuote": "10159",
+          "maxQuote": "10285"
+        },
+        {
+          "base": "9846",
+          "internalQuoteWithoutFees": "9945",
+          "maxQuote": "10125"
+        },
+        {
+          "uiQuote": "9845",
+          "minQuote": "9721",
+          "internalQuoteAmountOut": "9900"
+        },
+        {
+          "internalRawQuote": "10056",
+          "base": "10159",
+          "minQuote": "9875"
+        }
+      ]
+    },
+    {
+      "amount": "999999",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "-1",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "999998000001",
+          "uiQuote": "1005497989004",
+          "maxQuote": "1018066713866"
+        },
+        {
+          "base": "498627",
+          "internalQuoteWithoutFees": "994527",
+          "maxQuote": "1012498"
+        },
+        {
+          "uiQuote": "497249",
+          "minQuote": "491033",
+          "internalQuoteAmountOut": "499999"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "2",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "0",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "3",
+          "uiQuote": "6",
+          "maxQuote": "6"
+        },
+        {
+          "base": "-2",
+          "internalQuoteWithoutFees": "-1",
+          "maxQuote": "2"
+        },
+        null,
+        {
+          "internalRawQuote": "3",
+          "base": "4",
+          "minQuote": "1"
+        }
+      ]
+    },
+    {
+      "amount": "10000",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "0",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "10102",
+          "uiQuote": "10160",
+          "maxQuote": "10287"
+        },
+        {
+          "base": "9846",
+          "internalQuoteWithoutFees": "9945",
+          "maxQuote": "10125"
+        },
+        {
+          "uiQuote": "9845",
+          "minQuote": "9721",
+          "internalQuoteAmountOut": "9900"
+        },
+        {
+          "internalRawQuote": "10056",
+          "base": "10159",
+          "minQuote": "9875"
+        }
+      ]
+    },
+    {
+      "amount": "999999",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "0",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "999999000000",
+          "uiQuote": "1005498994500",
+          "maxQuote": "1018067731931"
+        },
+        {
+          "base": "498627",
+          "internalQuoteWithoutFees": "994527",
+          "maxQuote": "1012498"
+        },
+        {
+          "uiQuote": "497249",
+          "minQuote": "491033",
+          "internalQuoteAmountOut": "499999"
+        },
+        null
+      ]
+    },
+    {
+      "amount": "2",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "4",
+          "uiQuote": "7",
+          "maxQuote": "7"
+        },
+        {
+          "base": "-1",
+          "internalQuoteWithoutFees": "-1",
+          "maxQuote": "2"
+        },
+        null,
+        {
+          "internalRawQuote": "3",
+          "base": "3",
+          "minQuote": "1"
+        }
+      ]
+    },
+    {
+      "amount": "10000",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "15152",
+          "uiQuote": "15237",
+          "maxQuote": "15427"
+        },
+        {
+          "base": "6585",
+          "internalQuoteWithoutFees": "9945",
+          "maxQuote": "10125"
+        },
+        {
+          "uiQuote": "14768",
+          "minQuote": "14583",
+          "internalQuoteAmountOut": "14851"
+        },
+        {
+          "internalRawQuote": "10056",
+          "base": "6750",
+          "minQuote": "9875"
+        }
+      ]
+    },
+    {
+      "amount": "999999",
+      "base_reserve": "1000000",
+      "quote_reserve": "1000000",
+      "virtual": "500000",
+      "fees": [
+        "20",
+        "5",
+        "30"
+      ],
+      "slippage": "125",
+      "results": [
+        {
+          "internalQuoteAmount": "1499998500000",
+          "uiQuote": "1508248491750",
+          "maxQuote": "1527101597896"
+        },
+        {
+          "base": "398683",
+          "internalQuoteWithoutFees": "994527",
+          "maxQuote": "1012498"
+        },
+        {
+          "uiQuote": "745874",
+          "minQuote": "736550",
+          "internalQuoteAmountOut": "749999"
+        },
+        {
+          "internalRawQuote": "1005530",
+          "base": "2033552",
+          "minQuote": "987499"
+        }
+      ]
+    }
+  ]
+}

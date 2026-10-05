@@ -49,7 +49,9 @@ pub struct AmmConfig {
     pub protocol_owner: Pubkey,
     pub fund_owner: Pubkey,
     pub creator_fee_rate: u64,
-    pub padding: [u64; 15],
+    /// Protocol share of accrued creator fees, in millionths; overridden by CreatorFeeShare.
+    pub creator_fee_share_rate: u64,
+    pub padding: [u64; 14],
 }
 
 pub const AMM_CONFIG_SIZE: usize = 228;
@@ -67,4 +69,24 @@ pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
         return None;
     }
     borsh::from_slice::<PoolState>(&data[..POOL_STATE_SIZE]).ok()
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+pub struct CreatorFeeShare {
+    pub bump: u8,
+    pub creator: Pubkey,
+    pub amm_config: Pubkey,
+    pub share_rate: u64,
+    pub padding: [u64; 8],
+}
+
+pub const CREATOR_FEE_SHARE_SIZE: usize = 137;
+pub const CREATOR_FEE_SHARE_DISCRIMINATOR: [u8; 8] = [30, 235, 98, 252, 26, 197, 66, 86];
+
+/// Decode the full Anchor account, including discriminator.
+pub fn creator_fee_share_decode(data: &[u8]) -> Option<CreatorFeeShare> {
+    if data.len() < 8 + CREATOR_FEE_SHARE_SIZE || data[..8] != CREATOR_FEE_SHARE_DISCRIMINATOR {
+        return None;
+    }
+    borsh::from_slice(&data[8..8 + CREATOR_FEE_SHARE_SIZE]).ok()
 }

@@ -1,5 +1,5 @@
 //! Subscription-fed preparation. No RPC client or asynchronous fallback exists here.
-use super::raydium_cpmm::token_transfer_fee_for_epoch;
+use super::raydium_cpmm::token_transfer_fee_from_config;
 use super::{BonkParams, RaydiumCpmmParams};
 use crate::instruction::utils::{bonk, bonk_types, raydium_cpmm, raydium_cpmm_types};
 use anyhow::{anyhow, ensure, Result};
@@ -75,21 +75,30 @@ pub struct SubscriptionAccountCache {
     pub(super) accounts: HashMap<Pubkey, CachedAccount>,
 }
 impl SubscriptionAccountCache {
+    /// Consume a raw gRPC event without copying its account-data buffer. Use the
+    /// borrowing adapter when the caller still needs to retain the original event.
+    #[cfg(feature = "parser-adapter")]
+    pub fn update_from_owned_parser_snapshot(
+        &mut self,
+        event: sol_parser_sdk::accounts::liquidity_snapshot::RawAccountSnapshotEvent,
+    ) -> Result<bool> {
+        let account = event.account;
+        self.update(
+            account.pubkey,
+            CachedAccount {
+                owner: account.owner,
+                data: if account.lamports == 0 { Vec::new() } else { account.data },
+                slot: event.metadata.slot,
+                write_version: event.write_version,
+            },
+        )
+    }
     #[cfg(feature = "parser-adapter")]
     pub fn update_from_parser_snapshot(
         &mut self,
         event: &sol_parser_sdk::accounts::liquidity_snapshot::RawAccountSnapshotEvent,
     ) -> Result<bool> {
-        let account = &event.account;
-        self.update(
-            account.pubkey,
-            CachedAccount {
-                owner: account.owner,
-                data: if account.lamports == 0 { Vec::new() } else { account.data.clone() },
-                slot: event.metadata.slot,
-                write_version: event.write_version,
-            },
-        )
+        self.update_from_parser_account(&event.account, event.metadata.slot, event.write_version)
     }
     /// Copy a parser subscription account update into the background cache.
     /// The stream's slot/write_version must be supplied; trade amounts are not state.
@@ -100,28 +109,55 @@ impl SubscriptionAccountCache {
         slot: u64,
         write_version: u64,
     ) -> Result<bool> {
-        self.update(
+        let data = if account.lamports == 0 { &[][..] } else { account.data.as_slice() };
+        if !self.should_update(account.pubkey, account.owner, data, slot, write_version)? {
+            return Ok(false);
+        }
+        self.accounts.insert(
             account.pubkey,
-            CachedAccount { owner: account.owner, data: account.data.clone(), slot, write_version },
-        )
+            CachedAccount { owner: account.owner, data: data.to_vec(), slot, write_version },
+        );
+        Ok(true)
     }
     /// Returns false for stale or identical replay updates; conflicting equal versions fail.
     pub fn update(&mut self, key: Pubkey, account: CachedAccount) -> Result<bool> {
+        if !self.should_update(
+            key,
+            account.owner,
+            &account.data,
+            account.slot,
+            account.write_version,
+        )? {
+            return Ok(false);
+        }
+        self.accounts.insert(key, account);
+        Ok(true)
+    }
+
+    // Inspect borrowed bytes before allocating. The cache is exclusively borrowed
+    // for ingestion, so this check and the subsequent insert cannot race.
+    fn should_update(
+        &self,
+        key: Pubkey,
+        owner: Pubkey,
+        data: &[u8],
+        slot: u64,
+        write_version: u64,
+    ) -> Result<bool> {
         if let Some(old) = self.accounts.get(&key) {
             let old_version = (old.slot, old.write_version);
-            let new_version = (account.slot, account.write_version);
+            let new_version = (slot, write_version);
             if new_version < old_version {
                 return Ok(false);
             }
             if new_version == old_version {
                 ensure!(
-                    old == &account,
+                    old.owner == owner && old.data == data,
                     "Conflicting account update at identical slot/write_version: {key}"
                 );
                 return Ok(false);
             }
         }
-        self.accounts.insert(key, account);
         Ok(true)
     }
 
@@ -145,14 +181,35 @@ impl SubscriptionAccountCache {
         if let Some(program) = expected_program {
             ensure!(a.owner == program, "Cached mint program mismatch: {key}");
         }
+        let token_2022 = Pubkey::new_from_array(spl_token_2022_interface::ID.to_bytes());
+        ensure!(
+            a.owner == crate::constants::TOKEN_PROGRAM || a.owner == token_2022,
+            "Unsupported CPMM token program: {}",
+            a.owner
+        );
         let data = self.get(key, a.owner, ctx)?;
+        // The classic program only accepts the fixed-size Mint layout. The
+        // Token-2022 decoder also accepts extended layouts, so owner must gate
+        // those bytes before decoding or interpreting their extensions.
+        if a.owner == crate::constants::TOKEN_PROGRAM {
+            ensure!(data.len() == 82, "Invalid classic SPL mint length: {key}");
+        }
         use spl_token_2022_interface::{
             extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions},
             state::Mint,
         };
         let mint = StateWithExtensions::<Mint>::unpack(data)
             .map_err(|e| anyhow!("Invalid cached mint {key}: {e}"))?;
+        if a.owner == crate::constants::TOKEN_PROGRAM {
+            return Ok((a.owner, super::TokenTransferFee::default()));
+        }
+        let mut transfer_fee = super::TokenTransferFee::default();
         for extension in mint.get_extension_types()? {
+            if extension == ExtensionType::TransferFeeConfig && a.owner == token_2022 {
+                let config = mint.get_extension::<spl_token_2022_interface::extension::transfer_fee::TransferFeeConfig>()?;
+                transfer_fee = token_transfer_fee_from_config(config, ctx.epoch)?;
+                continue;
+            }
             // Stock mints can carry these extensions while ordinary public
             // transfers remain enabled. Validate current state rather than
             // rejecting the extension's presence alone.
@@ -203,7 +260,7 @@ impl SubscriptionAccountCache {
         }
         // Validate classic mints too: a missing/malformed mint must not mean zero fee.
         ensure!(data.len() >= 82 && data[45] == 1, "Invalid or uninitialized cached mint: {key}");
-        Ok((a.owner, token_transfer_fee_for_epoch(data, a.owner, ctx.epoch)?))
+        Ok((a.owner, transfer_fee))
     }
 
     /// Builds complete LaunchLab parameters from current pool/config/mint bytes.
@@ -272,16 +329,20 @@ impl SubscriptionAccountCache {
         ctx: CacheReadContext,
         unix_timestamp: u64,
     ) -> Result<RaydiumCpmmParams> {
-        let params = self.cpmm(hint, ctx)?;
-        let data = self.get(hint.pool, raydium_cpmm::accounts::RAYDIUM_CPMM, ctx)?;
-        let pool = raydium_cpmm_types::pool_state_decode(&data[8..])
-            .ok_or_else(|| anyhow!("Invalid cached CPMM pool"))?;
-        ensure!(unix_timestamp >= pool.open_time, "CPMM pool has not opened");
-        Ok(params)
+        self.cpmm_impl(hint, ctx, Some(unix_timestamp))
     }
 
     /// Preserves token0/token1 orientation even when the observed trade was reversed.
     pub fn cpmm(&self, hint: PoolTradeHint, ctx: CacheReadContext) -> Result<RaydiumCpmmParams> {
+        self.cpmm_impl(hint, ctx, None)
+    }
+
+    fn cpmm_impl(
+        &self,
+        hint: PoolTradeHint,
+        ctx: CacheReadContext,
+        unix_timestamp: Option<u64>,
+    ) -> Result<RaydiumCpmmParams> {
         let program = raydium_cpmm::accounts::RAYDIUM_CPMM;
         let data = self.get(hint.pool, program, ctx)?;
         ensure!(
@@ -291,6 +352,11 @@ impl SubscriptionAccountCache {
         let p = raydium_cpmm_types::pool_state_decode(&data[8..])
             .ok_or_else(|| anyhow!("Invalid cached CPMM pool"))?;
         hint.matches(p.token0_mint, p.token1_mint)?;
+        // Check the subscribed Clock before config/mint/vault work, using the
+        // pool already decoded for preparation rather than fetching it again.
+        if let Some(unix_timestamp) = unix_timestamp {
+            ensure!(unix_timestamp >= p.open_time, "CPMM pool has not opened");
+        }
         ensure!(p.status & 4 == 0, "CPMM swap is disabled");
         let data = self.get(p.amm_config, program, ctx)?;
         ensure!(
@@ -317,17 +383,47 @@ impl SubscriptionAccountCache {
                        creator: u64|
          -> Result<u64> {
             let data = self.get(vault, token_program, ctx)?;
+            if token_program == crate::constants::TOKEN_PROGRAM {
+                ensure!(data.len() == 165, "Invalid classic SPL vault length");
+            }
+            use spl_token_2022_interface::{
+                extension::StateWithExtensions,
+                state::{Account, AccountState},
+            };
+            // Borrowed decoding validates base COption fields and the extended
+            // account-type marker without allocating or scanning the TLV list.
+            let account = StateWithExtensions::<Account>::unpack(data)
+                .map_err(|error| anyhow!("Invalid cached vault layout: {error}"))?;
             ensure!(
-                data.len() >= 165 && data[..32] == mint.to_bytes() && data[108] == 1,
+                account.base.mint.to_bytes() == mint.to_bytes()
+                    && account.base.owner.to_bytes() == raydium_cpmm::accounts::AUTHORITY.to_bytes()
+                    && account.base.state == AccountState::Initialized,
                 "Invalid cached vault"
             );
-            let amount = u64::from_le_bytes(data[64..72].try_into()?);
-            amount
+            account
+                .base
+                .amount
                 .checked_sub(protocol)
                 .and_then(|a| a.checked_sub(fund))
                 .and_then(|a| a.checked_sub(creator))
                 .ok_or_else(|| anyhow!("CPMM fees exceed cached vault balance"))
         };
+        let base_reserve = reserve(
+            p.token0_vault,
+            p.token0_mint,
+            p.token0_program,
+            p.protocol_fees_token0,
+            p.fund_fees_token0,
+            p.creator_fees_token0,
+        )?;
+        let quote_reserve = reserve(
+            p.token1_vault,
+            p.token1_mint,
+            p.token1_program,
+            p.protocol_fees_token1,
+            p.fund_fees_token1,
+            p.creator_fees_token1,
+        )?;
         let (_, base_fee) = self.mint(p.token0_mint, Some(p.token0_program), ctx)?;
         let (_, quote_fee) = self.mint(p.token1_mint, Some(p.token1_program), ctx)?;
         Ok(RaydiumCpmmParams {
@@ -335,22 +431,8 @@ impl SubscriptionAccountCache {
             amm_config: p.amm_config,
             base_mint: p.token0_mint,
             quote_mint: p.token1_mint,
-            base_reserve: reserve(
-                p.token0_vault,
-                p.token0_mint,
-                p.token0_program,
-                p.protocol_fees_token0,
-                p.fund_fees_token0,
-                p.creator_fees_token0,
-            )?,
-            quote_reserve: reserve(
-                p.token1_vault,
-                p.token1_mint,
-                p.token1_program,
-                p.protocol_fees_token1,
-                p.fund_fees_token1,
-                p.creator_fees_token1,
-            )?,
+            base_reserve,
+            quote_reserve,
             base_vault: p.token0_vault,
             quote_vault: p.token1_vault,
             base_token_program: p.token0_program,
@@ -445,6 +527,7 @@ pub(super) mod tests {
         for (v, m, amount) in [(va, a, 1000), (vb, b, 2000)] {
             let mut d = vec![0; 165];
             key(&mut d, 0, m);
+            key(&mut d, 32, raydium_cpmm::accounts::AUTHORITY);
             num(&mut d, 64, amount);
             d[108] = 1;
             put(&mut c, v, token, d);
@@ -499,6 +582,33 @@ pub(super) mod tests {
         assert!(c.launchlab(h, ctx()).is_err());
     }
     #[test]
+    fn classic_mint_rejects_extended_layout_and_invalid_base_state() {
+        let key = Pubkey::new_unique();
+        let classic = crate::constants::TOKEN_PROGRAM;
+        let token_2022 = Pubkey::new_from_array(spl_token_2022_interface::ID.to_bytes());
+        // A valid Token-2022 MintCloseAuthority extension cannot be interpreted
+        // as a classic mint merely by replacing the subscribed owner.
+        let mut extended = mint();
+        extended.resize(202, 0);
+        extended[165] = 1;
+        extended[166..168].copy_from_slice(&3u16.to_le_bytes());
+        extended[168..170].copy_from_slice(&32u16.to_le_bytes());
+        let mut cache = SubscriptionAccountCache::default();
+        put(&mut cache, key, token_2022, extended.clone());
+        assert!(cache.mint(key, Some(token_2022), ctx()).is_ok());
+        for mut data in [mint(), extended, vec![0; 81], vec![0; 83]] {
+            if data.len() == 82 {
+                data[45] = 0;
+            }
+            let mut cache = SubscriptionAccountCache::default();
+            put(&mut cache, key, classic, data);
+            assert!(cache.mint(key, Some(classic), ctx()).is_err());
+        }
+        let mut cache = SubscriptionAccountCache::default();
+        put(&mut cache, key, classic, mint());
+        assert_eq!(cache.mint(key, Some(classic), ctx()).unwrap().1.basis_points, 0);
+    }
+    #[test]
     fn mint_fee_schedule_changes_with_supplied_epoch() {
         let mut c = SubscriptionAccountCache::default();
         let k = Pubkey::new_unique();
@@ -519,6 +629,25 @@ pub(super) mod tests {
         let mut next = ctx();
         next.epoch = 4;
         assert_eq!(c.mint(k, Some(token), next).unwrap().1.basis_points, 300);
+        // Validate the active schedule, without rejecting a distinct inactive one.
+        c.accounts.get_mut(&k).unwrap().data[258..260].copy_from_slice(&10_001u16.to_le_bytes());
+        assert!(c.mint(k, Some(token), ctx()).is_err());
+        assert!(super::super::raydium_cpmm::token_transfer_fee_for_epoch(
+            &c.accounts[&k].data,
+            token,
+            ctx().epoch,
+        )
+        .is_err());
+        assert_eq!(c.mint(k, Some(token), next).unwrap().1.basis_points, 300);
+        c.accounts.get_mut(&k).unwrap().data[258..260].copy_from_slice(&10_000u16.to_le_bytes());
+        assert_eq!(c.mint(k, Some(token), ctx()).unwrap().1.basis_points, 10_000);
+        let bytes = &c.accounts[&k].data;
+        assert!(super::super::raydium_cpmm::token_transfer_fee_for_epoch(
+            bytes,
+            token,
+            ctx().epoch
+        )
+        .is_ok());
     }
     #[test]
     fn stock_mint_extensions_require_public_transfers_and_usable_new_accounts() {
@@ -578,7 +707,107 @@ pub(super) mod tests {
         let (mut cache, hint, _) = fixture();
         num(&mut cache.accounts.get_mut(&hint.pool).unwrap().data, 373, 1001);
         assert!(cache.cpmm_at(hint, ctx(), 1000).is_err());
-        assert!(cache.cpmm_at(hint, ctx(), 1001).is_ok());
+        let checked = cache.cpmm_at(hint, ctx(), 1001).unwrap();
+        let unchecked = cache.cpmm(hint, ctx()).unwrap();
+        assert_eq!(checked.base_reserve, unchecked.base_reserve);
+        assert_eq!(checked.quote_reserve, unchecked.quote_reserve);
+        assert_eq!(checked.trade_fee_rate, unchecked.trade_fee_rate);
+        // A not-yet-open pool is rejected before unrelated dependent-account work.
+        cache.accounts.retain(|key, _| *key == hint.pool);
+        assert!(cache
+            .cpmm_at(hint, ctx(), 1000)
+            .err()
+            .expect("unopened pool must fail")
+            .to_string()
+            .contains("has not opened"));
+        assert!(cache.cpmm_at(hint, ctx(), 1001).is_err());
+    }
+    #[test]
+    #[ignore = "explicit local CPU benchmark; no network or transaction submission"]
+    fn cpmm_at_single_decode_latency() {
+        use std::{hint::black_box, time::Instant};
+        let (cache, hint, _) = fixture();
+        let read = ctx();
+        let timestamp = u64::MAX;
+        let legacy = || {
+            let params = cache.cpmm(black_box(hint), black_box(read)).unwrap();
+            let data = cache.get(hint.pool, raydium_cpmm::accounts::RAYDIUM_CPMM, read).unwrap();
+            let pool = raydium_cpmm_types::pool_state_decode(black_box(&data[8..])).unwrap();
+            assert!(black_box(timestamp) >= black_box(pool.open_time));
+            black_box(params);
+        };
+        let current = || {
+            black_box(
+                cache.cpmm_at(black_box(hint), black_box(read), black_box(timestamp)).unwrap(),
+            );
+        };
+        for _ in 0..1000 {
+            legacy();
+            current();
+        }
+        let mut legacy_samples = Vec::with_capacity(1000);
+        let mut current_samples = Vec::with_capacity(1000);
+        for batch in 0..1000 {
+            let sample = |f: &dyn Fn(), output: &mut Vec<f64>| {
+                let start = Instant::now();
+                for _ in 0..100 {
+                    f();
+                }
+                output.push(start.elapsed().as_nanos() as f64 / 100.0);
+            };
+            // Alternate order to reduce systematic warmup/thermal bias.
+            if batch % 2 == 0 {
+                sample(&legacy, &mut legacy_samples);
+                sample(&current, &mut current_samples);
+            } else {
+                sample(&current, &mut current_samples);
+                sample(&legacy, &mut legacy_samples);
+            }
+        }
+        for (name, samples) in [
+            ("legacy_double_decode", &mut legacy_samples),
+            ("current_single_decode", &mut current_samples),
+        ] {
+            samples.sort_by(f64::total_cmp);
+            println!("{name}: P50={:.2} ns P99={:.2} ns", samples[500], samples[990]);
+        }
+    }
+
+    #[test]
+    fn cpmm_vault_requires_valid_layout_authority_and_initialized_state() {
+        let (cache, hint, vault) = fixture();
+        assert!(cache.cpmm(hint, ctx()).is_ok());
+        for case in 0..6 {
+            let mut trial = cache.clone();
+            let data = &mut trial.accounts.get_mut(&vault).unwrap().data;
+            match case {
+                0 => data[32..64].fill(0),
+                1 => data[108] = 2, // frozen
+                2 => data[108] = 0, // uninitialized
+                3 => data[72..76].copy_from_slice(&2u32.to_le_bytes()), // invalid delegate COption
+                4 => {
+                    data.pop();
+                }
+                _ => data.push(0),
+            }
+            assert!(trial.cpmm(hint, ctx()).is_err(), "case {case}");
+        }
+        // Both base Token-2022 vaults and a valid account extension remain usable.
+        let token = Pubkey::new_from_array(spl_token_2022_interface::ID.to_bytes());
+        let mut extended = cache.clone();
+        let pool = &mut extended.accounts.get_mut(&hint.pool).unwrap().data;
+        key(pool, 232, token);
+        extended.accounts.get_mut(&hint.output_mint).unwrap().owner = token;
+        let account = extended.accounts.get_mut(&vault).unwrap();
+        account.owner = token;
+        assert!(extended.cpmm(hint, ctx()).is_ok());
+        let data = &mut extended.accounts.get_mut(&vault).unwrap().data;
+        data.resize(170, 0);
+        data[165] = 2; // Account
+        data[166..168].copy_from_slice(&7u16.to_le_bytes()); // ImmutableOwner
+        assert!(extended.cpmm(hint, ctx()).is_ok());
+        extended.accounts.get_mut(&vault).unwrap().data[165] = 1; // Mint layout
+        assert!(extended.cpmm(hint, ctx()).is_err());
     }
     #[test]
     fn reverse_trade_keeps_pool_orientation_and_actual_fees() {

@@ -24,3 +24,5 @@ Run commands from the repository root with `cargo run --package <name>`. Read th
 - Use `SimpleBuyParams` / `SimpleSellParams` for new integrations unless low-level account flags are specifically required.
 
 Each example directory contains matching English and Chinese documentation.
+
+Rust 当前银行模拟、gRPC 缓存报价与失败证据保存见 [SIMULATION.md](SIMULATION.md)。

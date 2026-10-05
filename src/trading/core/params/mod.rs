@@ -2,6 +2,7 @@
 
 mod bonk;
 mod cached_quote;
+mod cpmm_creator_fee_preparation;
 #[cfg(test)]
 mod cached_quote_mainnet;
 mod dex_swap;
@@ -20,6 +21,7 @@ mod whirlpool;
 
 pub use bonk::{BonkParams, LaunchLabParams, StonkFunParams};
 pub use cached_quote::{CachedQuoteRequest, CachedRouteStep, CachedSwapQuote};
+pub use cpmm_creator_fee_preparation::PreparedCpmmCreatorFeeCollection;
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
 pub use meteora_damm_v2::MeteoraDammV2Params;
 pub use meteora_dlmm::MeteoraDlmmParams;

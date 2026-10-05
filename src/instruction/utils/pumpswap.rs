@@ -225,6 +225,7 @@ pub struct PumpSwapFeeConfig {
     pub flat_fees: PumpSwapFeeBasisPoints,
     pub fee_tiers: Vec<PumpSwapFeeTier>,
     pub stable_fee_tiers: Vec<PumpSwapFeeTier>,
+    pub exotic_flat_fees: PumpSwapFeeBasisPoints,
 }
 
 pub const BUY_DISCRIMINATOR: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
@@ -247,7 +248,7 @@ const FEE_CONFIG_DISCRIMINATOR: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155]
 const FEE_CONFIG_BUMP_LEN: usize = 1;
 const FEE_TIER_LEN: usize = 16 + U64_LEN * 3;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct GlobalConfig {
     pub lp_fee_basis_points: u64,
     pub protocol_fee_basis_points: u64,
@@ -256,6 +257,7 @@ pub struct GlobalConfig {
     pub reserved_fee_recipient: Pubkey,
     pub reserved_fee_recipients: [Pubkey; 7],
     pub buyback_fee_recipients: [Pubkey; 8],
+    pub creator_fee_configurable: bool,
 }
 
 #[derive(Clone)]
@@ -331,6 +333,12 @@ fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
     offset += BOOL_LEN; // is_cashback_enabled
 
     let buyback_fee_recipients = read_pubkey_array::<8>(data, offset)?;
+    offset += PUBKEY_LEN * 8 + U64_LEN + PUBKEY_LEN + BOOL_LEN;
+    let creator_fee_configurable = match data.get(offset).copied().unwrap_or(0) {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
 
     Some(GlobalConfig {
         lp_fee_basis_points,
@@ -340,6 +348,7 @@ fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
         reserved_fee_recipient,
         reserved_fee_recipients,
         buyback_fee_recipients,
+        creator_fee_configurable,
     })
 }
 
@@ -381,9 +390,15 @@ pub fn decode_fee_config(data: &[u8]) -> Option<PumpSwapFeeConfig> {
     offset += U64_LEN * 3;
 
     let fee_tiers = decode_fee_tiers(data, &mut offset)?;
-    let stable_fee_tiers = decode_fee_tiers(data, &mut offset)?;
+    let stable_fee_tiers =
+        if data.len() == offset { Vec::new() } else { decode_fee_tiers(data, &mut offset)? };
+    let exotic_flat_fees = if data.len() == offset {
+        PumpSwapFeeBasisPoints::new(0, 0, 0)
+    } else {
+        decode_fees(data, offset)?
+    };
 
-    Some(PumpSwapFeeConfig { flat_fees, fee_tiers, stable_fee_tiers })
+    Some(PumpSwapFeeConfig { flat_fees, fee_tiers, stable_fee_tiers, exotic_flat_fees })
 }
 
 async fn refresh_global_config_once(rpc: &SolanaRpcClient) -> Option<GlobalConfig> {
@@ -518,6 +533,14 @@ pub async fn fetch_fee_config(rpc: &SolanaRpcClient) -> Option<PumpSwapFeeConfig
     refresh_fee_config_once(rpc).await
 }
 
+/// Cold-path config refresh; trading builders consume precomputed params instead.
+pub async fn fetch_global_config(rpc: &SolanaRpcClient) -> Option<GlobalConfig> {
+    if let Some(config) = cached_global_config() {
+        return Some(config);
+    }
+    refresh_global_config_once(rpc).await
+}
+
 #[inline]
 pub fn global_fee_basis_points() -> PumpSwapFeeBasisPoints {
     cached_global_config()
@@ -592,7 +615,98 @@ pub fn compute_fee_basis_points(
     calculate_fee_tier(&fee_config.fee_tiers, market_cap_lamports).unwrap_or(fee_config.flat_fees)
 }
 
-fn choose_nonzero(keys: &[Pubkey]) -> Option<Pubkey> {
+fn is_sol_like_quote_mint(mint: &Pubkey) -> bool {
+    *mint == Pubkey::default()
+        || *mint == WSOL_TOKEN_ACCOUNT
+        || *mint == solana_sdk::pubkey!("9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
+}
+
+/// Select the current quote-mint fee schedule from a coherent Pool snapshot.
+/// `effective_quote_reserve` must already include the signed virtual offset.
+/// Retains fallback behavior for legacy callers. Use the checked variant when
+/// constructing current trading parameters.
+pub fn compute_fee_basis_points_for_pool(
+    fee_config: Option<&PumpSwapFeeConfig>,
+    global_config: Option<&GlobalConfig>,
+    pool: &Pool,
+    base_mint_supply: u64,
+    base_reserve: u64,
+    effective_quote_reserve: u64,
+) -> PumpSwapFeeBasisPoints {
+    let Some(config) = fee_config else {
+        return global_config
+            .map(|global| {
+                PumpSwapFeeBasisPoints::new(
+                    global.lp_fee_basis_points,
+                    global.protocol_fee_basis_points,
+                    global.coin_creator_fee_basis_points,
+                )
+            })
+            .unwrap_or_else(global_fee_basis_points);
+    };
+    let mut fees = config.flat_fees;
+    if is_canonical_pump_pool(&pool.base_mint, &pool.creator) {
+        let sol_like = is_sol_like_quote_mint(&pool.quote_mint);
+        if sol_like || pool.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT {
+            let supply = if pool.is_mayhem_mode { 1_000_000_000_000_000 } else { base_mint_supply };
+            let tiers = if !sol_like && !config.stable_fee_tiers.is_empty() {
+                &config.stable_fee_tiers
+            } else {
+                &config.fee_tiers
+            };
+            if let Some(market_cap) =
+                pool_market_cap_lamports(supply, base_reserve, effective_quote_reserve)
+            {
+                fees = calculate_fee_tier(tiers, market_cap).unwrap_or(config.flat_fees);
+            }
+        } else if config.exotic_flat_fees != PumpSwapFeeBasisPoints::new(0, 0, 0) {
+            fees = config.exotic_flat_fees;
+        }
+    }
+    if global_config.is_some_and(|global| global.creator_fee_configurable)
+        && pool.creator_fee_bps != 0
+    {
+        fees.coin_creator_fee_basis_points = pool.creator_fee_bps;
+    }
+    fees
+}
+
+/// Reject unusable current tier schedules instead of silently selecting flat fees.
+/// Missing FeeConfig retains the explicit legacy GlobalConfig fallback.
+pub fn try_compute_fee_basis_points_for_pool(
+    fee_config: Option<&PumpSwapFeeConfig>,
+    global_config: Option<&GlobalConfig>,
+    pool: &Pool,
+    base_mint_supply: u64,
+    base_reserve: u64,
+    effective_quote_reserve: u64,
+) -> Result<PumpSwapFeeBasisPoints, anyhow::Error> {
+    if base_reserve == 0 {
+        return Err(anyhow!("PumpSwap base reserves cannot be zero"));
+    }
+    if let Some(config) = fee_config {
+        if is_canonical_pump_pool(&pool.base_mint, &pool.creator) {
+            let sol_like = is_sol_like_quote_mint(&pool.quote_mint);
+            let stable = pool.quote_mint == crate::constants::USDC_TOKEN_ACCOUNT;
+            if (sol_like || stable)
+                && config.fee_tiers.is_empty()
+                && (sol_like || config.stable_fee_tiers.is_empty())
+            {
+                return Err(anyhow!("PumpSwap fee tiers cannot be empty"));
+            }
+        }
+    }
+    Ok(compute_fee_basis_points_for_pool(
+        fee_config,
+        global_config,
+        pool,
+        base_mint_supply,
+        base_reserve,
+        effective_quote_reserve,
+    ))
+}
+
+pub(crate) fn choose_nonzero(keys: &[Pubkey]) -> Option<Pubkey> {
     let mut valid = [Pubkey::default(); 8];
     let mut len = 0;
     for key in keys.iter().copied() {
@@ -790,9 +904,12 @@ fn decode_pool_account(account: &solana_sdk::account::Account) -> Result<Pool, S
 }
 
 /// Known allocated Pool account sizes. Current accounts may be serialized to
-/// exactly 261 bytes or retain a larger historical allocation.
+/// 261 bytes, creator-fee/holder-reward layouts use 270/271 bytes,
+/// and pools may retain a larger historical allocation.
 const POOL_DATA_LEN_LEGACY: u64 = 8 + 244;
 const POOL_DATA_LEN_CURRENT: u64 = 8 + 253;
+const POOL_DATA_LEN_CREATOR_FEE: u64 = 8 + 262;
+const POOL_DATA_LEN_HOLDER_REWARD: u64 = 8 + 263;
 const POOL_DATA_LEN_PADDED: u64 = 300;
 const POOL_DATA_LEN_EXTENDED: u64 = 643;
 
@@ -823,19 +940,47 @@ async fn get_program_accounts_known_sizes(
     };
     let program_id = accounts::AMM_PROGRAM;
     #[allow(deprecated)]
-    let (legacy_result, current_result, padded_result, extended_result) = tokio::join!(
+    let (
+        legacy_result,
+        current_result,
+        creator_fee_result,
+        holder_reward_result,
+        padded_result,
+        extended_result,
+    ) = tokio::join!(
         rpc.get_program_ui_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_LEGACY)),
         rpc.get_program_ui_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_CURRENT)),
+        rpc.get_program_ui_accounts_with_config(
+            &program_id,
+            make_config(POOL_DATA_LEN_CREATOR_FEE)
+        ),
+        rpc.get_program_ui_accounts_with_config(
+            &program_id,
+            make_config(POOL_DATA_LEN_HOLDER_REWARD)
+        ),
         rpc.get_program_ui_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_PADDED)),
         rpc.get_program_ui_accounts_with_config(&program_id, make_config(POOL_DATA_LEN_EXTENDED)),
     );
-    let results = [legacy_result, current_result, padded_result, extended_result];
+    let results = [
+        legacy_result,
+        current_result,
+        creator_fee_result,
+        holder_reward_result,
+        padded_result,
+        extended_result,
+    ];
     let mut all = Vec::new();
     let mut errors = Vec::new();
-    for (size, result) in
-        [POOL_DATA_LEN_LEGACY, POOL_DATA_LEN_CURRENT, POOL_DATA_LEN_PADDED, POOL_DATA_LEN_EXTENDED]
-            .into_iter()
-            .zip(results)
+    for (size, result) in [
+        POOL_DATA_LEN_LEGACY,
+        POOL_DATA_LEN_CURRENT,
+        POOL_DATA_LEN_CREATOR_FEE,
+        POOL_DATA_LEN_HOLDER_REWARD,
+        POOL_DATA_LEN_PADDED,
+        POOL_DATA_LEN_EXTENDED,
+    ]
+    .into_iter()
+    .zip(results)
     {
         match result {
             Ok(accounts) => {
@@ -1033,6 +1178,43 @@ pub async fn get_pool_rpc_snapshot(
 ) -> Result<PoolRpcSnapshot, anyhow::Error> {
     let addresses = [pool.pool_base_token_account, pool.pool_quote_token_account, pool.base_mint];
     let accounts = rpc.get_multiple_accounts(&addresses).await?;
+    decode_pool_rpc_snapshot(pool, &accounts)
+}
+
+/// Refresh Pool and vault balances in one getMultipleAccounts response.
+/// The supplied Pool is only an address hint: its virtual reserve may be stale.
+pub async fn get_pool_rpc_snapshot_with_address(
+    pool_address: &Pubkey,
+    pool_hint: &Pool,
+    rpc: &SolanaRpcClient,
+) -> Result<(Pool, PoolRpcSnapshot), anyhow::Error> {
+    let addresses = [
+        *pool_address,
+        pool_hint.pool_base_token_account,
+        pool_hint.pool_quote_token_account,
+        pool_hint.base_mint,
+    ];
+    let accounts = rpc.get_multiple_accounts(&addresses).await?;
+    let pool_account = accounts
+        .first()
+        .and_then(Option::as_ref)
+        .ok_or_else(|| anyhow!("PumpSwap Pool account was not found"))?;
+    let pool = decode_pool_account(pool_account).map_err(anyhow::Error::msg)?;
+    if pool.pool_base_token_account != pool_hint.pool_base_token_account
+        || pool.pool_quote_token_account != pool_hint.pool_quote_token_account
+        || pool.base_mint != pool_hint.base_mint
+        || pool.quote_mint != pool_hint.quote_mint
+    {
+        return Err(anyhow!("PumpSwap Pool address hint does not match the refreshed Pool"));
+    }
+    let snapshot = decode_pool_rpc_snapshot(&pool, &accounts[1..])?;
+    Ok((pool, snapshot))
+}
+
+fn decode_pool_rpc_snapshot(
+    pool: &Pool,
+    accounts: &[Option<solana_sdk::account::Account>],
+) -> Result<PoolRpcSnapshot, anyhow::Error> {
     let base_vault = accounts
         .first()
         .and_then(Option::as_ref)
@@ -1137,7 +1319,211 @@ mod tests {
                 },
             ],
             stable_fee_tiers: Vec::new(),
+            exotic_flat_fees: PumpSwapFeeBasisPoints::new(0, 0, 0),
         }
+    }
+
+    #[test]
+    fn pumpswap_fee_schedules_cover_stable_exotic_custom_and_mayhem_pools() {
+        let base_mint = Pubkey::new_unique();
+        let mut pool = Pool {
+            base_mint,
+            creator: get_pump_pool_authority_pda(&base_mint),
+            quote_mint: WSOL_TOKEN_ACCOUNT,
+            ..Pool::default()
+        };
+        let sol_low = PumpSwapFeeBasisPoints::new(20, 5, 30);
+        let sol_high = PumpSwapFeeBasisPoints::new(15, 4, 25);
+        let stable = PumpSwapFeeBasisPoints::new(3, 2, 7);
+        let flat = PumpSwapFeeBasisPoints::new(1, 2, 3);
+        let exotic = PumpSwapFeeBasisPoints::new(4, 5, 6);
+        let mut config = PumpSwapFeeConfig {
+            flat_fees: flat,
+            fee_tiers: vec![
+                PumpSwapFeeTier { market_cap_lamports_threshold: 0, fees: sol_low },
+                PumpSwapFeeTier { market_cap_lamports_threshold: 10_000, fees: sol_high },
+            ],
+            stable_fee_tiers: vec![PumpSwapFeeTier {
+                market_cap_lamports_threshold: 0,
+                fees: stable,
+            }],
+            exotic_flat_fees: exotic,
+        };
+        let global = GlobalConfig { creator_fee_configurable: true, ..GlobalConfig::default() };
+        let quote = |pool: &Pool, config: &PumpSwapFeeConfig, global: Option<&GlobalConfig>| {
+            compute_fee_basis_points_for_pool(Some(config), global, pool, 1000, 1000, 500)
+        };
+        assert_eq!(quote(&pool, &config, None), sol_low);
+        pool.quote_mint = crate::constants::USDC_TOKEN_ACCOUNT;
+        assert_eq!(quote(&pool, &config, None), stable);
+        config.stable_fee_tiers.clear();
+        assert_eq!(quote(&pool, &config, None), sol_low);
+        pool.quote_mint = Pubkey::new_unique();
+        assert_eq!(quote(&pool, &config, None), exotic);
+        config.exotic_flat_fees = PumpSwapFeeBasisPoints::new(0, 0, 0);
+        assert_eq!(quote(&pool, &config, None), flat);
+        pool.creator_fee_bps = 200;
+        assert_eq!(quote(&pool, &config, Some(&global)), PumpSwapFeeBasisPoints::new(1, 2, 200));
+        assert_eq!(quote(&pool, &config, Some(&GlobalConfig::default())), flat);
+        pool.creator_fee_bps = 0;
+        pool.quote_mint = WSOL_TOKEN_ACCOUNT;
+        pool.is_mayhem_mode = true;
+        assert_eq!(quote(&pool, &config, None), sol_high);
+        pool.creator = Pubkey::new_unique();
+        assert_eq!(quote(&pool, &config, None), flat);
+    }
+
+    #[test]
+    fn pumpswap_cached_params_reprice_signed_reserves_and_creator_fee_without_rpc() {
+        use crate::trading::core::params::PumpSwapParams;
+        let base_mint = Pubkey::new_unique();
+        let mut pool = Pool {
+            base_mint,
+            creator: get_pump_pool_authority_pda(&base_mint),
+            quote_mint: WSOL_TOKEN_ACCOUNT,
+            coin_creator: Pubkey::new_unique(),
+            virtual_quote_reserves: -600,
+            creator_fee_bps: 99,
+            ..Pool::default()
+        };
+        let low = PumpSwapFeeBasisPoints::new(20, 5, 30);
+        let high = PumpSwapFeeBasisPoints::new(10, 4, 25);
+        let config = PumpSwapFeeConfig {
+            flat_fees: low,
+            fee_tiers: vec![
+                PumpSwapFeeTier { market_cap_lamports_threshold: 0, fees: low },
+                PumpSwapFeeTier { market_cap_lamports_threshold: 500, fees: high },
+            ],
+            stable_fee_tiers: vec![],
+            exotic_flat_fees: PumpSwapFeeBasisPoints::new(0, 0, 0),
+        };
+        let protocol_recipient = Pubkey::new_unique();
+        let mayhem_recipient = Pubkey::new_unique();
+        let buyback_recipient = Pubkey::new_unique();
+        let mut global = GlobalConfig { creator_fee_configurable: true, ..GlobalConfig::default() };
+        global.protocol_fee_recipients[0] = protocol_recipient;
+        global.reserved_fee_recipient = mayhem_recipient;
+        global.buyback_fee_recipients[0] = buyback_recipient;
+        let snapshot = PoolRpcSnapshot {
+            base_reserve: 1000,
+            quote_reserve: 1000,
+            base_mint_supply: 1000,
+            base_token_program: crate::constants::TOKEN_PROGRAM,
+            quote_token_program: crate::constants::TOKEN_PROGRAM_2022,
+        };
+        let address = Pubkey::new_unique();
+        let build = |pool: &Pool| {
+            PumpSwapParams::from_cached_pool_snapshot(
+                &address,
+                pool,
+                &snapshot,
+                Some(&config),
+                Some(&global),
+            )
+        };
+        let params = build(&pool).unwrap();
+        let strict = |pool: &Pool, snapshot: &PoolRpcSnapshot, global: &GlobalConfig| {
+            PumpSwapParams::from_cached_pool_snapshot_strict(
+                &address, pool, snapshot, &config, global,
+            )
+        };
+        assert_eq!(
+            strict(&pool, &snapshot, &global).unwrap().fee_basis_points,
+            params.fee_basis_points
+        );
+        let mut missing = global.clone();
+        missing.buyback_fee_recipients = [Pubkey::default(); 8];
+        assert!(strict(&pool, &snapshot, &missing).err().unwrap().to_string().contains("buyback"));
+        missing = global.clone();
+        missing.protocol_fee_recipients = [Pubkey::default(); 8];
+        assert!(strict(&pool, &snapshot, &missing).is_err());
+        let mut unsupported = snapshot;
+        unsupported.quote_token_program = Pubkey::new_unique();
+        assert!(strict(&pool, &unsupported, &global).is_err());
+        let mut depleted = pool.clone();
+        depleted.virtual_quote_reserves = -(snapshot.quote_reserve as i128);
+        assert!(strict(&depleted, &snapshot, &global).is_err());
+        assert_eq!(params.effective_quote_reserves().unwrap(), 400);
+        assert_eq!(params.pool_quote_token_reserves, 1000);
+        assert_eq!(params.protocol_fee_recipient_override, Some(protocol_recipient));
+        assert_eq!(params.protocol_extra_fee_recipient_override, Some(buyback_recipient));
+        assert_eq!(params.fee_basis_points, PumpSwapFeeBasisPoints::new(20, 5, 99));
+        let params = params.with_cashback_fee_basis_points(10).unwrap();
+        assert_eq!(params.fee_basis_points.coin_creator_fee_basis_points, 109);
+        let params = params.with_cashback_fee_basis_points(20).unwrap();
+        assert_eq!(params.fee_basis_points.coin_creator_fee_basis_points, 119);
+        let params = params.with_cashback_fee_basis_points(0).unwrap();
+        assert_eq!(params.fee_basis_points.coin_creator_fee_basis_points, 99);
+        assert_eq!(
+            params.coin_creator_vault_ata,
+            coin_creator_vault_ata(
+                pool.coin_creator,
+                pool.quote_mint,
+                snapshot.quote_token_program
+            )
+        );
+        assert!(params.with_cashback_fee_basis_points(u64::MAX).is_err());
+        pool.virtual_quote_reserves = -400;
+        assert_eq!(build(&pool).unwrap().fee_basis_points, PumpSwapFeeBasisPoints::new(10, 4, 99));
+        pool.is_mayhem_mode = true;
+        assert_eq!(build(&pool).unwrap().protocol_fee_recipient_override, Some(mayhem_recipient));
+        pool.virtual_quote_reserves = -1001;
+        assert!(build(&pool).is_err());
+    }
+
+    #[test]
+    fn pumpswap_checked_fees_reject_empty_selected_tiers_and_zero_base() {
+        let base_mint = Pubkey::new_unique();
+        let mut pool = Pool {
+            base_mint,
+            creator: get_pump_pool_authority_pda(&base_mint),
+            quote_mint: WSOL_TOKEN_ACCOUNT,
+            ..Pool::default()
+        };
+        let flat = PumpSwapFeeBasisPoints::new(1, 2, 3);
+        let mut config = PumpSwapFeeConfig {
+            flat_fees: flat,
+            fee_tiers: vec![],
+            stable_fee_tiers: vec![],
+            exotic_flat_fees: PumpSwapFeeBasisPoints::new(0, 0, 0),
+        };
+        let quote = |pool: &Pool, config: &PumpSwapFeeConfig, base| {
+            try_compute_fee_basis_points_for_pool(Some(config), None, pool, 1000, base, 500)
+        };
+        assert!(quote(&pool, &config, 1000).is_err());
+        pool.quote_mint = crate::constants::USDC_TOKEN_ACCOUNT;
+        assert!(quote(&pool, &config, 1000).is_err());
+        config.stable_fee_tiers.push(PumpSwapFeeTier {
+            market_cap_lamports_threshold: 0,
+            fees: PumpSwapFeeBasisPoints::new(5, 6, 7),
+        });
+        assert_eq!(quote(&pool, &config, 1000).unwrap(), PumpSwapFeeBasisPoints::new(5, 6, 7));
+        assert!(quote(&pool, &config, 0).is_err());
+        pool.quote_mint = Pubkey::new_unique();
+        assert_eq!(quote(&pool, &config, 1000).unwrap(), flat);
+        pool.quote_mint = WSOL_TOKEN_ACCOUNT;
+        pool.creator = Pubkey::new_unique();
+        assert_eq!(quote(&pool, &config, 1000).unwrap(), flat);
+    }
+
+    #[test]
+    fn pumpswap_fee_config_decodes_exotic_and_legacy_schedules() {
+        let mut data = FEE_CONFIG_DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&[0; 1 + 32 + 24]);
+        data.extend_from_slice(&0u32.to_le_bytes());
+        assert!(decode_fee_config(&data).unwrap().stable_fee_tiers.is_empty());
+        data.extend_from_slice(&0u32.to_le_bytes());
+        assert_eq!(
+            decode_fee_config(&data).unwrap().exotic_flat_fees,
+            PumpSwapFeeBasisPoints::new(0, 0, 0)
+        );
+        for fee in [4u64, 5, 6] {
+            data.extend_from_slice(&fee.to_le_bytes());
+        }
+        assert_eq!(
+            decode_fee_config(&data).unwrap().exotic_flat_fees,
+            PumpSwapFeeBasisPoints::new(4, 5, 6)
+        );
     }
 
     #[test]
@@ -1221,6 +1607,8 @@ mod tests {
     fn pumpswap_pool_queries_cover_current_serialized_and_padded_sizes() {
         assert_eq!(POOL_DATA_LEN_LEGACY, 252);
         assert_eq!(POOL_DATA_LEN_CURRENT, 261);
+        assert_eq!(POOL_DATA_LEN_CREATOR_FEE, 270);
+        assert_eq!(POOL_DATA_LEN_HOLDER_REWARD, 271);
         assert_eq!(POOL_DATA_LEN_PADDED, 300);
         assert_eq!(POOL_DATA_LEN_EXTENDED, 643);
     }
@@ -1303,6 +1691,82 @@ mod tests {
             decode_token_account_amount(&unsupported, &mint).unwrap_err().to_string(),
             "Pool vault is not owned by a supported token program"
         );
+    }
+
+    fn snapshot_mock(pool_account: Account, pool: &Pool) -> SolanaRpcClient {
+        use base64::Engine;
+        use solana_rpc_client_api::request::RpcRequest;
+        let token_program = crate::constants::TOKEN_PROGRAM;
+        let accounts = [
+            pool_account,
+            token_account(pool.base_mint, token_program, 2_000),
+            token_account(pool.quote_mint, token_program, 1_000),
+            mint_account(token_program, 10_000),
+        ];
+        let values: Vec<_> = accounts.iter().map(|account| serde_json::json!({
+            "lamports": account.lamports,
+            "owner": account.owner.to_string(),
+            "executable": account.executable,
+            "rentEpoch": account.rent_epoch,
+            "data": [base64::engine::general_purpose::STANDARD.encode(&account.data), "base64"],
+        })).collect();
+        let mocks = std::collections::HashMap::from([(
+            RpcRequest::GetMultipleAccounts,
+            serde_json::json!({"context": {"slot": 123}, "value": values}),
+        )]);
+        SolanaRpcClient::new_mock_with_mocks("succeeds".to_string(), mocks)
+    }
+
+    #[tokio::test]
+    async fn pumpswap_rpc_snapshot_refreshes_stale_virtual_reserves() {
+        let account = pool_account(-500);
+        let refreshed = decode_pool_account(&account).unwrap();
+        let mut hint = refreshed.clone();
+        hint.virtual_quote_reserves = 250;
+        let rpc = snapshot_mock(account, &refreshed);
+        let (pool, snapshot) =
+            get_pool_rpc_snapshot_with_address(&Pubkey::new_unique(), &hint, &rpc).await.unwrap();
+        assert_eq!(pool.virtual_quote_reserves, -500);
+        assert_eq!(snapshot.quote_reserve, 1_000);
+        assert_eq!(
+            pumpswap_types::effective_quote_reserves(
+                snapshot.quote_reserve,
+                pool.virtual_quote_reserves,
+            ),
+            Some(500)
+        );
+    }
+
+    #[tokio::test]
+    async fn pumpswap_rpc_params_use_refreshed_signed_reserves() {
+        let account = pool_account(-500);
+        let refreshed = decode_pool_account(&account).unwrap();
+        let mut hint = refreshed.clone();
+        hint.virtual_quote_reserves = 250;
+        let rpc = snapshot_mock(account, &refreshed);
+        let params = crate::trading::core::params::PumpSwapParams::from_pool_data(
+            &rpc,
+            &Pubkey::new_unique(),
+            &hint,
+        )
+        .await
+        .unwrap();
+        assert_eq!(params.virtual_quote_reserves, -500);
+        assert_eq!(params.pool_quote_token_reserves, 1_000);
+        assert_eq!(params.effective_quote_reserves().unwrap(), 500);
+    }
+
+    #[tokio::test]
+    async fn pumpswap_rpc_snapshot_rejects_wrong_address_hint() {
+        let account = pool_account(-500);
+        let refreshed = decode_pool_account(&account).unwrap();
+        let mut hint = refreshed.clone();
+        hint.pool_quote_token_account = Pubkey::new_unique();
+        let rpc = snapshot_mock(account, &refreshed);
+        let error = get_pool_rpc_snapshot_with_address(&Pubkey::new_unique(), &hint, &rpc)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("address hint does not match"));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use super::common::{
-    calculate_with_slippage_buy, calculate_with_slippage_sell, ceil_div, compute_fee,
+    calculate_with_slippage_buy, ceil_div, clamp_slippage_basis_points, compute_fee,
 };
 use crate::instruction::utils::pumpswap::accounts::{
     COIN_CREATOR_FEE_BASIS_POINTS, LP_FEE_BASIS_POINTS, PROTOCOL_FEE_BASIS_POINTS,
@@ -46,6 +46,14 @@ fn checked_u64(value: u128, name: &str) -> Result<u64, String> {
 #[inline]
 fn checked_fee(amount: u64, basis_points: u64, name: &str) -> Result<u64, String> {
     checked_u64(compute_fee(amount as u128, basis_points as u128), name)
+}
+
+/// Match the official SDK: floor the final minimum output, rather than
+/// subtracting a floored slippage deduction (which rounds minimum output up).
+#[inline]
+pub(crate) fn minimum_output_with_slippage(amount: u64, basis_points: u64) -> u64 {
+    let bps = clamp_slippage_basis_points(basis_points);
+    ((amount as u128) * (10_000 - bps) as u128 / 10_000) as u64
 }
 
 /// Result for buying base tokens with base amount input
@@ -361,7 +369,7 @@ pub fn sell_base_input_internal_with_fees(
     let final_quote = quote_amount_out - total_fees;
 
     // Calculate min quote with slippage
-    let min_quote = calculate_with_slippage_sell(final_quote, slippage_basis_points);
+    let min_quote = minimum_output_with_slippage(final_quote, slippage_basis_points);
 
     Ok(SellBaseInputResult {
         ui_quote: final_quote,
@@ -478,7 +486,7 @@ pub fn sell_quote_input_internal_with_fees(
     )?;
 
     // Calculate min quote with slippage
-    let min_quote = calculate_with_slippage_sell(quote, slippage_basis_points);
+    let min_quote = minimum_output_with_slippage(quote, slippage_basis_points);
 
     Ok(SellQuoteInputResult { internal_raw_quote: raw_quote, base: base_amount_in, min_quote })
 }
@@ -555,6 +563,22 @@ mod tests {
     }
 
     #[test]
+    fn negative_virtual_reserves_match_effective_vault_in_all_quote_modes() {
+        macro_rules! check_mode {
+            ($quote:ident) => {{
+                let actual = $quote(10_000, 125, 1_000_000, 1_000_000, -500_000, &fees()).unwrap();
+                let expected = $quote(10_000, 125, 1_000_000, 500_000, 0, &fees()).unwrap();
+                assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+                assert!($quote(10_000, 125, 1_000_000, 1_000_000, -1_000_000, &fees()).is_err());
+            }};
+        }
+        check_mode!(buy_base_input_internal_with_fees);
+        check_mode!(buy_quote_input_internal_with_fees);
+        check_mode!(sell_base_input_internal_with_fees);
+        check_mode!(sell_quote_input_internal_with_fees);
+    }
+
+    #[test]
     fn zero_effective_quote_reserves_are_rejected() {
         let error = buy_quote_input_internal_with_fees(
             10_000,
@@ -614,7 +638,7 @@ mod tests {
         .unwrap();
         assert_eq!(sell_base.internal_quote_amount_out, 16_201_203);
         assert_eq!(sell_base.ui_quote, 16_112_095);
-        assert_eq!(sell_base.min_quote, 15_910_694);
+        assert_eq!(sell_base.min_quote, 15_910_693);
 
         let sell_quote = sell_quote_input_internal_with_fees(
             500_000_000,

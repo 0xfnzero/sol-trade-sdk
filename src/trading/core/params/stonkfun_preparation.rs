@@ -144,6 +144,7 @@ impl SubscriptionAccountCache {
             (route, minimum)
         } else {
             let credit = meme_min(request.amount_in, false)?;
+            ensure!(credit > 0, "StonkFun sell produces zero protected quote output; increase input amount");
             let route = self.quote_route_exact_in(
                 conversion,
                 quote,
@@ -175,6 +176,19 @@ mod tests {
     use super::*;
     use crate::instruction::stonkfun::StonkFunInstructionBuilder;
     use crate::trading::core::traits::InstructionBuilder;
+    #[test]
+    fn sell_rejects_zero_quote_credit_before_conversion_route() {
+        let asset = crate::constants::SOL_TOKEN_ACCOUNT;
+        let (cache, meme, mut conversion, mint) = fixture(asset, true);
+        std::mem::swap(&mut conversion.input_mint, &mut conversion.output_mint);
+        let result = cache.prepare_stonkfun_trade(
+            meme, mint, asset, &[CachedRouteStep { pool: conversion, input_amount: None }],
+            CachedQuoteRequest { amount_in: 1, slippage_basis_points: 300,
+                unix_timestamp: 1000, maximum_arrays: 6 },
+            CacheReadContext { slot: 100, epoch: 3, maximum_slot_age: 0 }, false,
+        );
+        assert!(result.err().unwrap().to_string().contains("zero protected quote output"));
+    }
     fn fixture(
         asset: Pubkey,
         inner: bool,

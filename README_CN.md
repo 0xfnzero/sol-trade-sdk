@@ -88,9 +88,11 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "5.0.6"`
+**Rust crate:** `sol-trade-sdk = "5.0.7"`
 
-v5.0.6 新增基于缓存的 StonkFun 路由，支持独立的 SOL/WSOL/USDC/股票买卖及直接 USDC/股票兑换。可选 `parser-adapter` 将 parser 路由线索、gRPC 快照连接到本地报价和构建，热路径无 RPC。实际验证的 V1 示例及缓存边界见 [gRPC 模拟文档](docs/STONKFUN_GRPC_EXAMPLES.md)。
+v5.0.7 适配 CPMM creator-fee 协议分成升级：两个领取指令追加必需的 share PDA/config 账户，AmmConfig 解码暴露分成比例。新增 gRPC 缓存准备、领取/交换/LP 模拟示例及离线主网样本，依赖 parser 0.7.8 和 streamer 3.0.7。参见 [CPMM 迁移说明](docs/cpmm-creator-fee-share.md)。
+
+v5.0.7 新增基于缓存的 StonkFun 路由，支持独立的 SOL/WSOL/USDC/股票买卖及直接 USDC/股票兑换。可选 `parser-adapter` 将 parser 路由线索、gRPC 快照连接到本地报价和构建，热路径无 RPC。实际验证的 V1 示例及缓存边界见 [gRPC 模拟文档](docs/STONKFUN_GRPC_EXAMPLES.md)。
 
 本版本新增共享程序的一等交易入口：`DexType::LaunchLab`、`DexParamEnum::LaunchLab` 与 `LaunchLabParams`，并通过 `DexType::StonkFun`、`DexParamEnum::StonkFun` 与 `StonkFunParams` 提供平台专用命名。同一个 `DexType::StonkFun` 搭配 `DexParamEnum::StonkFunSwap` / `StonkFunSwapParams` 时会路由毕业后的外盘：从主网状态解析任意交易对、SPL Token/Token-2022 混合 token program、当前 AmmConfig、creator fee、transfer fee、vault 余额与两个 swap 方向。曲线买入在毕业边界还会按官方 LaunchLab SDK 反算并缩小实际输入。对只持有 SOL、未提前准备股票 quote 的钱包，可用 `DexParamEnum::StonkFunViaSol` / `StonkFunViaSolParams` 在同一笔交易内完成 `SOL ↔ quote ↔ meme` 两跳，内盘曲线与毕业外盘均支持；SOL↔quote 跳目前支持 Raydium CPMM 与 AMM v4。旧 Bonk 与 `RaydiumCpmm` 名称继续兼容，可用于直接访问底层协议。
 
@@ -179,14 +181,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.6" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.7" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "5.0.6"
+sol-trade-sdk = "5.0.7"
 ```
 
 ## 🛠️ 使用示例
@@ -666,6 +668,16 @@ PumpSwap 报价必须使用 `effective_quote_reserves = pool_quote_token_account
 - `PumpSwapParams::from_pool_address_by_rpc` 等 RPC 构造器会自动读取并应用 Pool 字段。
 - 事件热路径必须把事件中的原始 `pool_quote_token_reserves` 和 `virtual_quote_reserves` 分别传给 `PumpSwapParams::from_trade(...)` 或 `from_trade_with_fee_basis_points(...)`，不要在调用前自行相加。
 - SDK 在买入、卖出、报价和动态费率分层中统一使用有效储备；无效的有符号结果会返回错误，不会发生整数回绕。
+
+当前手续费必须使用完整执行事件提供的费率，或用缓存中的 Pool、FeeConfig、GlobalConfig、mint supply 和有效储备调用 `compute_fee_basis_points_for_pool(...)`，再通过 `with_fee_basis_points(...)` 设置。该纯函数覆盖 SOL/USDC/其他 quote mint、自定义 creator fee 和 mayhem supply；`from_trade(...)` 保留旧默认费率，不会自动发现当前费率。
+
+缓存调用方也可以直接使用同步的 `PumpSwapParams::from_cached_pool_snapshot(pool_address, pool, snapshot, fee_config, global_config)`，一次构建完整参数并计算当前费率。`snapshot` 使用 `PoolRpcSnapshot` 数据结构，但此构造器不调用 RPC；账户身份和快照一致性需要在写入缓存时验证。Pool 未包含 cashback bps，启用时仍需额外提供该费率。
+
+该缓存入口会拒绝零 base 储备和空的已选动态费率表，并从传入的 GlobalConfig 选择、固定本次 protocol/mayhem 与 buyback 收款地址。配置参数为 `None` 仍保留旧兼容回退；准确使用当前费率和收款地址需要提供当前配置。可用 `with_cashback_fee_basis_points(bps)?` 补充或替换 cashback 费率，重复调用不会重复累加，溢出返回错误；cashback 账户开关仍由 Pool/事件决定。
+
+当前 ShredStream 交易建议使用 `from_cached_pool_snapshot_strict(...)`：FeeConfig 和 GlobalConfig 必须显式传入；零 quote/effective 储备、不支持的 token program、空 protocol/mayhem 或 buyback 收款地址列表都会返回错误，不会偷偷回退到旧默认值。该入口同样不调用 RPC；账户身份、slot 一致性和缓存更新仍由调用方保证。
+
+原始 ShredStream 只有外层指令，没有执行日志、内部 CPI、vault 余额或 Pool 虚拟储备。外层解析事件中的储备/费率默认 `0` 表示数据不可得，不能直接拿来报价。应提前通过账户订阅维护一致的 Pool/vault/配置缓存；报价和指令构建只读取缓存，不需要新增 RPC。`buy_exact_quote_in` 的 `min_base_amount_out` 是指令下限，也不是实际成交量。
 
 ## 🛡️ MEV 保护服务
 

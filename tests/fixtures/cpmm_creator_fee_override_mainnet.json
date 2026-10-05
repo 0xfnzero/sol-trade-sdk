@@ -1,0 +1,533 @@
+{
+  "broadcast": false,
+  "kind": "mainnet_unsigned_simulation",
+  "results": [
+    {
+      "account_count": 15,
+      "before_accounts": [
+        {
+          "data_base64": "9+3j9dfD3kag6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwyDqPMjRbG6RNCCbW4dIYlSww0Rd+x6GqJHq0Gid18MhT/s5qWJod1/zwa+rrhmx09AQE4aHSRi1bcsYcZjYR19GefB4T3aZjZjy9L6FxrhttW5Ht3eYQ51STJoo0KOEnbvBQS+3LAR1pqQDtYd60V0/75tVynfFm5fD4kV8XrqBWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKn0Ztjhgvvgm7lkxW8tYq4k4dsbXJEEg9bVugCxYe6Piv0ACQYJ5W7UdwUCAAAz7TefAQAAAE5wMgAAAAAArYgOAAAAAAAAAAAAAAAAAEbsqmkAAAAAEwQAAAAAAAACAQAAAAAAAAAAAAAAAAAARidiDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 5324400,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "2vQhaMvLK2//AAoAiBMAAAAAAADA1AEAAAAAAECcAAAAAAAAgNHwCAAAAAAF2xU6D/SH9pzeiQAf7ExGlbbUIV6iRLh71Otyh/hXqNcGSjj20XsRPl9m3PtjuHN//OJkSr8KALmLNDVtY4WDoA8AAAAAAABQwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "executable": false,
+          "lamports": 2533440,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "Huti/BrFQlb9DIOo8yNFsbpE0IJtbh0hiVLDDRF37HoaokerQaJ3Xwyg6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1386840,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCzrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ1xJzRdRGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAHrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ6idBNgrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAAA4thYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 188309263328,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "rent_epoch": 18446744073709551615
+        },
+        null,
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAEMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAADwHR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAFDtT9CnXVmpEPxr8zwSV3sFjZvz3RXs8ksqTd2YSa3ZUuuepH6NAwAGAQAAAABQ7U/Qp11ZqRD8a/M8Eld7BY2b890V7PJLKk3dmEmt2Q==",
+          "executable": false,
+          "lamports": 1461600,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1849280398207,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "So11111111111111111111111111111111111111112",
+          "rent_epoch": 18446744073709551615
+        }
+      ],
+      "checks": [
+        {
+          "creator_before_transfer_fee": "0",
+          "gross": "0",
+          "net_creator_payout": "0",
+          "protocol_after": "6966209843",
+          "protocol_before": "6966209843",
+          "protocol_share": "0",
+          "recipient_after": "0",
+          "recipient_before": "0",
+          "token": 0,
+          "transfer_fee": "0",
+          "vault_after": "26736570747228",
+          "vault_before": "26736570747228"
+        },
+        {
+          "creator_before_transfer_fee": "241313606",
+          "gross": "241313606",
+          "net_creator_payout": "241313606",
+          "protocol_after": "3305550",
+          "protocol_before": "3305550",
+          "protocol_share": "0",
+          "recipient_after": "241313606",
+          "recipient_before": "0",
+          "token": 1,
+          "transfer_fee": "0",
+          "vault_after": "188066461282",
+          "vault_before": "188307774888"
+        }
+      ],
+      "config_share_rate": 50000,
+      "creator": "qrLKabjdtuuJnsKgkm7HcWRqfGrrKsgZxFhHFvQcLuH",
+      "duplicate_collection_error": {
+        "InstructionError": [
+          1,
+          {
+            "Custom": 6014
+          }
+        ]
+      },
+      "instruction": {
+        "accounts": [
+          "qrLKabjdtuuJnsKgkm7HcWRqfGrrKsgZxFhHFvQcLuH",
+          "GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL",
+          "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "So11111111111111111111111111111111111111112",
+          "F9FimQzf5FfbrWrpyounmsiL1ptHKVw9GsbRY7tpgPsg",
+          "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+          "11111111111111111111111111111111",
+          "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM"
+        ],
+        "data_base64": "FBZWe8Yc24Q=",
+        "program_id": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+      },
+      "legacy_error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 3005
+          }
+        ]
+      },
+      "logs": [
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C invoke [1]",
+        "Program log: Instruction: CollectCreatorFee",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]",
+        "Program log: Create",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 181538 compute units",
+        "Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program 11111111111111111111111111111111 invoke [3]",
+        "Program 11111111111111111111111111111111 success",
+        "Program log: Initialize the associated token account",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 176449 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 173988 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 14909 of 188381 compute units",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 149042 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C consumed 51921 of 200000 compute units",
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C success"
+      ],
+      "payer": "qrLKabjdtuuJnsKgkm7HcWRqfGrrKsgZxFhHFvQcLuH",
+      "permissionless": false,
+      "permissionless_missing_share_error": null,
+      "pool": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+      "share_account_exists": true,
+      "share_pda": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+      "share_rate": 0,
+      "simulated_accounts": [
+        {
+          "data_base64": "9+3j9dfD3kag6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwyDqPMjRbG6RNCCbW4dIYlSww0Rd+x6GqJHq0Gid18MhT/s5qWJod1/zwa+rrhmx09AQE4aHSRi1bcsYcZjYR19GefB4T3aZjZjy9L6FxrhttW5Ht3eYQ51STJoo0KOEnbvBQS+3LAR1pqQDtYd60V0/75tVynfFm5fD4kV8XrqBWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKn0Ztjhgvvgm7lkxW8tYq4k4dsbXJEEg9bVugCxYe6Piv0ACQYJ5W7UdwUCAAAz7TefAQAAAE5wMgAAAAAArYgOAAAAAAAAAAAAAAAAAEbsqmkAAAAAGQQAAAAAAAACAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 5324400,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "2vQhaMvLK2//AAoAiBMAAAAAAADA1AEAAAAAAECcAAAAAAAAgNHwCAAAAAAF2xU6D/SH9pzeiQAf7ExGlbbUIV6iRLh71Otyh/hXqNcGSjj20XsRPl9m3PtjuHN//OJkSr8KALmLNDVtY4WDoA8AAAAAAABQwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "executable": false,
+          "lamports": 2533440,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "Huti/BrFQlb9DIOo8yNFsbpE0IJtbh0hiVLDDRF37HoaokerQaJ3Xwyg6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1386840,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCzrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ1xJzRdRGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAHrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ2J2oskrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAAA4thYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 188067949722,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 1488440,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "F9FimQzf5FfbrWrpyounmsiL1ptHKVw9GsbRY7tpgPsg",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAEMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDEYnYg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAADwHR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 243352886,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAFDtT9CnXVmpEPxr8zwSV3sFjZvz3RXs8ksqTd2YSa3ZUuuepH6NAwAGAQAAAABQ7U/Qp11ZqRD8a/M8Eld7BY2b890V7PJLKk3dmEmt2Q==",
+          "executable": false,
+          "lamports": 1461600,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1849280398207,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "So11111111111111111111111111111111111111112",
+          "rent_epoch": 18446744073709551615
+        }
+      ],
+      "simulation_slot": 453268559,
+      "snapshot_slot": 453268559,
+      "units_consumed": 51921,
+      "validated": true,
+      "verification_slot": 453268560,
+      "wrong_pda_error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 2006
+          }
+        ]
+      }
+    },
+    {
+      "account_count": 16,
+      "before_accounts": [
+        {
+          "data_base64": "9+3j9dfD3kag6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwyDqPMjRbG6RNCCbW4dIYlSww0Rd+x6GqJHq0Gid18MhT/s5qWJod1/zwa+rrhmx09AQE4aHSRi1bcsYcZjYR19GefB4T3aZjZjy9L6FxrhttW5Ht3eYQ51STJoo0KOEnbvBQS+3LAR1pqQDtYd60V0/75tVynfFm5fD4kV8XrqBWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKn0Ztjhgvvgm7lkxW8tYq4k4dsbXJEEg9bVugCxYe6Piv0ACQYJ5W7UdwUCAAAz7TefAQAAAE5wMgAAAAAArYgOAAAAAAAAAAAAAAAAAEbsqmkAAAAAEwQAAAAAAAACAQAAAAAAAAAAAAAAAAAARidiDgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 5324400,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "2vQhaMvLK2//AAoAiBMAAAAAAADA1AEAAAAAAECcAAAAAAAAgNHwCAAAAAAF2xU6D/SH9pzeiQAf7ExGlbbUIV6iRLh71Otyh/hXqNcGSjj20XsRPl9m3PtjuHN//OJkSr8KALmLNDVtY4WDoA8AAAAAAABQwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "executable": false,
+          "lamports": 2533440,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "Huti/BrFQlb9DIOo8yNFsbpE0IJtbh0hiVLDDRF37HoaokerQaJ3Xwyg6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1386840,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCzrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ1xJzRdRGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAHrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ6idBNgrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAAA4thYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 188309263328,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "rent_epoch": 18446744073709551615
+        },
+        null,
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAEMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAADwHR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAFDtT9CnXVmpEPxr8zwSV3sFjZvz3RXs8ksqTd2YSa3ZUuuepH6NAwAGAQAAAABQ7U/Qp11ZqRD8a/M8Eld7BY2b890V7PJLKk3dmEmt2Q==",
+          "executable": false,
+          "lamports": 1461600,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1849280398207,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "So11111111111111111111111111111111111111112",
+          "rent_epoch": 18446744073709551615
+        }
+      ],
+      "checks": [
+        {
+          "creator_before_transfer_fee": "0",
+          "gross": "0",
+          "net_creator_payout": "0",
+          "protocol_after": "6966209843",
+          "protocol_before": "6966209843",
+          "protocol_share": "0",
+          "recipient_after": "0",
+          "recipient_before": "0",
+          "token": 0,
+          "transfer_fee": "0",
+          "vault_after": "26736570747228",
+          "vault_before": "26736570747228"
+        },
+        {
+          "creator_before_transfer_fee": "241313606",
+          "gross": "241313606",
+          "net_creator_payout": "241313606",
+          "protocol_after": "3305550",
+          "protocol_before": "3305550",
+          "protocol_share": "0",
+          "recipient_after": "241313606",
+          "recipient_before": "0",
+          "token": 1,
+          "transfer_fee": "0",
+          "vault_after": "188066461282",
+          "vault_before": "188307774888"
+        }
+      ],
+      "config_share_rate": 50000,
+      "creator": "qrLKabjdtuuJnsKgkm7HcWRqfGrrKsgZxFhHFvQcLuH",
+      "duplicate_collection_error": {
+        "InstructionError": [
+          1,
+          {
+            "Custom": 6014
+          }
+        ]
+      },
+      "instruction": {
+        "accounts": [
+          "BH23VsesJX61Ve3ZgHGzPKgcgCcMKMhpGGAqNeG3NFou",
+          "qrLKabjdtuuJnsKgkm7HcWRqfGrrKsgZxFhHFvQcLuH",
+          "GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL",
+          "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "So11111111111111111111111111111111111111112",
+          "F9FimQzf5FfbrWrpyounmsiL1ptHKVw9GsbRY7tpgPsg",
+          "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+          "11111111111111111111111111111111",
+          "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM"
+        ],
+        "data_base64": "ysoiU+J6keU=",
+        "program_id": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+      },
+      "legacy_error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 3005
+          }
+        ]
+      },
+      "logs": [
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C invoke [1]",
+        "Program log: Instruction: CollectCreatorFeePermissionless",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]",
+        "Program log: Create",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 181156 compute units",
+        "Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program 11111111111111111111111111111111 invoke [3]",
+        "Program 11111111111111111111111111111111 success",
+        "Program log: Initialize the associated token account",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 176067 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 173604 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 15010 of 188077 compute units",
+        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 148631 compute units",
+        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C consumed 52373 of 200000 compute units",
+        "Program CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C success"
+      ],
+      "payer": "BH23VsesJX61Ve3ZgHGzPKgcgCcMKMhpGGAqNeG3NFou",
+      "permissionless": true,
+      "permissionless_missing_share_error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 3005
+          }
+        ]
+      },
+      "pool": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+      "share_account_exists": true,
+      "share_pda": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+      "share_rate": 0,
+      "simulated_accounts": [
+        {
+          "data_base64": "9+3j9dfD3kag6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwyDqPMjRbG6RNCCbW4dIYlSww0Rd+x6GqJHq0Gid18MhT/s5qWJod1/zwa+rrhmx09AQE4aHSRi1bcsYcZjYR19GefB4T3aZjZjy9L6FxrhttW5Ht3eYQ51STJoo0KOEnbvBQS+3LAR1pqQDtYd60V0/75tVynfFm5fD4kV8XrqBWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwGm4hX/quBhPtof2NGGMA12sQ53BrrO1WYoPAAAAAAAQbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBt324ddloZPZy+FGzut5rBy0he1fWzeROoz1hX7/AKn0Ztjhgvvgm7lkxW8tYq4k4dsbXJEEg9bVugCxYe6Piv0ACQYJ5W7UdwUCAAAz7TefAQAAAE5wMgAAAAAArYgOAAAAAAAAAAAAAAAAAEbsqmkAAAAAGQQAAAAAAAACAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 5324400,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "3Cv9uPpaSqQD55oiiegpC5SBm9664kqbJoB5K7YBQfGb",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "2vQhaMvLK2//AAoAiBMAAAAAAADA1AEAAAAAAECcAAAAAAAAgNHwCAAAAAAF2xU6D/SH9pzeiQAf7ExGlbbUIV6iRLh71Otyh/hXqNcGSjj20XsRPl9m3PtjuHN//OJkSr8KALmLNDVtY4WDoA8AAAAAAABQwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          "executable": false,
+          "lamports": 2533440,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "Bq9YmSkZ6f13L4rPsx9MxSXuyPfKCBbvrbvarKti1LdG",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "Huti/BrFQlb9DIOo8yNFsbpE0IJtbh0hiVLDDRF37HoaokerQaJ3Xwyg6mm65HiMhFozo1ZdCI/i8r8zo/RXnzAQLBsaaWu+UwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1386840,
+          "owner": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+          "pubkey": "5EerrNyBwhbPg5otdfrA1r5VfUUBMXD1myF8GhzN3oDM",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCzrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ1xJzRdRGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 2039280,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9y9m4nPSi4yVpSuA4A4rJftSZ2fMhkoG82zk8sfguFDW",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAHrANn1spK0IUrH0De01vBkULlkYA3zcwUrtehPL46aZ2J2oskrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAAA4thYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 188067949722,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "9RLsdmufN84yRjVUxNxLmkJFYax9ktzfKfVzcqDVYvPB",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BWO0mYz7TDyJNdwPYPKtJNm3hdOv5Ys9icjxB8t/nCwMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 1488440,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "F9FimQzf5FfbrWrpyounmsiL1ptHKVw9GsbRY7tpgPsg",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "BpuIV/6rgYT7aH9jRhjANdrEOdwa6ztVmKDwAAAAAAEMg6jzI0WxukTQgm1uHSGJUsMNEXfsehqiR6tBondfDEYnYg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAAADwHR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "executable": false,
+          "lamports": 243352886,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "oppcaBofHd7pTuGsKDimyPH9DABQzr7w4crZGjdhyaQ",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAFDtT9CnXVmpEPxr8zwSV3sFjZvz3RXs8ksqTd2YSa3ZUuuepH6NAwAGAQAAAABQ7U/Qp11ZqRD8a/M8Eld7BY2b890V7PJLKk3dmEmt2Q==",
+          "executable": false,
+          "lamports": 1461600,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "N3Dg4xDpfQzjVxSqCg1WtPyXXM4jDtcxNrRu8EKPLEX",
+          "rent_epoch": 18446744073709551615
+        },
+        {
+          "data_base64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+          "executable": false,
+          "lamports": 1849280398207,
+          "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "pubkey": "So11111111111111111111111111111111111111112",
+          "rent_epoch": 18446744073709551615
+        }
+      ],
+      "simulation_slot": 453268564,
+      "snapshot_slot": 453268563,
+      "units_consumed": 52373,
+      "validated": true,
+      "verification_slot": 453268565,
+      "wrong_pda_error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 2006
+          }
+        ]
+      }
+    }
+  ],
+  "signature_verification": false
+}

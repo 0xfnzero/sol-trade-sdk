@@ -51,6 +51,9 @@ fn resolve_swap_context(
     params: &SwapParams,
     protocol_params: &RaydiumCpmmParams,
 ) -> Result<CpmmSwapContext> {
+    if params.fixed_output_amount == Some(0) {
+        return Err(anyhow!("Raydium CPMM fixed output amount must be nonzero"));
+    }
     if protocol_params.base_mint == protocol_params.quote_mint {
         return Err(anyhow!("Raydium CPMM pool mints must be distinct"));
     }
@@ -141,6 +144,28 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         let amount_in: u64 = params.input_amount.unwrap_or(0);
 
+        // Validate and encode the swap before deriving user accounts or
+        // allocating setup instructions. Failed quotes should exit early.
+        let mut data = [0u8; 24];
+        if let Some(amount_out) = params.fixed_output_amount {
+            data[..8].copy_from_slice(&SWAP_BASE_OUT_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
+            data[16..24].copy_from_slice(&amount_out.to_le_bytes());
+        } else {
+            let minimum_amount_out = compute_swap_amount_for_pool(
+                protocol_params,
+                context.is_base_in,
+                amount_in,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+            )?
+            .min_amount_out;
+            data[..8].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
+            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        }
+
+
+
         let input_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &context.input_mint,
@@ -183,37 +208,19 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // Create buy instruction
         let accounts: [AccountMeta; 13] = [
             AccountMeta::new_readonly(params.payer.pubkey(), true), // Payer (signer, IDL not writable)
-            accounts::AUTHORITY_META,                      // Authority (readonly)
+            accounts::AUTHORITY_META,                               // Authority (readonly)
             AccountMeta::new_readonly(protocol_params.amm_config, false), // Amm Config (readonly)
-            AccountMeta::new(context.pool_state, false),   // Pool State
-            AccountMeta::new(input_token_account, false),  // Input Token Account
-            AccountMeta::new(output_token_account, false), // Output Token Account
-            AccountMeta::new(context.input_vault, false),  // Input Vault Account
-            AccountMeta::new(context.output_vault, false), // Output Vault Account
+            AccountMeta::new(context.pool_state, false),            // Pool State
+            AccountMeta::new(input_token_account, false),           // Input Token Account
+            AccountMeta::new(output_token_account, false),          // Output Token Account
+            AccountMeta::new(context.input_vault, false),           // Input Vault Account
+            AccountMeta::new(context.output_vault, false),          // Output Vault Account
             AccountMeta::new_readonly(context.input_token_program, false),
             AccountMeta::new_readonly(context.output_token_program, false),
             AccountMeta::new_readonly(context.input_mint, false),
             AccountMeta::new_readonly(context.output_mint, false),
             AccountMeta::new(context.observation_state, false),
         ];
-        // Create instruction data
-        let mut data = [0u8; 24];
-        if let Some(amount_out) = params.fixed_output_amount {
-            data[..8].copy_from_slice(&SWAP_BASE_OUT_DISCRIMINATOR);
-            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
-            data[16..24].copy_from_slice(&amount_out.to_le_bytes());
-        } else {
-            let minimum_amount_out = compute_swap_amount_for_pool(
-                protocol_params,
-                context.is_base_in,
-                amount_in,
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-            )?
-            .min_amount_out;
-            data[..8].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
-            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
-            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
-        }
 
         instructions.push(Instruction::new_with_bytes(
             accounts::RAYDIUM_CPMM,
@@ -248,6 +255,28 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
 
         let context = resolve_swap_context(params, protocol_params)?;
 
+        // Validate and encode the swap before deriving user accounts or
+        // allocating setup instructions. Failed quotes should exit early.
+        let mut data = [0u8; 24];
+        let amount_in = params.input_amount.unwrap_or(0);
+        if let Some(amount_out) = params.fixed_output_amount {
+            data[..8].copy_from_slice(&SWAP_BASE_OUT_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
+            data[16..24].copy_from_slice(&amount_out.to_le_bytes());
+        } else {
+            let minimum_amount_out = compute_swap_amount_for_pool(
+                protocol_params,
+                context.is_base_in,
+                amount_in,
+                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
+            )?
+            .min_amount_out;
+            data[..8].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
+            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
+            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
+        }
+
+
         let output_token_account = get_associated_token_address_with_program_id_fast_use_seed(
             &params.payer.pubkey(),
             &context.output_mint,
@@ -279,38 +308,19 @@ impl InstructionBuilder for RaydiumCpmmInstructionBuilder {
         // Create sell instruction
         let accounts: [AccountMeta; 13] = [
             AccountMeta::new_readonly(params.payer.pubkey(), true), // Payer (signer, IDL not writable)
-            accounts::AUTHORITY_META,                      // Authority (readonly)
+            accounts::AUTHORITY_META,                               // Authority (readonly)
             AccountMeta::new_readonly(protocol_params.amm_config, false), // Amm Config (readonly)
-            AccountMeta::new(context.pool_state, false),   // Pool State
-            AccountMeta::new(input_token_account, false),  // Input Token Account
-            AccountMeta::new(output_token_account, false), // Output Token Account
-            AccountMeta::new(context.input_vault, false),  // Input Vault Account
-            AccountMeta::new(context.output_vault, false), // Output Vault Account
+            AccountMeta::new(context.pool_state, false),            // Pool State
+            AccountMeta::new(input_token_account, false),           // Input Token Account
+            AccountMeta::new(output_token_account, false),          // Output Token Account
+            AccountMeta::new(context.input_vault, false),           // Input Vault Account
+            AccountMeta::new(context.output_vault, false),          // Output Vault Account
             AccountMeta::new_readonly(context.input_token_program, false),
             AccountMeta::new_readonly(context.output_token_program, false),
             AccountMeta::new_readonly(context.input_mint, false),
             AccountMeta::new_readonly(context.output_mint, false),
             AccountMeta::new(context.observation_state, false),
         ];
-        // Create instruction data
-        let mut data = [0u8; 24];
-        let amount_in = params.input_amount.unwrap_or(0);
-        if let Some(amount_out) = params.fixed_output_amount {
-            data[..8].copy_from_slice(&SWAP_BASE_OUT_DISCRIMINATOR);
-            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
-            data[16..24].copy_from_slice(&amount_out.to_le_bytes());
-        } else {
-            let minimum_amount_out = compute_swap_amount_for_pool(
-                protocol_params,
-                context.is_base_in,
-                amount_in,
-                params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
-            )?
-            .min_amount_out;
-            data[..8].copy_from_slice(&SWAP_BASE_IN_DISCRIMINATOR);
-            data[8..16].copy_from_slice(&amount_in.to_le_bytes());
-            data[16..24].copy_from_slice(&minimum_amount_out.to_le_bytes());
-        }
 
         instructions.push(Instruction::new_with_bytes(
             accounts::RAYDIUM_CPMM,
@@ -415,6 +425,39 @@ mod tests {
             transaction_version: crate::common::TradeTransactionVersion::V0,
             grpc_recv_us: None,
             use_exact_sol_amount: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn zero_fixed_output_is_rejected_in_both_builder_paths() {
+        let params = swap_params(Some(0));
+        for instructions in [
+            RaydiumCpmmInstructionBuilder.build_buy_instructions(&params).await,
+            RaydiumCpmmInstructionBuilder.build_sell_instructions(&params).await,
+        ] {
+            assert!(instructions.unwrap_err().to_string().contains("fixed output amount"));
+        }
+    }
+
+    #[tokio::test]
+    async fn overflowing_exact_input_quote_is_rejected_by_both_builders() {
+        for reversed in [false, true] {
+            let mut params = swap_params(None);
+            let mut protocol = cpmm_params();
+            protocol.base_reserve = u64::MAX;
+            protocol.quote_reserve = u64::MAX;
+            params.protocol_params = DexParamEnum::RaydiumCpmm(protocol);
+            params.create_input_mint_ata = true;
+            params.create_output_mint_ata = true;
+            if reversed {
+                std::mem::swap(&mut params.input_mint, &mut params.output_mint);
+            }
+            for result in [
+                RaydiumCpmmInstructionBuilder.build_buy_instructions(&params).await,
+                RaydiumCpmmInstructionBuilder.build_sell_instructions(&params).await,
+            ] {
+                assert!(result.unwrap_err().to_string().contains("input vault balance overflow"));
+            }
         }
     }
 
@@ -554,12 +597,10 @@ mod tests {
             300,
             DexParamEnum::RaydiumCpmm(sol_hop),
         );
-        let mut business = RaydiumCpmmInstructionBuilder.build_buy_instructions(&hop).await.unwrap();
+        let mut business =
+            RaydiumCpmmInstructionBuilder.build_buy_instructions(&hop).await.unwrap();
         let stonk_min = {
-            let swap = business
-                .iter()
-                .find(|ix| ix.program_id == accounts::RAYDIUM_CPMM)
-                .unwrap();
+            let swap = business.iter().find(|ix| ix.program_id == accounts::RAYDIUM_CPMM).unwrap();
             u64::from_le_bytes(swap.data[16..24].try_into().unwrap())
         };
         let mut meme_buy = crate::common::mainnet_sim::swap_params(
@@ -591,5 +632,103 @@ mod tests {
             "graduated decode+sim stonk→knots",
         )
         .await;
+    }
+}
+
+/// Collect all accrued fees as the pool creator. The creator signs and pays ATA rent.
+/// Uses the token mint/program/vault order from PoolState, including Token-2022 ATAs.
+pub fn collect_creator_fee(
+    pool_address: &Pubkey,
+    pool: &crate::instruction::utils::raydium_cpmm_types::PoolState,
+) -> Instruction {
+    build_creator_fee_collection(
+        pool_address,
+        pool,
+        None,
+        crate::instruction::utils::raydium_cpmm::get_creator_fee_share_pda(
+            &pool.pool_creator,
+            &pool.amm_config,
+        ),
+    )
+}
+
+/// Anyone may trigger collection, but tokens always go to the pool creator's ATAs.
+/// The payer signs and funds any missing ATAs. The share PDA is always included.
+pub fn collect_creator_fee_permissionless(
+    payer: &Pubkey,
+    pool_address: &Pubkey,
+    pool: &crate::instruction::utils::raydium_cpmm_types::PoolState,
+) -> Instruction {
+    build_creator_fee_collection(
+        pool_address,
+        pool,
+        Some(*payer),
+        crate::instruction::utils::raydium_cpmm::get_creator_fee_share_pda(
+            &pool.pool_creator,
+            &pool.amm_config,
+        ),
+    )
+}
+
+pub(crate) fn build_creator_fee_collection(
+    pool_address: &Pubkey,
+    pool: &crate::instruction::utils::raydium_cpmm_types::PoolState,
+    payer: Option<Pubkey>,
+    share_address: Pubkey,
+) -> Instruction {
+    use crate::constants::accounts::{ASSOCIATED_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM};
+    let creator = pool.pool_creator;
+    let ata0 = get_associated_token_address_with_program_id_fast_use_seed(
+        &creator,
+        &pool.token0_mint,
+        &pool.token0_program,
+        false,
+    );
+    let ata1 = get_associated_token_address_with_program_id_fast_use_seed(
+        &creator,
+        &pool.token1_mint,
+        &pool.token1_program,
+        false,
+    );
+    let mut metas = Vec::with_capacity(if payer.is_some() { 16 } else { 15 });
+    metas.extend(if let Some(payer) = payer {
+        [
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(creator, false),
+            accounts::AUTHORITY_META,
+            AccountMeta::new(*pool_address, false),
+        ]
+    } else {
+        [
+            AccountMeta::new(creator, true),
+            accounts::AUTHORITY_META,
+            AccountMeta::new(*pool_address, false),
+            AccountMeta::new_readonly(pool.amm_config, false),
+        ]
+    });
+    metas.extend([
+        AccountMeta::new(pool.token0_vault, false),
+        AccountMeta::new(pool.token1_vault, false),
+        AccountMeta::new_readonly(pool.token0_mint, false),
+        AccountMeta::new_readonly(pool.token1_mint, false),
+        AccountMeta::new(ata0, false),
+        AccountMeta::new(ata1, false),
+        AccountMeta::new_readonly(pool.token0_program, false),
+        AccountMeta::new_readonly(pool.token1_program, false),
+        AccountMeta::new_readonly(ASSOCIATED_TOKEN_PROGRAM_ID, false),
+        AccountMeta::new_readonly(SYSTEM_PROGRAM, false),
+    ]);
+    if payer.is_some() {
+        metas.push(AccountMeta::new_readonly(pool.amm_config, false));
+    }
+    metas.push(AccountMeta::new_readonly(share_address, false));
+    Instruction {
+        program_id: accounts::RAYDIUM_CPMM,
+        accounts: metas,
+        data: if payer.is_some() {
+            vec![202, 202, 34, 83, 226, 122, 145, 229]
+        } else {
+            vec![20, 22, 86, 123, 198, 28, 219, 132]
+        },
     }
 }

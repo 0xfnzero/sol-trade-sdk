@@ -93,11 +93,18 @@ pub(crate) fn token_transfer_fee_for_epoch(
     let config = mint
         .get_extension::<TransferFeeConfig>()
         .map_err(|error| anyhow::anyhow!("Failed to decode Token-2022 transfer fee: {}", error))?;
+    token_transfer_fee_from_config(config, epoch)
+}
+
+/// Reuse an already decoded extension on subscription preparation paths.
+pub(crate) fn token_transfer_fee_from_config(
+    config: &TransferFeeConfig,
+    epoch: u64,
+) -> Result<TokenTransferFee, anyhow::Error> {
     let fee = config.get_epoch_fee(epoch);
-    Ok(TokenTransferFee {
-        basis_points: fee.transfer_fee_basis_points.into(),
-        maximum_fee: fee.maximum_fee.into(),
-    })
+    let basis_points = u16::from(fee.transfer_fee_basis_points);
+    anyhow::ensure!(basis_points <= 10_000, "Invalid Token-2022 transfer fee basis points");
+    Ok(TokenTransferFee { basis_points, maximum_fee: fee.maximum_fee.into() })
 }
 
 /// RaydiumCpmm protocol specific parameters

@@ -6,6 +6,7 @@
 //! GRPC_URL/GRPC_TOKEN select the provider; legacy aliases remain supported. No private key is needed.
 //! Only cold bootstrap / artificial funding / simulation use RPC. Never submits.
 use anyhow::{anyhow, ensure, Context, Result};
+use base64::Engine;
 use sol_parser_sdk::{
     accounts::liquidity_snapshot::RawAccountSnapshotEvent,
     grpc::{AccountFilter, ClientConfig, EventType, EventTypeFilter, YellowstoneGrpc},
@@ -34,6 +35,7 @@ use solana_client::{
 use solana_commitment_config::CommitmentConfig;
 use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_message::{v0, v1, VersionedMessage};
+use solana_rpc_client_api::request::RpcRequest;
 use solana_sdk::{
     hash::Hash,
     instruction::{AccountMeta, Instruction},
@@ -59,6 +61,110 @@ const DL: Pubkey = pubkey!("BGm1tav58oGcsQJehL9WXBFXF7D27vZsKefj4xJKD5Y");
 fn arg(name: &str) -> Option<String> {
     let args: Vec<_> = std::env::args().collect();
     args.windows(2).find(|w| w[0] == name).map(|w| w[1].clone())
+}
+fn positive_argument(name: &str, default: u64) -> Result<u64> {
+    positive_value(name, arg(name).as_deref(), default)
+}
+fn positive_value(name: &str, value: Option<&str>, default: u64) -> Result<u64> {
+    let value = value
+        .map(|value| value.parse::<u64>())
+        .transpose()
+        .with_context(|| format!("{name} requires an unsigned integer"))?
+        .unwrap_or(default);
+    ensure!(value > 0, "{name} must be positive");
+    Ok(value)
+}
+fn pools_ready(required: bool, pools: &[Pubkey], live: &HashSet<Pubkey>) -> bool {
+    !required || pools.iter().all(|pool| live.contains(pool))
+}
+fn parse_simulation_result(
+    raw: serde_json::Value,
+) -> Result<
+    solana_client::rpc_response::Response<
+        solana_client::rpc_response::RpcSimulateTransactionResult,
+    >,
+> {
+    ensure!(
+        raw.get("value").and_then(|value| value.get("err")).is_some(),
+        "Simulation response missing explicit execution status"
+    );
+    ensure!(
+        raw.get("context")
+            .and_then(|value| value.get("slot"))
+            .and_then(serde_json::Value::as_u64)
+            .is_some(),
+        "Simulation response missing slot"
+    );
+    Ok(serde_json::from_value(raw)?)
+}
+fn direct_usdc_steps(
+    pool: Pubkey,
+    quote: Pubkey,
+    asset: Pubkey,
+    sell: bool,
+) -> Vec<CachedRouteStep> {
+    if asset == quote {
+        return vec![];
+    }
+    let mut steps = Vec::new();
+    let native = asset == SOL_TOKEN_ACCOUNT || asset == WSOL_TOKEN_ACCOUNT;
+    if native && !sell {
+        steps.push(CachedRouteStep {
+            pool: PoolTradeHint {
+                pool: CL,
+                input_mint: WSOL_TOKEN_ACCOUNT,
+                output_mint: USDC_TOKEN_ACCOUNT,
+            },
+            input_amount: None,
+        });
+    }
+    steps.push(CachedRouteStep {
+        pool: PoolTradeHint {
+            pool,
+            input_mint: if sell { quote } else { USDC_TOKEN_ACCOUNT },
+            output_mint: if sell { USDC_TOKEN_ACCOUNT } else { quote },
+        },
+        input_amount: None,
+    });
+    if native && sell {
+        steps.push(CachedRouteStep {
+            pool: PoolTradeHint {
+                pool: CL,
+                input_mint: USDC_TOKEN_ACCOUNT,
+                output_mint: WSOL_TOKEN_ACCOUNT,
+            },
+            input_amount: None,
+        });
+    }
+    steps
+}
+fn validate_arguments(arguments: &[String]) -> Result<()> {
+    let values = [
+        "--amount",
+        "--timeout",
+        "--simulation-out",
+        "--asset",
+        "--venue",
+        "--version",
+        "--compute-unit-limit",
+    ];
+    let switches = ["--sell", "--curve", "--direct-usdc", "--require-pool-updates"];
+    let mut seen = HashSet::new();
+    let mut index = 0;
+    while index < arguments.len() {
+        let name = arguments[index].as_str();
+        ensure!(values.contains(&name) || switches.contains(&name), "Unknown argument: {name}");
+        ensure!(seen.insert(name), "Repeated argument: {name}");
+        if values.contains(&name) {
+            ensure!(
+                arguments.get(index + 1).is_some_and(|value| !value.starts_with("--")),
+                "{name} requires a value"
+            );
+            index += 1;
+        }
+        index += 1;
+    }
+    Ok(())
 }
 fn dependencies(pool: Pubkey, owner: Pubkey, d: &[u8]) -> Result<Vec<Pubkey>> {
     let mut keys = vec![pool];
@@ -132,7 +238,7 @@ async fn main() -> Result<()> {
             "PublicNode gRPC cache → independent StonkFun trade → simulation (never submits)
 Usage: cargo run --example stonkfun_grpc_simulate --features parser-adapter -- [options]
   --version v1|v0           Default v1: 4096 bytes, zero ALTs, inline CU config
-  --direct-usdc               Direct USDC/stock CLMM + LaunchLab fixture (USDC only)
+  --direct-usdc               Stock/USDC fixture; adds WSOL/USDC leg for SOL or WSOL
   --asset SOL|WSOL|USDC|quote   Buy payment or sell receipt asset; default SOL
   --sell                   Independent sell; default is buy
   --curve                  LaunchLab inner pool; default graduated CPMM fixture
@@ -140,14 +246,25 @@ Usage: cargo run --example stonkfun_grpc_simulate --features parser-adapter -- [
   --venue whirlpool|clmm|dlmm   Conversion-only fixture
   --timeout <seconds>      Subscription warmup bound; default 90
   --compute-unit-limit <units>  V1 inline CU limit; default 900000
+  --simulation-out <path>  Save original wire and full response, including execution failures
+  --require-pool-updates   Require a live gRPC update for every selected pool
 Environment: GRPC_URL, GRPC_TOKEN, RPC_URL (aliases: GRPC_ENDPOINT, GRPC_AUTH_TOKEN)
 Optional: SNAPSHOT_FILE, SIM_TOKEN_SOURCE; ALTS is only supported with --version v0
 RPC is used only for cold bootstrap, simulator funding and simulation.
 Example independent USDC buy: --version v1 --asset USDC
-Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
+Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000000"
         );
         return Ok(());
     }
+    let arguments: Vec<_> = std::env::args().collect();
+    validate_arguments(&arguments[1..])?;
+    let timeout_seconds = positive_argument("--timeout", 90)?;
+    let timeout_duration = Duration::from_secs(timeout_seconds);
+    Instant::now().checked_add(timeout_duration).context("--timeout exceeds clock range")?;
+    positive_argument("--amount", 1)?; // Reject invalid requested amounts before network I/O.
+    u32::try_from(positive_argument("--compute-unit-limit", 900_000)?)
+        .context("--compute-unit-limit exceeds u32")?;
+    let require_pool_updates = arguments.iter().any(|value| value == "--require-pool-updates");
     let _ = rustls::crypto::ring::default_provider().install_default();
     // Log connection errors without printing endpoint credentials or tokens.
     let _ = tracing_subscriber::fmt()
@@ -175,9 +292,10 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
     let standalone = venue.is_some();
     let asset_name = arg("--asset").unwrap_or_else(|| "SOL".into());
     ensure!(
-        !direct_usdc || (asset_name == "USDC" && !standalone),
-        "--direct-usdc requires --asset USDC and cannot use --venue"
+        !standalone || (!sell && !curve && asset_name != "quote"),
+        "--venue is conversion-only: use SOL, WSOL or USDC; omit --sell and --curve"
     );
+    ensure!(!direct_usdc || !standalone, "--direct-usdc cannot use --venue");
     let (meme_pool, meme, quote, funding_pool, alt) = if direct_usdc {
         (
             pubkey!("BmQj9pBopxouHecN5rYvVLqN7a48CVndfTkhESEZzWgN"),
@@ -226,6 +344,9 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
         }
         if asset == USDC_TOKEN_ACCOUNT && !direct_usdc {
             p.push(WP);
+        }
+        if direct_usdc && (asset == SOL_TOKEN_ACCOUNT || asset == WSOL_TOKEN_ACCOUNT) {
+            p.push(CL);
         }
         p
     };
@@ -305,15 +426,18 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
         .map_err(|e| anyhow!("gRPC subscribe: {e}"))?;
     // Queue creation is asynchronous: wait for proof of a connected stream.
     // Bootstrap a completed confirmed bank while later updates buffer in queue.
-    let ready_deadline = Instant::now() + Duration::from_secs(45);
+    let ready_deadline =
+        Instant::now().checked_add(timeout_duration).context("--timeout exceeds clock range")?;
     loop {
         if let Some(DexEvent::BlockMeta(_)) = queue.pop() {
             break;
         }
-        ensure!(
-            Instant::now() < ready_deadline,
-            "No gRPC block metadata: check token and endpoint"
-        );
+        if Instant::now() >= ready_deadline {
+            grpc.stop().await;
+            return Err(anyhow!(
+                "No gRPC block metadata before deadline: check token and endpoint"
+            ));
+        }
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     let initial =
@@ -346,8 +470,8 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
         "cold bootstrap={} accounts; waiting for gRPC Clock + blockhash (unchanged pool/config accounts retain bootstrap state)",
         snapshots.len()
     );
-    let deadline = Instant::now()
-        + Duration::from_secs(arg("--timeout").and_then(|s| s.parse().ok()).unwrap_or(90));
+    let deadline =
+        Instant::now().checked_add(timeout_duration).context("--timeout exceeds clock range")?;
     let mut live_pools = HashSet::new();
     let mut live_clock = false;
     let mut block = None;
@@ -382,7 +506,7 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
         }
         let latest = snapshots.values().map(|e| e.metadata.slot).max().unwrap_or(0);
         if live_clock
-            && (!standalone || !live_pools.is_empty())
+            && pools_ready(require_pool_updates, &pools, &live_pools)
             && block.as_ref().is_some_and(|b| b.0 >= latest)
         {
             break;
@@ -400,17 +524,20 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
     let epoch = u64::from_le_bytes(clock[16..24].try_into()?);
     let timestamp = u64::try_from(i64::from_le_bytes(clock[32..40].try_into()?))?;
     let ctx = CacheReadContext { slot, epoch, maximum_slot_age: 512 };
-    let amount = arg("--amount").and_then(|s| s.parse().ok()).unwrap_or(if sell {
-        1_000
-    } else if standalone {
-        if asset == USDC_TOKEN_ACCOUNT {
-            100_000
+    let amount = positive_argument(
+        "--amount",
+        if sell {
+            1_000
+        } else if standalone {
+            if asset == USDC_TOKEN_ACCOUNT {
+                100_000
+            } else {
+                1_000_000
+            }
         } else {
-            1_000_000
-        }
-    } else {
-        50_000
-    });
+            50_000
+        },
+    )?;
     let request = CachedQuoteRequest {
         amount_in: amount,
         slippage_basis_points: 300,
@@ -442,15 +569,7 @@ Example independent SOL sell: --version v1 --sell --asset SOL --amount 1000000"
     } else {
         let mut steps = vec![];
         if direct_usdc {
-            // One conversion leg only: no WSOL intermediate on either side.
-            steps.push(CachedRouteStep {
-                pool: PoolTradeHint {
-                    pool: funding_pool,
-                    input_mint: if sell { quote } else { USDC_TOKEN_ACCOUNT },
-                    output_mint: if sell { USDC_TOKEN_ACCOUNT } else { quote },
-                },
-                input_amount: None,
-            });
+            steps = direct_usdc_steps(funding_pool, quote, asset, sell);
         } else if asset != quote {
             if sell {
                 steps.push(CachedRouteStep {
@@ -728,6 +847,7 @@ async fn simulate(
         addresses.dedup();
     }
     let native_wsol_index = addresses.iter().position(|a| a == &output_account.to_string());
+    let expected_accounts = addresses.len();
     let simulation_config = RpcSimulateTransactionConfig {
         sig_verify: false,
         replace_recent_blockhash: false,
@@ -742,8 +862,22 @@ async fn simulate(
         ..Default::default()
     };
     let mut result = None;
+    let wire = base64::engine::general_purpose::STANDARD.encode(wincode::serialize(&tx)?);
     for attempt in 0..12 {
-        match rpc.simulate_transaction_with_config(&tx, simulation_config.clone()).await {
+        let response = tokio::time::timeout(
+            Duration::from_secs(30),
+            rpc.send::<serde_json::Value>(
+                RpcRequest::SimulateTransaction,
+                serde_json::json!([&wire, &simulation_config]),
+            ),
+        )
+        .await
+        .context("Simulation RPC exceeded 30 second deadline")?;
+        let response = match response {
+            Ok(raw) => Ok(parse_simulation_result(raw)?),
+            Err(error) => Err(error),
+        };
+        match response {
             Ok(response)
                 if response
                     .value
@@ -769,6 +903,17 @@ async fn simulate(
         tokio::time::sleep(Duration::from_millis(750)).await;
     }
     let result = result.context("Simulator did not catch up to gRPC state")?;
+    if let Some(path) = arg("--simulation-out") {
+        std::fs::write(
+            path,
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "wire": wire,
+                "response": {"jsonrpc": "2.0", "result": &result},
+                "simulation_only_funding": true,
+                "broadcasts": 0
+            }))?,
+        )?;
+    }
     if let Some(err) = result.value.err {
         for log in result.value.logs.unwrap_or_default() {
             eprintln!("{log}");
@@ -776,6 +921,7 @@ async fn simulate(
         return Err(anyhow!("Simulation failed: {err:?}"));
     }
     let accounts = result.value.accounts.context("Missing simulated accounts")?;
+    ensure!(accounts.len() == expected_accounts, "Incomplete simulated account response");
     let actual = if native_output {
         let wsol_index = native_wsol_index.context("Native WSOL return-account index")?;
         ensure!(
@@ -789,7 +935,9 @@ async fn simulate(
     } else {
         let account =
             accounts.into_iter().next().flatten().context("Missing output token account")?;
+        ensure!(account.owner == output_program.to_string(), "Unexpected output account owner");
         let data = account.data.decode().context("Output account encoding")?;
+        ensure!(data.get(..32) == Some(output.as_ref()), "Unexpected output account mint");
         u64::from_le_bytes(data.get(64..72).context("Output token balance")?.try_into()?)
     };
     ensure!(
@@ -830,5 +978,83 @@ fn push_create_or_wrap_user_token_account(
         ix.extend(sol_trade_sdk::trading::common::handle_wsol(payer, amount));
     } else {
         push_create_user_token_account(ix, payer, mint, program, use_seed);
+    }
+}
+
+#[cfg(test)]
+mod argument_tests {
+    use super::positive_value;
+
+    #[test]
+    fn explicit_amount_cannot_silently_fall_back_to_default() {
+        for value in ["abc", "-1", "0", "1.5", "18446744073709551616"] {
+            assert!(positive_value("--amount", Some(value), 50_000).is_err());
+        }
+    }
+
+    #[test]
+    fn exact_u64_and_omitted_default_are_preserved() {
+        assert_eq!(positive_value("--amount", Some("18446744073709551615"), 1).unwrap(), u64::MAX);
+        assert_eq!(positive_value("--amount", None, 50_000).unwrap(), 50_000);
+    }
+    #[test]
+    fn optional_cold_pool_policy_applies_to_conversion_only_routes() {
+        let pool = solana_sdk::pubkey::Pubkey::new_unique();
+        let live = std::collections::HashSet::new();
+        assert!(super::pools_ready(false, &[pool], &live));
+        assert!(!super::pools_ready(true, &[pool], &live));
+        assert!(super::pools_ready(true, &[pool], &std::collections::HashSet::from([pool])));
+    }
+    #[test]
+    fn typos_and_repeated_options_cannot_change_requested_trade_silently() {
+        for args in [
+            vec!["--ammount", "1000"],
+            vec!["--asset", "SOL", "--asset", "WSOL"],
+            vec!["--amount"],
+            vec!["extra.json"],
+        ] {
+            assert!(super::validate_arguments(
+                &args.into_iter().map(String::from).collect::<Vec<_>>()
+            )
+            .is_err());
+        }
+        assert!(super::validate_arguments(
+            &["--asset", "WSOL", "--sell", "--amount", "1000"].map(String::from)
+        )
+        .is_ok());
+    }
+    #[test]
+    fn stock_usdc_conversion_paths_connect_for_each_asset_and_direction() {
+        use super::*;
+        let pool = Pubkey::new_unique();
+        let quote = Pubkey::new_unique();
+        for asset in [SOL_TOKEN_ACCOUNT, WSOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT, quote] {
+            for sell in [false, true] {
+                let steps = direct_usdc_steps(pool, quote, asset, sell);
+                if asset == quote {
+                    assert!(steps.is_empty());
+                    continue;
+                }
+                let endpoint = if asset == SOL_TOKEN_ACCOUNT { WSOL_TOKEN_ACCOUNT } else { asset };
+                assert_eq!(
+                    steps.first().unwrap().pool.input_mint,
+                    if sell { quote } else { endpoint }
+                );
+                assert_eq!(
+                    steps.last().unwrap().pool.output_mint,
+                    if sell { endpoint } else { quote }
+                );
+                for pair in steps.windows(2) {
+                    assert_eq!(pair[0].pool.output_mint, pair[1].pool.input_mint);
+                    assert_ne!(pair[0].pool.pool, pair[1].pool.pool);
+                }
+                assert!(steps.iter().all(|step| step.input_amount.is_none()));
+            }
+        }
+    }
+    #[test]
+    fn missing_rpc_error_field_cannot_be_defaulted_to_success() {
+        let raw = serde_json::json!({"context":{"slot":1},"value":{"logs":null}});
+        assert!(super::parse_simulation_result(raw).is_err());
     }
 }

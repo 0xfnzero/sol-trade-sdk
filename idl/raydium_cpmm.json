@@ -326,6 +326,46 @@
             "To create a new program account"
           ],
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "creator_fee_share",
+          "docs": [
+            "Always pass the PDA [\"creator_fee_share\", creator, amm_config], even if it does not exist."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  97,
+                  116,
+                  111,
+                  114,
+                  95,
+                  102,
+                  101,
+                  101,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "amm_config"
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -1359,7 +1399,7 @@
         "* `init_amount_0` - the initial amount_0 to deposit",
         "* `init_amount_1` - the initial amount_1 to deposit",
         "* `open_time` - the timestamp allowed for swap",
-        "* `creator_fee_on` - creator fee model, 0：both token0 and token1 (depends on the input), 1: only token0, 2: only token1",
+        "* `creator_fee_on` - creator fee model, 0\uff1aboth token0 and token1 (depends on the input), 1: only token0, 2: only token1",
         ""
       ],
       "discriminator": [
@@ -2349,6 +2389,294 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "collect_creator_fee_permissionless",
+      "docs": [
+        "Anyone may collect; payouts always go to the pool creator."
+      ],
+      "discriminator": [
+        202,
+        202,
+        34,
+        83,
+        226,
+        122,
+        145,
+        229
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator"
+        },
+        {
+          "name": "authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  110,
+                  100,
+                  95,
+                  108,
+                  112,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  95,
+                  115,
+                  101,
+                  101,
+                  100
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_state",
+          "docs": [
+            "Pool state stores accumulated protocol fee amount"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_0_vault",
+          "docs": [
+            "The address that holds pool tokens for token_0"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_1_vault",
+          "docs": [
+            "The address that holds pool tokens for token_1"
+          ],
+          "writable": true
+        },
+        {
+          "name": "vault_0_mint",
+          "docs": [
+            "The mint of token_0 vault"
+          ]
+        },
+        {
+          "name": "vault_1_mint",
+          "docs": [
+            "The mint of token_1 vault"
+          ]
+        },
+        {
+          "name": "creator_token_0",
+          "docs": [
+            "The address that receives the collected token_0 fund fees"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "token_0_program"
+              },
+              {
+                "kind": "account",
+                "path": "vault_0_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "creator_token_1",
+          "docs": [
+            "The address that receives the collected token_1 fund fees"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "token_1_program"
+              },
+              {
+                "kind": "account",
+                "path": "vault_1_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_0_program",
+          "docs": [
+            "Spl token program or token program 2022"
+          ]
+        },
+        {
+          "name": "token_1_program",
+          "docs": [
+            "Spl token program or token program 2022"
+          ]
+        },
+        {
+          "name": "associated_token_program",
+          "docs": [
+            "Program to create an ATA for receiving position NFT"
+          ],
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "To create a new program account"
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "amm_config"
+        },
+        {
+          "name": "creator_fee_share",
+          "docs": [
+            "Always pass the PDA [\"creator_fee_share\", creator, amm_config], even if it does not exist."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  97,
+                  116,
+                  111,
+                  114,
+                  95,
+                  102,
+                  101,
+                  101,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "account",
+                "path": "amm_config"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -2402,6 +2730,19 @@
         195,
         222,
         70
+      ]
+    },
+    {
+      "name": "CreatorFeeShare",
+      "discriminator": [
+        30,
+        235,
+        98,
+        252,
+        26,
+        197,
+        66,
+        86
       ]
     }
   ],
@@ -2590,6 +2931,10 @@
             "type": "u64"
           },
           {
+            "name": "creator_fee_share_rate",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "docs": [
               "padding"
@@ -2597,7 +2942,7 @@
             "type": {
               "array": [
                 "u64",
-                15
+                14
               ]
             }
           }
@@ -3083,6 +3428,39 @@
           {
             "name": "creator_fee_on_input",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreatorFeeShare",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amm_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "share_rate",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
           }
         ]
       }

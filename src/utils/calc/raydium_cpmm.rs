@@ -131,10 +131,13 @@ fn swap_base_input(
     let protocol_fee = compute_protocol_fund_fee(trade_fee, protocol_fee_rate);
     let fund_fee = compute_protocol_fund_fee(trade_fee, fund_fee_rate);
 
-    let output_amount_swapped = ((output_vault_amount as u128)
-        .saturating_mul(input_amount_less_fees as u128)
-        / (input_vault_amount as u128).saturating_add(input_amount_less_fees as u128))
-        as u64;
+    // The legacy infallible API represents an empty pool as a zero quote;
+    // the validated pool API rejects it before reaching this calculation.
+    let denominator = u128::from(input_vault_amount) + u128::from(input_amount_less_fees);
+    let output_amount_swapped = (u128::from(output_vault_amount)
+        * u128::from(input_amount_less_fees))
+    .checked_div(denominator)
+    .unwrap_or(0) as u64;
 
     let output_amount = if is_creator_fee_on_input {
         output_amount_swapped
@@ -212,6 +215,9 @@ pub fn compute_swap_amount_for_pool(
     amount_in: u64,
     slippage_basis_points: u64,
 ) -> Result<ComputeSwapParams, anyhow::Error> {
+    if amount_in == 0 || protocol_params.base_reserve == 0 || protocol_params.quote_reserve == 0 {
+        return Err(anyhow::anyhow!("Raydium CPMM amount and pool reserves must be nonzero"));
+    }
     let creator_fee_rate =
         if protocol_params.enable_creator_fee { protocol_params.creator_fee_rate } else { 0 };
     let total_input_fee_rate = protocol_params
@@ -220,9 +226,15 @@ pub fn compute_swap_amount_for_pool(
         .ok_or_else(|| anyhow::anyhow!("Raydium CPMM fee rate overflow"))?;
     if protocol_params.trade_fee_rate > FEE_RATE_DENOMINATOR_VALUE as u64
         || creator_fee_rate > FEE_RATE_DENOMINATOR_VALUE as u64
-        || total_input_fee_rate > FEE_RATE_DENOMINATOR_VALUE as u64
+        || total_input_fee_rate >= FEE_RATE_DENOMINATOR_VALUE as u64
         || protocol_params.protocol_fee_rate > FEE_RATE_DENOMINATOR_VALUE as u64
         || protocol_params.fund_fee_rate > FEE_RATE_DENOMINATOR_VALUE as u64
+        || !protocol_params
+            .protocol_fee_rate
+            .checked_add(protocol_params.fund_fee_rate)
+            .is_some_and(|rate| rate <= FEE_RATE_DENOMINATOR_VALUE as u64)
+        || protocol_params.base_transfer_fee.basis_points > 10_000
+        || protocol_params.quote_transfer_fee.basis_points > 10_000
     {
         return Err(anyhow::anyhow!("Invalid Raydium CPMM fee configuration"));
     }
@@ -247,7 +259,17 @@ pub fn compute_swap_amount_for_pool(
         2 => !is_base_in,
         value => return Err(anyhow::anyhow!("Invalid Raydium CPMM creator fee mode: {}", value)),
     };
-    let actual_amount_in = amount_in.saturating_sub(input_transfer_fee.calculate(amount_in));
+    let actual_amount_in = amount_in
+        .checked_sub(input_transfer_fee.calculate(amount_in))
+        .filter(|amount| *amount > 0)
+        .ok_or_else(|| anyhow::anyhow!("Raydium CPMM transfer fee consumes the input"))?;
+    // The curve uses u128, but SPL token account balances are u64. Reserves
+    // exclude accrued fees and are only a lower bound on the vault balance:
+    // overflow here necessarily makes the incoming transfer impossible. Use
+    // the received amount, before swap fees, rather than the gross transfer.
+    input_reserve
+        .checked_add(actual_amount_in)
+        .ok_or_else(|| anyhow::anyhow!("Raydium CPMM input vault balance overflow"))?;
     let swap_result = swap_base_input(
         actual_amount_in,
         input_reserve,
@@ -262,8 +284,11 @@ pub fn compute_swap_amount_for_pool(
         .output_amount
         .saturating_sub(output_transfer_fee.calculate(swap_result.output_amount));
 
+    if received_amount == 0 {
+        return Err(anyhow::anyhow!("Raydium CPMM swap produces zero output"));
+    }
     Ok(ComputeSwapParams {
-        all_trade: actual_amount_in > 0,
+        all_trade: true,
         amount_in,
         amount_out: received_amount,
         min_amount_out: calculate_min_amount_out(received_amount, slippage_basis_points),
@@ -275,6 +300,96 @@ pub fn compute_swap_amount_for_pool(
 mod tests {
     use super::*;
     use crate::utils::calc::common::{calculate_min_amount_out, MAX_SLIPPAGE_BASIS_POINTS};
+
+    fn pool_params() -> RaydiumCpmmParams {
+        use solana_sdk::pubkey::Pubkey;
+        RaydiumCpmmParams::from_trade(
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            crate::constants::TOKEN_PROGRAM,
+            crate::constants::TOKEN_PROGRAM,
+            Pubkey::new_unique(),
+            1_000_000,
+            2_000_000,
+        )
+    }
+
+    #[test]
+    fn empty_legacy_quote_does_not_panic_and_validated_quotes_reject_empty_inputs() {
+        assert_eq!(compute_swap_amount(0, 0, true, 0, 0).amount_out, 0);
+        assert_eq!(compute_swap_amount(0, 100, true, 1, 0).amount_out, 0);
+        for base_in in [false, true] {
+            for (base, quote, amount) in [(0, 100, 100), (100, 0, 100), (100, 100, 0)] {
+                let mut params = pool_params();
+                params.base_reserve = base;
+                params.quote_reserve = quote;
+                assert!(compute_swap_amount_for_pool(&params, base_in, amount, 0).is_err());
+            }
+            assert!(compute_swap_amount_for_pool(&pool_params(), base_in, 1, 0).is_err());
+        }
+    }
+
+    #[test]
+    fn validated_quotes_reject_invalid_fee_rates_and_fully_taxed_input() {
+        use crate::trading::core::params::TokenTransferFee;
+        let mut params = pool_params();
+        params.trade_fee_rate = 1_000_000;
+        assert!(compute_swap_amount_for_pool(&params, true, 100, 0).is_err());
+        params = pool_params();
+        params.protocol_fee_rate = 600_000;
+        params.fund_fee_rate = 500_000;
+        assert!(compute_swap_amount_for_pool(&params, true, 100, 0).is_err());
+        params = pool_params();
+        params.base_transfer_fee = TokenTransferFee { basis_points: 10_000, maximum_fee: 100 };
+        assert!(compute_swap_amount_for_pool(&params, true, 100, 0).is_err());
+        // A capped 100% transfer fee can still leave a valid positive input.
+        assert!(compute_swap_amount_for_pool(&params, true, 1000, 0).is_ok());
+        params.quote_transfer_fee.basis_points = 10_001;
+        assert!(compute_swap_amount_for_pool(&params, true, 1000, 0).is_err());
+        let quote = compute_swap_amount_for_pool(&pool_params(), true, 1000, 10_000).unwrap();
+        assert!(quote.amount_out > 0);
+        assert_eq!(quote.min_amount_out, 0);
+    }
+
+    #[test]
+    fn validated_quote_checks_received_input_balance_capacity_in_both_directions() {
+        use crate::trading::core::params::TokenTransferFee;
+        for base_in in [false, true] {
+            let mut params = pool_params();
+            params.base_reserve = u64::MAX;
+            params.quote_reserve = u64::MAX;
+            let error = compute_swap_amount_for_pool(&params, base_in, 1_000, 0).unwrap_err();
+            assert!(error.to_string().contains("input vault balance overflow"));
+            // Even when the curve's post-swap-fee input fits, the token vault
+            // receives the full post-transfer-fee input before booking fees.
+            if base_in {
+                params.base_reserve = u64::MAX - 999;
+            } else {
+                params.quote_reserve = u64::MAX - 999;
+            }
+            assert!(compute_swap_amount_for_pool(&params, base_in, 1_000, 0).is_err());
+            let fee = TokenTransferFee { basis_points: 1_000, maximum_fee: 100 };
+            if base_in {
+                params.base_reserve = u64::MAX - 900;
+                params.base_transfer_fee = fee;
+            } else {
+                params.quote_reserve = u64::MAX - 900;
+                params.quote_transfer_fee = fee;
+            }
+            // Gross input overflows reserve + input, but the net 900 fits exactly.
+            assert!(compute_swap_amount_for_pool(&params, base_in, 1_000, 0).is_ok());
+            if base_in {
+                params.base_reserve += 1;
+            } else {
+                params.quote_reserve += 1;
+            }
+            assert!(compute_swap_amount_for_pool(&params, base_in, 1_000, 0).is_err());
+        }
+    }
 
     #[test]
     fn min_amount_out_uses_exact_integer_slippage() {
