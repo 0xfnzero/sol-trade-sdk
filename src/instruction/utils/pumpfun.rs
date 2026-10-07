@@ -4,7 +4,6 @@
 
 use crate::common::{bonding_curve::BondingCurveAccount, SolanaRpcClient};
 use anyhow::anyhow;
-use borsh::BorshDeserialize;
 use rand::seq::IndexedRandom;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -563,8 +562,10 @@ pub async fn fetch_bonding_curve_account(
     // (from on-chain schema additions like new fields) are silently ignored.
     // `try_from_slice` requires the entire slice to be consumed, causing
     // "Not all bytes read" when the account has been extended.
-    let mut bonding_curve = BondingCurveAccount::deserialize(&mut &account.data[8..])
-        .map_err(|e| anyhow::anyhow!("Failed to decode bonding curve account: {}", e))?;
+    let mut bonding_curve = BondingCurveAccount::decode_body(
+        account.data.get(8..).ok_or_else(|| anyhow::anyhow!("short bonding curve account"))?,
+    )
+    .ok_or_else(|| anyhow::anyhow!("Failed to decode bonding curve account"))?;
     bonding_curve.account = bonding_curve_pda;
 
     Ok((Arc::new(bonding_curve), bonding_curve_pda))

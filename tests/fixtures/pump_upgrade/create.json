@@ -1,0 +1,86 @@
+{
+  "officialCommit": "8cda1fa30ea658b20909d8aedf002047119388d2",
+  "data": "d6904cec5f8b31b406000000e6b58be8af9501000000511500000068747470733a2f2f6578616d706c652e636f6d2f7109090909090909090909090909090909090909090909090909090909090909090000190000000000000001",
+  "accounts": [
+    {
+      "name": "mint",
+      "writable": true,
+      "signer": true
+    },
+    {
+      "name": "mint_authority",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "bonding_curve",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "associated_bonding_curve",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "global",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "user",
+      "writable": true,
+      "signer": true
+    },
+    {
+      "name": "system_program",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "token_program",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "associated_token_program",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "mayhem_program_id",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "global_params",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "sol_vault",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "mayhem_state",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "mayhem_token_vault",
+      "writable": true,
+      "signer": false
+    },
+    {
+      "name": "event_authority",
+      "writable": false,
+      "signer": false
+    },
+    {
+      "name": "program",
+      "writable": false,
+      "signer": false
+    }
+  ]
+}

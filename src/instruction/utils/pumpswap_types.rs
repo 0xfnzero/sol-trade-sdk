@@ -6,6 +6,12 @@ pub const POOL_DISCRIMINATOR: [u8; 8] = [241, 154, 109, 4, 17, 177, 109, 188];
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct Pool {
+    #[borsh(skip)]
+    #[serde(default)]
+    pub protocol_fees: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub creator_fees: u64,
     pub pool_bump: u8,
     pub index: u16,
     pub creator: Pubkey,
@@ -75,13 +81,28 @@ impl From<LegacyPool> for Pool {
             creator_fee_bps: 0,
             can_edit_creator_fee: false,
             is_holder_reward: false,
+            protocol_fees: 0,
+            creator_fees: 0,
         }
     }
 }
 
+impl Pool {
+    pub fn is_boosted(&self) -> bool {
+        self.virtual_quote_reserves
+            .checked_add(self.protocol_fees as i128)
+            .and_then(|v| v.checked_add(self.creator_fees as i128))
+            .is_some_and(|v| v != 0)
+    }
+}
 pub fn pool_decode(data: &[u8]) -> Option<Pool> {
     if data.len() >= POOL_SIZE {
-        return borsh::from_slice::<Pool>(&data[..POOL_SIZE]).ok();
+        let mut pool = borsh::from_slice::<Pool>(&data[..POOL_SIZE]).ok()?;
+        pool.protocol_fees =
+            data.get(263..271).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        pool.creator_fees =
+            data.get(271..279).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        return Some(pool);
     }
     if ![LEGACY_POOL_SIZE, POOL_BOOST_SIZE, POOL_CREATOR_FEE_SIZE].contains(&data.len()) {
         return None;

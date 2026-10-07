@@ -1,0 +1,3605 @@
+{
+  "source": "@pump-fun/pump-sdk@3.2.0; pump-public-docs 8cda1fa",
+  "cases": [
+    {
+      "state": {
+        "virtual_base": "1000000",
+        "virtual_quote": "10000",
+        "remaining_base": "1000",
+        "real_quote": "300",
+        "curve_base_balance": "201000",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "500",
+      "expected": "6"
+    },
+    {
+      "state": {
+        "virtual_base": "1000000",
+        "virtual_quote": "10000",
+        "remaining_base": "1000",
+        "real_quote": "300",
+        "curve_base_balance": "201000",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "100",
+      "expected": "59862"
+    },
+    {
+      "state": {
+        "virtual_base": "1007919",
+        "virtual_quote": "10997",
+        "remaining_base": "1089",
+        "real_quote": "1001",
+        "curve_base_balance": "201286",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "1089",
+      "expected": "14"
+    },
+    {
+      "state": {
+        "virtual_base": "1007919",
+        "virtual_quote": "10997",
+        "remaining_base": "1089",
+        "real_quote": "1001",
+        "curve_base_balance": "201286",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "321",
+      "expected": "47065"
+    },
+    {
+      "state": {
+        "virtual_base": "1015838",
+        "virtual_quote": "11994",
+        "remaining_base": "1178",
+        "real_quote": "1702",
+        "curve_base_balance": "201572",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11178",
+      "expected": "103"
+    },
+    {
+      "state": {
+        "virtual_base": "1015838",
+        "virtual_quote": "11994",
+        "remaining_base": "1178",
+        "real_quote": "1702",
+        "curve_base_balance": "201572",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "542",
+      "expected": "49820"
+    },
+    {
+      "state": {
+        "virtual_base": "1023757",
+        "virtual_quote": "12991",
+        "remaining_base": "1267",
+        "real_quote": "2403",
+        "curve_base_balance": "201858",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "633",
+      "expected": "10"
+    },
+    {
+      "state": {
+        "virtual_base": "1023757",
+        "virtual_quote": "12991",
+        "remaining_base": "1267",
+        "real_quote": "2403",
+        "curve_base_balance": "201858",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "763",
+      "expected": "48046"
+    },
+    {
+      "state": {
+        "virtual_base": "1031676",
+        "virtual_quote": "13988",
+        "remaining_base": "1356",
+        "real_quote": "3104",
+        "curve_base_balance": "202144",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "1356",
+      "expected": "20"
+    },
+    {
+      "state": {
+        "virtual_base": "1031676",
+        "virtual_quote": "13988",
+        "remaining_base": "1356",
+        "real_quote": "3104",
+        "curve_base_balance": "202144",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "984",
+      "expected": "49750"
+    },
+    {
+      "state": {
+        "virtual_base": "1039595",
+        "virtual_quote": "14985",
+        "remaining_base": "1445",
+        "real_quote": "3805",
+        "curve_base_balance": "202430",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11445",
+      "expected": "227"
+    },
+    {
+      "state": {
+        "virtual_base": "1039595",
+        "virtual_quote": "14985",
+        "remaining_base": "1445",
+        "real_quote": "3805",
+        "curve_base_balance": "202430",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "1205",
+      "expected": "48358"
+    },
+    {
+      "state": {
+        "virtual_base": "1047514",
+        "virtual_quote": "15982",
+        "remaining_base": "1534",
+        "real_quote": "4506",
+        "curve_base_balance": "202716",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "767",
+      "expected": "13"
+    },
+    {
+      "state": {
+        "virtual_base": "1047514",
+        "virtual_quote": "15982",
+        "remaining_base": "1534",
+        "real_quote": "4506",
+        "curve_base_balance": "202716",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "1426",
+      "expected": "49477"
+    },
+    {
+      "state": {
+        "virtual_base": "1055433",
+        "virtual_quote": "16979",
+        "remaining_base": "1623",
+        "real_quote": "5207",
+        "curve_base_balance": "203002",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "1623",
+      "expected": "29"
+    },
+    {
+      "state": {
+        "virtual_base": "1055433",
+        "virtual_quote": "16979",
+        "remaining_base": "1623",
+        "real_quote": "5207",
+        "curve_base_balance": "203002",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "1647",
+      "expected": "48680"
+    },
+    {
+      "state": {
+        "virtual_base": "1063352",
+        "virtual_quote": "17976",
+        "remaining_base": "1712",
+        "real_quote": "5908",
+        "curve_base_balance": "203288",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11712",
+      "expected": "336"
+    },
+    {
+      "state": {
+        "virtual_base": "1063352",
+        "virtual_quote": "17976",
+        "remaining_base": "1712",
+        "real_quote": "5908",
+        "curve_base_balance": "203288",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "1868",
+      "expected": "49845"
+    },
+    {
+      "state": {
+        "virtual_base": "1071271",
+        "virtual_quote": "18973",
+        "remaining_base": "1801",
+        "real_quote": "6609",
+        "curve_base_balance": "203574",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "900",
+      "expected": "17"
+    },
+    {
+      "state": {
+        "virtual_base": "1071271",
+        "virtual_quote": "18973",
+        "remaining_base": "1801",
+        "real_quote": "6609",
+        "curve_base_balance": "203574",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "2089",
+      "expected": "49127"
+    },
+    {
+      "state": {
+        "virtual_base": "1079190",
+        "virtual_quote": "19970",
+        "remaining_base": "1890",
+        "real_quote": "7310",
+        "curve_base_balance": "203860",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "1890",
+      "expected": "38"
+    },
+    {
+      "state": {
+        "virtual_base": "1079190",
+        "virtual_quote": "19970",
+        "remaining_base": "1890",
+        "real_quote": "7310",
+        "curve_base_balance": "203860",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "2310",
+      "expected": "49615"
+    },
+    {
+      "state": {
+        "virtual_base": "1087109",
+        "virtual_quote": "20967",
+        "remaining_base": "1979",
+        "real_quote": "8011",
+        "curve_base_balance": "204146",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11979",
+      "expected": "466"
+    },
+    {
+      "state": {
+        "virtual_base": "1087109",
+        "virtual_quote": "20967",
+        "remaining_base": "1979",
+        "real_quote": "8011",
+        "curve_base_balance": "204146",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "2531",
+      "expected": "49254"
+    },
+    {
+      "state": {
+        "virtual_base": "1095028",
+        "virtual_quote": "21964",
+        "remaining_base": "2068",
+        "real_quote": "8712",
+        "curve_base_balance": "204432",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1034",
+      "expected": "21"
+    },
+    {
+      "state": {
+        "virtual_base": "1095028",
+        "virtual_quote": "21964",
+        "remaining_base": "2068",
+        "real_quote": "8712",
+        "curve_base_balance": "204432",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "2752",
+      "expected": "50312"
+    },
+    {
+      "state": {
+        "virtual_base": "1102947",
+        "virtual_quote": "22961",
+        "remaining_base": "2157",
+        "real_quote": "9413",
+        "curve_base_balance": "204718",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "2157",
+      "expected": "47"
+    },
+    {
+      "state": {
+        "virtual_base": "1102947",
+        "virtual_quote": "22961",
+        "remaining_base": "2157",
+        "real_quote": "9413",
+        "curve_base_balance": "204718",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "2973",
+      "expected": "49540"
+    },
+    {
+      "state": {
+        "virtual_base": "1110866",
+        "virtual_quote": "23958",
+        "remaining_base": "2246",
+        "real_quote": "10114",
+        "curve_base_balance": "205004",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "12246",
+      "expected": "581"
+    },
+    {
+      "state": {
+        "virtual_base": "1110866",
+        "virtual_quote": "23958",
+        "remaining_base": "2246",
+        "real_quote": "10114",
+        "curve_base_balance": "205004",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "3194",
+      "expected": "50020"
+    },
+    {
+      "state": {
+        "virtual_base": "1118785",
+        "virtual_quote": "24955",
+        "remaining_base": "2335",
+        "real_quote": "10815",
+        "curve_base_balance": "205290",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1167",
+      "expected": "28"
+    },
+    {
+      "state": {
+        "virtual_base": "1118785",
+        "virtual_quote": "24955",
+        "remaining_base": "2335",
+        "real_quote": "10815",
+        "curve_base_balance": "205290",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "3415",
+      "expected": "49914"
+    },
+    {
+      "state": {
+        "virtual_base": "1126704",
+        "virtual_quote": "25952",
+        "remaining_base": "2424",
+        "real_quote": "11516",
+        "curve_base_balance": "205576",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "2424",
+      "expected": "57"
+    },
+    {
+      "state": {
+        "virtual_base": "1126704",
+        "virtual_quote": "25952",
+        "remaining_base": "2424",
+        "real_quote": "11516",
+        "curve_base_balance": "205576",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "3636",
+      "expected": "50608"
+    },
+    {
+      "state": {
+        "virtual_base": "1134623",
+        "virtual_quote": "26949",
+        "remaining_base": "2513",
+        "real_quote": "12217",
+        "curve_base_balance": "205862",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "12513",
+      "expected": "706"
+    },
+    {
+      "state": {
+        "virtual_base": "1134623",
+        "virtual_quote": "26949",
+        "remaining_base": "2513",
+        "real_quote": "12217",
+        "curve_base_balance": "205862",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "3857",
+      "expected": "50053"
+    },
+    {
+      "state": {
+        "virtual_base": "1142542",
+        "virtual_quote": "27946",
+        "remaining_base": "2602",
+        "real_quote": "12918",
+        "curve_base_balance": "206148",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1301",
+      "expected": "33"
+    },
+    {
+      "state": {
+        "virtual_base": "1142542",
+        "virtual_quote": "27946",
+        "remaining_base": "2602",
+        "real_quote": "12918",
+        "curve_base_balance": "206148",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "4078",
+      "expected": "50590"
+    },
+    {
+      "state": {
+        "virtual_base": "1150461",
+        "virtual_quote": "28943",
+        "remaining_base": "2691",
+        "real_quote": "13619",
+        "curve_base_balance": "206434",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "2691",
+      "expected": "70"
+    },
+    {
+      "state": {
+        "virtual_base": "1150461",
+        "virtual_quote": "28943",
+        "remaining_base": "2691",
+        "real_quote": "13619",
+        "curve_base_balance": "206434",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "4299",
+      "expected": "50313"
+    },
+    {
+      "state": {
+        "virtual_base": "1158380",
+        "virtual_quote": "29940",
+        "remaining_base": "2780",
+        "real_quote": "14320",
+        "curve_base_balance": "206720",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "12780",
+      "expected": "814"
+    },
+    {
+      "state": {
+        "virtual_base": "1158380",
+        "virtual_quote": "29940",
+        "remaining_base": "2780",
+        "real_quote": "14320",
+        "curve_base_balance": "206720",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "4520",
+      "expected": "51042"
+    },
+    {
+      "state": {
+        "virtual_base": "1166299",
+        "virtual_quote": "30937",
+        "remaining_base": "2869",
+        "real_quote": "15021",
+        "curve_base_balance": "207006",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1434",
+      "expected": "40"
+    },
+    {
+      "state": {
+        "virtual_base": "1166299",
+        "virtual_quote": "30937",
+        "remaining_base": "2869",
+        "real_quote": "15021",
+        "curve_base_balance": "207006",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "4741",
+      "expected": "50683"
+    },
+    {
+      "state": {
+        "virtual_base": "1174218",
+        "virtual_quote": "31934",
+        "remaining_base": "2958",
+        "real_quote": "15722",
+        "curve_base_balance": "207292",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "2958",
+      "expected": "83"
+    },
+    {
+      "state": {
+        "virtual_base": "1174218",
+        "virtual_quote": "31934",
+        "remaining_base": "2958",
+        "real_quote": "15722",
+        "curve_base_balance": "207292",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "4962",
+      "expected": "50924"
+    },
+    {
+      "state": {
+        "virtual_base": "1182137",
+        "virtual_quote": "32931",
+        "remaining_base": "3047",
+        "real_quote": "16423",
+        "curve_base_balance": "207578",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "13047",
+      "expected": "949"
+    },
+    {
+      "state": {
+        "virtual_base": "1182137",
+        "virtual_quote": "32931",
+        "remaining_base": "3047",
+        "real_quote": "16423",
+        "curve_base_balance": "207578",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "5183",
+      "expected": "50811"
+    },
+    {
+      "state": {
+        "virtual_base": "1190056",
+        "virtual_quote": "33928",
+        "remaining_base": "3136",
+        "real_quote": "17124",
+        "curve_base_balance": "207864",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1568",
+      "expected": "45"
+    },
+    {
+      "state": {
+        "virtual_base": "1190056",
+        "virtual_quote": "33928",
+        "remaining_base": "3136",
+        "real_quote": "17124",
+        "curve_base_balance": "207864",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "5404",
+      "expected": "51636"
+    },
+    {
+      "state": {
+        "virtual_base": "1197975",
+        "virtual_quote": "34925",
+        "remaining_base": "3225",
+        "real_quote": "17825",
+        "curve_base_balance": "208150",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "3225",
+      "expected": "97"
+    },
+    {
+      "state": {
+        "virtual_base": "1197975",
+        "virtual_quote": "34925",
+        "remaining_base": "3225",
+        "real_quote": "17825",
+        "curve_base_balance": "208150",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "5625",
+      "expected": "51068"
+    },
+    {
+      "state": {
+        "virtual_base": "1205894",
+        "virtual_quote": "35922",
+        "remaining_base": "3314",
+        "real_quote": "18526",
+        "curve_base_balance": "208436",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "13314",
+      "expected": "1064"
+    },
+    {
+      "state": {
+        "virtual_base": "1205894",
+        "virtual_quote": "35922",
+        "remaining_base": "3314",
+        "real_quote": "18526",
+        "curve_base_balance": "208436",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "5846",
+      "expected": "51396"
+    },
+    {
+      "state": {
+        "virtual_base": "1213813",
+        "virtual_quote": "36919",
+        "remaining_base": "3403",
+        "real_quote": "19227",
+        "curve_base_balance": "208722",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1701",
+      "expected": "53"
+    },
+    {
+      "state": {
+        "virtual_base": "1213813",
+        "virtual_quote": "36919",
+        "remaining_base": "3403",
+        "real_quote": "19227",
+        "curve_base_balance": "208722",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "6067",
+      "expected": "51439"
+    },
+    {
+      "state": {
+        "virtual_base": "1221732",
+        "virtual_quote": "37916",
+        "remaining_base": "3492",
+        "real_quote": "19928",
+        "curve_base_balance": "209008",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "3492",
+      "expected": "110"
+    },
+    {
+      "state": {
+        "virtual_base": "1221732",
+        "virtual_quote": "37916",
+        "remaining_base": "3492",
+        "real_quote": "19928",
+        "curve_base_balance": "209008",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "6288",
+      "expected": "51990"
+    },
+    {
+      "state": {
+        "virtual_base": "1229651",
+        "virtual_quote": "38913",
+        "remaining_base": "3581",
+        "real_quote": "20629",
+        "curve_base_balance": "209294",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "13581",
+      "expected": "1192"
+    },
+    {
+      "state": {
+        "virtual_base": "1229651",
+        "virtual_quote": "38913",
+        "remaining_base": "3581",
+        "real_quote": "20629",
+        "curve_base_balance": "209294",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "6509",
+      "expected": "51574"
+    },
+    {
+      "state": {
+        "virtual_base": "1237570",
+        "virtual_quote": "39910",
+        "remaining_base": "3670",
+        "real_quote": "21330",
+        "curve_base_balance": "209580",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1835",
+      "expected": "61"
+    },
+    {
+      "state": {
+        "virtual_base": "1237570",
+        "virtual_quote": "39910",
+        "remaining_base": "3670",
+        "real_quote": "21330",
+        "curve_base_balance": "209580",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "6730",
+      "expected": "51984"
+    },
+    {
+      "state": {
+        "virtual_base": "1245489",
+        "virtual_quote": "40907",
+        "remaining_base": "3759",
+        "real_quote": "22031",
+        "curve_base_balance": "209866",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "3759",
+      "expected": "127"
+    },
+    {
+      "state": {
+        "virtual_base": "1245489",
+        "virtual_quote": "40907",
+        "remaining_base": "3759",
+        "real_quote": "22031",
+        "curve_base_balance": "209866",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "6951",
+      "expected": "51818"
+    },
+    {
+      "state": {
+        "virtual_base": "1253408",
+        "virtual_quote": "41904",
+        "remaining_base": "3848",
+        "real_quote": "22732",
+        "curve_base_balance": "210152",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "13848",
+      "expected": "1295"
+    },
+    {
+      "state": {
+        "virtual_base": "1253408",
+        "virtual_quote": "41904",
+        "remaining_base": "3848",
+        "real_quote": "22732",
+        "curve_base_balance": "210152",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "7172",
+      "expected": "52465"
+    },
+    {
+      "state": {
+        "virtual_base": "1261327",
+        "virtual_quote": "42901",
+        "remaining_base": "3937",
+        "real_quote": "23433",
+        "curve_base_balance": "210438",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "1968",
+      "expected": "69"
+    },
+    {
+      "state": {
+        "virtual_base": "1261327",
+        "virtual_quote": "42901",
+        "remaining_base": "3937",
+        "real_quote": "23433",
+        "curve_base_balance": "210438",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "7393",
+      "expected": "52188"
+    },
+    {
+      "state": {
+        "virtual_base": "1269246",
+        "virtual_quote": "43898",
+        "remaining_base": "4026",
+        "real_quote": "24134",
+        "curve_base_balance": "210724",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "4026",
+      "expected": "143"
+    },
+    {
+      "state": {
+        "virtual_base": "1269246",
+        "virtual_quote": "43898",
+        "remaining_base": "4026",
+        "real_quote": "24134",
+        "curve_base_balance": "210724",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "7614",
+      "expected": "52349"
+    },
+    {
+      "state": {
+        "virtual_base": "1277165",
+        "virtual_quote": "44895",
+        "remaining_base": "4115",
+        "real_quote": "24835",
+        "curve_base_balance": "211010",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "14115",
+      "expected": "1435"
+    },
+    {
+      "state": {
+        "virtual_base": "1277165",
+        "virtual_quote": "44895",
+        "remaining_base": "4115",
+        "real_quote": "24835",
+        "curve_base_balance": "211010",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "7835",
+      "expected": "52322"
+    },
+    {
+      "state": {
+        "virtual_base": "1285084",
+        "virtual_quote": "45892",
+        "remaining_base": "4204",
+        "real_quote": "25536",
+        "curve_base_balance": "211296",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2102",
+      "expected": "76"
+    },
+    {
+      "state": {
+        "virtual_base": "1285084",
+        "virtual_quote": "45892",
+        "remaining_base": "4204",
+        "real_quote": "25536",
+        "curve_base_balance": "211296",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "8056",
+      "expected": "53078"
+    },
+    {
+      "state": {
+        "virtual_base": "1293003",
+        "virtual_quote": "46889",
+        "remaining_base": "4293",
+        "real_quote": "26237",
+        "curve_base_balance": "211582",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "4293",
+      "expected": "160"
+    },
+    {
+      "state": {
+        "virtual_base": "1293003",
+        "virtual_quote": "46889",
+        "remaining_base": "4293",
+        "real_quote": "26237",
+        "curve_base_balance": "211582",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "8277",
+      "expected": "52572"
+    },
+    {
+      "state": {
+        "virtual_base": "1300922",
+        "virtual_quote": "47886",
+        "remaining_base": "4382",
+        "real_quote": "26938",
+        "curve_base_balance": "211868",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "14382",
+      "expected": "1551"
+    },
+    {
+      "state": {
+        "virtual_base": "1300922",
+        "virtual_quote": "47886",
+        "remaining_base": "4382",
+        "real_quote": "26938",
+        "curve_base_balance": "211868",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "8498",
+      "expected": "52843"
+    },
+    {
+      "state": {
+        "virtual_base": "1308841",
+        "virtual_quote": "48883",
+        "remaining_base": "4471",
+        "real_quote": "27639",
+        "curve_base_balance": "212154",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2235",
+      "expected": "85"
+    },
+    {
+      "state": {
+        "virtual_base": "1308841",
+        "virtual_quote": "48883",
+        "remaining_base": "4471",
+        "real_quote": "27639",
+        "curve_base_balance": "212154",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "8719",
+      "expected": "52947"
+    },
+    {
+      "state": {
+        "virtual_base": "1316760",
+        "virtual_quote": "49880",
+        "remaining_base": "4560",
+        "real_quote": "28340",
+        "curve_base_balance": "212440",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "4560",
+      "expected": "175"
+    },
+    {
+      "state": {
+        "virtual_base": "1316760",
+        "virtual_quote": "49880",
+        "remaining_base": "4560",
+        "real_quote": "28340",
+        "curve_base_balance": "212440",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "8940",
+      "expected": "53448"
+    },
+    {
+      "state": {
+        "virtual_base": "1324679",
+        "virtual_quote": "50877",
+        "remaining_base": "4649",
+        "real_quote": "29041",
+        "curve_base_balance": "212726",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "14649",
+      "expected": "1679"
+    },
+    {
+      "state": {
+        "virtual_base": "1324679",
+        "virtual_quote": "50877",
+        "remaining_base": "4649",
+        "real_quote": "29041",
+        "curve_base_balance": "212726",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "9161",
+      "expected": "53081"
+    },
+    {
+      "state": {
+        "virtual_base": "1332598",
+        "virtual_quote": "51874",
+        "remaining_base": "4738",
+        "real_quote": "29742",
+        "curve_base_balance": "213012",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2369",
+      "expected": "94"
+    },
+    {
+      "state": {
+        "virtual_base": "1332598",
+        "virtual_quote": "51874",
+        "remaining_base": "4738",
+        "real_quote": "29742",
+        "curve_base_balance": "213012",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "9382",
+      "expected": "53449"
+    },
+    {
+      "state": {
+        "virtual_base": "1340517",
+        "virtual_quote": "52871",
+        "remaining_base": "4827",
+        "real_quote": "30443",
+        "curve_base_balance": "213298",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "4827",
+      "expected": "195"
+    },
+    {
+      "state": {
+        "virtual_base": "1340517",
+        "virtual_quote": "52871",
+        "remaining_base": "4827",
+        "real_quote": "30443",
+        "curve_base_balance": "213298",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "9603",
+      "expected": "53335"
+    },
+    {
+      "state": {
+        "virtual_base": "1348436",
+        "virtual_quote": "53868",
+        "remaining_base": "4916",
+        "real_quote": "31144",
+        "curve_base_balance": "213584",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "14916",
+      "expected": "1777"
+    },
+    {
+      "state": {
+        "virtual_base": "1348436",
+        "virtual_quote": "53868",
+        "remaining_base": "4916",
+        "real_quote": "31144",
+        "curve_base_balance": "213584",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "9824",
+      "expected": "53944"
+    },
+    {
+      "state": {
+        "virtual_base": "1356355",
+        "virtual_quote": "54865",
+        "remaining_base": "5005",
+        "real_quote": "31845",
+        "curve_base_balance": "213870",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2502",
+      "expected": "103"
+    },
+    {
+      "state": {
+        "virtual_base": "1356355",
+        "virtual_quote": "54865",
+        "remaining_base": "5005",
+        "real_quote": "31845",
+        "curve_base_balance": "213870",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "10045",
+      "expected": "53705"
+    },
+    {
+      "state": {
+        "virtual_base": "1364274",
+        "virtual_quote": "55862",
+        "remaining_base": "5094",
+        "real_quote": "32546",
+        "curve_base_balance": "214156",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "5094",
+      "expected": "213"
+    },
+    {
+      "state": {
+        "virtual_base": "1364274",
+        "virtual_quote": "55862",
+        "remaining_base": "5094",
+        "real_quote": "32546",
+        "curve_base_balance": "214156",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "10266",
+      "expected": "53830"
+    },
+    {
+      "state": {
+        "virtual_base": "1372193",
+        "virtual_quote": "56859",
+        "remaining_base": "5183",
+        "real_quote": "33247",
+        "curve_base_balance": "214442",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "15183",
+      "expected": "1922"
+    },
+    {
+      "state": {
+        "virtual_base": "1372193",
+        "virtual_quote": "56859",
+        "remaining_base": "5183",
+        "real_quote": "33247",
+        "curve_base_balance": "214442",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "10487",
+      "expected": "53839"
+    },
+    {
+      "state": {
+        "virtual_base": "1380112",
+        "virtual_quote": "57856",
+        "remaining_base": "5272",
+        "real_quote": "33948",
+        "curve_base_balance": "214728",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2636",
+      "expected": "111"
+    },
+    {
+      "state": {
+        "virtual_base": "1380112",
+        "virtual_quote": "57856",
+        "remaining_base": "5272",
+        "real_quote": "33948",
+        "curve_base_balance": "214728",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "10708",
+      "expected": "54562"
+    },
+    {
+      "state": {
+        "virtual_base": "1388031",
+        "virtual_quote": "58853",
+        "remaining_base": "5361",
+        "real_quote": "34649",
+        "curve_base_balance": "215014",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "5361",
+      "expected": "233"
+    },
+    {
+      "state": {
+        "virtual_base": "1388031",
+        "virtual_quote": "58853",
+        "remaining_base": "5361",
+        "real_quote": "34649",
+        "curve_base_balance": "215014",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "10929",
+      "expected": "54092"
+    },
+    {
+      "state": {
+        "virtual_base": "1395950",
+        "virtual_quote": "59850",
+        "remaining_base": "5450",
+        "real_quote": "35350",
+        "curve_base_balance": "215300",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "15450",
+      "expected": "2038"
+    },
+    {
+      "state": {
+        "virtual_base": "1395950",
+        "virtual_quote": "59850",
+        "remaining_base": "5450",
+        "real_quote": "35350",
+        "curve_base_balance": "215300",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "11150",
+      "expected": "54325"
+    },
+    {
+      "state": {
+        "virtual_base": "1403869",
+        "virtual_quote": "60847",
+        "remaining_base": "5539",
+        "real_quote": "36051",
+        "curve_base_balance": "215586",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2769",
+      "expected": "123"
+    },
+    {
+      "state": {
+        "virtual_base": "1403869",
+        "virtual_quote": "60847",
+        "remaining_base": "5539",
+        "real_quote": "36051",
+        "curve_base_balance": "215586",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "11371",
+      "expected": "54462"
+    },
+    {
+      "state": {
+        "virtual_base": "1411788",
+        "virtual_quote": "61844",
+        "remaining_base": "5628",
+        "real_quote": "36752",
+        "curve_base_balance": "215872",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "5628",
+      "expected": "249"
+    },
+    {
+      "state": {
+        "virtual_base": "1411788",
+        "virtual_quote": "61844",
+        "remaining_base": "5628",
+        "real_quote": "36752",
+        "curve_base_balance": "215872",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "11592",
+      "expected": "54944"
+    },
+    {
+      "state": {
+        "virtual_base": "1419707",
+        "virtual_quote": "62841",
+        "remaining_base": "5717",
+        "real_quote": "37453",
+        "curve_base_balance": "216158",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "15717",
+      "expected": "2165"
+    },
+    {
+      "state": {
+        "virtual_base": "1419707",
+        "virtual_quote": "62841",
+        "remaining_base": "5717",
+        "real_quote": "37453",
+        "curve_base_balance": "216158",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "11813",
+      "expected": "54598"
+    },
+    {
+      "state": {
+        "virtual_base": "1427626",
+        "virtual_quote": "63838",
+        "remaining_base": "5806",
+        "real_quote": "38154",
+        "curve_base_balance": "216444",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "2903",
+      "expected": "133"
+    },
+    {
+      "state": {
+        "virtual_base": "1427626",
+        "virtual_quote": "63838",
+        "remaining_base": "5806",
+        "real_quote": "38154",
+        "curve_base_balance": "216444",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "12034",
+      "expected": "54944"
+    },
+    {
+      "state": {
+        "virtual_base": "1435545",
+        "virtual_quote": "64835",
+        "remaining_base": "5895",
+        "real_quote": "38855",
+        "curve_base_balance": "216730",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "5895",
+      "expected": "272"
+    },
+    {
+      "state": {
+        "virtual_base": "1435545",
+        "virtual_quote": "64835",
+        "remaining_base": "5895",
+        "real_quote": "38855",
+        "curve_base_balance": "216730",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "12255",
+      "expected": "54855"
+    },
+    {
+      "state": {
+        "virtual_base": "1443464",
+        "virtual_quote": "65832",
+        "remaining_base": "5984",
+        "real_quote": "39556",
+        "curve_base_balance": "217016",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "15984",
+      "expected": "2259"
+    },
+    {
+      "state": {
+        "virtual_base": "1443464",
+        "virtual_quote": "65832",
+        "remaining_base": "5984",
+        "real_quote": "39556",
+        "curve_base_balance": "217016",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "12476",
+      "expected": "55442"
+    },
+    {
+      "state": {
+        "virtual_base": "1451383",
+        "virtual_quote": "66829",
+        "remaining_base": "6073",
+        "real_quote": "40257",
+        "curve_base_balance": "217302",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3036",
+      "expected": "143"
+    },
+    {
+      "state": {
+        "virtual_base": "1451383",
+        "virtual_quote": "66829",
+        "remaining_base": "6073",
+        "real_quote": "40257",
+        "curve_base_balance": "217302",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "12697",
+      "expected": "55229"
+    },
+    {
+      "state": {
+        "virtual_base": "1459302",
+        "virtual_quote": "67826",
+        "remaining_base": "6162",
+        "real_quote": "40958",
+        "curve_base_balance": "217588",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "6162",
+      "expected": "292"
+    },
+    {
+      "state": {
+        "virtual_base": "1459302",
+        "virtual_quote": "67826",
+        "remaining_base": "6162",
+        "real_quote": "40958",
+        "curve_base_balance": "217588",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "12918",
+      "expected": "55329"
+    },
+    {
+      "state": {
+        "virtual_base": "1467221",
+        "virtual_quote": "68823",
+        "remaining_base": "6251",
+        "real_quote": "41659",
+        "curve_base_balance": "217874",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "16251",
+      "expected": "2407"
+    },
+    {
+      "state": {
+        "virtual_base": "1467221",
+        "virtual_quote": "68823",
+        "remaining_base": "6251",
+        "real_quote": "41659",
+        "curve_base_balance": "217874",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "13139",
+      "expected": "55363"
+    },
+    {
+      "state": {
+        "virtual_base": "1475140",
+        "virtual_quote": "69820",
+        "remaining_base": "6340",
+        "real_quote": "42360",
+        "curve_base_balance": "218160",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3170",
+      "expected": "151"
+    },
+    {
+      "state": {
+        "virtual_base": "1475140",
+        "virtual_quote": "69820",
+        "remaining_base": "6340",
+        "real_quote": "42360",
+        "curve_base_balance": "218160",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "13360",
+      "expected": "56066"
+    },
+    {
+      "state": {
+        "virtual_base": "1483059",
+        "virtual_quote": "70817",
+        "remaining_base": "6429",
+        "real_quote": "43061",
+        "curve_base_balance": "218446",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "6429",
+      "expected": "313"
+    },
+    {
+      "state": {
+        "virtual_base": "1483059",
+        "virtual_quote": "70817",
+        "remaining_base": "6429",
+        "real_quote": "43061",
+        "curve_base_balance": "218446",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "13581",
+      "expected": "55618"
+    },
+    {
+      "state": {
+        "virtual_base": "1490978",
+        "virtual_quote": "71814",
+        "remaining_base": "6518",
+        "real_quote": "43762",
+        "curve_base_balance": "218732",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "16518",
+      "expected": "2524"
+    },
+    {
+      "state": {
+        "virtual_base": "1490978",
+        "virtual_quote": "71814",
+        "remaining_base": "6518",
+        "real_quote": "43762",
+        "curve_base_balance": "218732",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "13802",
+      "expected": "55831"
+    },
+    {
+      "state": {
+        "virtual_base": "1498897",
+        "virtual_quote": "72811",
+        "remaining_base": "6607",
+        "real_quote": "44463",
+        "curve_base_balance": "219018",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3303",
+      "expected": "163"
+    },
+    {
+      "state": {
+        "virtual_base": "1498897",
+        "virtual_quote": "72811",
+        "remaining_base": "6607",
+        "real_quote": "44463",
+        "curve_base_balance": "219018",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "14023",
+      "expected": "55989"
+    },
+    {
+      "state": {
+        "virtual_base": "1506816",
+        "virtual_quote": "73808",
+        "remaining_base": "6696",
+        "real_quote": "45164",
+        "curve_base_balance": "219304",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "6696",
+      "expected": "331"
+    },
+    {
+      "state": {
+        "virtual_base": "1506816",
+        "virtual_quote": "73808",
+        "remaining_base": "6696",
+        "real_quote": "45164",
+        "curve_base_balance": "219304",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "14244",
+      "expected": "56454"
+    },
+    {
+      "state": {
+        "virtual_base": "1514735",
+        "virtual_quote": "74805",
+        "remaining_base": "6785",
+        "real_quote": "45865",
+        "curve_base_balance": "219590",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "16785",
+      "expected": "2651"
+    },
+    {
+      "state": {
+        "virtual_base": "1514735",
+        "virtual_quote": "74805",
+        "remaining_base": "6785",
+        "real_quote": "45865",
+        "curve_base_balance": "219590",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "14465",
+      "expected": "56126"
+    },
+    {
+      "state": {
+        "virtual_base": "1522654",
+        "virtual_quote": "75802",
+        "remaining_base": "6874",
+        "real_quote": "46566",
+        "curve_base_balance": "219876",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3437",
+      "expected": "174"
+    },
+    {
+      "state": {
+        "virtual_base": "1522654",
+        "virtual_quote": "75802",
+        "remaining_base": "6874",
+        "real_quote": "46566",
+        "curve_base_balance": "219876",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "14686",
+      "expected": "56455"
+    },
+    {
+      "state": {
+        "virtual_base": "1530573",
+        "virtual_quote": "76799",
+        "remaining_base": "6963",
+        "real_quote": "47267",
+        "curve_base_balance": "220162",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "6963",
+      "expected": "357"
+    },
+    {
+      "state": {
+        "virtual_base": "1530573",
+        "virtual_quote": "76799",
+        "remaining_base": "6963",
+        "real_quote": "47267",
+        "curve_base_balance": "220162",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "14907",
+      "expected": "56381"
+    },
+    {
+      "state": {
+        "virtual_base": "1538492",
+        "virtual_quote": "77796",
+        "remaining_base": "7052",
+        "real_quote": "47968",
+        "curve_base_balance": "220448",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "17052",
+      "expected": "2741"
+    },
+    {
+      "state": {
+        "virtual_base": "1538492",
+        "virtual_quote": "77796",
+        "remaining_base": "7052",
+        "real_quote": "47968",
+        "curve_base_balance": "220448",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "15128",
+      "expected": "56956"
+    },
+    {
+      "state": {
+        "virtual_base": "1546411",
+        "virtual_quote": "78793",
+        "remaining_base": "7141",
+        "real_quote": "48669",
+        "curve_base_balance": "220734",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3570",
+      "expected": "185"
+    },
+    {
+      "state": {
+        "virtual_base": "1546411",
+        "virtual_quote": "78793",
+        "remaining_base": "7141",
+        "real_quote": "48669",
+        "curve_base_balance": "220734",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "15349",
+      "expected": "56757"
+    },
+    {
+      "state": {
+        "virtual_base": "1554330",
+        "virtual_quote": "79790",
+        "remaining_base": "7230",
+        "real_quote": "49370",
+        "curve_base_balance": "221020",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "7230",
+      "expected": "379"
+    },
+    {
+      "state": {
+        "virtual_base": "1554330",
+        "virtual_quote": "79790",
+        "remaining_base": "7230",
+        "real_quote": "49370",
+        "curve_base_balance": "221020",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "15570",
+      "expected": "56841"
+    },
+    {
+      "state": {
+        "virtual_base": "1562249",
+        "virtual_quote": "80787",
+        "remaining_base": "7319",
+        "real_quote": "50071",
+        "curve_base_balance": "221306",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "17319",
+      "expected": "2893"
+    },
+    {
+      "state": {
+        "virtual_base": "1562249",
+        "virtual_quote": "80787",
+        "remaining_base": "7319",
+        "real_quote": "50071",
+        "curve_base_balance": "221306",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "15791",
+      "expected": "56892"
+    },
+    {
+      "state": {
+        "virtual_base": "1570168",
+        "virtual_quote": "81784",
+        "remaining_base": "7408",
+        "real_quote": "50772",
+        "curve_base_balance": "221592",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3704",
+      "expected": "194"
+    },
+    {
+      "state": {
+        "virtual_base": "1570168",
+        "virtual_quote": "81784",
+        "remaining_base": "7408",
+        "real_quote": "50772",
+        "curve_base_balance": "221592",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "16012",
+      "expected": "57588"
+    },
+    {
+      "state": {
+        "virtual_base": "1578087",
+        "virtual_quote": "82781",
+        "remaining_base": "7497",
+        "real_quote": "51473",
+        "curve_base_balance": "221878",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "7497",
+      "expected": "402"
+    },
+    {
+      "state": {
+        "virtual_base": "1578087",
+        "virtual_quote": "82781",
+        "remaining_base": "7497",
+        "real_quote": "51473",
+        "curve_base_balance": "221878",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "16233",
+      "expected": "57148"
+    },
+    {
+      "state": {
+        "virtual_base": "1586006",
+        "virtual_quote": "83778",
+        "remaining_base": "7586",
+        "real_quote": "52174",
+        "curve_base_balance": "222164",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "17586",
+      "expected": "3008"
+    },
+    {
+      "state": {
+        "virtual_base": "1586006",
+        "virtual_quote": "83778",
+        "remaining_base": "7586",
+        "real_quote": "52174",
+        "curve_base_balance": "222164",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "16454",
+      "expected": "57350"
+    },
+    {
+      "state": {
+        "virtual_base": "1593925",
+        "virtual_quote": "84775",
+        "remaining_base": "7675",
+        "real_quote": "52875",
+        "curve_base_balance": "222450",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3837",
+      "expected": "207"
+    },
+    {
+      "state": {
+        "virtual_base": "1593925",
+        "virtual_quote": "84775",
+        "remaining_base": "7675",
+        "real_quote": "52875",
+        "curve_base_balance": "222450",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "16675",
+      "expected": "57522"
+    },
+    {
+      "state": {
+        "virtual_base": "1601844",
+        "virtual_quote": "85772",
+        "remaining_base": "7764",
+        "real_quote": "53576",
+        "curve_base_balance": "222736",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "7764",
+      "expected": "420"
+    },
+    {
+      "state": {
+        "virtual_base": "1601844",
+        "virtual_quote": "85772",
+        "remaining_base": "7764",
+        "real_quote": "53576",
+        "curve_base_balance": "222736",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "16896",
+      "expected": "57976"
+    },
+    {
+      "state": {
+        "virtual_base": "1609763",
+        "virtual_quote": "86769",
+        "remaining_base": "7853",
+        "real_quote": "54277",
+        "curve_base_balance": "223022",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "17853",
+      "expected": "3135"
+    },
+    {
+      "state": {
+        "virtual_base": "1609763",
+        "virtual_quote": "86769",
+        "remaining_base": "7853",
+        "real_quote": "54277",
+        "curve_base_balance": "223022",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "17117",
+      "expected": "57658"
+    },
+    {
+      "state": {
+        "virtual_base": "1617682",
+        "virtual_quote": "87766",
+        "remaining_base": "7942",
+        "real_quote": "54978",
+        "curve_base_balance": "223308",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "3971",
+      "expected": "219"
+    },
+    {
+      "state": {
+        "virtual_base": "1617682",
+        "virtual_quote": "87766",
+        "remaining_base": "7942",
+        "real_quote": "54978",
+        "curve_base_balance": "223308",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "17338",
+      "expected": "57973"
+    },
+    {
+      "state": {
+        "virtual_base": "1625601",
+        "virtual_quote": "88763",
+        "remaining_base": "8031",
+        "real_quote": "55679",
+        "curve_base_balance": "223594",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "8031",
+      "expected": "448"
+    },
+    {
+      "state": {
+        "virtual_base": "1625601",
+        "virtual_quote": "88763",
+        "remaining_base": "8031",
+        "real_quote": "55679",
+        "curve_base_balance": "223594",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "17559",
+      "expected": "57917"
+    },
+    {
+      "state": {
+        "virtual_base": "1633520",
+        "virtual_quote": "89760",
+        "remaining_base": "8120",
+        "real_quote": "56380",
+        "curve_base_balance": "223880",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "18120",
+      "expected": "3218"
+    },
+    {
+      "state": {
+        "virtual_base": "1633520",
+        "virtual_quote": "89760",
+        "remaining_base": "8120",
+        "real_quote": "56380",
+        "curve_base_balance": "223880",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "17780",
+      "expected": "58487"
+    },
+    {
+      "state": {
+        "virtual_base": "1641439",
+        "virtual_quote": "90757",
+        "remaining_base": "8209",
+        "real_quote": "57081",
+        "curve_base_balance": "224166",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4104",
+      "expected": "231"
+    },
+    {
+      "state": {
+        "virtual_base": "1641439",
+        "virtual_quote": "90757",
+        "remaining_base": "8209",
+        "real_quote": "57081",
+        "curve_base_balance": "224166",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "18001",
+      "expected": "58290"
+    },
+    {
+      "state": {
+        "virtual_base": "1649358",
+        "virtual_quote": "91754",
+        "remaining_base": "8298",
+        "real_quote": "57782",
+        "curve_base_balance": "224452",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "8298",
+      "expected": "471"
+    },
+    {
+      "state": {
+        "virtual_base": "1649358",
+        "virtual_quote": "91754",
+        "remaining_base": "8298",
+        "real_quote": "57782",
+        "curve_base_balance": "224452",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "18222",
+      "expected": "58369"
+    },
+    {
+      "state": {
+        "virtual_base": "1657277",
+        "virtual_quote": "92751",
+        "remaining_base": "8387",
+        "real_quote": "58483",
+        "curve_base_balance": "224738",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "18387",
+      "expected": "3374"
+    },
+    {
+      "state": {
+        "virtual_base": "1657277",
+        "virtual_quote": "92751",
+        "remaining_base": "8387",
+        "real_quote": "58483",
+        "curve_base_balance": "224738",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "18443",
+      "expected": "58430"
+    },
+    {
+      "state": {
+        "virtual_base": "1665196",
+        "virtual_quote": "93748",
+        "remaining_base": "8476",
+        "real_quote": "59184",
+        "curve_base_balance": "225024",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4238",
+      "expected": "240"
+    },
+    {
+      "state": {
+        "virtual_base": "1665196",
+        "virtual_quote": "93748",
+        "remaining_base": "8476",
+        "real_quote": "59184",
+        "curve_base_balance": "225024",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "18664",
+      "expected": "59120"
+    },
+    {
+      "state": {
+        "virtual_base": "1673115",
+        "virtual_quote": "94745",
+        "remaining_base": "8565",
+        "real_quote": "59885",
+        "curve_base_balance": "225310",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "8565",
+      "expected": "495"
+    },
+    {
+      "state": {
+        "virtual_base": "1673115",
+        "virtual_quote": "94745",
+        "remaining_base": "8565",
+        "real_quote": "59885",
+        "curve_base_balance": "225310",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "18885",
+      "expected": "58687"
+    },
+    {
+      "state": {
+        "virtual_base": "1681034",
+        "virtual_quote": "95742",
+        "remaining_base": "8654",
+        "real_quote": "60586",
+        "curve_base_balance": "225596",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "18654",
+      "expected": "3487"
+    },
+    {
+      "state": {
+        "virtual_base": "1681034",
+        "virtual_quote": "95742",
+        "remaining_base": "8654",
+        "real_quote": "60586",
+        "curve_base_balance": "225596",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "19106",
+      "expected": "58878"
+    },
+    {
+      "state": {
+        "virtual_base": "1688953",
+        "virtual_quote": "96739",
+        "remaining_base": "8743",
+        "real_quote": "61287",
+        "curve_base_balance": "225882",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4371",
+      "expected": "255"
+    },
+    {
+      "state": {
+        "virtual_base": "1688953",
+        "virtual_quote": "96739",
+        "remaining_base": "8743",
+        "real_quote": "61287",
+        "curve_base_balance": "225882",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "19327",
+      "expected": "59063"
+    },
+    {
+      "state": {
+        "virtual_base": "1696872",
+        "virtual_quote": "97736",
+        "remaining_base": "8832",
+        "real_quote": "61988",
+        "curve_base_balance": "226168",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "8832",
+      "expected": "514"
+    },
+    {
+      "state": {
+        "virtual_base": "1696872",
+        "virtual_quote": "97736",
+        "remaining_base": "8832",
+        "real_quote": "61988",
+        "curve_base_balance": "226168",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "19548",
+      "expected": "59512"
+    },
+    {
+      "state": {
+        "virtual_base": "1704791",
+        "virtual_quote": "98733",
+        "remaining_base": "8921",
+        "real_quote": "62689",
+        "curve_base_balance": "226454",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "18921",
+      "expected": "3612"
+    },
+    {
+      "state": {
+        "virtual_base": "1704791",
+        "virtual_quote": "98733",
+        "remaining_base": "8921",
+        "real_quote": "62689",
+        "curve_base_balance": "226454",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "19769",
+      "expected": "59200"
+    },
+    {
+      "state": {
+        "virtual_base": "1712710",
+        "virtual_quote": "99730",
+        "remaining_base": "9010",
+        "real_quote": "63390",
+        "curve_base_balance": "226740",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4505",
+      "expected": "267"
+    },
+    {
+      "state": {
+        "virtual_base": "1712710",
+        "virtual_quote": "99730",
+        "remaining_base": "9010",
+        "real_quote": "63390",
+        "curve_base_balance": "226740",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "19990",
+      "expected": "59508"
+    },
+    {
+      "state": {
+        "virtual_base": "1720629",
+        "virtual_quote": "100727",
+        "remaining_base": "9099",
+        "real_quote": "64091",
+        "curve_base_balance": "227026",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "9099",
+      "expected": "544"
+    },
+    {
+      "state": {
+        "virtual_base": "1720629",
+        "virtual_quote": "100727",
+        "remaining_base": "9099",
+        "real_quote": "64091",
+        "curve_base_balance": "227026",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "20211",
+      "expected": "59457"
+    },
+    {
+      "state": {
+        "virtual_base": "1728548",
+        "virtual_quote": "101724",
+        "remaining_base": "9188",
+        "real_quote": "64792",
+        "curve_base_balance": "227312",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "19188",
+      "expected": "3691"
+    },
+    {
+      "state": {
+        "virtual_base": "1728548",
+        "virtual_quote": "101724",
+        "remaining_base": "9188",
+        "real_quote": "64792",
+        "curve_base_balance": "227312",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "20432",
+      "expected": "60025"
+    },
+    {
+      "state": {
+        "virtual_base": "1736467",
+        "virtual_quote": "102721",
+        "remaining_base": "9277",
+        "real_quote": "65493",
+        "curve_base_balance": "227598",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4638",
+      "expected": "279"
+    },
+    {
+      "state": {
+        "virtual_base": "1736467",
+        "virtual_quote": "102721",
+        "remaining_base": "9277",
+        "real_quote": "65493",
+        "curve_base_balance": "227598",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "20653",
+      "expected": "59835"
+    },
+    {
+      "state": {
+        "virtual_base": "1744386",
+        "virtual_quote": "103718",
+        "remaining_base": "9366",
+        "real_quote": "66194",
+        "curve_base_balance": "227884",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "9366",
+      "expected": "568"
+    },
+    {
+      "state": {
+        "virtual_base": "1744386",
+        "virtual_quote": "103718",
+        "remaining_base": "9366",
+        "real_quote": "66194",
+        "curve_base_balance": "227884",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "20874",
+      "expected": "59903"
+    },
+    {
+      "state": {
+        "virtual_base": "1752305",
+        "virtual_quote": "104715",
+        "remaining_base": "9455",
+        "real_quote": "66895",
+        "curve_base_balance": "228170",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "19455",
+      "expected": "3851"
+    },
+    {
+      "state": {
+        "virtual_base": "1752305",
+        "virtual_quote": "104715",
+        "remaining_base": "9455",
+        "real_quote": "66895",
+        "curve_base_balance": "228170",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "21095",
+      "expected": "59973"
+    },
+    {
+      "state": {
+        "virtual_base": "1760224",
+        "virtual_quote": "105712",
+        "remaining_base": "9544",
+        "real_quote": "67596",
+        "curve_base_balance": "228456",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4772",
+      "expected": "288"
+    },
+    {
+      "state": {
+        "virtual_base": "1760224",
+        "virtual_quote": "105712",
+        "remaining_base": "9544",
+        "real_quote": "67596",
+        "curve_base_balance": "228456",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "21316",
+      "expected": "60661"
+    },
+    {
+      "state": {
+        "virtual_base": "1768143",
+        "virtual_quote": "106709",
+        "remaining_base": "9633",
+        "real_quote": "68297",
+        "curve_base_balance": "228742",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "9633",
+      "expected": "593"
+    },
+    {
+      "state": {
+        "virtual_base": "1768143",
+        "virtual_quote": "106709",
+        "remaining_base": "9633",
+        "real_quote": "68297",
+        "curve_base_balance": "228742",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "21537",
+      "expected": "60231"
+    },
+    {
+      "state": {
+        "virtual_base": "1776062",
+        "virtual_quote": "107706",
+        "remaining_base": "9722",
+        "real_quote": "68998",
+        "curve_base_balance": "229028",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "19722",
+      "expected": "3964"
+    },
+    {
+      "state": {
+        "virtual_base": "1776062",
+        "virtual_quote": "107706",
+        "remaining_base": "9722",
+        "real_quote": "68998",
+        "curve_base_balance": "229028",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "21758",
+      "expected": "60418"
+    },
+    {
+      "state": {
+        "virtual_base": "1783981",
+        "virtual_quote": "108703",
+        "remaining_base": "9811",
+        "real_quote": "69699",
+        "curve_base_balance": "229314",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "4905",
+      "expected": "303"
+    },
+    {
+      "state": {
+        "virtual_base": "1783981",
+        "virtual_quote": "108703",
+        "remaining_base": "9811",
+        "real_quote": "69699",
+        "curve_base_balance": "229314",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "21979",
+      "expected": "60608"
+    },
+    {
+      "state": {
+        "virtual_base": "1791900",
+        "virtual_quote": "109700",
+        "remaining_base": "9900",
+        "real_quote": "70400",
+        "curve_base_balance": "229600",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "9900",
+      "expected": "612"
+    },
+    {
+      "state": {
+        "virtual_base": "1791900",
+        "virtual_quote": "109700",
+        "remaining_base": "9900",
+        "real_quote": "70400",
+        "curve_base_balance": "229600",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "22200",
+      "expected": "61055"
+    },
+    {
+      "state": {
+        "virtual_base": "1799819",
+        "virtual_quote": "110697",
+        "remaining_base": "9989",
+        "real_quote": "71101",
+        "curve_base_balance": "229886",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "19989",
+      "expected": "4087"
+    },
+    {
+      "state": {
+        "virtual_base": "1799819",
+        "virtual_quote": "110697",
+        "remaining_base": "9989",
+        "real_quote": "71101",
+        "curve_base_balance": "229886",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "22421",
+      "expected": "60749"
+    },
+    {
+      "state": {
+        "virtual_base": "1807738",
+        "virtual_quote": "111694",
+        "remaining_base": "10078",
+        "real_quote": "71802",
+        "curve_base_balance": "230172",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5039",
+      "expected": "316"
+    },
+    {
+      "state": {
+        "virtual_base": "1807738",
+        "virtual_quote": "111694",
+        "remaining_base": "10078",
+        "real_quote": "71802",
+        "curve_base_balance": "230172",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "22642",
+      "expected": "61051"
+    },
+    {
+      "state": {
+        "virtual_base": "1815657",
+        "virtual_quote": "112691",
+        "remaining_base": "10167",
+        "real_quote": "72503",
+        "curve_base_balance": "230458",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "10167",
+      "expected": "644"
+    },
+    {
+      "state": {
+        "virtual_base": "1815657",
+        "virtual_quote": "112691",
+        "remaining_base": "10167",
+        "real_quote": "72503",
+        "curve_base_balance": "230458",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "22863",
+      "expected": "61006"
+    },
+    {
+      "state": {
+        "virtual_base": "1823576",
+        "virtual_quote": "113688",
+        "remaining_base": "10256",
+        "real_quote": "73204",
+        "curve_base_balance": "230744",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "20256",
+      "expected": "4161"
+    },
+    {
+      "state": {
+        "virtual_base": "1823576",
+        "virtual_quote": "113688",
+        "remaining_base": "10256",
+        "real_quote": "73204",
+        "curve_base_balance": "230744",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "23084",
+      "expected": "61569"
+    },
+    {
+      "state": {
+        "virtual_base": "1831495",
+        "virtual_quote": "114685",
+        "remaining_base": "10345",
+        "real_quote": "73905",
+        "curve_base_balance": "231030",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5172",
+      "expected": "329"
+    },
+    {
+      "state": {
+        "virtual_base": "1831495",
+        "virtual_quote": "114685",
+        "remaining_base": "10345",
+        "real_quote": "73905",
+        "curve_base_balance": "231030",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "23305",
+      "expected": "61384"
+    },
+    {
+      "state": {
+        "virtual_base": "1839414",
+        "virtual_quote": "115682",
+        "remaining_base": "10434",
+        "real_quote": "74606",
+        "curve_base_balance": "231316",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "10434",
+      "expected": "669"
+    },
+    {
+      "state": {
+        "virtual_base": "1839414",
+        "virtual_quote": "115682",
+        "remaining_base": "10434",
+        "real_quote": "74606",
+        "curve_base_balance": "231316",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "23526",
+      "expected": "61447"
+    },
+    {
+      "state": {
+        "virtual_base": "1847333",
+        "virtual_quote": "116679",
+        "remaining_base": "10523",
+        "real_quote": "75307",
+        "curve_base_balance": "231602",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "20523",
+      "expected": "4325"
+    },
+    {
+      "state": {
+        "virtual_base": "1847333",
+        "virtual_quote": "116679",
+        "remaining_base": "10523",
+        "real_quote": "75307",
+        "curve_base_balance": "231602",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "23747",
+      "expected": "61520"
+    },
+    {
+      "state": {
+        "virtual_base": "1855252",
+        "virtual_quote": "117676",
+        "remaining_base": "10612",
+        "real_quote": "76008",
+        "curve_base_balance": "231888",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5306",
+      "expected": "338"
+    },
+    {
+      "state": {
+        "virtual_base": "1855252",
+        "virtual_quote": "117676",
+        "remaining_base": "10612",
+        "real_quote": "76008",
+        "curve_base_balance": "231888",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "23968",
+      "expected": "62211"
+    },
+    {
+      "state": {
+        "virtual_base": "1863171",
+        "virtual_quote": "118673",
+        "remaining_base": "10701",
+        "real_quote": "76709",
+        "curve_base_balance": "232174",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "10701",
+      "expected": "696"
+    },
+    {
+      "state": {
+        "virtual_base": "1863171",
+        "virtual_quote": "118673",
+        "remaining_base": "10701",
+        "real_quote": "76709",
+        "curve_base_balance": "232174",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "24189",
+      "expected": "61780"
+    },
+    {
+      "state": {
+        "virtual_base": "1871090",
+        "virtual_quote": "119670",
+        "remaining_base": "10790",
+        "real_quote": "77410",
+        "curve_base_balance": "232460",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "20790",
+      "expected": "4439"
+    },
+    {
+      "state": {
+        "virtual_base": "1871090",
+        "virtual_quote": "119670",
+        "remaining_base": "10790",
+        "real_quote": "77410",
+        "curve_base_balance": "232460",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "24410",
+      "expected": "61958"
+    },
+    {
+      "state": {
+        "virtual_base": "1879009",
+        "virtual_quote": "120667",
+        "remaining_base": "10879",
+        "real_quote": "78111",
+        "curve_base_balance": "232746",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5439",
+      "expected": "355"
+    },
+    {
+      "state": {
+        "virtual_base": "1879009",
+        "virtual_quote": "120667",
+        "remaining_base": "10879",
+        "real_quote": "78111",
+        "curve_base_balance": "232746",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "24631",
+      "expected": "62161"
+    },
+    {
+      "state": {
+        "virtual_base": "1886928",
+        "virtual_quote": "121664",
+        "remaining_base": "10968",
+        "real_quote": "78812",
+        "curve_base_balance": "233032",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "10968",
+      "expected": "715"
+    },
+    {
+      "state": {
+        "virtual_base": "1886928",
+        "virtual_quote": "121664",
+        "remaining_base": "10968",
+        "real_quote": "78812",
+        "curve_base_balance": "233032",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "24852",
+      "expected": "62602"
+    },
+    {
+      "state": {
+        "virtual_base": "1894847",
+        "virtual_quote": "122661",
+        "remaining_base": "11057",
+        "real_quote": "79513",
+        "curve_base_balance": "233318",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "21057",
+      "expected": "4558"
+    },
+    {
+      "state": {
+        "virtual_base": "1894847",
+        "virtual_quote": "122661",
+        "remaining_base": "11057",
+        "real_quote": "79513",
+        "curve_base_balance": "233318",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "25073",
+      "expected": "62298"
+    },
+    {
+      "state": {
+        "virtual_base": "1902766",
+        "virtual_quote": "123658",
+        "remaining_base": "11146",
+        "real_quote": "80214",
+        "curve_base_balance": "233604",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5573",
+      "expected": "368"
+    },
+    {
+      "state": {
+        "virtual_base": "1902766",
+        "virtual_quote": "123658",
+        "remaining_base": "11146",
+        "real_quote": "80214",
+        "curve_base_balance": "233604",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "25294",
+      "expected": "62599"
+    },
+    {
+      "state": {
+        "virtual_base": "1910685",
+        "virtual_quote": "124655",
+        "remaining_base": "11235",
+        "real_quote": "80915",
+        "curve_base_balance": "233890",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11235",
+      "expected": "749"
+    },
+    {
+      "state": {
+        "virtual_base": "1910685",
+        "virtual_quote": "124655",
+        "remaining_base": "11235",
+        "real_quote": "80915",
+        "curve_base_balance": "233890",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "25515",
+      "expected": "62555"
+    },
+    {
+      "state": {
+        "virtual_base": "1918604",
+        "virtual_quote": "125652",
+        "remaining_base": "11324",
+        "real_quote": "81616",
+        "curve_base_balance": "234176",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "21324",
+      "expected": "4627"
+    },
+    {
+      "state": {
+        "virtual_base": "1918604",
+        "virtual_quote": "125652",
+        "remaining_base": "11324",
+        "real_quote": "81616",
+        "curve_base_balance": "234176",
+        "migration_fee": "100",
+        "protocol_bps": "0",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "25736",
+      "expected": "63121"
+    },
+    {
+      "state": {
+        "virtual_base": "1926523",
+        "virtual_quote": "126649",
+        "remaining_base": "11413",
+        "real_quote": "82317",
+        "curve_base_balance": "234462",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "out",
+      "amount": "5706",
+      "expected": "381"
+    },
+    {
+      "state": {
+        "virtual_base": "1926523",
+        "virtual_quote": "126649",
+        "remaining_base": "11413",
+        "real_quote": "82317",
+        "curve_base_balance": "234462",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "0"
+      },
+      "mode": "in",
+      "amount": "25957",
+      "expected": "62938"
+    },
+    {
+      "state": {
+        "virtual_base": "1934442",
+        "virtual_quote": "127646",
+        "remaining_base": "11502",
+        "real_quote": "83018",
+        "curve_base_balance": "234748",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "11502",
+      "expected": "775"
+    },
+    {
+      "state": {
+        "virtual_base": "1934442",
+        "virtual_quote": "127646",
+        "remaining_base": "11502",
+        "real_quote": "83018",
+        "curve_base_balance": "234748",
+        "migration_fee": "100",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "26178",
+      "expected": "62992"
+    },
+    {
+      "state": {
+        "virtual_base": "1942361",
+        "virtual_quote": "128643",
+        "remaining_base": "11591",
+        "real_quote": "83719",
+        "curve_base_balance": "235034",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "out",
+      "amount": "21591",
+      "expected": "4793"
+    },
+    {
+      "state": {
+        "virtual_base": "1942361",
+        "virtual_quote": "128643",
+        "remaining_base": "11591",
+        "real_quote": "83719",
+        "curve_base_balance": "235034",
+        "migration_fee": "0",
+        "protocol_bps": "95",
+        "creator_bps": "30"
+      },
+      "mode": "in",
+      "amount": "26399",
+      "expected": "63075"
+    }
+  ]
+}

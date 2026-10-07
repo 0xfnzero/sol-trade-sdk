@@ -38,8 +38,8 @@ members = [
     "examples/stonkfun_via_sol_simulate",
 ]
 [workspace.dependencies]
-sol-parser-sdk = { version = "=0.7.8", path = "../sol-parser-sdk" }
-solana-streamer-sdk = { version = "=3.0.7", path = "../solana-streamer" }
+sol-parser-sdk = { version = "=0.7.10", path = "../sol-parser-sdk" }
+solana-streamer-sdk = { version = "=3.0.9", path = "../solana-streamer" }
 solana-sdk = "4.0.1"
 solana-commitment-config = { version = "3.1.1", features = ["serde"] }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }

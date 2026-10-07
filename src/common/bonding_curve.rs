@@ -38,6 +38,33 @@ use crate::instruction::utils::pumpfun::{get_bonding_curve_pda, get_creator_vaul
 /// Represents the global configuration account for token pricing and fees
 #[derive(Debug, Clone, Serialize, Deserialize, Default, BorshDeserialize)]
 pub struct BondingCurveAccount {
+    #[borsh(skip)]
+    #[serde(default)]
+    pub creator_fee_bps: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub can_edit_creator_fee: bool,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub is_holder_reward: bool,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub creator_fee: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub protocol_fees: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub depth: u8,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub initial_virtual_quote_reserves: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub post_complete_base_out: u64,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub post_complete_quote_in: u64,
     /// Unique identifier for the bonding curve
     #[borsh(skip)]
     pub discriminator: u64,
@@ -67,6 +94,35 @@ pub struct BondingCurveAccount {
 }
 
 impl BondingCurveAccount {
+    /// Decode a discriminator-free curve body, retaining appended state and accepting legacy tails.
+    pub fn decode_body(data: &[u8]) -> Option<Self> {
+        if data.len() < 75 || (data.len() > 75 && data.len() < 107) {
+            return None;
+        }
+        if [40, 73, 74].iter().any(|i| data[*i] > 1) {
+            return None;
+        }
+        let mut prefix = data[..data.len().min(107)].to_vec();
+        prefix.resize(107, 0);
+        let mut curve = <Self as BorshDeserialize>::deserialize(&mut prefix.as_slice()).ok()?;
+        curve.creator_fee_bps =
+            data.get(107..115).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        curve.can_edit_creator_fee = data.get(115).copied().unwrap_or(0) != 0;
+        curve.is_holder_reward = data.get(116).copied().unwrap_or(0) != 0;
+        curve.creator_fee =
+            data.get(117..125).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        curve.protocol_fees =
+            data.get(125..133).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        curve.depth = data.get(133).copied().unwrap_or(0);
+        curve.initial_virtual_quote_reserves =
+            data.get(134..142).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        curve.post_complete_base_out =
+            data.get(142..150).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        curve.post_complete_quote_in =
+            data.get(150..158).map(|v| u64::from_le_bytes(v.try_into().unwrap())).unwrap_or(0);
+        Some(curve)
+    }
+
     #[inline]
     pub fn normalize_quote_mint(quote_mint: Pubkey) -> Pubkey {
         if quote_mint == Pubkey::default() || quote_mint == crate::constants::SOL_TOKEN_ACCOUNT {
@@ -167,6 +223,7 @@ impl BondingCurveAccount {
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
             quote_mint,
+            ..Default::default()
         }
     }
 
@@ -229,6 +286,7 @@ impl BondingCurveAccount {
             is_mayhem_mode: is_mayhem_mode,
             is_cashback_coin,
             quote_mint,
+            ..Default::default()
         }
     }
 

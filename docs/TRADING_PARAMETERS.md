@@ -306,3 +306,18 @@ When `simulate: true`:
   - Estimating compute unit consumption
   - Validating transaction parameters
 - 📝 **Note**: Simulation uses RPC's `simulateTransaction` method with processed commitment level
+
+
+## Pump compact trades and Pump coin quotes (October 2026)
+
+Aligned with [pump-public-docs](https://github.com/pump-fun/pump-public-docs/tree/8cda1fa30ea658b20909d8aedf002047119388d2).
+
+- Compact trades: `instruction::pump_upgrade`. Pump v3 / PumpSwap v2 each use 17 accounts. Existing v2 / v1 APIs remain available for cashback coins.
+- Account derivation: `derive_pump_v3_accounts`, `derive_pump_swap_v2_accounts`, `derive_pump_multi_hop_accounts`. Multi-hop validates continuity, one direction, canonical migration pools, Mayhem restrictions and cashback at the currency endpoint. Four or more hops require v0 + ALT.
+- Pump coin creation: `instruction::pump_create_v2::build_pump_create_v2_instruction`; the coin-quote creation account helper supplies 5 roles while Q is on its curve, or 8 after migration. Supply decoded venue state, Q's depth, Global.max_curve_depth and listed quote mints. Complete Q without a migrated pool is rejected. QuoteControl decoding includes its new reserves-admin header; the initial-quote-reserves helper validates depth and graduation raise against Q's supply.
+- Synthetic completing buy: `instruction::pump_v3_quote`. Supply the **actual curve base vault balance**, current resolved protocol/creator fee rates and SOL migration fee (zero for token quotes). Normal non-Mayhem v3 fees use the fixed 1e15 curve market-cap supply. Completed curves reject further trades. Mayhem uses the old capped/partial-fill behavior.
+- Pool effective quote reserve is `quote_vault_amount + signed virtual_quote_reserves`; retained protocol/creator fees are not subtracted again. Fee selection distinguishes SOL, USDC and exotic/Pump coin quotes.
+
+These are bare instruction builders: fetch current state and create required token accounts first. On a SOL **curve**, a single compact trade uses native SOL; on an AMM **pool**, it uses WSOL. Multi-hop requires the user's WSOL ATA even for a native SOL curve endpoint. Its buyback recipient is always the currency quote ATA; a single SOL curve trade instead takes the recipient wallet. Set a compute budget for the route and simulate the full multi-hop instruction to determine final output and slippage; do not quote each hop with all fees enabled, since protocol fees apply at the currency endpoint and creator/LP fees at the coin endpoint.
+
+Synthetic execution emits TradeEvent, CompleteEvent and PostCompleteBuyEvent. Sum the curve and post-completion execution legs within the same invocation; neither instruction limits nor the curve TradeEvent alone represent the whole completing buy. Multi-hop emits the existing per-hop trade events, not a new aggregate log event.
