@@ -87,3 +87,7 @@ gas_fee_strategy.clear();
 ## 🔗 Related Documents
 
 - [Example: Gas Fee Strategy](../examples/gas_fee_strategy/)
+
+## Minimum tips
+
+When `with_tip` and `check_min_tip` are enabled, each SWQOS lane is checked against its client's `min_tip_sol()`. Fee strategies below that threshold are skipped; the SDK does not automatically raise the configured tip. The current Node1 default is `0.0001 SOL` in `src/constants/swqos.rs`. Check the provider's current requirements before choosing a strategy. An empty set of eligible strategies returns an error.

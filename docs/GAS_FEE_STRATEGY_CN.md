@@ -87,3 +87,7 @@ gas_fee_strategy.clear();
 ## 🔗 相关文档
 
 - [示例：Gas Fee 策略](../examples/gas_fee_strategy/)
+
+## 最小小费
+
+启用 `with_tip` 和 `check_min_tip` 时，各 SWQOS 通道按客户端 `min_tip_sol()` 检查费用策略。低于阈值的策略会被跳过，SDK 不会自动提高配置的小费。当前 Node1 默认值在 `src/constants/swqos.rs` 中为 `0.0001 SOL`；配置前应核对服务商的当前要求。没有可用策略时返回错误。

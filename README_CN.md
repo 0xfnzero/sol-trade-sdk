@@ -53,7 +53,7 @@
   - [Glaive（Binary HTTP / QUIC）](#glaivebinary-http--quic)
   - [🔧 中间件系统说明](#-中间件系统说明)
   - [🔍 地址查找表](#-地址查找表)
-  - [🔍 Nonce 缓存](#-nonce-缓存)
+  - [🔍 Nonce 缓存](#-durable-nonce)
 - [💰 Cashback 支持（PumpFun / PumpSwap）](#-cashback-支持pumpfun--pumpswap)
   - [Pump.fun 常见链上错误与排错（文档）](docs/PUMP_ERRORS_AND_TROUBLESHOOTING_CN.md)
 - [🛡️ MEV 保护服务](#️-mev-保护服务)
@@ -733,3 +733,17 @@ MIT 许可证
 3. 注意滑点设置避免交易失败
 4. 监控余额和交易费用
 5. 遵循相关法律法规
+
+## 使用文档
+
+- [交易参数](docs/TRADING_PARAMETERS_CN.md)
+- [费用策略](docs/GAS_FEE_STRATEGY_CN.md)
+- [Durable nonce](docs/NONCE_CACHE_CN.md)
+- [Address lookup tables](docs/ADDRESS_LOOKUP_TABLE_CN.md)
+- [低延迟集成](docs/LOW_LATENCY_BOTS_CN.md)
+- [买入前风险门](docs/PRE_BUY_RISK_GATE_CN.md)
+- [Pump cashback](docs/PUMP_CASHBACK_README.md)
+- [Pump 错误排查](docs/PUMP_ERRORS_AND_TROUBLESHOOTING_CN.md)
+- [StonkFun routes](docs/STONKFUN_ROUTES.md)
+- [gRPC cache and simulation](docs/STONKFUN_GRPC_EXAMPLES.md)
+- [CPMM creator-fee](docs/cpmm-creator-fee-share.md)
