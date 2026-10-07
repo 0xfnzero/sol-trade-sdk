@@ -64,9 +64,9 @@
 
 ---
 
-## 📦 SDK Versions
+## 📦 SDK Versions and Related SDKs
 
-This SDK is available in multiple languages:
+Trading SDK language versions and related Rust SDKs:
 
 | Language | Repository | Description |
 |----------|------------|-------------|
@@ -74,6 +74,8 @@ This SDK is available in multiple languages:
 | **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js |
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing |
 
 ## What This SDK Is For
 
