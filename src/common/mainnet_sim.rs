@@ -264,7 +264,7 @@ pub fn build_sim_tx_with_compute_limit(
         signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
         message: VersionedMessage::V0(message),
     };
-    if lookup_tables.is_empty() && wincode::serialize(&tx).unwrap().len() > 1232 {
+    let mut tx = if lookup_tables.is_empty() && wincode::serialize(&tx).unwrap().len() > 1232 {
         // V1 carries the budget in its config and cannot contain budget instructions.
         instructions.retain(|ix| ix.program_id != solana_compute_budget_interface::id());
         let mut config =
@@ -282,7 +282,18 @@ pub fn build_sim_tx_with_compute_limit(
         }
     } else {
         tx
+    };
+    let required = tx.message.header().num_required_signatures as usize;
+    if let Some(index) = tx.message.static_account_keys()[..required]
+        .iter()
+        .position(|key| *key == wallet.pubkey())
+    {
+        let message = tx.message.serialize();
+        tx.signatures[index] = wallet.sign_message(&message);
+        assert!(tx.signatures[index].verify(wallet.pubkey().as_ref(), &message));
+        println!("simulation authority_signature_verified=true virtual_funder_signed=false rpc_sig_verify=false");
     }
+    tx
 }
 
 /// Persist only public transaction data when an external evidence directory is requested.
@@ -305,11 +316,17 @@ fn save_simulation_evidence(
     );
     let directory = std::path::PathBuf::from(directory);
     std::fs::create_dir_all(&directory).expect("create evidence directory");
+    let message_bytes = tx.message.serialize();
+    let locally_verified_signers = tx.message.static_account_keys().iter().zip(&tx.signatures)
+        .filter(|(key, signature)| signature.verify(key.as_ref(), &message_bytes))
+        .map(|(key, _)| key.to_string()).collect::<Vec<_>>();
     let data = serde_json::json!({
         "test": std::thread::current().name(),
         "simulation_only": true,
         "wire_encoding": "solana-wincode",
         "sig_verify": false,
+        "virtual_funder_signed": false,
+        "locally_verified_signers": locally_verified_signers,
         "wire_base64": base64::engine::general_purpose::STANDARD.encode(wire),
         "response": result,
     });
@@ -1050,10 +1067,19 @@ mod harness_unit_tests {
         let wallet = Keypair::new();
         let ix = Instruction {
             program_id: Pubkey::new_unique(),
-            accounts: (0..40).map(|_| AccountMeta::new(Pubkey::new_unique(), false)).collect(),
+            accounts: std::iter::once(AccountMeta::new(wallet.pubkey(), true))
+                .chain((0..40).map(|_| AccountMeta::new(Pubkey::new_unique(), false)))
+                .collect(),
             data: vec![42],
         };
         let tx = build_sim_tx(funder, &wallet, vec![ix.clone()], Hash::default(), &[]);
+        let message_bytes = tx.message.serialize();
+        let index = tx.message.static_account_keys().iter()
+            .position(|key| *key == wallet.pubkey()).unwrap();
+        assert!(tx.signatures[index].verify(wallet.pubkey().as_ref(), &message_bytes));
+        assert!(!tx.signatures[index].verify(
+            wallet.pubkey().as_ref(), &[message_bytes.clone(), vec![0]].concat()
+        ));
         let VersionedMessage::V1(message) = tx.message else {
             panic!("expected V1");
         };
