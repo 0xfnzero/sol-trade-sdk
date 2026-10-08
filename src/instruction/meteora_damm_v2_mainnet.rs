@@ -9,10 +9,7 @@ use crate::{
         utils::meteora_damm_v2::SWAP2_DISCRIMINATOR,
     },
     swqos::TradeType,
-    trading::core::{
-        params::DexParamEnum,
-        traits::InstructionBuilder,
-    },
+    trading::core::{params::DexParamEnum, traits::InstructionBuilder},
 };
 
 #[tokio::test]
@@ -127,20 +124,11 @@ async fn meteora_damm_v2_mainnet_simulates_exact_out_buy_after_hop() {
         .iter()
         .find(|ix| ix.data.len() >= 25 && &ix.data[..8] == SWAP2_DISCRIMINATOR)
         .expect("meteora exact-out swap2");
-    assert_eq!(
-        swap.data[24],
-        crate::instruction::utils::meteora_damm_v2::SWAP_MODE_EXACT_OUT
-    );
+    assert_eq!(swap.data[24], crate::instruction::utils::meteora_damm_v2::SWAP_MODE_EXACT_OUT);
 
     let business = mainnet_sim::concat_ixs([hop_ixs, meme_ixs]);
-    mainnet_sim::run_business_sim(
-        &rpc,
-        &wallet,
-        business,
-        &[],
-        "meteora exact-out after SOL→USDC",
-    )
-    .await;
+    mainnet_sim::run_business_sim(&rpc, &wallet, business, &[], "meteora exact-out after SOL→USDC")
+        .await;
 }
 
 #[tokio::test]
@@ -172,9 +160,7 @@ async fn meteora_damm_v2_mainnet_builds_sell_after_buy_quote() {
     sell.fixed_output_amount = Some(1);
     let sell_ixs = MeteoraDammV2InstructionBuilder.build_sell_instructions(&sell).await.unwrap();
     assert!(
-        sell_ixs
-            .iter()
-            .any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR),
+        sell_ixs.iter().any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR),
         "meteora sell must include swap2"
     );
     println!("meteora damm v2 sell built ok ixs={}", sell_ixs.len());
@@ -211,13 +197,8 @@ async fn meteora_damm_v2_sol_usdc_mainnet_simulates_direct_buy() {
         DexParamEnum::MeteoraDammV2(pool),
     );
     params.fixed_output_amount = Some(1);
-    let business = MeteoraDammV2InstructionBuilder
-        .build_buy_instructions(&params)
-        .await
-        .unwrap();
-    assert!(business
-        .iter()
-        .any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
+    let business = MeteoraDammV2InstructionBuilder.build_buy_instructions(&params).await.unwrap();
+    assert!(business.iter().any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
 
     mainnet_sim::run_business_sim(
         &rpc,
@@ -235,9 +216,7 @@ async fn meteora_damm_v2_sol_usdc_mainnet_simulates_buy_and_sell_roundtrip() {
         return;
     }
 
-    // Hard buy is covered by `..._direct_buy`. Selling dust USDC back often hits
-    // ExceededSlippage (6002) when min_out is floored at 1 lamport. Assert the
-    // sell builder wires swap2 for the reverse direction.
+    // Buy enough USDC to fund a non-dust reverse leg in the same simulation.
     let rpc = mainnet_sim::rpc_client();
     let wallet = mainnet_sim::create_wallet();
     let Some(pool) =
@@ -252,15 +231,13 @@ async fn meteora_damm_v2_sol_usdc_mainnet_simulates_buy_and_sell_roundtrip() {
         TradeType::Buy,
         crate::constants::WSOL_TOKEN_ACCOUNT,
         fixtures::USDC_MINT,
-        200_000,
+        2_000_000,
         800,
         DexParamEnum::MeteoraDammV2(pool.clone()),
     );
     buy.fixed_output_amount = Some(1);
     let buy_ixs = MeteoraDammV2InstructionBuilder.build_buy_instructions(&buy).await.unwrap();
-    assert!(buy_ixs
-        .iter()
-        .any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
+    assert!(buy_ixs.iter().any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
 
     let mut sell = mainnet_sim::swap_params(
         wallet.clone(),
@@ -273,12 +250,13 @@ async fn meteora_damm_v2_sol_usdc_mainnet_simulates_buy_and_sell_roundtrip() {
     );
     sell.fixed_output_amount = Some(1);
     let sell_ixs = MeteoraDammV2InstructionBuilder.build_sell_instructions(&sell).await.unwrap();
-    assert!(sell_ixs
-        .iter()
-        .any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
-    println!(
-        "meteora damm v2 SOL/USDC buy+sell builders ok buy_ixs={} sell_ixs={}",
-        buy_ixs.len(),
-        sell_ixs.len()
-    );
+    assert!(sell_ixs.iter().any(|ix| ix.data.len() >= 8 && &ix.data[..8] == SWAP2_DISCRIMINATOR));
+    mainnet_sim::run_business_sim(
+        &rpc,
+        &wallet,
+        mainnet_sim::concat_ixs([buy_ixs, sell_ixs]),
+        &[],
+        "meteora damm v2 SOL/USDC buy+sell roundtrip",
+    )
+    .await;
 }

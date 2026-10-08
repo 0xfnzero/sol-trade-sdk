@@ -1007,11 +1007,12 @@ mod tests {
         let params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         let instructions = build_buy(&params).unwrap();
 
-        assert_eq!(instructions.len(), 3);
-        assert_eq!(instructions[2].accounts[8].pubkey, TOKEN_PROGRAM_2022);
-        assert_eq!(instructions[1].program_id, TOKEN_PROGRAM_2022);
-        assert_eq!(instructions[2].accounts.len(), 18);
-        assert_eq!(instructions[2].data.len(), 25);
+        assert_eq!(instructions.len(), 2);
+        assert_eq!(instructions[1].accounts[8].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[0].program_id, crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID);
+        assert_eq!(instructions[0].accounts[5].pubkey, TOKEN_PROGRAM_2022);
+        assert_eq!(instructions[1].accounts.len(), 18);
+        assert_eq!(instructions[1].data.len(), 25);
     }
 
     #[test]
@@ -1128,8 +1129,7 @@ mod tests {
     }
 
     #[test]
-    fn pumpfun_v2_explicit_wsol_input_with_output_ata_create_reports_oversized_without_dropping_priority(
-    ) {
+    fn pumpfun_v2_explicit_wsol_input_with_output_ata_create_fits_without_dropping_priority() {
         let mut params = swap_params_for_buy(pump_mint(), TOKEN_PROGRAM);
         params.input_mint = crate::constants::WSOL_TOKEN_ACCOUNT;
         params.create_input_mint_ata = true;
@@ -1141,7 +1141,7 @@ mod tests {
         }
 
         let business_instructions = build_buy(&params).unwrap();
-        let err = crate::trading::common::transaction_builder::build_transaction(
+        let transaction = crate::trading::common::transaction_builder::build_transaction(
             &params.payer,
             150_000,
             500_000,
@@ -1156,11 +1156,9 @@ mod tests {
             0.001,
             None,
         )
-        .unwrap_err()
-        .to_string();
-
-        assert!(err.contains("transaction too large"), "{err}");
-        assert!(err.contains("did not remove compute budget or relay tip"), "{err}");
+        .unwrap();
+        assert!(wincode::serialize(&transaction).unwrap().len() <= 1232);
+        assert_eq!(transaction.message.instructions().len(), business_instructions.len() + 3);
     }
 
     #[test]

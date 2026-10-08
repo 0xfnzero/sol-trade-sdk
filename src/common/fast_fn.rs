@@ -148,8 +148,7 @@ pub fn _create_associated_token_account_idempotent_fast(
     let arc_instructions = if use_seed
         && !mint.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !mint.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && (token_program.eq(&crate::constants::TOKEN_PROGRAM)
-            || token_program.eq(&crate::constants::TOKEN_PROGRAM_2022))
+        && token_program.eq(&crate::constants::TOKEN_PROGRAM)
     {
         // Use cache to get instruction
         get_cached_instructions(cache_key, || {
@@ -280,12 +279,11 @@ fn _get_associated_token_address_with_program_id_fast(
 
     // Slow path: compute new ATA
     // Only use seed if the token mint address is not wSOL or SOL
-    // 🔧 修复：Token-2022 也支持 seed 方式（白名单方式更安全）
+    // Token-2022 extension sizes require mint data; let the ATA program allocate them.
     let ata = if use_seed
         && !token_mint_address.eq(&crate::constants::WSOL_TOKEN_ACCOUNT)
         && !token_mint_address.eq(&crate::constants::SOL_TOKEN_ACCOUNT)
-        && (token_program_id.eq(&crate::constants::TOKEN_PROGRAM)
-            || token_program_id.eq(&crate::constants::TOKEN_PROGRAM_2022))
+        && token_program_id.eq(&crate::constants::TOKEN_PROGRAM)
     {
         super::seed::get_associated_token_address_with_program_id_use_seed(
             wallet_address,
@@ -349,4 +347,25 @@ pub fn fast_init(payer: &Pubkey) {
             .unwrap()]
         },
     );
+}
+
+#[cfg(test)]
+mod token_extension_seed_tests {
+    use super::*;
+    #[test]
+    fn token_2022_seed_address_and_creation_both_use_extension_aware_ata() {
+        let payer = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let token = crate::constants::TOKEN_PROGRAM_2022;
+        let address =
+            get_associated_token_address_with_program_id_fast_use_seed(&payer, &mint, &token, true);
+        let ata = get_associated_token_address_with_program_id_fast(&payer, &mint, &token);
+        assert_eq!(address, ata);
+        let instructions = create_associated_token_account_idempotent_fast_use_seed(
+            &payer, &payer, &mint, &token, true,
+        );
+        assert_eq!(instructions.len(), 1);
+        assert_eq!(instructions[0].program_id, crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID);
+        assert_eq!(instructions[0].accounts[1].pubkey, address);
+    }
 }

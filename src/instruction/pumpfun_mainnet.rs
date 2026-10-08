@@ -38,13 +38,15 @@ async fn pumpfun_mainnet_simulates_buy_when_mint_env_set() {
     );
     assert!(params_pool.bonding_curve.virtual_sol_reserves > 0);
 
+    // Live smoke coverage allows price movement between quote and bank execution.
+    // Protection correctness is tested separately with deliberately impossible limits.
     let params = mainnet_sim::swap_params(
         wallet.clone(),
         TradeType::Buy,
         crate::constants::WSOL_TOKEN_ACCOUNT,
         mint,
         50_000,
-        500,
+        1_500,
         DexParamEnum::PumpFun(params_pool),
     );
     let business = PumpFunInstructionBuilder.build_buy_instructions(&params).await.unwrap();
@@ -81,7 +83,7 @@ async fn pumpfun_mainnet_simulates_buy_and_sell_when_mint_env_set() {
         crate::constants::WSOL_TOKEN_ACCOUNT,
         mint,
         50_000,
-        500,
+        1_500,
         DexParamEnum::PumpFun(params_pool.clone()),
     );
     let buy_ixs = PumpFunInstructionBuilder.build_buy_instructions(&buy).await.unwrap();

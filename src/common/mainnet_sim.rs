@@ -19,7 +19,7 @@ use crate::{
 use solana_client::rpc_config::RpcSimulateTransactionConfig;
 use solana_commitment_config::{CommitmentConfig, CommitmentLevel};
 use solana_compute_budget_interface::ComputeBudgetInstruction;
-use solana_message::{v0, AddressLookupTableAccount, VersionedMessage};
+use solana_message::{v0, v1, AddressLookupTableAccount, VersionedMessage};
 use solana_sdk::{
     hash::Hash,
     instruction::Instruction,
@@ -260,10 +260,61 @@ pub fn build_sim_tx_with_compute_limit(
     let message = v0::Message::try_compile(&funder, &instructions, lookup_tables, recent_blockhash)
         .expect("compile simulation message");
     println!("simulation alts={} static_keys={}", lookup_tables.len(), message.account_keys.len());
-    VersionedTransaction {
+    let tx = VersionedTransaction {
         signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
         message: VersionedMessage::V0(message),
+    };
+    if lookup_tables.is_empty() && wincode::serialize(&tx).unwrap().len() > 1232 {
+        // V1 carries the budget in its config and cannot contain budget instructions.
+        instructions.retain(|ix| ix.program_id != solana_compute_budget_interface::id());
+        let mut config =
+            v1::TransactionConfig::empty().with_loaded_accounts_data_size_limit(64 * 1024 * 1024);
+        if let Some(limit) = compute_limit {
+            config = config.with_compute_unit_limit(limit);
+        }
+        let message =
+            v1::Message::try_compile_with_config(&funder, &instructions, recent_blockhash, config)
+                .expect("compile V1 simulation message");
+        println!("simulation format=V1 (oversized V0 without ALTs)");
+        VersionedTransaction {
+            signatures: vec![Signature::default(); message.header.num_required_signatures as usize],
+            message: VersionedMessage::V1(message),
+        }
+    } else {
+        tx
     }
+}
+
+/// Persist only public transaction data when an external evidence directory is requested.
+fn save_simulation_evidence(
+    tx: &VersionedTransaction,
+    result: &solana_client::rpc_response::Response<
+        solana_client::rpc_response::RpcSimulateTransactionResult,
+    >,
+) {
+    let Some(directory) = std::env::var_os("SIMULATION_EVIDENCE_DIR") else {
+        return;
+    };
+    use base64::Engine;
+    let wire = wincode::serialize(tx).expect("serialize simulation evidence");
+    let name = format!(
+        "{}-{}-{}.json",
+        std::process::id(),
+        result.context.slot,
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+    );
+    let directory = std::path::PathBuf::from(directory);
+    std::fs::create_dir_all(&directory).expect("create evidence directory");
+    let data = serde_json::json!({
+        "test": std::thread::current().name(),
+        "simulation_only": true,
+        "wire_encoding": "solana-wincode",
+        "sig_verify": false,
+        "wire_base64": base64::engine::general_purpose::STANDARD.encode(wire),
+        "response": result,
+    });
+    std::fs::write(directory.join(name), serde_json::to_vec_pretty(&data).unwrap())
+        .expect("write simulation evidence");
 }
 
 /// Drop duplicate idempotent `CreateIdempotent` ATA ixs (same accounts) that
@@ -312,6 +363,7 @@ pub async fn simulate(rpc: &SolanaRpcClient, tx: &VersionedTransaction) -> SimRe
         }
     };
 
+    save_simulation_evidence(tx, &result);
     SimResult {
         ok: result.value.err.is_none(),
         units_consumed: result.value.units_consumed,
@@ -399,12 +451,15 @@ pub async fn run_business_sim_with_compute_limit(
     })
     .await
     {
-        Ok(r) => SimResult {
-            ok: r.value.err.is_none(),
-            units_consumed: r.value.units_consumed,
-            err: r.value.err.map(|e| format!("{e:?}")),
-            logs: r.value.logs.unwrap_or_default(),
-        },
+        Ok(r) => {
+            save_simulation_evidence(&tx, &r);
+            SimResult {
+                ok: r.value.err.is_none(),
+                units_consumed: r.value.units_consumed,
+                err: r.value.err.map(|e| format!("{e:?}")),
+                logs: r.value.logs.unwrap_or_default(),
+            }
+        }
         Err(err) => {
             let msg = err.to_string();
             if msg.contains("too large") {
@@ -461,12 +516,15 @@ pub async fn run_business_sim_skip_oversized(
     })
     .await
     {
-        Ok(r) => SimResult {
-            ok: r.value.err.is_none(),
-            units_consumed: r.value.units_consumed,
-            err: r.value.err.map(|e| format!("{e:?}")),
-            logs: r.value.logs.unwrap_or_default(),
-        },
+        Ok(r) => {
+            save_simulation_evidence(&tx, &r);
+            SimResult {
+                ok: r.value.err.is_none(),
+                units_consumed: r.value.units_consumed,
+                err: r.value.err.map(|e| format!("{e:?}")),
+                logs: r.value.logs.unwrap_or_default(),
+            }
+        }
         Err(err) => {
             let msg = err.to_string();
             if msg.contains("too large") {
@@ -983,6 +1041,30 @@ mod harness_unit_tests {
         data.extend_from_slice(&99_u64.to_le_bytes());
         let ix = Instruction { program_id: cpmm_accounts::RAYDIUM_CPMM, accounts: vec![], data };
         assert_eq!(cpmm_min_out(&[ix]), Some(99));
+    }
+
+    #[test]
+    fn oversized_simulation_uses_v1_without_budget_instruction() {
+        use solana_sdk::instruction::AccountMeta;
+        let funder = Pubkey::new_unique();
+        let wallet = Keypair::new();
+        let ix = Instruction {
+            program_id: Pubkey::new_unique(),
+            accounts: (0..40).map(|_| AccountMeta::new(Pubkey::new_unique(), false)).collect(),
+            data: vec![42],
+        };
+        let tx = build_sim_tx(funder, &wallet, vec![ix.clone()], Hash::default(), &[]);
+        let VersionedMessage::V1(message) = tx.message else {
+            panic!("expected V1");
+        };
+        assert_eq!(message.instructions.len(), 2); // funding and unchanged business
+        let business = &message.instructions[1];
+        assert_eq!(business.data, ix.data);
+        assert_eq!(message.account_keys[business.program_id_index as usize], ix.program_id);
+        for (index, meta) in business.accounts.iter().zip(ix.accounts) {
+            assert_eq!(message.account_keys[*index as usize], meta.pubkey);
+        }
+        assert!(!message.account_keys.contains(&solana_compute_budget_interface::id()));
     }
 
     #[test]
