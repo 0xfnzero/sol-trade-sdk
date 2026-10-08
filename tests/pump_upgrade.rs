@@ -191,3 +191,41 @@ fn quote_control_and_child_reserves() {
     );
     assert!(pump_coin_initial_quote_reserves(123, 1000, 10, 1000, 100, 100, 0, 1).is_err());
 }
+
+#[test]
+fn builders_match_successful_mainnet_simulations() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/pump_upgrade/simulated_instructions.json"))
+            .unwrap();
+    for c in fixture["cases"].as_array().unwrap() {
+        let accounts = c["accounts"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap().parse().unwrap()))
+            .collect();
+        let amounts: Vec<u64> = c["args"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n.as_str().unwrap().parse().unwrap())
+            .collect();
+        let ix = build_pump_upgrade_instruction(
+            c["name"].as_str().unwrap(),
+            &accounts,
+            &amounts,
+            None,
+            &[],
+        )
+        .unwrap();
+        assert_eq!(ix.program_id.to_string(), c["program"].as_str().unwrap());
+        let hex: String = ix.data.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(hex, c["data"].as_str().unwrap());
+        for (a, m) in ix.accounts.iter().zip(c["metas"].as_array().unwrap()) {
+            assert_eq!(a.pubkey.to_string(), m["pubkey"].as_str().unwrap());
+            assert_eq!(a.is_signer, m["signer"].as_bool().unwrap());
+            assert_eq!(a.is_writable, m["writable"].as_bool().unwrap());
+        }
+        assert_eq!(ix.accounts.len(), c["metas"].as_array().unwrap().len());
+    }
+}
