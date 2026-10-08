@@ -58,6 +58,10 @@ pub fn resolve_hook_accounts_with_context(
     let mut offset = 166;
     while offset + 4 <= mint_data.len() {
         let kind = u16::from_le_bytes(mint_data[offset..offset + 2].try_into()?);
+        // SPL treats Uninitialized as the end of used TLV data.
+        if kind == 0 {
+            break;
+        }
         let length = u16::from_le_bytes(mint_data[offset + 2..offset + 4].try_into()?) as usize;
         let end = offset + 4 + length;
         ensure!(end <= mint_data.len(), "Truncated mint extension");
