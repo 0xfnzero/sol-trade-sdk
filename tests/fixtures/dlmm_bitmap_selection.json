@@ -1,0 +1,70 @@
+{
+  "source": "@meteora-ag/dlmm 1.9.14 findNextBinArrayIndexWithLiquidity; getBinArrayForSwap count=4",
+  "cases": [
+    {
+      "active_id": 0,
+      "down": false,
+      "extension": false,
+      "indices": [
+        7,
+        100,
+        511
+      ]
+    },
+    {
+      "active_id": 0,
+      "down": false,
+      "extension": true,
+      "indices": [
+        7,
+        100,
+        511,
+        512
+      ]
+    },
+    {
+      "active_id": 0,
+      "down": true,
+      "extension": true,
+      "indices": [
+        -10,
+        -511,
+        -512,
+        -513
+      ]
+    },
+    {
+      "active_id": 35840,
+      "down": false,
+      "extension": true,
+      "indices": [
+        512,
+        1023,
+        1024,
+        6655
+      ]
+    },
+    {
+      "active_id": -35910,
+      "down": true,
+      "extension": true,
+      "indices": [
+        -513,
+        -1024,
+        -1025,
+        -6656
+      ]
+    },
+    {
+      "active_id": -35910,
+      "down": false,
+      "extension": true,
+      "indices": [
+        -513,
+        -512,
+        -511,
+        -10
+      ]
+    }
+  ]
+}

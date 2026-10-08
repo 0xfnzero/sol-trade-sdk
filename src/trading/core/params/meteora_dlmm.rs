@@ -56,21 +56,24 @@ impl MeteoraDlmmParams {
         input_mint: &Pubkey,
         output_mint: &Pubkey,
     ) -> Result<Self> {
-        use crate::instruction::utils::meteora_dlmm::{
-            fetch_lb_pair, maybe_bitmap_extension, resolve_bin_arrays_for_swap,
-        };
+        use crate::instruction::utils::meteora_dlmm::{fetch_lb_pair, resolve_swap_snapshot};
         let state = fetch_lb_pair(rpc, lb_pair).await?;
         // swap_for_y = true when selling X for Y.
-        let swap_for_y =
-            if input_mint == &state.token_x_mint && output_mint == &state.token_y_mint {
-                true
-            } else if input_mint == &state.token_y_mint && output_mint == &state.token_x_mint {
-                false
-            } else {
-                anyhow::bail!("DLMM swap mints do not match pool");
-            };
-        let bin_arrays =
-            resolve_bin_arrays_for_swap(rpc, lb_pair, state.active_id, swap_for_y).await?;
+        let swap_for_y = if input_mint == &state.token_x_mint && output_mint == &state.token_y_mint
+        {
+            true
+        } else if input_mint == &state.token_y_mint && output_mint == &state.token_x_mint {
+            false
+        } else {
+            anyhow::bail!("DLMM swap mints do not match pool");
+        };
+        let (current, bitmap_extension, bin_arrays) =
+            resolve_swap_snapshot(rpc, lb_pair, swap_for_y).await?;
+        if current.token_x_mint != state.token_x_mint || current.token_y_mint != state.token_y_mint
+        {
+            anyhow::bail!("DLMM mints changed during snapshot refresh");
+        }
+        let state = current;
         let mint_accounts =
             rpc.get_multiple_accounts(&[state.token_x_mint, state.token_y_mint]).await?;
         let token_x_program = mint_accounts
@@ -85,7 +88,7 @@ impl MeteoraDlmmParams {
             .ok_or_else(|| anyhow::anyhow!("token_y mint missing"))?;
         Ok(Self {
             lb_pair: *lb_pair,
-            bitmap_extension: maybe_bitmap_extension(rpc, lb_pair).await,
+            bitmap_extension,
             reserve_x: state.reserve_x,
             reserve_y: state.reserve_y,
             token_x_mint: state.token_x_mint,

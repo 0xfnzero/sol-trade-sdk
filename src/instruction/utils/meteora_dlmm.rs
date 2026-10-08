@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use solana_sdk::{pubkey, pubkey::Pubkey};
+use solana_sdk::{account::Account, pubkey, pubkey::Pubkey};
 
 use crate::common::SolanaRpcClient;
 
@@ -75,35 +75,122 @@ pub fn decode_lb_pair(data: &[u8]) -> Result<LbPairState> {
     })
 }
 
-/// Resolve bin arrays around `active_id` for a swap that crosses bins.
+// DLMM 1.9.14 IDL: LbPair bitmap follows oracle at 584; extension
+// contains 12 positive and 12 negative 512-bit chunks after its pool key.
+const BITMAP_OFFSET: usize = 584;
+const EXTENSION_BYTES: usize = 1576;
+const EXTENSION_DISC: [u8; 8] = [80, 111, 124, 113, 55, 237, 18, 5];
+const ARRAY_DISC: [u8; 8] = [92, 142, 92, 220, 5, 148, 70, 181];
+
+fn extension_data<'a>(account: Option<&'a Account>, pair: &Pubkey) -> Result<Option<&'a [u8]>> {
+    let Some(account) = account else {
+        return Ok(None);
+    };
+    if account.owner == Pubkey::default() && account.data.is_empty() {
+        return Ok(None);
+    }
+    if account.owner != PROGRAM_ID
+        || account.data.len() < EXTENSION_BYTES
+        || account.data[..8] != EXTENSION_DISC
+        || account.data[8..40] != pair.to_bytes()
+    {
+        return Err(anyhow!("invalid DLMM bitmap extension"));
+    }
+    Ok(Some(&account.data))
+}
+
+fn liquid_array_indices(
+    pair: &[u8],
+    extension: Option<&[u8]>,
+    active_id: i32,
+    down: bool,
+) -> Result<Vec<i64>> {
+    let bitmap = pair
+        .get(BITMAP_OFFSET..BITMAP_OFFSET + 128)
+        .ok_or_else(|| anyhow!("truncated DLMM liquidity bitmap"))?;
+    if extension.is_some_and(|data| data.len() < EXTENSION_BYTES) {
+        return Err(anyhow!("truncated DLMM bitmap extension"));
+    }
+    let start = bin_id_to_bin_array_index(active_id);
+    if !(-512..=511).contains(&start) && extension.is_none() {
+        return Err(anyhow!("DLMM active bin requires bitmap extension"));
+    }
+    let mut out = Vec::with_capacity(4);
+    let mut index = start;
+    while (-6656..=6655).contains(&index) {
+        let (data, bit) = if (-512..=511).contains(&index) {
+            (Some(bitmap), (index + 512) as usize)
+        } else if index >= 512 {
+            (extension.map(|data| &data[40..808]), (index - 512) as usize)
+        } else {
+            (extension.map(|data| &data[808..1576]), (-index - 513) as usize)
+        };
+        if data.is_some_and(|data| data[bit / 8] & (1 << (bit % 8)) != 0) {
+            out.push(index);
+            if out.len() == 4 {
+                break;
+            }
+        }
+        index += if down { -1 } else { 1 };
+    }
+    if out.is_empty() {
+        return Err(anyhow!("no DLMM liquidity in swap direction"));
+    }
+    Ok(out)
+}
+
+fn validate_bin_array(account: &Account, pair: &Pubkey, index: i64) -> Result<()> {
+    // BinArray header = 56 bytes; 70 bins of 144 bytes, including current
+    // limit-order fields. Pool/index bindings precede version-independent bins.
+    if account.owner != PROGRAM_ID
+        || account.data.len() < 10136
+        || account.data[..8] != ARRAY_DISC
+        || account.data[8..16] != index.to_le_bytes()
+        || account.data[24..56] != pair.to_bytes()
+    {
+        return Err(anyhow!("invalid DLMM bin array for index {index}"));
+    }
+    Ok(())
+}
+
+/// Refresh active bin and both liquidity bitmaps together, then load the first
+/// four liquid arrays in swap direction, matching official getBinArrayForSwap.
+pub async fn resolve_swap_snapshot(
+    rpc: &SolanaRpcClient,
+    lb_pair: &Pubkey,
+    swap_for_y: bool,
+) -> Result<(LbPairState, Option<Pubkey>, Vec<Pubkey>)> {
+    let extension_key = bitmap_extension_pda(lb_pair);
+    let snapshot = rpc.get_multiple_accounts(&[*lb_pair, extension_key]).await?;
+    let pair =
+        snapshot.first().and_then(Option::as_ref).ok_or_else(|| anyhow!("missing DLMM pair"))?;
+    if pair.owner != PROGRAM_ID {
+        return Err(anyhow!("invalid DLMM pair owner"));
+    }
+    let state = decode_lb_pair(&pair.data)?;
+    let extension = extension_data(snapshot.get(1).and_then(Option::as_ref), lb_pair)?;
+    let indices = liquid_array_indices(&pair.data, extension, state.active_id, swap_for_y)?;
+    let keys: Vec<_> = indices.iter().map(|index| bin_array_pda(lb_pair, *index)).collect();
+    let arrays = rpc.get_multiple_accounts(&keys).await?;
+    for (i, index) in indices.iter().enumerate() {
+        let account = arrays
+            .get(i)
+            .and_then(Option::as_ref)
+            .ok_or_else(|| anyhow!("DLMM bitmap-selected array {index} missing"))?;
+        validate_bin_array(account, lb_pair, *index)?;
+    }
+    Ok((state, extension.map(|_| extension_key), keys))
+}
+
+/// The supplied active_id is a hint retained for API compatibility. A coherent
+/// current pair/bitmap snapshot determines selection, never account existence.
 pub async fn resolve_bin_arrays_for_swap(
     rpc: &SolanaRpcClient,
     lb_pair: &Pubkey,
-    active_id: i32,
+    _active_id: i32,
     swap_for_y: bool,
 ) -> Result<Vec<Pubkey>> {
-    let base = bin_id_to_bin_array_index(active_id);
-    let deltas: [i64; 5] = if swap_for_y {
-        // Buying Y (selling X) moves active_id down → lower indices.
-        [0, -1, -2, -3, -4]
-    } else {
-        [0, 1, 2, 3, 4]
-    };
-    let pdas: Vec<Pubkey> = deltas.iter().map(|d| bin_array_pda(lb_pair, base + d)).collect();
-    let accounts = rpc.get_multiple_accounts(&pdas).await?;
-    let mut out = Vec::new();
-    for (pda, acc) in pdas.into_iter().zip(accounts) {
-        if acc.is_some() {
-            out.push(pda);
-        }
-        if out.len() >= 3 {
-            break;
-        }
-    }
-    if out.is_empty() {
-        return Err(anyhow!("no initialized Meteora DLMM bin arrays near active_id"));
-    }
-    Ok(out)
+    Ok(resolve_swap_snapshot(rpc, lb_pair, swap_for_y).await?.2)
 }
 
 pub async fn fetch_lb_pair(rpc: &SolanaRpcClient, key: &Pubkey) -> Result<LbPairState> {
@@ -134,5 +221,65 @@ mod tests {
         assert_eq!(bin_id_to_bin_array_index(-1), -1);
         assert_eq!(bin_id_to_bin_array_index(-70), -1);
         assert_eq!(bin_id_to_bin_array_index(-71), -2);
+        let mut pair = vec![0u8; 712];
+        let mut extension = vec![0u8; EXTENSION_BYTES];
+        let set = |data: &mut [u8], byte: usize, bit: usize| data[byte + bit / 8] |= 1 << (bit % 8);
+        // Skip allocated but non-liquid current arrays and gaps beyond five PDAs.
+        for index in [7i64, 100, 511, -10, -511, -512] {
+            set(&mut pair, BITMAP_OFFSET, (index + 512) as usize);
+        }
+        for index in [512i64, 1023, 1024, 6655] {
+            set(&mut extension, 40, (index - 512) as usize);
+        }
+        for index in [-513i64, -1024, -1025, -6656] {
+            set(&mut extension, 808, (-index - 513) as usize);
+        }
+        assert_eq!(liquid_array_indices(&pair, None, 0, false).unwrap(), [7, 100, 511]);
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/dlmm_bitmap_selection.json"
+        ))
+        .unwrap();
+        for case in oracle["cases"].as_array().unwrap() {
+            let expected: Vec<_> =
+                case["indices"].as_array().unwrap().iter().map(|v| v.as_i64().unwrap()).collect();
+            assert_eq!(
+                liquid_array_indices(
+                    &pair,
+                    if case["extension"].as_bool().unwrap() { Some(&extension) } else { None },
+                    case["active_id"].as_i64().unwrap() as i32,
+                    case["down"].as_bool().unwrap(),
+                )
+                .unwrap(),
+                expected
+            );
+        }
+        assert!(liquid_array_indices(&pair, None, 512 * 70, false).is_err());
+        assert!(liquid_array_indices(&pair[..711], None, 0, false).is_err());
+        assert!(liquid_array_indices(&pair, Some(&extension[..1575]), 0, false).is_err());
+        assert!(liquid_array_indices(&vec![0; 712], None, 0, false).is_err());
+        let pool = Pubkey::new_unique();
+        let mut account = Account { owner: PROGRAM_ID, data: vec![0; 10136], ..Default::default() };
+        account.data[..8].copy_from_slice(&ARRAY_DISC);
+        account.data[8..16].copy_from_slice(&7i64.to_le_bytes());
+        account.data[24..56].copy_from_slice(pool.as_ref());
+        validate_bin_array(&account, &pool, 7).unwrap();
+        assert!(validate_bin_array(&account, &pool, 8).is_err());
+        assert!(validate_bin_array(&account, &Pubkey::new_unique(), 7).is_err());
+        account.owner = Pubkey::default();
+        assert!(validate_bin_array(&account, &pool, 7).is_err());
+        account.owner = PROGRAM_ID;
+        account.data[0] ^= 1;
+        assert!(validate_bin_array(&account, &pool, 7).is_err());
+        account.data[..8].copy_from_slice(&ARRAY_DISC);
+        account.data.truncate(10135);
+        assert!(validate_bin_array(&account, &pool, 7).is_err());
+        let mut ext = Account { owner: PROGRAM_ID, data: extension, ..Default::default() };
+        ext.data[..8].copy_from_slice(&EXTENSION_DISC);
+        ext.data[8..40].copy_from_slice(pool.as_ref());
+        assert!(extension_data(Some(&ext), &pool).unwrap().is_some());
+        assert!(extension_data(Some(&ext), &Pubkey::new_unique()).is_err());
+        ext.owner = Pubkey::default();
+        assert!(extension_data(Some(&ext), &pool).is_err());
+        assert!(extension_data(None, &pool).unwrap().is_none());
     }
 }
