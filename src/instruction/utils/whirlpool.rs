@@ -90,45 +90,47 @@ pub fn decode_whirlpool(data: &[u8]) -> Result<WhirlpoolState> {
     })
 }
 
-/// Resolve 3 tick arrays in swap direction (`a_to_b` → decreasing start indices).
-pub async fn resolve_tick_arrays_for_swap(
-    rpc: &SolanaRpcClient,
+/// Derive consecutive sparse-swap arrays, preserving uninitialized PDAs.
+/// B→A starts at current tick + spacing, as in Orca's SwapUtils.
+fn swap_tick_array_keys(
     whirlpool: &Pubkey,
     tick_current: i32,
     tick_spacing: u16,
     a_to_b: bool,
 ) -> Result<Vec<Pubkey>> {
-    let offsets: [i32; 5] = if a_to_b {
-        [0, -1, -2, -3, -4]
-    } else {
-        [0, 1, 2, 3, 4]
-    };
-    let pdas: Vec<Pubkey> = offsets
-        .iter()
-        .map(|o| tick_array_pda(whirlpool, get_start_tick_index(tick_current, tick_spacing, *o)))
-        .collect();
-    let accounts = rpc.get_multiple_accounts(&pdas).await?;
-    let mut out = Vec::new();
-    for (pda, acc) in pdas.into_iter().zip(accounts) {
-        if acc.is_some() {
-            out.push(pda);
-        }
-        if out.len() >= 3 {
+    const MIN_TICK: i32 = -443_636;
+    const MAX_TICK: i32 = 443_636;
+    if tick_spacing == 0 || !(MIN_TICK..=MAX_TICK).contains(&tick_current) {
+        return Err(anyhow!("invalid Whirlpool tick or spacing"));
+    }
+    let shifted = tick_current + if a_to_b { 0 } else { i32::from(tick_spacing) };
+    let min_start = get_start_tick_index(MIN_TICK, tick_spacing, 0);
+    let mut out = Vec::with_capacity(3);
+    for i in 0..3 {
+        let start = get_start_tick_index(shifted, tick_spacing, if a_to_b { -i } else { i });
+        if start < min_start || start > MAX_TICK {
             break;
         }
+        out.push(tick_array_pda(whirlpool, start));
     }
-    if out.len() < 3 {
-        // Pad with derived PDAs so the ix still has 3 slots; on-chain may reject
-        // uninitialized ones, but most liquid pools have neighbors initialized.
-        while out.len() < 3 {
-            let o = offsets[out.len()];
-            out.push(tick_array_pda(
-                whirlpool,
-                get_start_tick_index(tick_current, tick_spacing, o),
-            ));
-        }
-    }
+    let last = *out.last().ok_or_else(|| anyhow!("no Whirlpool tick arrays in swap direction"))?;
+    // swap_v2 has three fixed slots. At a global tick bound, repeat the last
+    // valid PDA; the program deduplicates slots before building its sequence.
+    out.resize(3, last);
     Ok(out)
+}
+
+/// Resolve the three fixed swap_v2 array slots. Missing accounts must remain in
+/// the sequence: the current program treats their canonical PDAs as empty arrays.
+/// The RPC argument is retained for API compatibility; derivation needs no I/O.
+pub async fn resolve_tick_arrays_for_swap(
+    _rpc: &SolanaRpcClient,
+    whirlpool: &Pubkey,
+    tick_current: i32,
+    tick_spacing: u16,
+    a_to_b: bool,
+) -> Result<Vec<Pubkey>> {
+    swap_tick_array_keys(whirlpool, tick_current, tick_spacing, a_to_b)
 }
 
 pub async fn fetch_whirlpool(rpc: &SolanaRpcClient, key: &Pubkey) -> Result<WhirlpoolState> {
@@ -157,5 +159,18 @@ mod tests {
         assert_eq!(get_start_tick_index(100, 64, 0), 0);
         assert_eq!(get_start_tick_index(-1, 64, 0), -5632);
         assert_eq!(get_start_tick_index(-5632, 64, 0), -5632);
+        let pool = Pubkey::new_unique();
+        let keys = |tick, spacing, down| swap_tick_array_keys(&pool, tick, spacing, down).unwrap();
+        let pdas = |starts: [i32; 3]| starts.map(|start| tick_array_pda(&pool, start)).to_vec();
+        // Official SwapUtils shifts B→A by spacing, including negative ticks.
+        assert_eq!(keys(5631, 64, false), pdas([5632, 11264, 16896]));
+        assert_eq!(keys(-1, 64, false), pdas([0, 5632, 11264]));
+        assert_eq!(keys(5631, 64, true), pdas([0, -5632, -11264]));
+        // Sparse PDAs are retained without filtering by account existence.
+        assert_eq!(keys(0, 64, false), pdas([0, 5632, 11264]));
+        assert_eq!(keys(-443636, 1, true), pdas([-443696; 3]));
+        assert_eq!(keys(443635, 1, false), pdas([443608; 3]));
+        assert!(swap_tick_array_keys(&pool, 0, 0, true).is_err());
+        assert!(swap_tick_array_keys(&pool, 443637, 1, false).is_err());
     }
 }
