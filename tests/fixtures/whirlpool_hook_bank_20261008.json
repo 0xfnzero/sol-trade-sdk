@@ -1,5 +1,5 @@
 {
-  "scope": "Actual unsigned Whirlpool local-bank Hook+fee execution. Custom callback. No broadcasts.",
+  "scope": "Actual unsigned Whirlpool local-bank Hook+fee execution. Custom callback. No broadcasts. Includes Hook mint on both sorted pool sides A/B.",
   "cases": [
     {
       "accounts": {
@@ -273,6 +273,284 @@
           },
           {
             "key": "44sKARpkv7fdYituPvwV9Aj2QU8hAtghtFcd6Z4mfAwZ",
+            "signer": false,
+            "writable": false
+          }
+        ]
+      }
+    },
+    {
+      "accounts": {
+        "token_program_a": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "token_program_b": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "token_authority": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+        "whirlpool": "JCnYjL7KYXVV2LMmLNHS7apGA8u1eBWrHoBpJiYpiDkG",
+        "mint_a": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+        "mint_b": "So11111111111111111111111111111111111111112",
+        "owner_a": "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+        "vault_a": "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+        "owner_b": "27LySFg4ZgPo5cjM2JTz7P65muvqPDBEwB64DaowuX7i",
+        "vault_b": "8XKPZrErSJuK6n8vW3x6QcDmxECgRjU3AugPJMoui4dw",
+        "tick_arrays": [
+          "Aq4Upxb3qzub8A9HM8WeiCSPYY44w2sHkhksnTg8ExPk",
+          "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB",
+          "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB"
+        ]
+      },
+      "amount": 10001,
+      "minimum": 1,
+      "direction": true,
+      "resolver": {
+        "hook": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+        "mint": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+        "mint_owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "mint_data": "AQAAAGIV4CDehQa0J2Ienp/kaUxKvw8CiDmWLyCmzVXcXscuQCMFBgAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAbABiFeAg3oUGtCdiHp6f5GlMSr8PAog5li8gps1V3F7HLmIV4CDehQa0J2Ienp/kaUxKvw8CiDmWLyCmzVXcXscuAAAAAAAAAAAcBAAAAAAAAOgDAAAAAAAAyAAcBAAAAAAAAOgDAAAAAAAAyAAOAEAAYhXgIN6FBrQnYh6en+RpTEq/DwKIOZYvIKbNVdxexy7eVRAojwOG+oBhVWyD2L030TdXyE2RpYlG+jtxRSJwHA==",
+        "meta": "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC",
+        "meta_owner": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+        "meta_data": "aSVlxUv7ZhpKAAAAAgAAAABiFeAg3oUGtCdiHp6f5GlMSr8PAog5li8gps1V3F7HLgAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "execute_accounts": [
+          "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+          "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+          "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+          "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+          "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC"
+        ]
+      },
+      "expected": {
+        "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+        "data": "KwTtCxrJHmIRJwAAAAAAAAEAAAAAAAAAUDsBAAEAAAAAAAAAAAAAAAEBAQEAAAAABA==",
+        "accounts": [
+          {
+            "key": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+            "signer": true,
+            "writable": false
+          },
+          {
+            "key": "JCnYjL7KYXVV2LMmLNHS7apGA8u1eBWrHoBpJiYpiDkG",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "So11111111111111111111111111111111111111112",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "27LySFg4ZgPo5cjM2JTz7P65muvqPDBEwB64DaowuX7i",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "8XKPZrErSJuK6n8vW3x6QcDmxECgRjU3AugPJMoui4dw",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "Aq4Upxb3qzub8A9HM8WeiCSPYY44w2sHkhksnTg8ExPk",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "8d6xrUPSLgQvpAm8eneMMGHi5hbnRvHuGf71CGfzxnSP",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "4c7AWrEUyeqc6FmZzLJkkEvfNeqTpbAxTLNVAZZTgA95",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC",
+            "signer": false,
+            "writable": false
+          }
+        ]
+      }
+    },
+    {
+      "accounts": {
+        "token_program_a": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "token_program_b": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "token_authority": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+        "whirlpool": "JCnYjL7KYXVV2LMmLNHS7apGA8u1eBWrHoBpJiYpiDkG",
+        "mint_a": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+        "mint_b": "So11111111111111111111111111111111111111112",
+        "owner_a": "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+        "vault_a": "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+        "owner_b": "27LySFg4ZgPo5cjM2JTz7P65muvqPDBEwB64DaowuX7i",
+        "vault_b": "8XKPZrErSJuK6n8vW3x6QcDmxECgRjU3AugPJMoui4dw",
+        "tick_arrays": [
+          "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB",
+          "Aq4Upxb3qzub8A9HM8WeiCSPYY44w2sHkhksnTg8ExPk",
+          "Figa3qMrPbVPXTTSFB9ECL1RVwPodwi5JQxKviLKSDDt"
+        ]
+      },
+      "amount": 10001,
+      "minimum": 1,
+      "direction": false,
+      "resolver": {
+        "hook": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+        "mint": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+        "mint_owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+        "mint_data": "AQAAAGIV4CDehQa0J2Ienp/kaUxKvw8CiDmWLyCmzVXcXscuQCMFBgAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEAbABiFeAg3oUGtCdiHp6f5GlMSr8PAog5li8gps1V3F7HLmIV4CDehQa0J2Ienp/kaUxKvw8CiDmWLyCmzVXcXscuAAAAAAAAAAAcBAAAAAAAAOgDAAAAAAAAyAAcBAAAAAAAAOgDAAAAAAAAyAAOAEAAYhXgIN6FBrQnYh6en+RpTEq/DwKIOZYvIKbNVdxexy7eVRAojwOG+oBhVWyD2L030TdXyE2RpYlG+jtxRSJwHA==",
+        "meta": "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC",
+        "meta_owner": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+        "meta_data": "aSVlxUv7ZhpKAAAAAgAAAABiFeAg3oUGtCdiHp6f5GlMSr8PAog5li8gps1V3F7HLgAAAQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "execute_accounts": [
+          "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+          "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+          "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+          "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+          "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC"
+        ]
+      },
+      "expected": {
+        "program": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+        "data": "KwTtCxrJHmIRJwAAAAAAAAEAAAAAAAAArzMbqDJ/uzWxxP7/AAAAAAEAAQEAAAAABA==",
+        "accounts": [
+          {
+            "key": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+            "signer": true,
+            "writable": false
+          },
+          {
+            "key": "JCnYjL7KYXVV2LMmLNHS7apGA8u1eBWrHoBpJiYpiDkG",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "MN5BaTpy1zuTFArNu5Tax4NhUJnRYPn9qDpc6hhYj41",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "So11111111111111111111111111111111111111112",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "Jqc3ry5axKhYEeXoUcUteU5h6Lq3GeQqNDjVJ481yVF",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "5KUmHu6HuY2MajS3RwrvUzHmRUGqK9kEctHMmx54y6JD",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "27LySFg4ZgPo5cjM2JTz7P65muvqPDBEwB64DaowuX7i",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "8XKPZrErSJuK6n8vW3x6QcDmxECgRjU3AugPJMoui4dw",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "27LKj4UvBFsqvFs3WKDmKEtppMbSGtFyqf4MAqYtfpJB",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "Aq4Upxb3qzub8A9HM8WeiCSPYY44w2sHkhksnTg8ExPk",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "Figa3qMrPbVPXTTSFB9ECL1RVwPodwi5JQxKviLKSDDt",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "8d6xrUPSLgQvpAm8eneMMGHi5hbnRvHuGf71CGfzxnSP",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "key": "7btJUBpZq3pzhYJBF9pkCBJ4xa4de1ZnUeJ4WiA5TiHT",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "EiZEMjVDnx8RyktzhSMpvpo1CitSdH3RoPk9WbfTTRYr",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "FxtjsXK81CWmJ5rBqQLkrLmgM8gHmJsYew6MkbZsRfkf",
+            "signer": false,
+            "writable": false
+          },
+          {
+            "key": "AsZJQdXqKjwJY1aQSvnmMsgNvtu7BbEa7DE26tHJNBwC",
             "signer": false,
             "writable": false
           }
