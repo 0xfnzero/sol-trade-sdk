@@ -91,37 +91,93 @@ pub fn decode_pool_state(data: &[u8]) -> Result<ClmmPoolState> {
     })
 }
 
-/// Derive consecutive initialized tick-array PDAs for a `zero_for_one` swap.
+/// Read the official default or extension bitmap bit for an array start.
+fn initialized_array(pool_data: &[u8], extension: Option<&[u8]>, index: i32) -> Result<bool> {
+    let (data, offset, bit) = if (-512..512).contains(&index) {
+        (pool_data, 904usize, (index + 512) as usize)
+    } else {
+        let data = extension.ok_or_else(|| anyhow!("CLMM bitmap extension required"))?;
+        let (offset, bit) = if index >= 512 {
+            (40usize, index - 512)
+        } else {
+            let distance = -index - 513;
+            (936usize, distance / 512 * 512 + 511 - distance % 512)
+        };
+        if !(0..7168).contains(&bit) {
+            return Err(anyhow!("CLMM bitmap index outside range"));
+        }
+        (data, offset, bit as usize)
+    };
+    let byte = data.get(offset + bit / 8).ok_or_else(|| anyhow!("CLMM bitmap data truncated"))?;
+    Ok(byte & (1 << (bit % 8)) != 0)
+}
+
+/// Select initialized tick-array PDAs using Raydium's bitmaps, not account existence.
+/// Existing arrays with no initialized ticks must not be the first swap account.
 pub async fn resolve_tick_arrays_for_swap(
     rpc: &SolanaRpcClient,
     pool: &Pubkey,
-    tick_current: i32,
-    tick_spacing: u16,
+    _tick_current: i32,
+    _tick_spacing: u16,
     zero_for_one: bool,
 ) -> Result<Vec<Pubkey>> {
-    let start = get_array_start_index(tick_current, tick_spacing);
-    let step = tick_count(tick_spacing);
-    // Walk current + next arrays in swap direction (price down → lower indices).
-    let candidates: Vec<i32> = if zero_for_one {
-        (0..5).map(|i| start - i * step).collect()
-    } else {
-        (0..5).map(|i| start + i * step).collect()
-    };
-    let pdas: Vec<Pubkey> = candidates.iter().map(|s| tick_array_pda(pool, *s)).collect();
+    // Refresh the state and bitmap together; caller hints may already be stale.
+    let account = rpc.get_account(pool).await?;
+    if account.owner != PROGRAM_ID {
+        return Err(anyhow!("CLMM pool owner mismatch"));
+    }
+    let state = decode_pool_state(&account.data)?;
+    if state.tick_spacing == 0 || !(-443636..=443636).contains(&state.tick_current) {
+        return Err(anyhow!("CLMM tick spacing or current tick is invalid"));
+    }
+    if account.data.len() < 1032 {
+        return Err(anyhow!("CLMM default bitmap truncated"));
+    }
+    let step = tick_count(state.tick_spacing);
+    let mut start = get_array_start_index(state.tick_current, state.tick_spacing);
+    let mut extension = None;
+    let mut starts = Vec::with_capacity(3);
+    while start <= 443636 && start + step > -443636 {
+        let index = start / step;
+        if !(-512..512).contains(&index) && extension.is_none() {
+            let value = rpc.get_account(&tick_array_bitmap_extension(pool)).await?;
+            if value.owner != PROGRAM_ID
+                || value.data.len() < 1832
+                || value.data[..8] != [60, 150, 36, 219, 97, 128, 139, 153]
+                || value.data[8..40] != pool.to_bytes()
+            {
+                return Err(anyhow!("CLMM bitmap extension owner/layout/pool mismatch"));
+            }
+            extension = Some(value.data);
+        }
+        if initialized_array(&account.data, extension.as_deref(), index)? {
+            starts.push(start);
+            if starts.len() == 3 {
+                break;
+            }
+        }
+        start += if zero_for_one { -step } else { step };
+    }
+    if starts.is_empty() {
+        return Err(anyhow!("no initialized CLMM tick arrays in swap direction"));
+    }
+    let pdas: Vec<_> = starts.iter().map(|start| tick_array_pda(pool, *start)).collect();
     let accounts = rpc.get_multiple_accounts(&pdas).await?;
-    let mut out = Vec::new();
-    for (pda, acc) in pdas.into_iter().zip(accounts) {
-        if acc.is_some() {
-            out.push(pda);
-        }
-        if out.len() >= 3 {
-            break;
+    if accounts.len() != pdas.len() {
+        return Err(anyhow!("CLMM tick array response length mismatch"));
+    }
+    for (start, value) in starts.iter().zip(accounts) {
+        let value = value.ok_or_else(|| anyhow!("bitmap-selected CLMM tick array missing"))?;
+        if value.owner != PROGRAM_ID
+            || value.data.len() < 10240
+            || value.data[..8] != [192, 155, 85, 205, 49, 249, 129, 42]
+            || value.data[8..40] != pool.to_bytes()
+            || i32::from_le_bytes(value.data[40..44].try_into().unwrap()) != *start
+        {
+            return Err(anyhow!("CLMM tick array owner/layout/pool/start mismatch"));
         }
     }
-    if out.is_empty() {
-        return Err(anyhow!("no initialized Raydium CLMM tick arrays near current tick"));
-    }
-    Ok(out)
+    Ok(pdas)
 }
 
 pub async fn fetch_pool(rpc: &SolanaRpcClient, pool: &Pubkey) -> Result<ClmmPoolState> {
@@ -143,5 +199,20 @@ mod tests {
         assert_eq!(get_array_start_index(-1, 1), -60);
         assert_eq!(get_array_start_index(-60, 1), -60);
         assert_eq!(get_array_start_index(-61, 1), -120);
+        let mut data = vec![0; 1032];
+        // An allocated current array may be empty. The next initialized one can
+        // be more than five arrays away (the old existence scan stopped early).
+        data[904 + (512 + 11) / 8] |= 1 << ((512 + 11) % 8);
+        assert!(!initialized_array(&data, None, 0).unwrap());
+        assert!(initialized_array(&data, None, 11).unwrap());
+        assert!(initialized_array(&data[..1000], None, 511).is_err());
+        let mut extension = vec![0; 1832];
+        for (index, offset, bit) in
+            [(512, 40, 0), (1023, 40, 511), (-513, 936, 511), (-1024, 936, 0), (-1025, 936, 1023)]
+        {
+            extension[offset + bit / 8] |= 1 << (bit % 8);
+            assert!(initialized_array(&data, Some(&extension), index).unwrap());
+            assert!(initialized_array(&data, None, index).is_err());
+        }
     }
 }
