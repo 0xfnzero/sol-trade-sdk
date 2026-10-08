@@ -213,3 +213,26 @@ impl InstructionBuilder for WhirlpoolInstructionBuilder {
         build_whirlpool_swap(params).await
     }
 }
+
+/// Low-level swap with separately resolved Hook metas. Cached routes remain
+/// fail closed; resolve fresh metadata for each transfer's source/destination.
+pub fn swap_v2_with_hooks(
+    accounts: &WhirlpoolSwapV2Accounts, args: WhirlpoolSwapV2Args,
+    hook_a: &[AccountMeta], hook_b: &[AccountMeta],
+) -> Result<Instruction> {
+    let mut base = swap_v2(accounts,args)?;
+    let supplemental=base.accounts.split_off(15);
+    base.data.truncate(42);
+    let mut slices=Vec::new();
+    for (kind,metas) in [(0u8,hook_a),(1u8,hook_b),(6u8,supplemental.as_slice())] {
+        ensure_hook_slice_len(metas.len())?;
+        if !metas.is_empty() {slices.extend_from_slice(&[kind,metas.len() as u8]);base.accounts.extend_from_slice(metas);}
+    }
+    if slices.is_empty() {base.data.push(0);} else {
+        base.data.push(1);base.data.extend_from_slice(&((slices.len()/2) as u32).to_le_bytes());base.data.extend_from_slice(&slices);
+    }
+    Ok(base)
+}
+fn ensure_hook_slice_len(length:usize)->Result<()> {
+    anyhow::ensure!(length<=255,"Whirlpool remaining slice exceeds u8");Ok(())
+}

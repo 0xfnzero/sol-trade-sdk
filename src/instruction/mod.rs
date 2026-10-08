@@ -44,3 +44,5 @@ pub mod pump_v3_quote;
 pub mod pump_compact_accounts;
 
 pub mod pump_create_v2;
+
+pub mod token2022_hook;
