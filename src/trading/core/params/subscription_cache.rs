@@ -881,3 +881,7 @@ pub(super) mod tests {
         assert!(c.update(v, a).unwrap());
     }
 }
+
+#[cfg(test)]
+#[path = "subscription_cache_hook_bank_test.rs"]
+mod hook_bank_tests;

@@ -83,6 +83,12 @@ pub(crate) fn token_transfer_fee_for_epoch(
 
     let mint = StateWithExtensions::<Mint>::unpack(data)
         .map_err(|error| anyhow::anyhow!("Failed to decode Token-2022 mint: {}", error))?;
+    // RPC-backed parameter constructors need the same Hook guard as the
+    // subscription cache: stock swaps do not resolve callback accounts.
+    anyhow::ensure!(
+        spl_token_2022_interface::extension::transfer_hook::get_program_id(&mint).is_none(),
+        "Active transfer hook requires unsupported extra accounts"
+    );
     if !mint
         .get_extension_types()
         .map_err(|error| anyhow::anyhow!("Failed to inspect Token-2022 mint: {}", error))?

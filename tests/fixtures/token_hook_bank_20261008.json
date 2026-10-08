@@ -1,0 +1,53 @@
+{
+  "scope": "Actual Token-2022 bank-created mint bytes; active hooks rejected before cached trade preparation, inactive/disabled hooks accepted. Callback execution is not supported by these SDKs.",
+  "cases": [
+    {
+      "name": "inactive_send",
+      "data": "AQAAABNZoLptBAhkiqNRZQWon7oJBrGBNBF2sS8GZAmAdkMWQEIPAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ4AQAATWaC6bQQIZIqjUWUFqJ+6CQaxgTQRdrEvBmQJgHZDFgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "reject_hook": false,
+      "bank_validation": {
+        "name": "inactive_send",
+        "error": null,
+        "slot": 454555608,
+        "broadcasts": 0,
+        "status": "execution_verified",
+        "sdk_guard_rejects_active_hook": false,
+        "active_hook": false,
+        "credit": 10001
+      }
+    },
+    {
+      "name": "disable_then_send",
+      "data": "AQAAABNZoLptBAhkiqNRZQWon7oJBrGBNBF2sS8GZAmAdkMWQEIPAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ4AQAATWaC6bQQIZIqjUWUFqJ+6CQaxgTQRdrEvBmQJgHZDFgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "reject_hook": false,
+      "bank_validation": {
+        "name": "disable_then_send",
+        "error": null,
+        "slot": 454555624,
+        "broadcasts": 0,
+        "status": "execution_verified",
+        "sdk_guard_rejects_active_hook": false,
+        "active_hook": false,
+        "credit": 10001
+      }
+    },
+    {
+      "name": "active_no_send",
+      "data": "AQAAABNZoLptBAhkiqNRZQWon7oJBrGBNBF2sS8GZAmAdkMWQEIPAAAAAAAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ4AQAATWaC6bQQIZIqjUWUFqJ+6CQaxgTQRdrEvBmQJgHZDFgVKU1qZKSEGTSTocWDaOHx8NbXdvJK7geQfqEBBBUSN",
+      "owner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "reject_hook": true,
+      "bank_validation": {
+        "name": "active_no_send",
+        "error": null,
+        "slot": 454555663,
+        "broadcasts": 0,
+        "status": "execution_verified",
+        "sdk_guard_rejects_active_hook": true,
+        "active_hook": true,
+        "credit": 0
+      }
+    }
+  ]
+}
