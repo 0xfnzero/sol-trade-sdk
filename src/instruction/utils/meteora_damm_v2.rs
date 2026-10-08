@@ -1,6 +1,6 @@
 use crate::{
     common::SolanaRpcClient,
-    instruction::utils::meteora_damm_v2_types::{pool_decode, Pool},
+    instruction::utils::meteora_damm_v2_types::{pool_account_decode, Pool},
 };
 use anyhow::anyhow;
 use solana_sdk::pubkey::Pubkey;
@@ -56,7 +56,8 @@ pub async fn fetch_pool(
     if account.owner != accounts::METEORA_DAMM_V2 {
         return Err(anyhow!("Account is not owned by Meteora Damm V2 program"));
     }
-    let pool = pool_decode(&account.data[8..]).ok_or_else(|| anyhow!("Failed to decode pool"))?;
+    let pool =
+        pool_account_decode(&account.data).ok_or_else(|| anyhow!("Failed to decode pool"))?;
     Ok(pool)
 }
 

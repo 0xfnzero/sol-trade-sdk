@@ -2,7 +2,7 @@
   "address": "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN",
   "metadata": {
     "name": "dynamic_bonding_curve",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
@@ -250,122 +250,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "claim_protocol_fee",
-      "docs": [
-        "Accepts: VirtualPool only."
-      ],
-      "discriminator": [
-        165,
-        228,
-        133,
-        48,
-        99,
-        249,
-        255,
-        33
-      ],
-      "accounts": [
-        {
-          "name": "pool_authority",
-          "address": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM"
-        },
-        {
-          "name": "config",
-          "relations": [
-            "pool"
-          ]
-        },
-        {
-          "name": "pool",
-          "writable": true
-        },
-        {
-          "name": "base_vault",
-          "docs": [
-            "The vault token account for input token"
-          ],
-          "writable": true,
-          "relations": [
-            "pool"
-          ]
-        },
-        {
-          "name": "quote_vault",
-          "docs": [
-            "The vault token account for output token"
-          ],
-          "writable": true,
-          "relations": [
-            "pool"
-          ]
-        },
-        {
-          "name": "base_mint",
-          "docs": [
-            "The mint of token a"
-          ],
-          "relations": [
-            "pool"
-          ]
-        },
-        {
-          "name": "quote_mint",
-          "docs": [
-            "The mint of token b"
-          ],
-          "relations": [
-            "config"
-          ]
-        },
-        {
-          "name": "token_base_account",
-          "writable": true
-        },
-        {
-          "name": "token_quote_account",
-          "writable": true
-        },
-        {
-          "name": "operator"
-        },
-        {
-          "name": "signer",
-          "docs": [
-            "Signer"
-          ],
-          "signer": true
-        },
-        {
-          "name": "token_base_program",
-          "docs": [
-            "Token a program"
-          ]
-        },
-        {
-          "name": "token_quote_program",
-          "docs": [
-            "Token b program"
-          ]
-        },
-        {
-          "name": "event_authority"
-        },
-        {
-          "name": "program"
-        }
-      ],
-      "args": [
-        {
-          "name": "max_base_amount",
-          "type": "u64"
-        },
-        {
-          "name": "max_quote_amount",
-          "type": "u64"
-        }
-      ]
     },
     {
       "name": "claim_protocol_fee2",
@@ -754,6 +638,43 @@
       "args": []
     },
     {
+      "name": "close_token_badge",
+      "discriminator": [
+        108,
+        146,
+        86,
+        110,
+        179,
+        254,
+        10,
+        104
+      ],
+      "accounts": [
+        {
+          "name": "token_badge",
+          "writable": true
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "rent_receiver",
+          "writable": true
+        },
+        {
+          "name": "event_authority"
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_config",
       "discriminator": [
         201,
@@ -1131,6 +1052,78 @@
           }
         }
       ]
+    },
+    {
+      "name": "create_token_badge",
+      "discriminator": [
+        88,
+        206,
+        0,
+        91,
+        60,
+        175,
+        151,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "token_badge",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  98,
+                  97,
+                  100,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "signer",
+          "docs": [
+            "Operator"
+          ],
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "event_authority"
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": []
     },
     {
       "name": "create_virtual_pool_metadata",
@@ -3224,78 +3217,6 @@
           "type": "u8"
         }
       ]
-    },
-    {
-      "name": "zap_protocol_fee",
-      "docs": [
-        "Accepts: VirtualPool only."
-      ],
-      "discriminator": [
-        213,
-        155,
-        187,
-        34,
-        56,
-        182,
-        91,
-        240
-      ],
-      "accounts": [
-        {
-          "name": "pool_authority",
-          "address": "FhVo3mqL8PW5pH5U2CN4XE33DokiyZnUwuGpH2hmHLuM"
-        },
-        {
-          "name": "config",
-          "relations": [
-            "pool"
-          ]
-        },
-        {
-          "name": "pool",
-          "writable": true
-        },
-        {
-          "name": "token_vault",
-          "writable": true
-        },
-        {
-          "name": "token_mint"
-        },
-        {
-          "name": "receiver_token",
-          "writable": true
-        },
-        {
-          "name": "operator",
-          "docs": [
-            "zap claim fee operator"
-          ]
-        },
-        {
-          "name": "signer",
-          "docs": [
-            "Operator"
-          ],
-          "signer": true
-        },
-        {
-          "name": "token_program",
-          "docs": [
-            "Token program"
-          ]
-        },
-        {
-          "name": "sysvar_instructions",
-          "address": "Sysvar1nstructions1111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "max_amount",
-          "type": "u64"
-        }
-      ]
     }
   ],
   "accounts": [
@@ -3378,6 +3299,19 @@
       ]
     },
     {
+      "name": "TokenBadge",
+      "discriminator": [
+        116,
+        219,
+        204,
+        229,
+        249,
+        116,
+        255,
+        150
+      ]
+    },
+    {
       "name": "TransferHookPool",
       "discriminator": [
         237,
@@ -3445,19 +3379,6 @@
       ]
     },
     {
-      "name": "EvtClaimProtocolFee",
-      "discriminator": [
-        186,
-        244,
-        75,
-        251,
-        188,
-        13,
-        25,
-        33
-      ]
-    },
-    {
       "name": "EvtClaimProtocolFee2",
       "discriminator": [
         187,
@@ -3494,6 +3415,19 @@
         216,
         194,
         23
+      ]
+    },
+    {
+      "name": "EvtCloseTokenBadge",
+      "discriminator": [
+        60,
+        217,
+        34,
+        82,
+        183,
+        10,
+        89,
+        188
       ]
     },
     {
@@ -3559,6 +3493,19 @@
         143,
         175,
         139
+      ]
+    },
+    {
+      "name": "EvtCreateTokenBadge",
+      "discriminator": [
+        141,
+        120,
+        134,
+        116,
+        34,
+        28,
+        114,
+        160
       ]
     },
     {
@@ -4142,6 +4089,36 @@
       "code": 6076,
       "name": "PoolTypeMismatch",
       "msg": "Pool type does not match instruction"
+    },
+    {
+      "code": 6077,
+      "name": "InvalidRemainingAccountSliceType",
+      "msg": "Invalid remaining account slice type for this instruction"
+    },
+    {
+      "code": 6078,
+      "name": "DeprecatedBaseFeeMode",
+      "msg": "Deprecated base fee mode"
+    },
+    {
+      "code": 6079,
+      "name": "CannotCreateTokenBadgeOnSupportedMint",
+      "msg": "Cannot create token badge on supported mint"
+    },
+    {
+      "code": 6080,
+      "name": "InvalidTokenBadge",
+      "msg": "Invalid token badge"
+    },
+    {
+      "code": 6081,
+      "name": "QuoteMintHasNonZeroTransferFee",
+      "msg": "Quote mint has a non zero transfer fee"
+    },
+    {
+      "code": 6082,
+      "name": "DeprecatedMigrationOption",
+      "msg": "Deprecated migration option"
     }
   ],
   "types": [
@@ -4711,26 +4688,6 @@
       }
     },
     {
-      "name": "EvtClaimProtocolFee",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "pool",
-            "type": "pubkey"
-          },
-          {
-            "name": "token_base_amount",
-            "type": "u64"
-          },
-          {
-            "name": "token_quote_amount",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "EvtClaimProtocolFee2",
       "type": {
         "kind": "struct",
@@ -4788,6 +4745,18 @@
           },
           {
             "name": "operator",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvtCloseTokenBadge",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_mint",
             "type": "pubkey"
           }
         ]
@@ -5004,6 +4973,18 @@
         "fields": [
           {
             "name": "virtual_pool",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvtCreateTokenBadge",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_mint",
             "type": "pubkey"
           }
         ]
@@ -6786,6 +6767,40 @@
           {
             "name": "referral_fee",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenBadge",
+      "docs": [
+        "Parameter that set by the protocol"
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_mint",
+            "docs": [
+              "token mint"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "_padding",
+            "docs": [
+              "Reserve"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
           }
         ]
       }
