@@ -279,6 +279,14 @@ fn native_aliases_match_official_accounts() {
         let alias = Pubkey::from_str(c["alias"].as_str().unwrap()).unwrap();
         let p = params(a, alias, token);
         let accounts = derive_pump_v3_accounts(p).unwrap();
+        let mixed = params(a, alias, token2022);
+        assert_eq!(derive_pump_v3_accounts(mixed).unwrap(), accounts);
+        assert_eq!(
+            derive_pump_swap_v2_accounts(mixed, user, a, b).unwrap(),
+            derive_pump_swap_v2_accounts(p, user, a, b).unwrap()
+        );
+        assert_eq!(mixed.quote_mint, alias);
+        assert_eq!(mixed.quote_token_program, token2022);
         let ix =
             build_pump_upgrade_instruction("pump_buy_v3", &accounts, &[7, 9], None, &[]).unwrap();
         assert_eq!(metas(&ix.accounts), c["v3"]);

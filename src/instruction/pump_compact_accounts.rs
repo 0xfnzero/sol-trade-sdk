@@ -16,6 +16,14 @@ fn normalize_quote(mint: Pubkey) -> Pubkey {
         mint
     }
 }
+// WSOL is owned by SPL Token regardless of the caller's quote-program hint.
+fn normalize_params(mut p: PumpCompactAccountParams) -> PumpCompactAccountParams {
+    p.quote_mint = normalize_quote(p.quote_mint);
+    if p.quote_mint == WSOL {
+        p.quote_token_program = solana_sdk::pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    }
+    p
+}
 fn normalize_hop(mut hop: PumpMultiHop) -> PumpMultiHop {
     hop.quote_mint = normalize_quote(hop.quote_mint);
     if hop.quote_mint == WSOL {
@@ -46,7 +54,7 @@ pub struct PumpCompactAccountParams {
     pub complete: bool,
 }
 pub fn derive_pump_v3_accounts(p: PumpCompactAccountParams) -> Result<HashMap<String, Pubkey>> {
-    let p = PumpCompactAccountParams { quote_mint: normalize_quote(p.quote_mint), ..p };
+    let p = normalize_params(p);
     ensure!(!p.cashback, "cashback requires legacy trades");
     ensure!(!p.complete, "BondingCurveComplete");
     let curve = pda(PUMP, "bonding-curve", Some(p.base_mint));
@@ -86,7 +94,7 @@ pub fn derive_pump_swap_v2_accounts(
     base_vault: Pubkey,
     quote_vault: Pubkey,
 ) -> Result<HashMap<String, Pubkey>> {
-    let p = PumpCompactAccountParams { quote_mint: normalize_quote(p.quote_mint), ..p };
+    let p = normalize_params(p);
     ensure!(!p.cashback, "cashback requires legacy trades");
     Ok(HashMap::from([
         ("pool".to_owned(), pool),
