@@ -7,6 +7,23 @@ const AMM: Pubkey = solana_sdk::pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FM
 const FEES: Pubkey = solana_sdk::pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
 const ATA: Pubkey = solana_sdk::pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 const WSOL: Pubkey = solana_sdk::pubkey!("So11111111111111111111111111111111111111112");
+fn normalize_quote(mint: Pubkey) -> Pubkey {
+    if mint == Pubkey::default()
+        || mint == solana_sdk::pubkey!("So11111111111111111111111111111111111111111")
+    {
+        WSOL
+    } else {
+        mint
+    }
+}
+fn normalize_hop(mut hop: PumpMultiHop) -> PumpMultiHop {
+    hop.quote_mint = normalize_quote(hop.quote_mint);
+    if hop.quote_mint == WSOL {
+        hop.quote_token_program =
+            solana_sdk::pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    }
+    hop
+}
 fn pda(program: Pubkey, seed: &str, key: Option<Pubkey>) -> Pubkey {
     if let Some(k) = key {
         Pubkey::find_program_address(&[seed.as_bytes(), k.as_ref()], &program).0
@@ -29,6 +46,7 @@ pub struct PumpCompactAccountParams {
     pub complete: bool,
 }
 pub fn derive_pump_v3_accounts(p: PumpCompactAccountParams) -> Result<HashMap<String, Pubkey>> {
+    let p = PumpCompactAccountParams { quote_mint: normalize_quote(p.quote_mint), ..p };
     ensure!(!p.cashback, "cashback requires legacy trades");
     ensure!(!p.complete, "BondingCurveComplete");
     let curve = pda(PUMP, "bonding-curve", Some(p.base_mint));
@@ -68,6 +86,7 @@ pub fn derive_pump_swap_v2_accounts(
     base_vault: Pubkey,
     quote_vault: Pubkey,
 ) -> Result<HashMap<String, Pubkey>> {
+    let p = PumpCompactAccountParams { quote_mint: normalize_quote(p.quote_mint), ..p };
     ensure!(!p.cashback, "cashback requires legacy trades");
     Ok(HashMap::from([
         ("pool".to_owned(), pool),
@@ -128,6 +147,9 @@ pub fn derive_pump_multi_hop_accounts(
         !hops.is_empty() && (hops.len() < 4 || use_v0_with_alt),
         "route requires hops and v0 with ALT for four or more hops"
     );
+    let input_mint = normalize_quote(input_mint);
+    let output_mint = normalize_quote(output_mint);
+    let hops: Vec<_> = hops.iter().copied().map(normalize_hop).collect();
     let mut current = input_mint;
     let mut side = None;
     let mut remaining = Vec::new();
@@ -238,6 +260,7 @@ pub fn derive_pump_coin_quote_create_accounts(
     listed_quote_mints: &[Pubkey],
 ) -> Result<Vec<solana_sdk::instruction::AccountMeta>> {
     use solana_sdk::instruction::AccountMeta;
+    let quote = normalize_hop(quote);
     ensure!(depth < max_depth, "CurveDepthExceeded");
     ensure!(
         depth > 0

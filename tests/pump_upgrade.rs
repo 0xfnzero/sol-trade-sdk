@@ -229,3 +229,84 @@ fn builders_match_successful_mainnet_simulations() {
         assert_eq!(ix.accounts.len(), c["metas"].as_array().unwrap().len());
     }
 }
+
+#[test]
+fn native_aliases_match_official_accounts() {
+    use sol_trade_sdk::instruction::pump_compact_accounts::*;
+    use std::str::FromStr;
+    let f: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/pump_upgrade/native_aliases.json")).unwrap();
+    let user = Pubkey::new_from_array([1; 32]);
+    let a = Pubkey::new_from_array([2; 32]);
+    let b = Pubkey::new_from_array([3; 32]);
+    let token = solana_sdk::pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    let token2022 = solana_sdk::pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+    let wsol = solana_sdk::pubkey!("So11111111111111111111111111111111111111112");
+    let params = |base_mint, quote_mint, quote_token_program| PumpCompactAccountParams {
+        user,
+        base_mint,
+        quote_mint,
+        base_token_program: token2022,
+        quote_token_program,
+        buyback_recipient: user,
+        cashback: false,
+        complete: false,
+    };
+    let hop = |base_mint, quote_mint, quote_token_program| {
+        let normalized = if quote_mint == a { a } else { wsol };
+        let p =
+            derive_pump_v3_accounts(params(base_mint, normalized, quote_token_program)).unwrap();
+        PumpMultiHop {
+            venue: PumpMultiHopVenue::Curve,
+            base_mint,
+            quote_mint,
+            address: p["bonding_curve"],
+            base_vault: p["associated_base_bonding_curve"],
+            quote_vault: p["associated_quote_bonding_curve"],
+            base_token_program: token2022,
+            quote_token_program,
+            mayhem: false,
+            cashback: false,
+            complete: false,
+            index: 0,
+            creator: Pubkey::default(),
+        }
+    };
+    let metas = |items: &[AccountMeta]| {
+        serde_json::Value::Array(items.iter().map(|m| serde_json::json!({"pubkey":m.pubkey.to_string(),"signer":m.is_signer,"writable":m.is_writable})).collect())
+    };
+    for c in f["cases"].as_array().unwrap() {
+        let alias = Pubkey::from_str(c["alias"].as_str().unwrap()).unwrap();
+        let p = params(a, alias, token);
+        let accounts = derive_pump_v3_accounts(p).unwrap();
+        let ix =
+            build_pump_upgrade_instruction("pump_buy_v3", &accounts, &[7, 9], None, &[]).unwrap();
+        assert_eq!(metas(&ix.accounts), c["v3"]);
+        let parent = hop(a, alias, token);
+        let child = hop(b, a, token2022);
+        for (name, route, input, output) in
+            [("buy", [parent, child], alias, b), ("sell", [child, parent], b, alias)]
+        {
+            let (accounts, remaining) =
+                derive_pump_multi_hop_accounts(user, input, output, user, &route, false).unwrap();
+            let ix = build_pump_upgrade_instruction(
+                "pump_amm_multi_hop_swap",
+                &accounts,
+                &[7, 9],
+                None,
+                &remaining,
+            )
+            .unwrap();
+            assert_eq!(metas(&ix.accounts), c[name]);
+        }
+        assert_eq!(parent.quote_mint, alias);
+        assert_eq!(
+            metas(&derive_pump_coin_quote_create_accounts(b, parent, 0, 1, &[]).unwrap()),
+            c["create"]
+        );
+        assert_eq!(
+            derive_pump_swap_v2_accounts(p, user, a, b).unwrap(),
+            derive_pump_swap_v2_accounts(params(a, wsol, token), user, a, b).unwrap()
+        );
+    }
+}
