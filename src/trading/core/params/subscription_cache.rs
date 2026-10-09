@@ -609,6 +609,46 @@ pub(super) mod tests {
         assert_eq!(cache.mint(key, Some(classic), ctx()).unwrap().1.basis_points, 0);
     }
     #[test]
+    fn cached_mint_tlv_matches_official_fixture() {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../tests/fixtures/cached_mint_tlv_20261009.json"
+        ))
+        .unwrap();
+        let key = Pubkey::new_unique();
+        let token = Pubkey::new_from_array(spl_token_2022_interface::ID.to_bytes());
+        for case in fixture["cases"].as_array().unwrap() {
+            let mut cache = SubscriptionAccountCache::default();
+            put(
+                &mut cache,
+                key,
+                token,
+                STANDARD.decode(case["mint_data"].as_str().unwrap()).unwrap(),
+            );
+            let mut context = ctx();
+            context.epoch = case["epoch"].as_u64().unwrap();
+            let result = cache.mint(key, Some(token), context);
+            assert_eq!(
+                result.is_ok(),
+                case["eligible"].as_bool().unwrap(),
+                "{} {result:?}",
+                case["name"]
+            );
+            if let Ok((_, fee)) = result {
+                assert_eq!(
+                    fee.basis_points as u64,
+                    case["basis_points"].as_u64().unwrap(),
+                    "{}", case["name"]
+                );
+                assert_eq!(
+                    fee.maximum_fee,
+                    case["maximum_fee"].as_u64().unwrap(),
+                    "{}", case["name"]
+                );
+            }
+        }
+    }
+    #[test]
     fn mint_fee_schedule_changes_with_supplied_epoch() {
         let mut c = SubscriptionAccountCache::default();
         let k = Pubkey::new_unique();
