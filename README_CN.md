@@ -51,6 +51,7 @@
   - [⚙️ SWQoS 服务配置说明](#️-swqos-服务配置说明)
   - [Astralane（Binary / Plain / QUIC）](#astralanebinary--plain--quic)
   - [Glaive（Binary HTTP / QUIC）](#glaivebinary-http--quic)
+  - [OrbitFlare Apex（QUIC / Binary HTTP）](#orbitflare-apexquic--binary-http)
   - [🔧 中间件系统说明](#-中间件系统说明)
   - [🔍 地址查找表](#-地址查找表)
   - [🔍 Nonce 缓存](#-durable-nonce)
@@ -84,7 +85,7 @@
 | 方向 | 覆盖范围 |
 |------|----------|
 | DEX 协议 | PumpFun、PumpSwap、LaunchLab、Bonk、StonkFun、Meteora DAMM v2、Raydium AMM v4、Raydium CPMM |
-| 提交通道 | 默认 Solana RPC，以及 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、SpeedLanding 等 SWQoS 服务 |
+| 提交通道 | 默认 Solana RPC，以及 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、Apex、SpeedLanding 等 SWQoS 服务 |
 | 交易流程 | 买入/卖出、精确输入/输出、跟单交易、狙击交易、地址查找表、durable nonce、中间件、共享基础设施 |
 | 热路径设计 | 调用方传入 recent blockhash 或 durable nonce；交易执行阶段不再查询 RPC 获取 blockhash、账户或余额 |
 
@@ -149,7 +150,7 @@ RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
 5. **Raydium CPMM 交易**: 支持 Raydium CPMM (Concentrated Pool Market Maker) 的交易操作
 6. **Raydium AMM V4 交易**: 支持 Raydium AMM V4 (Automated Market Maker) 的交易操作
 7. **Meteora DAMM V2 交易**: 支持 Meteora DAMM V2 (Dynamic AMM) 的交易操作
-8. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、SpeedLanding、LunarLander 等服务
+8. **多种 MEV 保护**: 支持 Jito、Nextblock、ZeroSlot、Temporal、Bloxroute、FlashBlock、BlockRazor、Node1、Astralane、Glaive、SpeedLanding、LunarLander、Apex 等服务
 9. **并发交易**: 所有已配置的 SWQoS 通道和默认 RPC 通道都会发出提交；首个成功只影响返回，较慢通道会继续提交
 10. **统一交易接口**: 使用统一的交易协议枚举进行交易操作
 11. **中间件系统**: 支持自定义指令中间件，可在交易执行前对指令进行修改、添加或移除
@@ -233,6 +234,8 @@ let swqos_configs: Vec<SwqosConfig> = vec![
         None,
         None,
     None, ),
+    // OrbitFlare Apex：None 为 QUIC（默认，UDP/7001），失败时回退 binary HTTP；Some(Http) 为 binary HTTP
+    SwqosConfig::Apex("your_apex_api_key".to_string(), SwqosRegion::Default, None, None, None),
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -242,7 +245,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .log_enabled(true)                  // 默认: false - 显式开启同步 SDK 计时 / SWQOS 日志
     // .check_min_tip(false)               // 默认: false - 过滤低于最低小费的 SWQOS
     // .swqos_cores_from_end(false)        // 默认: false - 将 SWQOS 绑定到末尾 N 个 CPU 核心
-    // .mev_protection(false)              // 默认: false - Astralane / BlockRazor / Glaive 的 MEV 保护
+    // .mev_protection(false)              // 默认: false - Astralane / BlockRazor / Glaive / Apex 的 MEV 保护
     .build();
 
 // 创建 TradingClient
@@ -470,6 +473,7 @@ let temporal_config = SwqosConfig::Temporal(
 - 如果提供了自定义 URL（`Some(url)`），将使用自定义 URL 而不是区域端点
 - 如果没有提供自定义 URL（`None`），系统将使用指定 `SwqosRegion` 的默认端点
 - 这提供了最大的灵活性，同时保持向后兼容性
+- Apex 默认使用持久 QUIC，若 QUIC 连接无法建立则回退到 binary HTTP。以 `http` 开头的自定义 Apex URL 视为 binary HTTP 基础地址，其他格式视为 QUIC `host:port`。
 - Glaive 自定义 QUIC 地址格式为 `host:4000`；自定义 HTTP 地址必须是完整的 `http://` 或 `https://` 基础 URL，SDK 会自动追加 `/binary` 和鉴权参数。
 
 当使用多个 MEV 服务时，需要使用 `Durable Nonce`。先获取最新 nonce，再挂到新的 buy/sell 参数上：
@@ -554,6 +558,42 @@ None, );
 - 内置 HTTP 地址遵循 Glaive 官方文档中的 `http://` 端点。优先使用默认 QUIC；如果 Glaive 为你分配了 HTTPS 地址，也可以通过自定义 URL 使用。
 
 凭证、限流和协议详情请参考 [Glaive 官方文档](https://glaive.trade/docs)。
+
+#### OrbitFlare Apex（QUIC / Binary HTTP）
+
+[OrbitFlare Apex](https://apex.orbitflare.com) 会把每笔交易同时经由质押验证者客户端、Jito bundle 和直连 TPU 发送给即将出块的 leader。SDK 默认通过官方 [`orbitflare-apex`](https://crates.io/crates/orbitflare-apex) 客户端使用 QUIC：一个持久连接，客户端证书由 API key 派生（API key 本身不会在网络上传输），支持 0-RTT 重连，每笔交易使用一个单向流。每笔交易至少需要 `0.001 SOL` tip（标准档位），SDK 会从 Apex 公布的 10 个 tip 账户中选择一个。
+
+```rust
+use sol_trade_sdk::{
+    swqos::{SwqosConfig, SwqosRegion},
+    SwqosTransport,
+};
+
+let apex_quic = SwqosConfig::Apex(
+    "your_apex_api_key".to_string(),
+    SwqosRegion::Default,
+    None, // global.apex.orbitflare.com:7001，就近区域
+    None, // 默认 QUIC，失败时回退 binary HTTP
+    None, // min_tip_sol：使用默认的 0.001 SOL
+);
+
+let apex_http = SwqosConfig::Apex(
+    "your_apex_api_key".to_string(),
+    SwqosRegion::Default,
+    None, // http://global.apex.orbitflare.com/send-bin
+    Some(SwqosTransport::Http),
+    None,
+);
+```
+
+- **QUIC**（默认）：`None` 或 `Some(SwqosTransport::Quic)`，UDP 端口 `7001`。`None` 在 QUIC 连接无法建立时回退到 binary HTTP；`Some(Quic)` 不回退。
+- **Binary HTTP**：`Some(SwqosTransport::Http)`。以 `x-api-key` 请求头把原始交易字节发送到 `/send-bin`，并通过 `/ping` 保持连接预热。
+- `Some(SwqosTransport::Grpc)` 会直接返回错误，因为 Apex 没有提供 gRPC 提交协议。
+- **MEV 保护**：`.mev_protection(true)` 会在 QUIC 和 binary HTTP 上设置 Apex 的 `mev_protect` 标志，跳过 OrbitFlare Shield 黑名单中的 leader。
+- **Tip 配置**：Apex 通道的 gas-fee strategy tip 至少应为 `0.001 SOL`。tip 转账必须是顶层指令，且 tip 账户位于静态账户列表中。更高档位的最低 tip 可能不同。
+- **区域**：New York、Frankfurt、Amsterdam、Dublin、London、Salt Lake City、Tokyo 和 Singapore 为 Apex 原生端点。`LosAngeles` 映射到 Salt Lake City。`Default` 使用 `global.apex.orbitflare.com`，自动解析到最近的端点，并在该端点不可用时切换到下一个。Siauliai（`sqq.apex.orbitflare.com`）可通过自定义 URL 使用。
+
+API key、档位和协议详情请参考 [Apex 文档](https://docs.orbitflare.com/apex)。
 
 ---
 
@@ -694,6 +734,7 @@ PumpSwap 报价必须使用 `effective_quote_reserves = pool_quote_token_account
 - **SpeedLanding**: 高速交易执行，支持 API 密钥认证
 - **Node1**: 高速交易执行，支持 API 密钥认证
 - **LunarLander**: HelloMoon 交易着陆服务（最低小费：0.001 SOL）
+- **Apex**: OrbitFlare 交易着陆服务，同时经由质押验证者、Jito 和直连 TPU，支持 QUIC 与 binary HTTP（最低小费：0.001 SOL）
 
 ## 📁 项目结构
 

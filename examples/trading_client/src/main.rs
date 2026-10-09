@@ -69,6 +69,16 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
         //     None,
         //     Some(sol_trade_sdk::SwqosTransport::Http),
         // ),
+        // OrbitFlare Apex defaults to persistent QUIC (UDP/7001) with binary HTTP fallback.
+        SwqosConfig::Apex("your_apex_api_key".to_string(), SwqosRegion::Default, None, None, None),
+        // HTTP alternative:
+        // SwqosConfig::Apex(
+        //     "your_apex_api_key".to_string(),
+        //     SwqosRegion::Default,
+        //     None,
+        //     Some(sol_trade_sdk::SwqosTransport::Http),
+        //     None,
+        // ),
     ];
 
     let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)

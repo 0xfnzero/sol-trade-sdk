@@ -51,6 +51,7 @@
   - [⚙️ SWQoS Service Configuration](#️-swqos-service-configuration)
   - [Astralane (Binary / Plain / QUIC)](#astralane-binary--plain-http--quic)
   - [Glaive (Binary HTTP / QUIC)](#glaive-binary-http--quic)
+  - [OrbitFlare Apex (QUIC / Binary HTTP)](#orbitflare-apex-quic--binary-http)
   - [🔧 Middleware System](#-middleware-system)
   - [🔍 Address Lookup Tables](#-address-lookup-tables)
   - [🔍 Nonce Cache](#-durable-nonce)
@@ -94,7 +95,7 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 | Area | Coverage |
 |------|----------|
 | DEX protocols | PumpFun, PumpSwap, LaunchLab, Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4, Raydium CPMM |
-| Submit lanes | Default Solana RPC plus Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, Glaive, SpeedLanding, and other SWQoS providers |
+| Submit lanes | Default Solana RPC plus Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, Glaive, Apex, SpeedLanding, and other SWQoS providers |
 | Trading workflows | Buy/sell, exact input/output, copy trading, sniper trading, address lookup tables, durable nonce, middleware, shared infrastructure |
 | Hot-path design | Caller supplies recent blockhash or durable nonce; trade execution avoids RPC reads for blockhash, account, or balance data |
 
@@ -159,7 +160,7 @@ RPC_URL=... cargo run -p stonkfun_via_sol_simulate -- --curve
 5. **Raydium CPMM Trading**: Support for Raydium CPMM (Concentrated Pool Market Maker) trading operations
 6. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
 7. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
-8. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, Glaive, LunarLander and other services
+8. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, Glaive, LunarLander, Apex and other services
 9. **Concurrent Trading**: Submit through every configured SWQoS provider plus the default RPC lane; the first accepted result can return early while slower routes continue submitting
 10. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 11. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
@@ -244,6 +245,8 @@ let swqos_configs: Vec<SwqosConfig> = vec![
         None,
         None,
     None, ),
+    // OrbitFlare Apex: None = QUIC (default, UDP/7001) with binary HTTP fallback; Some(Http) = binary HTTP
+    SwqosConfig::Apex("your_apex_api_key".to_string(), SwqosRegion::Default, None, None, None),
 ];
 // Create TradeConfig instance
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
@@ -253,7 +256,7 @@ let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .log_enabled(true)                  // default: false - opt in to synchronous SDK timing / SWQOS logs
     // .check_min_tip(false)               // default: false - filter SWQOS below min tip
     // .swqos_cores_from_end(false)        // default: false - bind SWQOS to last N CPU cores
-    // .mev_protection(false)              // default: false - MEV protection for Astralane / BlockRazor / Glaive
+    // .mev_protection(false)              // default: false - MEV protection for Astralane / BlockRazor / Glaive / Apex
     .build();
 
 // Create TradingClient
@@ -487,6 +490,7 @@ let temporal_config = SwqosConfig::Temporal(
 - Temporal defaults to HTTP/3 QUIC and falls back to Binary Batch HTTP. A custom Temporal URL is an explicit HTTP Batch endpoint.
 - BlockRazor defaults to gRPC `SendBinaryTransaction` and falls back to JSON HTTP. `Some(SwqosTransport::Http)` or `Some(SwqosTransport::Grpc)` forces one transport.
 - Astralane defaults to persistent QUIC and falls back to Binary HTTP. An explicit `AstralaneTransport` forces QUIC, Binary HTTP, or Plain HTTP.
+- Apex defaults to persistent QUIC and falls back to binary HTTP if the QUIC connection cannot be set up. A custom Apex URL starting with `http` is a binary HTTP origin; anything else is a QUIC `host:port`.
 - For Glaive, a custom QUIC URL is `host:4000`; a custom HTTP URL is an absolute `http://` or `https://` base URL. The SDK appends `/binary` and authentication parameters for HTTP.
 
 When using multiple MEV services, you need to use `Durable Nonce`. Fetch the latest nonce value and attach it to the high-level buy/sell params:
@@ -572,6 +576,42 @@ None, );
 - Built-in HTTP origins follow Glaive's documented `http://` endpoints. Prefer the default QUIC mode, or provide a custom HTTPS endpoint if Glaive assigns one.
 
 See the [official Glaive documentation](https://glaive.trade/docs) for credentials, rate limits, and protocol details.
+
+#### OrbitFlare Apex (QUIC / Binary HTTP)
+
+[OrbitFlare Apex](https://apex.orbitflare.com) races every transaction to the upcoming leader over staked validator clients, Jito bundles and direct TPU at once. The SDK defaults to QUIC through the official [`orbitflare-apex`](https://crates.io/crates/orbitflare-apex) client: one persistent connection, a client certificate derived from the API key (the key itself never crosses the wire), 0-RTT reconnects, and one unidirectional stream per transaction. Every transaction must tip at least `0.001 SOL` (standard tier); the SDK selects one of Apex's ten published tip accounts.
+
+```rust
+use sol_trade_sdk::{
+    swqos::{SwqosConfig, SwqosRegion},
+    SwqosTransport,
+};
+
+let apex_quic = SwqosConfig::Apex(
+    "your_apex_api_key".to_string(),
+    SwqosRegion::Default,
+    None, // global.apex.orbitflare.com:7001, nearest region
+    None, // QUIC by default, binary HTTP fallback
+    None, // min_tip_sol: use the 0.001 SOL default
+);
+
+let apex_http = SwqosConfig::Apex(
+    "your_apex_api_key".to_string(),
+    SwqosRegion::Default,
+    None, // http://global.apex.orbitflare.com/send-bin
+    Some(SwqosTransport::Http),
+    None,
+);
+```
+
+- **QUIC** (default): `None` or `Some(SwqosTransport::Quic)`. UDP port `7001`. `None` falls back to binary HTTP if the QUIC connection cannot be set up; `Some(Quic)` does not.
+- **Binary HTTP**: `Some(SwqosTransport::Http)`. Sends raw transaction bytes to `/send-bin` with the `x-api-key` header and keeps the connection warm through `/ping`.
+- `Some(SwqosTransport::Grpc)` is rejected because Apex does not expose a gRPC submission protocol.
+- **MEV protection**: `.mev_protection(true)` sets the Apex `mev_protect` flag on QUIC and binary HTTP, which skips leaders on OrbitFlare's Shield blocklist.
+- **Tip configuration**: set the Apex lane's gas-fee strategy tip to at least `0.001 SOL`. The tip transfer must be a top-level instruction with the tip account in the static account keys. Higher tiers may have a different floor.
+- **Regions**: New York, Frankfurt, Amsterdam, Dublin, London, Salt Lake City, Tokyo and Singapore are native Apex endpoints. `LosAngeles` maps to Salt Lake City. `Default` uses `global.apex.orbitflare.com`, which resolves to the nearest endpoint and fails over to the next one. Siauliai (`sqq.apex.orbitflare.com`) is available through a custom URL.
+
+See the [Apex documentation](https://docs.orbitflare.com/apex) for API keys, tiers and protocol details.
 
 ---
 
@@ -704,6 +744,7 @@ You can apply for a key through the official website: [Community Website](https:
 - **SpeedLanding**: High-speed transaction execution with API key authentication
 - **Node1**: High-speed transaction execution with API key authentication
 - **LunarLander**: HelloMoon transaction landing service (minimum tip: 0.001 SOL)
+- **Apex**: OrbitFlare transaction landing over staked validators, Jito and direct TPU, via QUIC or binary HTTP (minimum tip: 0.001 SOL)
 
 ## 📁 Project Structure
 
