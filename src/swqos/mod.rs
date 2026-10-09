@@ -1,3 +1,4 @@
+pub mod apex;
 pub mod astralane;
 pub mod astralane_quic;
 pub mod blockrazor;
@@ -33,15 +34,16 @@ use anyhow::Result;
 use crate::{
     common::SolanaRpcClient,
     constants::swqos::{
-        SWQOS_ENDPOINTS_ASTRALANE_BINARY, SWQOS_ENDPOINTS_ASTRALANE_PLAIN,
-        SWQOS_ENDPOINTS_ASTRALANE_QUIC, SWQOS_ENDPOINTS_ASTRALANE_QUIC_MEV,
-        SWQOS_ENDPOINTS_BLOCKRAZOR, SWQOS_ENDPOINTS_BLOCKRAZOR_GRPC, SWQOS_ENDPOINTS_BLOX,
-        SWQOS_ENDPOINTS_FLASHBLOCK, SWQOS_ENDPOINTS_GLAIVE, SWQOS_ENDPOINTS_GLAIVE_QUIC,
-        SWQOS_ENDPOINTS_HELIUS, SWQOS_ENDPOINTS_JITO, SWQOS_ENDPOINTS_LUNARLANDER,
-        SWQOS_ENDPOINTS_LUNARLANDER_QUIC, SWQOS_ENDPOINTS_NEXTBLOCK, SWQOS_ENDPOINTS_NODE1,
-        SWQOS_ENDPOINTS_NODE1_QUIC, SWQOS_ENDPOINTS_SOLAMI, SWQOS_ENDPOINTS_SOYAS,
-        SWQOS_ENDPOINTS_SPEEDLANDING, SWQOS_ENDPOINTS_STELLIUM, SWQOS_ENDPOINTS_TEMPORAL,
-        SWQOS_ENDPOINTS_ZERO_SLOT, SWQOS_MIN_TIP_ASTRALANE, SWQOS_MIN_TIP_BLOCKRAZOR,
+        SWQOS_ENDPOINTS_APEX, SWQOS_ENDPOINTS_APEX_QUIC, SWQOS_ENDPOINTS_ASTRALANE_BINARY,
+        SWQOS_ENDPOINTS_ASTRALANE_PLAIN, SWQOS_ENDPOINTS_ASTRALANE_QUIC,
+        SWQOS_ENDPOINTS_ASTRALANE_QUIC_MEV, SWQOS_ENDPOINTS_BLOCKRAZOR,
+        SWQOS_ENDPOINTS_BLOCKRAZOR_GRPC, SWQOS_ENDPOINTS_BLOX, SWQOS_ENDPOINTS_FLASHBLOCK,
+        SWQOS_ENDPOINTS_GLAIVE, SWQOS_ENDPOINTS_GLAIVE_QUIC, SWQOS_ENDPOINTS_HELIUS,
+        SWQOS_ENDPOINTS_JITO, SWQOS_ENDPOINTS_LUNARLANDER, SWQOS_ENDPOINTS_LUNARLANDER_QUIC,
+        SWQOS_ENDPOINTS_NEXTBLOCK, SWQOS_ENDPOINTS_NODE1, SWQOS_ENDPOINTS_NODE1_QUIC,
+        SWQOS_ENDPOINTS_SOLAMI, SWQOS_ENDPOINTS_SOYAS, SWQOS_ENDPOINTS_SPEEDLANDING,
+        SWQOS_ENDPOINTS_STELLIUM, SWQOS_ENDPOINTS_TEMPORAL, SWQOS_ENDPOINTS_ZERO_SLOT,
+        SWQOS_MIN_TIP_APEX, SWQOS_MIN_TIP_ASTRALANE, SWQOS_MIN_TIP_BLOCKRAZOR,
         SWQOS_MIN_TIP_BLOXROUTE, SWQOS_MIN_TIP_DEFAULT, SWQOS_MIN_TIP_FLASHBLOCK,
         SWQOS_MIN_TIP_GLAIVE, SWQOS_MIN_TIP_HELIUS, SWQOS_MIN_TIP_JITO, SWQOS_MIN_TIP_LIGHTSPEED,
         SWQOS_MIN_TIP_LUNARLANDER, SWQOS_MIN_TIP_NEXTBLOCK, SWQOS_MIN_TIP_NODE1,
@@ -49,12 +51,13 @@ use crate::{
         SWQOS_MIN_TIP_STELLIUM, SWQOS_MIN_TIP_TEMPORAL, SWQOS_MIN_TIP_ZERO_SLOT,
     },
     swqos::{
-        astralane::AstralaneClient, blockrazor::BlockRazorClient, bloxroute::BloxrouteClient,
-        flashblock::FlashBlockClient, glaive::GlaiveClient, helius::HeliusClient, jito::JitoClient,
-        lightspeed::LightspeedClient, lunarlander::LunarLanderClient, nextblock::NextBlockClient,
-        node1::Node1Client, node1_quic::Node1QuicClient, solami::SolamiClient,
-        solana_rpc::SolRpcClient, soyas::SoyasClient, speedlanding::SpeedlandingClient,
-        stellium::StelliumClient, temporal::TemporalClient, zeroslot::ZeroSlotClient,
+        apex::ApexClient, astralane::AstralaneClient, blockrazor::BlockRazorClient,
+        bloxroute::BloxrouteClient, flashblock::FlashBlockClient, glaive::GlaiveClient,
+        helius::HeliusClient, jito::JitoClient, lightspeed::LightspeedClient,
+        lunarlander::LunarLanderClient, nextblock::NextBlockClient, node1::Node1Client,
+        node1_quic::Node1QuicClient, solami::SolamiClient, solana_rpc::SolRpcClient,
+        soyas::SoyasClient, speedlanding::SpeedlandingClient, stellium::StelliumClient,
+        temporal::TemporalClient, zeroslot::ZeroSlotClient,
     },
 };
 
@@ -70,7 +73,7 @@ pub const SWQOS_BLACKLIST: &[SwqosType] = &[
 
 /// SWQOS 提交通道：HTTP、gRPC 或 QUIC（低延迟）。
 /// BlockRazor 支持 gRPC 和 HTTP。
-/// Node1、Glaive 与 Lunar Lander 支持 QUIC。
+/// Node1、Glaive、Lunar Lander 与 Apex 支持 QUIC。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SwqosTransport {
     #[default]
@@ -131,6 +134,7 @@ pub enum SwqosType {
     Solami,
     LunarLander,
     Glaive,
+    Apex,
     Default,
 }
 
@@ -156,6 +160,7 @@ impl SwqosType {
             Self::Solami => "Solami",
             Self::LunarLander => "LunarLander",
             Self::Glaive => "Glaive",
+            Self::Apex => "Apex",
             Self::Default => "Default",
         }
     }
@@ -179,6 +184,7 @@ impl SwqosType {
             Self::Solami,
             Self::LunarLander,
             Self::Glaive,
+            Self::Apex,
             Self::Default,
         ]
     }
@@ -228,6 +234,7 @@ pub trait SwqosClientTrait {
             SwqosType::Solami => SWQOS_MIN_TIP_SOLAMI,
             SwqosType::LunarLander => SWQOS_MIN_TIP_LUNARLANDER,
             SwqosType::Glaive => SWQOS_MIN_TIP_GLAIVE,
+            SwqosType::Apex => SWQOS_MIN_TIP_APEX,
             SwqosType::Default => SWQOS_MIN_TIP_DEFAULT,
         }
     }
@@ -340,6 +347,13 @@ pub enum SwqosConfig {
     /// transport=None => QUIC (official lowest-latency path, UDP/4000); Some(Http) => binary HTTP.
     /// Minimum tip: 0.0001 SOL. API and protocol docs: <https://glaive.trade/docs>
     Glaive(String, SwqosRegion, Option<String>, Option<SwqosTransport>, Option<f64>),
+    /// OrbitFlare Apex(api_key, region, custom_url, transport, min_tip_sol). Races each
+    /// transaction to the leader over staked validator clients, Jito and direct TPU at once.
+    /// transport=None => QUIC (UDP/7001, key-derived client cert) with binary HTTP fallback;
+    /// Some(Quic) => QUIC only; Some(Http) => binary HTTP `POST /send-bin`.
+    /// A custom URL starting with `http` is a binary HTTP origin, otherwise a QUIC `host:port`.
+    /// Minimum tip: 0.001 SOL (standard tier). API keys: <https://apex.orbitflare.com>
+    Apex(String, SwqosRegion, Option<String>, Option<SwqosTransport>, Option<f64>),
 }
 
 // Configuration identity includes the exact float bits. This remains reflexive even
@@ -399,6 +413,9 @@ impl PartialEq for SwqosConfig {
             (Self::Glaive(a0, a1, a2, a3, am), Self::Glaive(b0, b1, b2, b3, bm)) => {
                 (a0, a1, a2, a3, am.map(f64::to_bits)) == (b0, b1, b2, b3, bm.map(f64::to_bits))
             }
+            (Self::Apex(a0, a1, a2, a3, am), Self::Apex(b0, b1, b2, b3, bm)) => {
+                (a0, a1, a2, a3, am.map(f64::to_bits)) == (b0, b1, b2, b3, bm.map(f64::to_bits))
+            }
             _ => false,
         }
     }
@@ -456,6 +473,9 @@ impl std::hash::Hash for SwqosConfig {
             Self::Glaive(a0, a1, a2, a3, minimum) => {
                 (a0, a1, a2, a3, minimum.map(f64::to_bits)).hash(state)
             }
+            Self::Apex(a0, a1, a2, a3, minimum) => {
+                (a0, a1, a2, a3, minimum.map(f64::to_bits)).hash(state)
+            }
         }
     }
 }
@@ -482,6 +502,7 @@ impl SwqosConfig {
             Self::Solami(_, _, _, minimum) => *minimum,
             Self::LunarLander(_, _, _, _, minimum) => *minimum,
             Self::Glaive(_, _, _, _, minimum) => *minimum,
+            Self::Apex(_, _, _, _, minimum) => *minimum,
         }
     }
 
@@ -523,6 +544,7 @@ impl SwqosConfig {
             SwqosConfig::Solami(_, _, _, _) => SwqosType::Solami,
             SwqosConfig::LunarLander(_, _, _, _, _) => SwqosType::LunarLander,
             SwqosConfig::Glaive(_, _, _, _, _) => SwqosType::Glaive,
+            SwqosConfig::Apex(_, _, _, _, _) => SwqosType::Apex,
         }
     }
 
@@ -554,6 +576,7 @@ impl SwqosConfig {
             SwqosType::Solami => SWQOS_ENDPOINTS_SOLAMI[region as usize].to_string(),
             SwqosType::LunarLander => SWQOS_ENDPOINTS_LUNARLANDER[region as usize].to_string(),
             SwqosType::Glaive => SWQOS_ENDPOINTS_GLAIVE[region as usize].to_string(),
+            SwqosType::Apex => SWQOS_ENDPOINTS_APEX[region as usize].to_string(),
             SwqosType::Default => "".to_string(),
         }
     }
@@ -601,6 +624,14 @@ impl SwqosConfig {
                     SWQOS_ENDPOINTS_GLAIVE_QUIC[region as usize].to_string()
                 } else {
                     SWQOS_ENDPOINTS_GLAIVE[region as usize].to_string()
+                }
+            }
+            SwqosType::Apex => {
+                let use_quic = transport.unwrap_or(SwqosTransport::Quic) == SwqosTransport::Quic;
+                if use_quic {
+                    SWQOS_ENDPOINTS_APEX_QUIC[region as usize].to_string()
+                } else {
+                    SWQOS_ENDPOINTS_APEX[region as usize].to_string()
                 }
             }
             _ => Self::get_endpoint(swqos_type, region, None),
@@ -931,6 +962,67 @@ impl SwqosConfig {
                     }
                 }
             }
+            SwqosConfig::Apex(api_key, region, url, transport, _) => {
+                let region_index = region as usize;
+                let custom_is_http = url.as_deref().is_some_and(|u| u.starts_with("http"));
+                match transport {
+                    Some(SwqosTransport::Grpc) => {
+                        anyhow::bail!("Apex does not support the gRPC transport")
+                    }
+                    Some(SwqosTransport::Http) => {
+                        let endpoint =
+                            url.unwrap_or_else(|| SWQOS_ENDPOINTS_APEX[region_index].to_string());
+                        Ok(Arc::new(ApexClient::new_http(
+                            rpc_url.clone(),
+                            endpoint,
+                            api_key,
+                            mev_protection,
+                        )?))
+                    }
+                    Some(SwqosTransport::Quic) => {
+                        let endpoint = url
+                            .unwrap_or_else(|| SWQOS_ENDPOINTS_APEX_QUIC[region_index].to_string());
+                        Ok(Arc::new(
+                            ApexClient::new_quic(
+                                rpc_url.clone(),
+                                &endpoint,
+                                &api_key,
+                                mev_protection,
+                            )
+                            .await?,
+                        ))
+                    }
+                    None if custom_is_http => Ok(Arc::new(ApexClient::new_http(
+                        rpc_url.clone(),
+                        url.unwrap(),
+                        api_key,
+                        mev_protection,
+                    )?)),
+                    None => {
+                        let quic_endpoint = url
+                            .unwrap_or_else(|| SWQOS_ENDPOINTS_APEX_QUIC[region_index].to_string());
+                        match ApexClient::new_quic(
+                            rpc_url.clone(),
+                            &quic_endpoint,
+                            &api_key,
+                            mev_protection,
+                        )
+                        .await
+                        {
+                            Ok(client) => Ok(Arc::new(client)),
+                            Err(error) => {
+                                tracing::warn!(target: "sol_trade_sdk", "Apex QUIC setup failed; using binary HTTP: {error}");
+                                Ok(Arc::new(ApexClient::new_http(
+                                    rpc_url.clone(),
+                                    SWQOS_ENDPOINTS_APEX[region_index].to_string(),
+                                    api_key,
+                                    mev_protection,
+                                )?))
+                            }
+                        }
+                    }
+                }
+            }
             SwqosConfig::Default(endpoint) => {
                 let rpc = SolanaRpcClient::new_with_commitment(endpoint, commitment);
                 let rpc_client = SolRpcClient::new(Arc::new(rpc));
@@ -1110,5 +1202,83 @@ mod tests {
         .await;
         let error = result.err().expect("Glaive gRPC config must fail");
         assert!(error.to_string().contains("does not support the gRPC transport"));
+    }
+
+    #[test]
+    fn apex_is_registered_and_defaults_to_quic() {
+        assert!(SwqosType::values().contains(&SwqosType::Apex));
+        assert_eq!(SwqosType::Apex.as_str(), "Apex");
+        let endpoint = SwqosConfig::get_endpoint_with_transport(
+            SwqosType::Apex,
+            SwqosRegion::Frankfurt,
+            None,
+            None,
+            false,
+        );
+        assert_eq!(endpoint, "fra.apex.orbitflare.com:7001");
+    }
+
+    #[test]
+    fn apex_http_transport_uses_binary_origin() {
+        let endpoint = SwqosConfig::get_endpoint_with_transport(
+            SwqosType::Apex,
+            SwqosRegion::Default,
+            None,
+            Some(SwqosTransport::Http),
+            false,
+        );
+        assert_eq!(endpoint, "http://global.apex.orbitflare.com");
+    }
+
+    #[test]
+    fn apex_default_region_uses_global_endpoint() {
+        let endpoint = SwqosConfig::get_endpoint_with_transport(
+            SwqosType::Apex,
+            SwqosRegion::Default,
+            None,
+            None,
+            false,
+        );
+        assert_eq!(endpoint, "global.apex.orbitflare.com:7001");
+    }
+
+    #[tokio::test]
+    async fn apex_rejects_grpc_without_connecting() {
+        let result = SwqosConfig::get_swqos_client(
+            "http://127.0.0.1:8899".to_string(),
+            CommitmentConfig::processed(),
+            SwqosConfig::Apex(
+                "key".to_string(),
+                SwqosRegion::Frankfurt,
+                None,
+                Some(SwqosTransport::Grpc),
+                None,
+            ),
+            false,
+        )
+        .await;
+        let error = result.err().expect("Apex gRPC config must fail");
+        assert!(error.to_string().contains("does not support the gRPC transport"));
+    }
+
+    #[tokio::test]
+    async fn apex_http_client_reports_type_min_tip_and_tip_account() {
+        let client = SwqosConfig::get_swqos_client(
+            "http://127.0.0.1:8899".to_string(),
+            CommitmentConfig::processed(),
+            SwqosConfig::Apex(
+                "key".to_string(),
+                SwqosRegion::Frankfurt,
+                None,
+                Some(SwqosTransport::Http),
+                None,
+            ),
+            false,
+        )
+        .await
+        .expect("HTTP client builds without network");
+        assert_eq!(client.get_swqos_type(), SwqosType::Apex);
+        assert_eq!(client.min_tip_sol(), 0.001);
+        assert!(client.get_tip_account().unwrap().starts_with("APeX"));
     }
 }

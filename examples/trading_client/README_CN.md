@@ -8,6 +8,8 @@
 
 Glaive 配置默认使用 QUIC，其凭证必须是 Glaive 提供的 UUID v4 API key。若要改用 binary HTTP，把第四个参数替换为 `Some(SwqosTransport::Http)`。
 
+OrbitFlare Apex 配置同样默认使用 QUIC，若 QUIC 连接无法建立则回退到 binary HTTP。API key 可在 [apex.orbitflare.com](https://apex.orbitflare.com) 获取。若只使用 binary HTTP，把第四个参数替换为 `Some(SwqosTransport::Http)`。
+
 ```bash
 cargo run --package trading_client
 ```

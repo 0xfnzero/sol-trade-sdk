@@ -208,6 +208,22 @@ pub const GLAIVE_TIP_ACCOUNTS: &[Pubkey] = &[
     pubkey!("GLaivq5dU8qHayz9Qf13LjPfVy3SmUhbmickfGiZdmfh"),
 ];
 
+/// OrbitFlare Apex tip accounts: the ten published vaults of tip program
+/// `9ig7pd4gqe2m16ACGPbPo4HfMGD3ba38poDhXEayx7EF`. `getTipAccounts` on any
+/// Apex endpoint is authoritative. See <https://docs.orbitflare.com/apex/tips>.
+pub const APEX_TIP_ACCOUNTS: &[Pubkey] = &[
+    pubkey!("APeX2oLtjYehgTMUCA971L8htM7tGNqsXHDz5NrivhhX"),
+    pubkey!("APeXAKT6spXSmU3uRv2MoEgQ7ckhAS4nexTgaxwLEfJ9"),
+    pubkey!("APeXB4mu1X7BSjwyPtiNUnKyhvc4wrq5SKEdmnPKWR95"),
+    pubkey!("APeXJTSGoxLWmwb9o1tiiEL5RXVUakazYgjLmZdDc2Ef"),
+    pubkey!("APeXUUaKFfPXjPxKHEdwCsJ4BfTuGg4qnVQyJE9K37PU"),
+    pubkey!("APeXVWXKDRAAujckMjmMsV61a4DQiXa98MPUAkL46sim"),
+    pubkey!("APeXW6PKFZRDz7WXBBybBMcoJaQo97UtLa5TAQnchNBY"),
+    pubkey!("APeXZuKaKuqouyfU8fFL1woeWvSEVFkY4EMrmkvbfhhD"),
+    pubkey!("APeXbYdbmrYWsastf6GurexGe3dwnuWKLD2mcsDoEuBU"),
+    pubkey!("APeXn29deoxpsZz6r7n63Ymmv2skBr3WhKYLB1mB2fR7"),
+];
+
 // `SwqosRegion` 与下列各 `SWQOS_ENDPOINTS_*` 下标严格对应（共 10 项）：
 // 0 NewYork, 1 Frankfurt, 2 Amsterdam, 3 Dublin, 4 SLC, 5 Tokyo, 6 Singapore, 7 London, 8 LosAngeles, 9 Default。
 //
@@ -515,6 +531,37 @@ pub const SWQOS_ENDPOINTS_GLAIVE_QUIC: [&str; 10] = [
     "ams1.glaive.trade:4000", // Default -> official documentation example
 ];
 
+/// OrbitFlare Apex binary HTTP origins (port 80). The client appends
+/// `/send-bin?mev_protect=0|1` and sends the `x-api-key` header.
+/// Apex also serves Siauliai (`sqq`); pass it as a custom URL.
+pub const SWQOS_ENDPOINTS_APEX: [&str; 10] = [
+    "http://nyc.apex.orbitflare.com",
+    "http://fra.apex.orbitflare.com",
+    "http://ams.apex.orbitflare.com",
+    "http://dub.apex.orbitflare.com",
+    "http://slc.apex.orbitflare.com",
+    "http://tyo.apex.orbitflare.com",
+    "http://sgp.apex.orbitflare.com",
+    "http://lon.apex.orbitflare.com",
+    "http://slc.apex.orbitflare.com", // LosAngeles -> Salt Lake City
+    "http://global.apex.orbitflare.com", // Default -> nearest region
+];
+
+/// OrbitFlare Apex QUIC endpoints (UDP 7001). Auth is a client certificate
+/// derived from the API key; the key never crosses the wire.
+pub const SWQOS_ENDPOINTS_APEX_QUIC: [&str; 10] = [
+    "nyc.apex.orbitflare.com:7001",
+    "fra.apex.orbitflare.com:7001",
+    "ams.apex.orbitflare.com:7001",
+    "dub.apex.orbitflare.com:7001",
+    "slc.apex.orbitflare.com:7001",
+    "tyo.apex.orbitflare.com:7001",
+    "sgp.apex.orbitflare.com:7001",
+    "lon.apex.orbitflare.com:7001",
+    "slc.apex.orbitflare.com:7001",    // LosAngeles -> Salt Lake City
+    "global.apex.orbitflare.com:7001", // Default -> nearest region
+];
+
 /// Helius Sender: POST /fast, dual routing to validators and Jito. API key optional (custom TPS only).
 pub const SWQOS_ENDPOINTS_HELIUS: [&str; 10] = [
     "http://ewr-sender.helius-rpc.com/fast",
@@ -562,6 +609,8 @@ pub const SWQOS_MIN_TIP_SOLAMI: f64 = 0.0001;
 pub const SWQOS_MIN_TIP_LUNARLANDER: f64 = 0.001; // LunarLander 最低小费 0.001 SOL
 /// Glaive requires at least 100,000 lamports (0.0001 SOL).
 pub const SWQOS_MIN_TIP_GLAIVE: f64 = 0.0001;
+/// OrbitFlare Apex standard-tier floor: 1,000,000 lamports (0.001 SOL). Higher tiers may differ.
+pub const SWQOS_MIN_TIP_APEX: f64 = 0.001;
 /// Helius Sender with swqos_only: minimum 0.000005 SOL (much lower tip allowed).
 pub const SWQOS_MIN_TIP_HELIUS_SWQOS_ONLY: f64 = 0.000005;
 #[cfg(test)]
@@ -591,6 +640,8 @@ mod tests {
         &SWQOS_ENDPOINTS_LUNARLANDER_QUIC,
         &SWQOS_ENDPOINTS_GLAIVE,
         &SWQOS_ENDPOINTS_GLAIVE_QUIC,
+        &SWQOS_ENDPOINTS_APEX,
+        &SWQOS_ENDPOINTS_APEX_QUIC,
         &SWQOS_ENDPOINTS_SOLAMI,
     ];
 
@@ -651,5 +702,23 @@ mod tests {
     fn glaive_tip_policy_matches_official_docs() {
         assert_eq!(GLAIVE_TIP_ACCOUNTS.len(), 6);
         assert_eq!(SWQOS_MIN_TIP_GLAIVE, 0.0001);
+    }
+
+    #[test]
+    fn apex_http_and_quic_hosts_match_per_region() {
+        for i in 0..10 {
+            let http_host = SWQOS_ENDPOINTS_APEX[i].strip_prefix("http://").expect("Apex HTTP URL");
+            let quic_host =
+                SWQOS_ENDPOINTS_APEX_QUIC[i].strip_suffix(":7001").expect("Apex QUIC endpoint");
+            assert_eq!(http_host, quic_host, "Apex HTTP vs QUIC host mismatch at index {i}");
+            assert!(http_host.ends_with(".apex.orbitflare.com"));
+        }
+    }
+
+    #[test]
+    fn apex_tip_policy_matches_official_docs() {
+        assert_eq!(APEX_TIP_ACCOUNTS.len(), 10);
+        assert!(APEX_TIP_ACCOUNTS.iter().all(|k| k.to_string().starts_with("APeX")));
+        assert_eq!(SWQOS_MIN_TIP_APEX, 0.001);
     }
 }
