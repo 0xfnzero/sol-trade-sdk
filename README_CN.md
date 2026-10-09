@@ -68,14 +68,14 @@
 
 交易 SDK 的各语言版本及相关 Rust SDK：
 
-| 语言 | 仓库 | 描述 |
+| 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.0` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.8` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.8` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.9` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.11` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.3` |
 
 ## 这个 SDK 适合什么场景
 
@@ -90,7 +90,7 @@
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "5.0.7"`
+**Rust crate:** `sol-trade-sdk = "6.0.0"`
 
 v5.0.7 适配 CPMM creator-fee 协议分成升级：两个领取指令追加必需的 share PDA/config 账户，AmmConfig 解码暴露分成比例。新增 gRPC 缓存准备、领取/交换/LP 模拟示例及离线主网样本，依赖 parser 0.7.8 和 streamer 3.0.7。参见 [CPMM 迁移说明](docs/cpmm-creator-fee-share.md)。
 
@@ -183,14 +183,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "5.0.7" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "5.0.7"
+sol-trade-sdk = "6.0.0"
 ```
 
 ## 🛠️ 使用示例
@@ -211,35 +211,35 @@ let commitment = CommitmentConfig::processed();
 // 可配置多个 SWQoS 服务
 let swqos_configs: Vec<SwqosConfig> = vec![
     SwqosConfig::Default(rpc_url.clone()),
-    SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None),
-    SwqosConfig::FlashBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None),
+    SwqosConfig::Jito("your uuid".to_string(), SwqosRegion::Frankfurt, None, None),
+    SwqosConfig::Temporal("your api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+    SwqosConfig::FlashBlock("your api_token".to_string(), SwqosRegion::Frankfurt, None, None),
     SwqosConfig::BlockRazor("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     // Astralane：第4个参数为 AstralaneTransport — Binary（默认）、Plain（/iris）或 Quic
-    SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None), // Binary /irisb
+    SwqosConfig::Astralane("your_astralane_api_key".to_string(), SwqosRegion::Frankfurt, None, None, None), // Binary /irisb
     SwqosConfig::SpeedLanding("your api_token".to_string(), SwqosRegion::Frankfurt, None),
     // Lunar Lander：第4个参数 None 为 QUIC（默认）；Some(SwqosTransport::Http) 为 binary HTTP
-    SwqosConfig::LunarLander("your_hellomoon_api_key".to_string(), SwqosRegion::Frankfurt, None, None),
+    SwqosConfig::LunarLander("your_hellomoon_api_key".to_string(), SwqosRegion::Frankfurt, None, None, None),
     SwqosConfig::LunarLander(
         "your_hellomoon_api_key".to_string(),
         SwqosRegion::Frankfurt,
         None,
         Some(SwqosTransport::Http),
-    ),
+    None, ),
     // Glaive：None 为 QUIC（默认，UDP/4000）；Some(Http) 为 binary HTTP
     SwqosConfig::Glaive(
         "your_glaive_uuid_v4_api_key".to_string(),
         SwqosRegion::Frankfurt,
         None,
         None,
-    ),
+    None, ),
 ];
 // 创建 TradeConfig 实例
 let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
     // .transaction_version(TradeTransactionVersion::V1) // 默认：V0 兼容模式
     // .create_wsol_ata_on_startup(true)  // 默认: true  - 初始化时检查并创建 WSOL ATA
     // .use_seed_optimize(true)            // 默认: true  - ATA 操作启用 seed 优化
-    // .log_enabled(true)                  // 默认: true  - SDK 计时 / SWQOS 日志
+    // .log_enabled(true)                  // 默认: false - 显式开启同步 SDK 计时 / SWQOS 日志
     // .check_min_tip(false)               // 默认: false - 过滤低于最低小费的 SWQOS
     // .swqos_cores_from_end(false)        // 默认: false - 将 SWQOS 绑定到末尾 N 个 CPU 核心
     // .mev_protection(false)              // 默认: false - Astralane / BlockRazor / Glaive 的 MEV 保护
@@ -456,14 +456,14 @@ let jito_config = SwqosConfig::Jito(
     "your_uuid".to_string(),
     SwqosRegion::Frankfurt, // 这个参数仍然需要，但会被忽略
     Some("https://custom-jito-endpoint.com".to_string()) // 自定义 URL
-);
+, None);
 
 // 使用默认区域端点（第三个参数为 None）
 let temporal_config = SwqosConfig::Temporal(
     "your_api_token".to_string(),
     SwqosRegion::NewYork, // 将使用该区域的默认端点
     None // 没有自定义 URL，使用 SwqosRegion
-);
+, None);
 ```
 
 **URL 优先级逻辑**：
@@ -510,7 +510,7 @@ let swqos_configs: Vec<SwqosConfig> = vec![
         SwqosRegion::Frankfurt,
         None,
         Some(AstralaneTransport::Quic),
-    ),
+    None, ),
 ];
 // 然后照常使用 swqos_configs 创建 TradeConfig / TradingClient
 ```
@@ -541,7 +541,7 @@ let glaive_http = SwqosConfig::Glaive(
     SwqosRegion::Frankfurt,
     None, // http://fra.glaive.trade/binary?api-key=...
     Some(SwqosTransport::Http),
-);
+None, );
 ```
 
 - **QUIC（默认）**：`None` 或 `Some(SwqosTransport::Quic)`。使用 UDP `4000`、ALPN `solana-tpu`、SNI `glaive-intake`；维持一条已鉴权连接，每笔交易使用一个单向流。
@@ -747,3 +747,23 @@ MIT 许可证
 - [StonkFun routes](docs/STONKFUN_ROUTES.md)
 - [gRPC cache and simulation](docs/STONKFUN_GRPC_EXAMPLES.md)
 - [CPMM creator-fee](docs/cpmm-creator-fee-share.md)
+
+### 可选的通道最低小费
+
+每个 SWQOS 通道可选配置最低小费，单位为 SOL，支持 `0.0001` 等小数（内部按最接近的整数 lamports 比较）。每条买入/卖出费用策略的小费低于配置门槛时，在构建该通道的小费指令、签名和发送交易之前直接跳过；等于门槛时正常发送。不配置则不启用此新增过滤，保留原有行为；配置为 0 不会过滤非负小费。该设置独立于现有的 `check_min_tip` / `checkMinTip`，已有的全局检查行为不变。其他符合条件的通道（包括默认 RPC）仍正常参与。
+
+```rust
+let provider = SwqosConfig::Jito(
+    "your_uuid".to_string(), SwqosRegion::Frankfurt, None, Some(0.0001),
+); // Minimum tip: 0.0001 SOL; use None to omit the limit.
+```
+
+## v6.0.0 — Signed transaction and hot-path hardening
+
+Adds optional decimal SOL minimum tips to SWQoS provider configuration. Providers below the configured threshold are skipped before instruction construction, signing and submission; equality remains eligible and omitted thresholds preserve existing behavior.
+
+Breaking migration: provider tuple constructors now take a final `Option<f64>` argument, for example `SwqosConfig::Jito(api_key, region, endpoint, Some(0.0001))`. Pass `None` to retain previous behavior. `Default(String)` is unchanged.
+
+Hardens cached preparation, durable nonce lifecycle, transaction pools and integer transfer-fee boundaries. Adds signed transaction, ALT and offline bank regression coverage.
+
+Validation includes local CPU benchmarks and offline signed-bank scenarios. Measured hot paths use cached inputs without RPC. Benchmarks do not establish production network or transaction-landing latency. No funded mainnet transactions were broadcast.

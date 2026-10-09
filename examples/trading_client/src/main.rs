@@ -40,28 +40,28 @@ async fn create_trading_client_simple() -> AnyResult<TradingClient> {
 
     let swqos_configs: Vec<SwqosConfig> = vec![
         SwqosConfig::Default(rpc_url.clone()),
-        SwqosConfig::Jito("your_uuid".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::Bloxroute("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::ZeroSlot("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::Temporal("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::FlashBlock("your_api_token".to_string(), SwqosRegion::Frankfurt, None),
-        SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
-        SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::Jito("your_uuid".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::Bloxroute("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::ZeroSlot("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::Temporal("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::FlashBlock("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None),
+        SwqosConfig::Node1("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None, None),
+        SwqosConfig::BlockRazor("your_api_token".to_string(), SwqosRegion::Frankfurt, None, None, None),
         SwqosConfig::Astralane(
             "your_api_token".to_string(),
             SwqosRegion::Frankfurt,
             None,
             Some(AstralaneTransport::Quic),
-        ), // Explicit QUIC; None uses QUIC first with Binary HTTP fallback
+        None, ), // Explicit QUIC; None uses QUIC first with Binary HTTP fallback
         // Helius Sender: 4th param swqos_only Some(true) => min tip 0.000005 SOL; None => 0.0002 SOL
-        SwqosConfig::Helius("".to_string(), SwqosRegion::Default, None, Some(true)),
+        SwqosConfig::Helius("".to_string(), SwqosRegion::Default, None, Some(true), None),
         // Glaive defaults to persistent QUIC (UDP/4000). Use Some(Http) for binary HTTP.
         SwqosConfig::Glaive(
             "your_glaive_uuid_v4_api_key".to_string(),
             SwqosRegion::Frankfurt,
             None,
             None,
-        ),
+        None, ),
         // HTTP alternative:
         // SwqosConfig::Glaive(
         //     "your_glaive_uuid_v4_api_key".to_string(),
@@ -92,7 +92,7 @@ async fn create_trading_client_from_infrastructure() -> AnyResult<TradingClient>
 
     let swqos_configs: Vec<SwqosConfig> = vec![
         SwqosConfig::Default(rpc_url.clone()),
-        SwqosConfig::Jito("your_uuid".to_string(), SwqosRegion::Frankfurt, None),
+        SwqosConfig::Jito("your_uuid".to_string(), SwqosRegion::Frankfurt, None, None),
     ];
 
     // Create infrastructure separately (can be shared across multiple wallets)

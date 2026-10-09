@@ -48,7 +48,7 @@ fn extract_swqos_error_message(s: &str) -> String {
     s.to_string()
 }
 
-static SDK_LOG_ENABLED: AtomicBool = AtomicBool::new(true);
+static SDK_LOG_ENABLED: AtomicBool = AtomicBool::new(false);
 
 /// Width of [provider] label so SWQOS submit/confirm lines align (longest: Speedlanding).
 pub const SWQOS_LABEL_WIDTH: usize = 12;

@@ -12,7 +12,7 @@ use super::nonce_manager::{add_nonce_instruction, get_transaction_blockhash};
 use crate::{
     common::{nonce_cache::DurableNonceInfo, TradeTransactionVersion},
     trading::{
-        core::transaction_pool::{acquire_builder, release_builder},
+        core::transaction_pool::compile_message,
         MiddlewareManager,
     },
 };
@@ -26,7 +26,7 @@ const MICRO_LAMPORTS_PER_LAMPORT: u128 = 1_000_000;
 
 /// Convert SOL amount (f64) to lamports without string allocation (hot path).
 #[inline(always)]
-fn sol_f64_to_lamports(sol: f64) -> u64 {
+pub(crate) fn sol_f64_to_lamports(sol: f64) -> u64 {
     if sol <= 0.0 {
         return 0;
     }
@@ -234,19 +234,21 @@ fn build_versioned_transaction(
         solana_message::v1::TransactionConfig::empty()
     };
 
-    // 使用预分配的交易构建器以降低延迟
-    let mut builder = acquire_builder();
-
-    let build_result = builder.build_zero_alloc(
+    // Compile directly from borrowed instructions; no intermediate deep clone
+    // or shared compatibility-pool queue is needed on the sender hot path.
+    let versioned_msg = compile_message(
         &payer.pubkey(),
         &full_instructions,
         address_lookup_table_accounts,
         blockhash,
         transaction_version,
         v1_config,
+    )?;
+    anyhow::ensure!(
+        versioned_msg.header().num_required_signatures == 1
+            && versioned_msg.static_account_keys().first() == Some(&payer.pubkey()),
+        "Transaction requires unsupported additional signers; this builder signs only the payer"
     );
-    release_builder(builder);
-    let versioned_msg = build_result?;
 
     let msg_bytes = versioned_msg.serialize();
     let signature =

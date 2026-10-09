@@ -1192,7 +1192,7 @@ impl TradingClient {
             sender_thread_cores: None,
             max_sender_concurrency,
             effective_core_ids,
-            log_enabled: true,
+            log_enabled: false,
             check_min_tip: false,
             transaction_version: TradeTransactionVersion::V0,
         }
@@ -1240,7 +1240,7 @@ impl TradingClient {
             sender_thread_cores: None,
             max_sender_concurrency,
             effective_core_ids,
-            log_enabled: true,
+            log_enabled: false,
             check_min_tip: false,
             transaction_version: TradeTransactionVersion::V0,
         }
@@ -2084,7 +2084,7 @@ mod tests {
 
     #[test]
     fn normalize_swqos_configs_adds_default_rpc_route() {
-        let configs = vec![SwqosConfig::Jito("uuid".to_string(), SwqosRegion::Frankfurt, None)];
+        let configs = vec![SwqosConfig::Jito("uuid".to_string(), SwqosRegion::Frankfurt, None, None)];
         let normalized = normalize_swqos_configs("https://rpc.example", &configs);
 
         assert_eq!(normalized.len(), 2);

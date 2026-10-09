@@ -1392,7 +1392,7 @@ async fn initialize_real_client() -> AnyResult<SolanaTrade> {
     let trade_config = TradeConfig::builder(rpc_url, swqos_configs, commitment)
         // .create_wsol_ata_on_startup(true)  // default: true
         // .use_seed_optimize(true)            // default: true
-        // .log_enabled(true)                  // default: true
+        // .log_enabled(true)                  // default: false; explicitly enable logs
         // .check_min_tip(false)               // default: false
         // .swqos_cores_from_end(false)        // default: false
         // .mev_protection(false)              // default: false

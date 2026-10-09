@@ -13,6 +13,7 @@
 
 use anyhow::{anyhow, Result};
 use crossbeam_queue::ArrayQueue;
+use futures::FutureExt;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use solana_hash::Hash;
@@ -160,7 +161,22 @@ async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>, notify: Arc<Notify>
         };
 
         if let Some(job) = job {
-            run_one_swqos_job(job).await;
+            // User-supplied transports/middleware may panic. Keep this worker
+            // alive and complete its lane rather than stranding later batches.
+            let collector = job.shared.collector.clone();
+            let swqos_type = job.swqos_type;
+            let strategy_type = job.strategy_type;
+            if std::panic::AssertUnwindSafe(run_one_swqos_job(job)).catch_unwind().await.is_err() {
+                collector.submit(TaskResult {
+                    success: false,
+                    signature: Signature::default(),
+                    error: Some(anyhow!("SWQOS sender task panicked")),
+                    swqos_type,
+                    strategy_type,
+                    landed_on_chain: false,
+                    submit_done_us: crate::common::clock::now_micros(),
+                });
+            }
         }
     }
 }
@@ -168,6 +184,9 @@ async fn swqos_worker_loop(queue: Arc<ArrayQueue<SwqosJob>>, notify: Arc<Notify>
 static SWQOS_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
 static SWQOS_NOTIFY: OnceCell<Arc<Notify>> = OnceCell::new();
 static SWQOS_WORKER_COUNT: AtomicUsize = AtomicUsize::new(0);
+// The process-wide queue must have a process-wide runtime owner. Workers must
+// not be cancelled when the runtime of an individual caller is dropped.
+static SWQOS_RUNTIME: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
 
 /// Dedicated OS-thread sender pool. Queue and notify are in OnceCell so hot path never takes a lock after init.
 static DEDICATED_QUEUE: OnceCell<Arc<ArrayQueue<SwqosJob>>> = OnceCell::new();
@@ -304,7 +323,13 @@ fn ensure_dedicated_worker_count_locked(
     DEDICATED_WORKER_COUNT.store(target_workers, Ordering::Release);
 }
 
-fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>, max_sender_concurrency: usize) {
+fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>, max_sender_concurrency: usize) -> Result<()> {
+    let runtime = SWQOS_RUNTIME.get_or_try_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .thread_name("sol-trade-swqos")
+            .enable_all()
+            .build()
+    })?;
     let n = SWQOS_POOL_WORKERS.min(max_sender_concurrency).max(1);
     let mut current = SWQOS_WORKER_COUNT.load(Ordering::Acquire);
     while current < n {
@@ -314,12 +339,20 @@ fn ensure_swqos_pool(queue: Arc<ArrayQueue<SwqosJob>>, max_sender_concurrency: u
         }
     }
     if current >= n {
-        return;
+        return Ok(());
     }
     let notify = SWQOS_NOTIFY.get_or_init(|| Arc::new(Notify::new())).clone();
     for _ in current..n {
-        tokio::spawn(swqos_worker_loop(queue.clone(), notify.clone()));
+        runtime.spawn(swqos_worker_loop(queue.clone(), notify.clone()));
     }
+    Ok(())
+}
+
+/// Cold-path initialization for the default process-owned sender runtime.
+/// Call before trade triggers to avoid first-submit runtime/thread startup.
+pub fn warm_swqos_sender_pool(max_sender_concurrency: usize) -> Result<()> {
+    let queue = SWQOS_QUEUE.get_or_init(|| Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP)));
+    ensure_swqos_pool(queue.clone(), max_sender_concurrency)
 }
 
 #[repr(align(64))]
@@ -338,24 +371,10 @@ struct TaskResult {
 fn is_landed_error(error: &anyhow::Error) -> bool {
     use crate::swqos::common::TradeError;
 
-    // If it's a TradeError with a non-zero code, the tx landed but failed on-chain
-    if let Some(trade_error) = error.downcast_ref::<TradeError>() {
-        // Code 500 with "timed out" message means tx never landed
-        if trade_error.code == 500 && trade_error.message.contains("timed out") {
-            return false;
-        }
-        // Any other TradeError means the tx landed (e.g., ExceededSlippage = 6004)
-        return trade_error.code > 0;
-    }
-
-    // Check error message for timeout indication
-    let msg = error.to_string();
-    if msg.contains("timed out") || msg.contains("timeout") {
-        return false;
-    }
-
-    // Assume other errors might indicate landed tx (be conservative)
-    false
+    // Only confirmation polling supplies an instruction index. Transport errors
+    // also use TradeError (including code 500), so a numeric code is not evidence
+    // that a durable nonce was consumed. Custom program error zero is valid.
+    error.downcast_ref::<TradeError>().is_some_and(|error| error.instruction.is_some())
 }
 
 struct ResultCollector {
@@ -365,10 +384,11 @@ struct ResultCollector {
     completed_count: AtomicUsize,
     result_notify: Notify,
     total_tasks: usize,
+    uses_durable_nonce: bool,
 }
 
 impl ResultCollector {
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, uses_durable_nonce: bool) -> Self {
         Self {
             results: ArrayQueue::new(capacity),
             success_flag: AtomicBool::new(false),
@@ -376,13 +396,14 @@ impl ResultCollector {
             completed_count: AtomicUsize::new(0),
             result_notify: Notify::new(),
             total_tasks: capacity,
+            uses_durable_nonce,
         }
     }
 
     fn submit(&self, result: TaskResult) {
         // ArrayQueue is already synchronized; no extra fence needed
         let is_success = result.success;
-        let is_landed_failed = result.landed_on_chain && !result.success;
+        let is_landed_failed = self.uses_durable_nonce && result.landed_on_chain && !result.success;
 
         let _ = self.results.push(result);
 
@@ -613,7 +634,8 @@ fn select_swqos_task_configs(
     gas_fee_configs: &[GasFeeConfig],
     with_tip: bool,
     check_min_tip: bool,
-    min_tip_by_swqos: impl Fn(SwqosType) -> f64,
+    min_tip_by_index: impl Fn(usize) -> f64,
+    configured_min_tip: impl Fn(usize) -> Option<u64>,
 ) -> Vec<SwqosTaskConfig> {
     let mut task_configs = Vec::with_capacity(swqos_types.len() * 3);
     for (i, swqos_type) in swqos_types.iter().copied().enumerate() {
@@ -621,9 +643,18 @@ fn select_swqos_task_configs(
             continue;
         }
         let check_tip = with_tip && !matches!(swqos_type, SwqosType::Default) && check_min_tip;
-        let min_tip = if check_tip { min_tip_by_swqos(swqos_type) } else { 0.0 };
+        let min_tip = if check_tip { min_tip_by_index(i) } else { 0.0 };
+        let configured_minimum = configured_min_tip(i);
         for config in gas_fee_configs {
             if config.0 != swqos_type {
+                continue;
+            }
+            if configured_minimum.is_some_and(|minimum| {
+                let tip_lamports = if with_tip {
+                    crate::trading::common::transaction_builder::sol_f64_to_lamports(config.2.tip)
+                } else { 0 };
+                tip_lamports < minimum
+            }) {
                 continue;
             }
             if check_tip && config.2.tip < min_tip {
@@ -735,13 +766,8 @@ pub async fn execute_parallel_with_version(
         &gas_fee_configs,
         with_tip,
         check_min_tip,
-        |swqos_type| {
-            swqos_clients
-                .iter()
-                .find(|swqos| swqos.get_swqos_type() == swqos_type)
-                .map(|swqos| swqos.min_tip_sol())
-                .unwrap_or(0.0)
-        },
+        |index| swqos_clients[index].min_tip_sol(),
+        |index| swqos_clients[index].configured_min_tip_lamports(),
     );
 
     if selected_task_configs.is_empty() {
@@ -750,7 +776,7 @@ pub async fn execute_parallel_with_version(
 
     // Task preparation completed: one shared context (clone once per batch), then minimal per-task data.
     let channel_count = selected_task_configs.len().max(1);
-    let collector = Arc::new(ResultCollector::new(channel_count));
+    let collector = Arc::new(ResultCollector::new(channel_count, durable_nonce.is_some()));
     let shared = Arc::new(SwqosSharedContext {
         payer,
         instructions,
@@ -766,17 +792,9 @@ pub async fn execute_parallel_with_version(
         transaction_version,
     });
 
-    let (queue, notify) = if use_dedicated_sender_threads {
-        ensure_dedicated_pool(
-            sender_config.sender_thread_cores.as_ref().map(|a| a.as_slice()),
-            sender_config.max_sender_concurrency,
-        )
-    } else {
-        let q = SWQOS_QUEUE.get_or_init(|| Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP)));
-        ensure_swqos_pool(q.clone(), sender_config.max_sender_concurrency);
-        (q.clone(), SWQOS_NOTIFY.get_or_init(|| Arc::new(Notify::new())).clone())
-    };
-
+    // Resolve every fallible provider input before making any lane visible to
+    // workers. A failed preparation must never leak a transaction into a later call.
+    let mut jobs = Vec::with_capacity(channel_count);
     {
         let effective_core_ids = sender_config.effective_core_ids.as_slice();
         let core_len = effective_core_ids.len().max(1);
@@ -795,7 +813,13 @@ pub async fn execute_parallel_with_version(
                 Some(t) => t.clone(),
                 None => {
                     let s = swqos_client.get_tip_account()?;
-                    let tip = Arc::new(Pubkey::from_str(&s).unwrap_or_default());
+                    // Default RPC has no tip destination and deliberately returns
+                    // an empty string. All actual tip addresses must parse.
+                    let tip = Arc::new(if s.is_empty() && swqos_type == SwqosType::Default {
+                        Pubkey::default()
+                    } else {
+                        Pubkey::from_str(&s)?
+                    });
                     tip_cache.insert(key, tip.clone());
                     tip
                 }
@@ -817,17 +841,32 @@ pub async fn execute_parallel_with_version(
                 core_id,
                 use_affinity: !effective_core_ids.is_empty(),
             };
-            if let Err(job) = queue.push(job) {
-                shared.collector.submit(TaskResult {
-                    success: false,
-                    signature: Signature::default(),
-                    error: Some(anyhow!("SWQOS sender queue is full")),
-                    swqos_type: job.swqos_type,
-                    strategy_type: job.strategy_type,
-                    landed_on_chain: false,
-                    submit_done_us: crate::common::clock::now_micros(),
-                });
-            }
+            jobs.push(job);
+        }
+    }
+
+    let (queue, notify) = if use_dedicated_sender_threads {
+        ensure_dedicated_pool(
+            sender_config.sender_thread_cores.as_ref().map(|a| a.as_slice()),
+            sender_config.max_sender_concurrency,
+        )
+    } else {
+        let q = SWQOS_QUEUE.get_or_init(|| Arc::new(ArrayQueue::new(SWQOS_QUEUE_CAP)));
+        ensure_swqos_pool(q.clone(), sender_config.max_sender_concurrency)?;
+        (q.clone(), SWQOS_NOTIFY.get_or_init(|| Arc::new(Notify::new())).clone())
+    };
+
+    for job in jobs {
+        if let Err(job) = queue.push(job) {
+            shared.collector.submit(TaskResult {
+                success: false,
+                signature: Signature::default(),
+                error: Some(anyhow!("SWQOS sender queue is full")),
+                swqos_type: job.swqos_type,
+                strategy_type: job.strategy_type,
+                landed_on_chain: false,
+                submit_done_us: crate::common::clock::now_micros(),
+            });
         }
     }
 
@@ -870,6 +909,120 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
+    struct LifecycleTransport {
+        sends: Arc<AtomicUsize>,
+        fail_tip: bool,
+        invalid_tip: bool,
+        panic_send: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::swqos::SwqosClientTrait for LifecycleTransport {
+        async fn send_transaction(
+            &self, _: TradeType, _: &solana_sdk::transaction::VersionedTransaction, _: bool,
+        ) -> Result<()> {
+            assert!(!self.panic_send, "mock transport panic");
+            self.sends.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        async fn send_transactions(
+            &self, _: TradeType, _: &Vec<solana_sdk::transaction::VersionedTransaction>, _: bool,
+        ) -> Result<()> {
+            unreachable!()
+        }
+        fn get_tip_account(&self) -> Result<String> {
+            if self.fail_tip { return Err(anyhow!("mock tip lookup failed")); }
+            Ok(if self.invalid_tip { "invalid tip".to_owned() } else { Pubkey::default().to_string() })
+        }
+        fn get_swqos_type(&self) -> SwqosType { SwqosType::Default }
+    }
+
+    async fn submit_lifecycle_batch(
+        clients: &[Arc<SwqosClient>], dedicated: bool,
+    ) -> Result<(bool, Vec<Signature>, Option<anyhow::Error>, Vec<SwqosSubmitTiming>)> {
+        let strategy = GasFeeStrategy::new();
+        strategy.set_default_rpc_fee_strategy(200_000, 200_000, 0, 0);
+        tokio::time::timeout(Duration::from_secs(2), execute_parallel(
+            clients, Arc::new(Keypair::new()), vec![], vec![], Some(Hash::new_unique()),
+            None, None, "offline-lifecycle", true, false, true, false, strategy, dedicated,
+            SenderConcurrencyConfig {
+                sender_thread_cores: None, effective_core_ids: Arc::new(vec![]), max_sender_concurrency: 1,
+            }, false,
+        )).await.expect("sender pool must remain responsive")
+    }
+
+    #[test]
+    fn default_pool_survives_replacement_caller_runtimes() {
+        let sends = Arc::new(AtomicUsize::new(0));
+        let client: Arc<SwqosClient> = Arc::new(LifecycleTransport {
+            sends: sends.clone(), fail_tip: false, invalid_tip: false, panic_send: false,
+        });
+        for _ in 0..3 {
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let result = runtime.block_on(submit_lifecycle_batch(&[client.clone()], false)).unwrap();
+            assert!(result.0);
+            assert_eq!(result.1.len(), 1);
+        }
+        assert_eq!(sends.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn default_rpc_empty_tip_preserves_local_nonce_validation() {
+        let client = crate::swqos::SwqosConfig::get_swqos_client(
+            "http://127.0.0.1:1".into(), Default::default(),
+            crate::swqos::SwqosConfig::Default("http://127.0.0.1:1".into()), false,
+        ).await.unwrap();
+        let strategy = GasFeeStrategy::new();
+        strategy.set_default_rpc_fee_strategy(200_000, 200_000, 0, 0);
+        let result = tokio::time::timeout(Duration::from_secs(2), execute_parallel(
+            &[client], Arc::new(Keypair::new()), vec![], vec![], Some(Hash::new_unique()),
+            Some(DurableNonceInfo { nonce_account: None, current_nonce: Some(Hash::new_unique()) }),
+            None, "offline-validation", true, false, true, false, strategy, false,
+            SenderConcurrencyConfig {
+                sender_thread_cores: None, effective_core_ids: Arc::new(vec![]), max_sender_concurrency: 1,
+            }, false,
+        )).await.unwrap().unwrap();
+        assert!(!result.0);
+        assert_eq!(result.1.len(), 1);
+        assert!(result.2.unwrap().to_string().contains("nonce_account is None"));
+    }
+
+    #[tokio::test]
+    async fn failed_batch_preparation_never_publishes_partial_jobs() {
+        for dedicated in [false, true] {
+            let sends = Arc::new(AtomicUsize::new(0));
+            let good: Arc<SwqosClient> = Arc::new(LifecycleTransport {
+                sends: sends.clone(), fail_tip: false, invalid_tip: false, panic_send: false,
+            });
+            assert!(submit_lifecycle_batch(&[good.clone()], dedicated).await.unwrap().0);
+            for invalid_tip in [false, true] {
+                let bad: Arc<SwqosClient> = Arc::new(LifecycleTransport {
+                    sends: sends.clone(), fail_tip: !invalid_tip, invalid_tip, panic_send: false,
+                });
+                assert!(submit_lifecycle_batch(&[good.clone(), bad], dedicated).await.is_err());
+                assert_eq!(sends.load(Ordering::SeqCst), if invalid_tip { 2 } else { 1 });
+                assert!(submit_lifecycle_batch(&[good.clone()], dedicated).await.unwrap().0);
+            }
+            assert_eq!(sends.load(Ordering::SeqCst), 3);
+        }
+    }
+
+    #[tokio::test]
+    async fn transport_panic_does_not_remove_pool_worker() {
+        let sends = Arc::new(AtomicUsize::new(0));
+        let panicking: Arc<SwqosClient> = Arc::new(LifecycleTransport {
+            sends: sends.clone(), fail_tip: false, invalid_tip: false, panic_send: true,
+        });
+        let result = submit_lifecycle_batch(&[panicking], false).await.unwrap();
+        assert!(!result.0);
+        assert!(result.2.unwrap().to_string().contains("panicked"));
+        let good: Arc<SwqosClient> = Arc::new(LifecycleTransport {
+            sends: sends.clone(), fail_tip: false, invalid_tip: false, panic_send: false,
+        });
+        assert!(submit_lifecycle_batch(&[good], false).await.unwrap().0);
+        assert_eq!(sends.load(Ordering::SeqCst), 1);
+    }
+
     fn value(cu_price: u64, tip: f64) -> GasFeeStrategyValue {
         GasFeeStrategyValue { cu_limit: 100_000, cu_price, tip }
     }
@@ -887,6 +1040,21 @@ mod tests {
     }
 
     #[test]
+    fn landed_error_requires_confirmation_evidence() {
+        use crate::swqos::common::TradeError;
+        for code in [0, 500, 6004] {
+            let transport = anyhow::Error::new(TradeError {
+                code, message: "submission failed".into(), instruction: None,
+            });
+            assert!(!is_landed_error(&transport));
+            let confirmed = anyhow::Error::new(TradeError {
+                code, message: "instruction failed".into(), instruction: Some(0),
+            });
+            assert!(is_landed_error(&confirmed));
+        }
+    }
+
+    #[test]
     fn select_task_configs_keeps_two_fee_lanes_per_swqos() {
         let swqos_types = [SwqosType::Jito, SwqosType::Helius];
         let configs = [
@@ -896,7 +1064,7 @@ mod tests {
             (SwqosType::Helius, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.005)),
         ];
 
-        let selected = select_swqos_task_configs(&swqos_types, &configs, true, false, |_| 0.0);
+        let selected = select_swqos_task_configs(&swqos_types, &configs, true, false, |_| 0.0, |_| None);
 
         assert_eq!(selected.len(), 4);
         assert_eq!(
@@ -925,10 +1093,43 @@ mod tests {
             (SwqosType::Jito, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.005)),
         ];
 
-        let selected = select_swqos_task_configs(&swqos_types, &configs, true, true, |_| 0.001);
+        let selected = select_swqos_task_configs(&swqos_types, &configs, true, true, |_| 0.001, |_| None);
 
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0].gas_fee_config.1, GasFeeStrategyType::HighTipLowCuPrice);
+    }
+
+    #[test]
+    fn built_in_minimum_is_endpoint_specific_for_helius_modes() {
+        let types = [SwqosType::Helius, SwqosType::Helius];
+        let configs = [(SwqosType::Helius, GasFeeStrategyType::Normal, value(0, 0.000005))];
+        for minima in [[0.0002, 0.000005], [0.000005, 0.0002]] {
+            let selected = select_swqos_task_configs(
+                &types, &configs, true, true, |i| minima[i], |_| None,
+            );
+            assert_eq!(selected.len(), 1);
+            assert_eq!(minima[selected[0].swqos_index], 0.000005);
+        }
+    }
+
+    #[test]
+    fn configured_min_tip_filters_each_route_and_lane_without_global_check() {
+        // Two endpoints of the same provider must retain independent thresholds.
+        let types = [SwqosType::Jito, SwqosType::Jito, SwqosType::Default];
+        let configs = [
+            (SwqosType::Jito, GasFeeStrategyType::LowTipHighCuPrice, value(400_000, 0.099999999)),
+            (SwqosType::Jito, GasFeeStrategyType::HighTipLowCuPrice, value(180_000, 0.1)),
+            (SwqosType::Default, GasFeeStrategyType::Normal, value(180_000, 0.0)),
+        ];
+        let selected = select_swqos_task_configs(&types, &configs, true, false,
+            |_| panic!("built-in minimum must not be consulted"),
+            |i| if i == 0 { Some(100_000_000) } else { None });
+        assert_eq!(selected.iter().map(|t| t.swqos_index).collect::<Vec<_>>(), vec![0, 1, 1, 2]);
+        assert_eq!(selected[0].gas_fee_config.1, GasFeeStrategyType::HighTipLowCuPrice);
+        // Explicit zero preserves participation even for a zero-tip lane.
+        let selected = select_swqos_task_configs(&types, &configs, true, false,
+            |_| 0.0, |_| Some(0));
+        assert_eq!(selected.len(), 5);
     }
 
     #[test]
@@ -939,7 +1140,7 @@ mod tests {
             (SwqosType::Default, GasFeeStrategyType::Normal, value(700_000, 0.0)),
         ];
 
-        let selected = select_swqos_task_configs(&swqos_types, &configs, false, false, |_| 0.0);
+        let selected = select_swqos_task_configs(&swqos_types, &configs, false, false, |_| 0.0, |_| None);
 
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0].gas_fee_config.0, SwqosType::Default);
@@ -949,7 +1150,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_for_all_submitted_timeout_is_bounded() {
-        let collector = ResultCollector::new(1);
+        let collector = ResultCollector::new(1, false);
         let start = Instant::now();
 
         let result = collector.wait_for_all_submitted(0).await;
@@ -963,7 +1164,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_for_first_submitted_wakes_on_success() {
-        let collector = Arc::new(ResultCollector::new(2));
+        let collector = Arc::new(ResultCollector::new(2, false));
         let waiter = collector.clone();
         let waiting =
             tokio::spawn(
@@ -984,7 +1185,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_for_success_wakes_on_landed_failure() {
-        let collector = Arc::new(ResultCollector::new(2));
+        let collector = Arc::new(ResultCollector::new(2, true));
         let waiter = collector.clone();
         let waiting = tokio::spawn(async move { waiter.wait_for_success().await });
 
@@ -1001,8 +1202,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn recent_blockhash_landed_failure_waits_for_another_lane() {
+        for confirmed in [false, true] {
+            let collector = Arc::new(ResultCollector::new(2, false));
+            collector.submit(task_result(false, true));
+            let waiter = collector.clone();
+            let mut waiting = tokio::spawn(async move {
+                if confirmed {
+                    waiter.wait_for_success().await
+                } else {
+                    waiter.wait_for_first_submitted(Duration::from_secs(1)).await
+                }
+            });
+            assert!(tokio::time::timeout(Duration::from_millis(10), &mut waiting).await.is_err());
+            collector.submit(task_result(true, true));
+            let result = tokio::time::timeout(Duration::from_millis(100), waiting)
+                .await.unwrap().unwrap().unwrap();
+            assert!(result.0);
+            assert_eq!(result.1.len(), 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn durable_nonce_failure_short_circuits_fast_submit() {
+        let collector = ResultCollector::new(2, true);
+        collector.submit(task_result(false, true));
+        let result = tokio::time::timeout(Duration::from_millis(100),
+            collector.wait_for_first_submitted(Duration::from_secs(1)))
+            .await.unwrap().unwrap();
+        assert!(!result.0);
+        assert!(result.2.is_some());
+    }
+
+    #[tokio::test]
+    async fn independent_lanes_still_return_failure_when_all_complete() {
+        let collector = ResultCollector::new(2, false);
+        collector.submit(task_result(false, true));
+        collector.submit(task_result(false, false));
+        let result = collector.wait_for_success().await.unwrap();
+        assert!(!result.0);
+        assert_eq!(result.1.len(), 2);
+        assert!(result.2.is_some());
+    }
+
+    #[tokio::test]
     async fn wait_for_all_submitted_handles_preexisting_notifications() {
-        let collector = ResultCollector::new(2);
+        let collector = ResultCollector::new(2, false);
         collector.submit(task_result(false, false));
         collector.submit(task_result(true, true));
 

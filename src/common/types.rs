@@ -105,7 +105,7 @@ pub struct TradeConfig {
     pub create_wsol_ata_on_startup: bool,
     /// Whether to use seed optimization for all ATA operations (default: true)
     pub use_seed_optimize: bool,
-    /// Whether to output all SDK logs (timing, SWQOS submit/confirm, WSOL, blacklist, etc.). Default true.
+    /// Whether to output all SDK logs (timing, SWQOS submit/confirm, WSOL, blacklist, etc.). Default false to keep synchronous output off the hot path.
     pub log_enabled: bool,
     /// Whether to check minimum tip per SWQOS provider (filter out configs below min). Default false to save latency.
     pub check_min_tip: bool,
@@ -123,7 +123,7 @@ impl TradeConfig {
     /// # Available builder methods
     /// - `.create_wsol_ata_on_startup(bool)` — check & create WSOL ATA on init (default: true)
     /// - `.use_seed_optimize(bool)`           — seed optimization for ATA ops (default: true)
-    /// - `.log_enabled(bool)`                 — SDK timing/SWQOS logs (default: true)
+    /// - `.log_enabled(bool)`                 — SDK timing/SWQOS logs (default: false)
     /// - `.check_min_tip(bool)`               — filter SWQOS below min tip (default: false)
     /// - `.swqos_cores_from_end(bool)`        — bind SWQOS to last N cores (default: false)
     /// - `.mev_protection(bool)`              — MEV protection for Astralane/BlockRazor/Glaive (default: false)
@@ -183,7 +183,7 @@ impl TradeConfigBuilder {
             transaction_version: TradeTransactionVersion::default(),
             create_wsol_ata_on_startup: true,
             use_seed_optimize: true,
-            log_enabled: true,
+            log_enabled: false,
             check_min_tip: false,
             swqos_cores_from_end: false,
             mev_protection: false,
@@ -208,7 +208,7 @@ impl TradeConfigBuilder {
         self
     }
 
-    /// Enable SDK logs (timing, SWQOS submit/confirm, WSOL, blacklist, etc.). Default: `true`.
+    /// Enable synchronous SDK diagnostics explicitly. Default: `false` for low-latency trading.
     pub fn log_enabled(mut self, v: bool) -> Self {
         self.log_enabled = v;
         self
@@ -271,6 +271,7 @@ mod tests {
             CommitmentConfig::processed(),
         );
         assert_eq!(config.transaction_version, TradeTransactionVersion::V0);
+        assert!(!config.log_enabled);
     }
 
     #[test]
@@ -281,7 +282,9 @@ mod tests {
             CommitmentConfig::processed(),
         )
         .transaction_version(TradeTransactionVersion::V1)
+        .log_enabled(true)
         .build();
         assert_eq!(config.transaction_version, TradeTransactionVersion::V1);
+        assert!(config.log_enabled);
     }
 }

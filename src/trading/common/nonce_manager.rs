@@ -6,17 +6,21 @@ use crate::common::nonce_cache::DurableNonceInfo;
 
 /// Add nonce advance instruction to the instruction set
 ///
-/// Nonce functionality is only used when nonce_pubkey is provided
-/// Returns error if nonce is locked, already used, or not ready
-/// On success, locks and marks nonce as used
+/// Requires a complete nonce snapshot supplied by the caller. This function
+/// only builds the advance instruction; nonce reservation is caller-owned.
 pub fn add_nonce_instruction(
     instructions: &mut Vec<Instruction>,
     payer: &Keypair,
     durable_nonce: Option<&DurableNonceInfo>,
 ) -> Result<(), anyhow::Error> {
     if let Some(durable_nonce) = durable_nonce {
-        let nonce_advance_ix =
-            advance_nonce_account(&durable_nonce.nonce_account.unwrap(), &payer.pubkey());
+        let nonce_account = durable_nonce
+            .nonce_account
+            .ok_or_else(|| anyhow::anyhow!("durable_nonce.nonce_account is None"))?;
+        durable_nonce
+            .current_nonce
+            .ok_or_else(|| anyhow::anyhow!("durable_nonce.current_nonce is None"))?;
+        let nonce_advance_ix = advance_nonce_account(&nonce_account, &payer.pubkey());
         instructions.push(nonce_advance_ix);
     }
 
@@ -31,6 +35,9 @@ pub fn get_transaction_blockhash(
     durable_nonce: Option<&DurableNonceInfo>,
 ) -> Result<Hash, anyhow::Error> {
     if let Some(durable_nonce) = durable_nonce {
+        durable_nonce
+            .nonce_account
+            .ok_or_else(|| anyhow::anyhow!("durable_nonce.nonce_account is None"))?;
         durable_nonce
             .current_nonce
             .ok_or_else(|| anyhow::anyhow!("durable_nonce.current_nonce is None"))
