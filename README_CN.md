@@ -70,12 +70,12 @@
 
 | 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.0` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.8` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.8` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.9` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.11` |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.3` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.1` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.9` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.9` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.10` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.13` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.4` |
 
 ## 这个 SDK 适合什么场景
 
@@ -183,14 +183,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.1" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "6.0.0"
+sol-trade-sdk = "6.0.1"
 ```
 
 ## 🛠️ 使用示例
@@ -758,6 +758,14 @@ let provider = SwqosConfig::Jito(
 ); // Minimum tip: 0.0001 SOL; use None to omit the limit.
 ```
 
+## v6.0.1 — Pump depth-2 and SpeedLanding regional updates
+
+- 修正 Temporal 默认最低小费为 0.001 SOL，并补充 Temporal/LunarLander 阈值边界回归测试。
+
+Adds Pump depth-2 create_v2 account chains, including curve and migrated-pool combinations. Preserves stored-depth chains when an ancestor is later whitelisted. Synchronizes SpeedLanding regional endpoints, including London and the New York domain, and compatible client routing. Account construction adds no RPC calls.
+
+Validation includes official Pump SDK 4.1.0 instruction comparisons, signed local LiteSVM simulations and SDK regressions. Local simulation state/config is synthetic; no funded transactions were broadcast and production latency was not measured.
+
 ## v6.0.0 — Signed transaction and hot-path hardening
 
 Adds optional decimal SOL minimum tips to SWQoS provider configuration. Providers below the configured threshold are skipped before instruction construction, signing and submission; equality remains eligible and omitted thresholds preserve existing behavior.
@@ -767,3 +775,15 @@ Breaking migration: provider tuple constructors now take a final `Option<f64>` a
 Hardens cached preparation, durable nonce lifecycle, transaction pools and integer transfer-fee boundaries. Adds signed transaction, ALT and offline bank regression coverage.
 
 Validation includes local CPU benchmarks and offline signed-bank scenarios. Measured hot paths use cached inputs without RPC. Benchmarks do not establish production network or transaction-landing latency. No funded mainnet transactions were broadcast.
+
+## Pump depth 2 创建更新
+
+使用 `instruction::pump_compact_accounts::derive_pump_coin_quote_create_accounts_with_chain(new_mint, quote, &chain, depth, max_depth, &listed_quote_mints)` 构建 `create_v2` 剩余账户。传入 Q 的曲线/迁移池状态，以及从近到远的祖先链；链长度等于 Q 的深度，depth 1 的 Q 可创建 depth 2 新币。原 helper 保留用于 depth 0 的 Q。
+
+固定 16 个账户和指令参数不变。depth 2 根据 Q 与祖先是否迁移使用 6、9 或 12 个剩余账户：4 个前缀账户，加各层曲线，以及已迁移层的池和两个 vault。剩余账户仅新曲线的 quote ATA 可写。账户构建没有 RPC；状态、Global 深度限制和白名单由调用方提供。必要时使用 v0 + ALT。缺链、循环、不连续、非法底层报价币、Q mayhem、待迁移曲线和超深度会被拒绝。
+
+已与官方 Pump SDK 4.1.0 的 12 组签名指令对比，并使用部署程序字节码在 LiteSVM 完成 12 组成功创建及 6 组错误/回滚测试。测试报价状态、白名单及深度上限为本地配置，没有广播交易或测量生产延迟。交易接口与报价逻辑不变；已有标量初始储备 helper 不负责完整嵌套链的定价。
+
+### SpeedLanding regional endpoints
+
+[Official region list](https://speedlanding.trade/docs.html): New York `ny.speedlanding.trade:17778`, Frankfurt `fra.speedlanding.trade:17778`, Amsterdam `ams.speedlanding.trade:17778`, Tokyo `tyo.speedlanding.trade:17778`, London `lon.speedlanding.trade:17778`, Singapore `sgp.speedlanding.trade:17778`. Use the matching `SwqosRegion`; custom endpoints take precedence. Dublin falls back to London, SLC/LosAngeles to New York, and Default to Frankfurt.

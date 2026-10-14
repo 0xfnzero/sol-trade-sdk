@@ -20,7 +20,9 @@ pub fn build_pump_create_v2_instruction(
     remaining: &[AccountMeta],
 ) -> Result<Instruction> {
     ensure!(
-        [0, 3, 4, 5, 8].contains(&remaining.len())
+        ([0, 3, 4].contains(&remaining.len())
+            || (1..=5)
+                .any(|groups| (0..=groups).any(|pools| remaining.len() == 4 + groups + pools * 3)))
             && remaining.iter().enumerate().all(|(i, a)| !a.is_signer && a.is_writable == (i == 1)),
         "invalid quote creation accounts"
     );

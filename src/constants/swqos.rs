@@ -443,17 +443,18 @@ pub const SWQOS_ENDPOINTS_SOYAS: [&str; 10] = [
     "fra.landing.soyas.xyz:9000", // Default: 非地理区域；EU 枢纽
 ];
 
+/// Official regions: https://speedlanding.trade/docs.html (QUIC port 17778).
 pub const SWQOS_ENDPOINTS_SPEEDLANDING: [&str; 10] = [
-    "nyc.speedlanding.trade:17778",
+    "ny.speedlanding.trade:17778",
     "fra.speedlanding.trade:17778",
     "ams.speedlanding.trade:17778",
-    "ams.speedlanding.trade:17778", // Dublin: 已公布 EU 点中 ams 地理近爱尔兰
-    "nyc.speedlanding.trade:17778", // SLC: 表中美国仅 nyc；无美西 PoP，受可用区限制
+    "lon.speedlanding.trade:17778", // Dublin fallback: London
+    "ny.speedlanding.trade:17778", // SLC fallback: New York
     "tyo.speedlanding.trade:17778",
     "sgp.speedlanding.trade:17778",
-    "ams.speedlanding.trade:17778", // London: 已公布 EU 中 ams 距英国最近之一
-    "nyc.speedlanding.trade:17778", // LosAngeles: 同上，美国仅 nyc
-    "fra.speedlanding.trade:17778", // Default: 非地理区域；EU 枢纽
+    "lon.speedlanding.trade:17778",
+    "ny.speedlanding.trade:17778", // LosAngeles fallback: New York
+    "fra.speedlanding.trade:17778", // Default
 ];
 
 /// Lunar Lander HTTP endpoints. Binary tx via POST /send-bin with x-api-key header.
@@ -546,7 +547,8 @@ pub const SWQOS_MIN_TIP_DEFAULT: f64 = 0.00001; // 其它SWQOS默认最低小费
 pub const SWQOS_MIN_TIP_JITO: f64 = 0.00001;
 pub const SWQOS_MIN_TIP_NEXTBLOCK: f64 = 0.001;
 pub const SWQOS_MIN_TIP_ZERO_SLOT: f64 = 0.0001;
-pub const SWQOS_MIN_TIP_TEMPORAL: f64 = 0.0001;
+/// Nozomi default minimum: https://use.temporal.xyz/nozomi/tipping-and-faq
+pub const SWQOS_MIN_TIP_TEMPORAL: f64 = 0.001;
 pub const SWQOS_MIN_TIP_BLOXROUTE: f64 = 0.0001;
 pub const SWQOS_MIN_TIP_NODE1: f64 = 0.0001; // 如需更高阈值可调整
 pub const SWQOS_MIN_TIP_FLASHBLOCK: f64 = 0.0001;

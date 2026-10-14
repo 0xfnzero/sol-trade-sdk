@@ -259,7 +259,7 @@ pub fn derive_pump_multi_hop_accounts(
     Ok((accounts, remaining))
 }
 
-/// Extra create_v2 roles for an unlisted Pump coin quote from decoded state.
+/// Backward-compatible depth-0 helper. Nested quotes require the chain helper.
 pub fn derive_pump_coin_quote_create_accounts(
     new_mint: Pubkey,
     quote: PumpMultiHop,
@@ -267,35 +267,72 @@ pub fn derive_pump_coin_quote_create_accounts(
     max_depth: u8,
     listed_quote_mints: &[Pubkey],
 ) -> Result<Vec<solana_sdk::instruction::AccountMeta>> {
+    derive_pump_coin_quote_create_accounts_with_chain(
+        new_mint,
+        quote,
+        &[],
+        depth,
+        max_depth,
+        listed_quote_mints,
+    )
+}
+
+/// Q followed by ancestors nearest first, from caller-supplied state; no RPC.
+pub fn derive_pump_coin_quote_create_accounts_with_chain(
+    new_mint: Pubkey,
+    quote: PumpMultiHop,
+    chain: &[PumpMultiHop],
+    depth: u8,
+    max_depth: u8,
+    listed_quote_mints: &[Pubkey],
+) -> Result<Vec<solana_sdk::instruction::AccountMeta>> {
     use solana_sdk::instruction::AccountMeta;
-    let quote = normalize_hop(quote);
-    ensure!(depth < max_depth, "CurveDepthExceeded");
-    ensure!(
-        depth > 0
-            || quote.quote_mint == WSOL
-            || quote.quote_mint
-                == solana_sdk::pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
-            || listed_quote_mints.contains(&quote.quote_mint),
-        "QuoteBondingCurveNotEligible"
-    );
-    derive_pump_multi_hop_accounts(
-        new_mint,
-        quote.quote_mint,
-        quote.base_mint,
-        new_mint,
-        &[quote],
-        false,
-    )?;
+    ensure!(depth < max_depth.min(5), "CurveDepthExceeded");
+    ensure!(chain.len() == usize::from(depth), "QuoteChainAccountsRequired");
+    let hops: Vec<_> =
+        std::iter::once(quote).chain(chain.iter().copied()).map(normalize_hop).collect();
+    let supported = |mint: Pubkey| {
+        mint == WSOL
+            || mint == solana_sdk::pubkey!("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+            || listed_quote_mints.iter().any(|m| normalize_quote(*m) == mint)
+    };
+    ensure!(supported(hops.last().unwrap().quote_mint), "QuoteBondingCurveNotEligible");
+    // An ancestor newly added to the whitelist does not rewrite Q's stored depth.
+    for (i, h) in hops.iter().enumerate() {
+        ensure!(
+            h.base_mint != new_mint && !hops[..i].iter().any(|p| p.base_mint == h.base_mint),
+            "invalid quote chain"
+        );
+        if i > 0 {
+            ensure!(
+                hops[i - 1].quote_mint == h.base_mint
+                    && hops[i - 1].quote_token_program == h.base_token_program,
+                "discontinuous quote chain"
+            );
+        }
+        ensure!(h.venue != PumpMultiHopVenue::Curve || !h.complete, "QuoteCurveAwaitingMigration");
+        derive_pump_multi_hop_accounts(
+            new_mint,
+            h.quote_mint,
+            h.base_mint,
+            new_mint,
+            &[PumpMultiHop { mayhem: i == 0 && h.mayhem, ..*h }],
+            false,
+        )?;
+    }
+    let quote = hops[0];
     let curve = pda(PUMP, "bonding-curve", Some(new_mint));
     let mut keys = vec![
         quote.base_mint,
         ata(curve, quote.base_mint, quote.base_token_program),
         quote.base_token_program,
         pda(PUMP, "quote-control", None),
-        pda(PUMP, "bonding-curve", Some(quote.base_mint)),
     ];
-    if quote.venue == PumpMultiHopVenue::Pool {
-        keys.extend([quote.address, quote.base_vault, quote.quote_vault]);
+    for h in hops {
+        keys.push(pda(PUMP, "bonding-curve", Some(h.base_mint)));
+        if h.venue == PumpMultiHopVenue::Pool {
+            keys.extend([h.address, h.base_vault, h.quote_vault]);
+        }
     }
     Ok(keys
         .into_iter()

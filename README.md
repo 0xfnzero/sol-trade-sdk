@@ -70,12 +70,20 @@ Trading SDK language versions and related Rust SDKs:
 
 | Language | Repository | Description | Version |
 |----------|------------|-------------|---------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v6.0.0` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.8` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.8` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.9` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.11` |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.3` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v6.0.1` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.9` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.9` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.10` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.13` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.4` |
+
+## v6.0.1 — Pump depth-2 and SpeedLanding regional updates
+
+- Corrects the Temporal default minimum tip to 0.001 SOL, with Temporal/LunarLander boundary regressions.
+
+Adds Pump depth-2 create_v2 account chains, including curve and migrated-pool combinations. Preserves stored-depth chains when an ancestor is later whitelisted. Synchronizes SpeedLanding regional endpoints, including London and the New York domain, and compatible client routing. Account construction adds no RPC calls.
+
+Validation includes official Pump SDK 4.1.0 instruction comparisons, signed local LiteSVM simulations and SDK regressions. Local simulation state/config is synthetic; no funded transactions were broadcast and production latency was not measured.
 
 ## v6.0.0 — Signed transaction and hot-path hardening
 
@@ -193,14 +201,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.1" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "6.0.0"
+sol-trade-sdk = "6.0.1"
 ```
 
 ## 🛠️ Usage Examples
@@ -771,3 +779,17 @@ let provider = SwqosConfig::Jito(
     "your_uuid".to_string(), SwqosRegion::Frankfurt, None, Some(0.0001),
 ); // Minimum tip: 0.0001 SOL; use None to omit the limit.
 ```
+
+## Pump depth-2 token creation
+
+The [create_v2 depth update](https://github.com/pump-fun/pump-public-docs/blob/main/docs/instructions/CREATE_WITH_PUMP_COIN_QUOTE.md#depth) is supported by `instruction::pump_compact_accounts::derive_pump_coin_quote_create_accounts_with_chain(new_mint, quote, &chain, depth, max_depth, &listed_quote_mints)`. Pass Q's decoded venue and ancestors nearest first; `chain.len()` must equal Q's depth. A depth-1 Q creates a depth-2 child. The original helper remains available for depth-0 Q.
+
+Pass the resulting remaining accounts to `build_pump_create_v2_instruction`. The fixed 16 accounts and instruction arguments are unchanged. Depth-2 creates use 6, 9 or 12 remaining accounts depending on migration: four prefix roles, then each bonding curve and its pool/vault triple when migrated. Only the new curve's quote ATA is writable among the remaining roles. Supply the current Global depth cap and supported quote mints; account construction performs no RPC. Use v0 with ALT when required to fit transaction size.
+
+Missing chains, cycles, discontinuities, unsupported bottom currencies, Q mayhem, pending migrations and depth-limit violations are rejected locally. Trading interfaces and quote math are unchanged; the scalar initial-reserve helper does not price a full nested chain.
+
+Tests compare 12 signed instructions against official Pump SDK 4.1.0. Local LiteSVM simulations execute captured deployed bytecode using synthetic quote state and local whitelist/depth configuration: 12 positive cases and six expected failures with rollback verification. No transactions were broadcast and production latency was not measured.
+
+### SpeedLanding regional endpoints
+
+[Official region list](https://speedlanding.trade/docs.html): New York `ny.speedlanding.trade:17778`, Frankfurt `fra.speedlanding.trade:17778`, Amsterdam `ams.speedlanding.trade:17778`, Tokyo `tyo.speedlanding.trade:17778`, London `lon.speedlanding.trade:17778`, Singapore `sgp.speedlanding.trade:17778`. Use the matching `SwqosRegion`; custom endpoints take precedence. Dublin falls back to London, SLC/LosAngeles to New York, and Default to Frankfurt.

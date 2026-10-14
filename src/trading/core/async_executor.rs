@@ -1100,6 +1100,24 @@ mod tests {
     }
 
     #[test]
+    fn official_partner_minimum_filters_below_floor_and_accepts_exact_floor() {
+        use crate::constants::swqos::{SWQOS_MIN_TIP_TEMPORAL, SWQOS_MIN_TIP_LUNARLANDER};
+        for (provider, floor, expected_lamports) in [
+            (SwqosType::Temporal, SWQOS_MIN_TIP_TEMPORAL, 1_000_000),
+            (SwqosType::LunarLander, SWQOS_MIN_TIP_LUNARLANDER, 1_000_000),
+        ] {
+            assert_eq!(crate::trading::common::transaction_builder::sol_f64_to_lamports(floor), expected_lamports);
+            for tip in [0.0, 0.0001, floor - 0.000000001, floor, floor + 0.000000001] {
+                let configs = [(provider, GasFeeStrategyType::Normal, value(0, tip))];
+                let selected = select_swqos_task_configs(&[provider], &configs, true, true, |_| floor, |_| None);
+                assert_eq!(selected.len(), usize::from(tip >= floor), "{provider:?} tip={tip}");
+            }
+            let configs = [(provider, GasFeeStrategyType::Normal, value(0, floor))];
+            assert!(select_swqos_task_configs(&[provider], &configs, false, true, |_| floor, |_| None).is_empty());
+        }
+    }
+
+    #[test]
     fn built_in_minimum_is_endpoint_specific_for_helius_modes() {
         let types = [SwqosType::Helius, SwqosType::Helius];
         let configs = [(SwqosType::Helius, GasFeeStrategyType::Normal, value(0, 0.000005))];
