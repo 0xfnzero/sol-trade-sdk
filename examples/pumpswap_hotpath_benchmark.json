@@ -1,0 +1,5 @@
+{
+  "warmup": 200,
+  "samples": 1000,
+  "batch": 1
+}

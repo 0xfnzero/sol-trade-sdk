@@ -70,12 +70,18 @@ Trading SDK language versions and related Rust SDKs:
 
 | Language | Repository | Description | Version |
 |----------|------------|-------------|---------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v6.0.1` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.9` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.9` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.10` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v6.0.2` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.10` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.10` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.11` |
 | **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.13` |
 | **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.4` |
+
+## v6.0.2 — PumpSwap custom quotes and creator account fixes
+
+Builds PumpSwap buys and sells with the actual quote mint/token program, validates creator vault identities, honors explicit fee recipients in mayhem mode, and removes an unnecessary global volume write lock. Adds cached quotes, conversion-route selection and complete offline signing preparation, with TTWO pool and SOL→USDC→TTWO→target buy/sell regressions.
+
+Four language implementations share a real 3007 failure fixture and compare instruction data and account privileges. Native local bank regressions use captured public programs/accounts and synthetic wallets. See [PumpSwap fixes and validation](docs/PUMPSWAP_REPORTED_FAILURE.md).
 
 ## v6.0.1 — Pump depth-2 and SpeedLanding regional updates
 
@@ -106,9 +112,21 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 | Trading workflows | Buy/sell, exact input/output, copy trading, sniper trading, address lookup tables, durable nonce, middleware, shared infrastructure |
 | Hot-path design | Caller supplies recent blockhash or durable nonce; trade execution avoids RPC reads for blockhash, account, or balance data |
 
+PumpSwap supports direct swaps using the pool’s actual quote mint, including TTWO / Token-2022. Use `DexParamEnum::PumpSwapQuoteRoute` for explicit funding conversion plus PumpSwap legs, with fresh pool state and quotes. Missing or mismatched creator vaults are rejected before instruction construction. See [quote tokens and conversion routes](docs/PUMPSWAP_QUOTE_ROUTING.md).
+
+Use `SubscriptionAccountCache::prepare_pumpswap_trade` to quote the whole explicit path, then `into_buy_params` / `into_sell_params` to construct high-level requests. Cache preparation checks freshness, vault authority and epoch-specific mint fees. Select conversion pools explicitly and prepare buy/sell separately; active transfer fees and cashback pools without an observed cashback rate are unsupported by this cached path. Offline example: `cargo run -p sol-trade-sdk --example pumpswap_cached_prepare --locked -- buy 10000`.
+
+`PreparedPumpSwapTrade::build_transaction` checks quote age and locally signs the complete transaction using the production size/version/ALT checks, with nonce, compute settings, tip and middleware included. It does not submit. PumpSwap quote routes use idempotent standard ATAs even with seed optimization enabled, so existing intermediate accounts can be reused.
+
+Given known candidate conversion pools, `prepare_best_pumpswap_trade` chooses their execution order and direction, ranking complete paths by protected output at the requested input amount. Candidate, hop and search-node limits bound the work; the result includes the selected path and rejection reasons. See the routing guide for an offline SOL↔TTWO↔target example.
+
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "6.0.0"`
+**Rust crate:** `sol-trade-sdk = "6.0.2"`
+
+This release includes PumpSwap custom quotes, creator account validation, cached routes and offline signing preparation. Execution uses caller-supplied blockhash/nonce and validated account snapshots.
+
+### Existing protocol integration notes
 
 Version 5.0.7 updates CPMM creator-fee collection to the protocol-share upgrade: both collection builders append the required share PDA/config accounts, and AmmConfig decoding exposes the share rate. Adds cached gRPC preparation and collection/swap/LP simulation examples with offline mainnet fixtures. Uses parser 0.7.8 and streamer 3.0.7. See [CPMM migration](docs/cpmm-creator-fee-share.md).
 
@@ -201,14 +219,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.2" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "6.0.1"
+sol-trade-sdk = "6.0.2"
 ```
 
 ## 🛠️ Usage Examples
@@ -686,10 +704,12 @@ For legacy SOL events where `quote_mint` is `Pubkey::default()` or Solscan SOL, 
 
 #### PumpSwap: coin_creator_vault from events (no RPC)
 
-For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_authority` are required in buy/sell instructions. Both are available from parsed events without RPC:
+For **PumpSwap** (Pump AMM), `coin_creator_vault_ata` and `coin_creator_vault_authority` are required in buy/sell instructions. Complete legacy instruction events can provide them without hot-path RPC:
 
 - **sol-parser-sdk**: Instruction parser sets them from accounts 17 and 18; the account filler also fills them when the event comes from logs. Use `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` with the buy/sell event `e`.
 - **solana-streamer**: Instruction parser sets them from `accounts.get(17)` and `accounts.get(18)`. Use the same `from_trade` with the event's `coin_creator_vault_ata` and `coin_creator_vault_authority`.
+
+Those fixed indexes do not apply to V2 or multi-hop instructions. Log-only events may still contain default execution accounts. Enrich them from a verified pool cache or RPC snapshot before calling `from_trade`; the builder validates the creator authority and the ATA for the actual quote mint and token program.
 
 #### PumpSwap: virtual quote reserves
 
@@ -793,3 +813,9 @@ Tests compare 12 signed instructions against official Pump SDK 4.1.0. Local Lite
 ### SpeedLanding regional endpoints
 
 [Official region list](https://speedlanding.trade/docs.html): New York `ny.speedlanding.trade:17778`, Frankfurt `fra.speedlanding.trade:17778`, Amsterdam `ams.speedlanding.trade:17778`, Tokyo `tyo.speedlanding.trade:17778`, London `lon.speedlanding.trade:17778`, Singapore `sgp.speedlanding.trade:17778`. Use the matching `SwqosRegion`; custom endpoints take precedence. Dublin falls back to London, SLC/LosAngeles to New York, and Default to Frankfurt.
+
+### Repeatable offline PumpSwap benchmark
+
+Run `cargo run --release --locked --example pumpswap_hotpath_benchmark` from this repository. The bundled JSON config defaults to 200 warmup calls, 1000 samples and one transaction per sample; pass a JSON config path as the final argument to change these counts. Buy and sell measurements separately report route search/preparation, three-hop instruction construction and V1 transaction construction/signing as p50/p95/p99 microseconds. The historical account fixture, signing key and blockhash are fixed. For this benchmark only, each protocol/buyback recipient array is restricted to its first captured nonzero recipient to remove production recipient-selection randomness; signatures are verified before timing and message hashes/signatures are included for reproducibility.
+
+Fixture loading and runtime setup happen outside timing. The measured loops perform no RPC and broadcast no transactions. These are local CPU measurements, not production latency or SBF execution. Repeat runs on an idle machine; compare warmed distributions using the same config and fixture. `cargo test --locked --lib mixed_venue_routes_match_independent_leg_builders_for_each_quote_policy` separately checks both route directions against independent venue builders for all exact-quote policies.

@@ -71,6 +71,61 @@ pub struct PumpSwapParams {
 }
 
 impl PumpSwapParams {
+    /// Check execution accounts without RPC. Incomplete multi-hop log events must
+    /// first be enriched from a verified pool snapshot (or loaded with `from_pool_address_by_rpc`).
+    /// This checks identities, not on-chain existence, ownership or freshness.
+    pub fn validate_accounts(&self) -> anyhow::Result<()> {
+        use crate::instruction::utils::pumpswap::{
+            coin_creator_vault_ata, coin_creator_vault_authority,
+        };
+        for (name, key) in [
+            ("pool", self.pool),
+            ("base_mint", self.base_mint),
+            ("quote_mint", self.quote_mint),
+            ("pool_base_token_account", self.pool_base_token_account),
+            ("pool_quote_token_account", self.pool_quote_token_account),
+            ("coin_creator_vault_authority", self.coin_creator_vault_authority),
+            ("coin_creator_vault_ata", self.coin_creator_vault_ata),
+        ] {
+            anyhow::ensure!(
+                key != Pubkey::default(),
+                "PumpSwap missing {name}; load a complete pool snapshot before building a trade"
+            );
+        }
+        anyhow::ensure!(self.base_mint != self.quote_mint, "PumpSwap pool mints must differ");
+        anyhow::ensure!(
+            self.pool_base_token_account != self.pool_quote_token_account,
+            "PumpSwap pool token vaults must differ"
+        );
+        for (name, recipient) in [
+            ("protocol_fee_recipient", self.protocol_fee_recipient_override),
+            ("protocol_extra_fee_recipient", self.protocol_extra_fee_recipient_override),
+        ] {
+            anyhow::ensure!(recipient != Some(Pubkey::default()), "PumpSwap missing {name}");
+        }
+        for program in [self.base_token_program, self.quote_token_program] {
+            anyhow::ensure!(
+                program == crate::constants::TOKEN_PROGRAM
+                    || program == crate::constants::TOKEN_PROGRAM_2022,
+                "Unsupported or missing PumpSwap token program"
+            );
+        }
+        anyhow::ensure!(
+            self.coin_creator_vault_authority == coin_creator_vault_authority(self.coin_creator),
+            "PumpSwap coin_creator_vault_authority does not match coin_creator"
+        );
+        anyhow::ensure!(
+            self.coin_creator_vault_ata
+                == coin_creator_vault_ata(
+                    self.coin_creator,
+                    self.quote_mint,
+                    self.quote_token_program
+                ),
+            "PumpSwap coin_creator_vault_ata does not match the quote mint and token program"
+        );
+        Ok(())
+    }
+
     pub fn new(
         pool: Pubkey,
         base_mint: Pubkey,
@@ -212,6 +267,10 @@ impl PumpSwapParams {
     /// FeeConfig and GlobalConfig via `compute_fee_basis_points_for_pool`.
     /// Raw shred outer instructions do not contain executed reserves or fee bps;
     /// populate those inputs from a coherent account cache before quoting.
+    /// Missing creator accounts are not optional: `Pubkey::default()` is the
+    /// executable System Program address and causes on-chain error 3007 when
+    /// supplied as the creator ATA. Builders reject such defaults; enrich the
+    /// event from validated Pool state before using this constructor.
     pub fn from_trade(
         pool: Pubkey,
         base_mint: Pubkey,

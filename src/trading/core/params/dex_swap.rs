@@ -32,6 +32,8 @@ pub struct SenderConcurrencyConfig {
 pub enum DexParamEnum {
     PumpFun(PumpFunParams),
     PumpSwap(PumpSwapParams),
+    /// Explicit SOL/WSOL/token conversion and PumpSwap legs. Requires fresh quotes.
+    PumpSwapQuoteRoute(super::PumpSwapQuoteRoute),
     LaunchLab(BonkParams),
     Bonk(BonkParams),
     StonkFun(BonkParams),
@@ -58,6 +60,7 @@ impl DexParamEnum {
         match self {
             DexParamEnum::PumpFun(p) => p,
             DexParamEnum::PumpSwap(p) => p,
+            DexParamEnum::PumpSwapQuoteRoute(p) => p,
             DexParamEnum::LaunchLab(p) => p,
             DexParamEnum::Bonk(p) => p,
             DexParamEnum::StonkFun(p) => p,

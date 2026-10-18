@@ -305,7 +305,7 @@ fn read_u32(data: &[u8], offset: usize) -> Option<u32> {
     Some(u32::from_le_bytes(bytes.try_into().ok()?))
 }
 
-fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
+pub fn decode_global_config(data: &[u8]) -> Option<GlobalConfig> {
     if data.get(..GLOBAL_CONFIG_DISCRIMINATOR_LEN)? != GLOBAL_CONFIG_DISCRIMINATOR {
         return None;
     }

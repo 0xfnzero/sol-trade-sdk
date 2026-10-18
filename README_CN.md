@@ -70,10 +70,10 @@
 
 | 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.1` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.9` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.9` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.10` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.2` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.10` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.10` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.11` |
 | **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.13` |
 | **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.4` |
 
@@ -88,9 +88,21 @@
 | 交易流程 | 买入/卖出、精确输入/输出、跟单交易、狙击交易、地址查找表、durable nonce、中间件、共享基础设施 |
 | 热路径设计 | 调用方传入 recent blockhash 或 durable nonce；交易执行阶段不再查询 RPC 获取 blockhash、账户或余额 |
 
+PumpSwap 支持以任意池内 quote mint 直接买卖（含 TTWO / Token-2022），交易方向按实际输入输出币对匹配。仅持有 SOL/USDC 时，可通过 `DexParamEnum::PumpSwapQuoteRoute` 显式组合外部兑换和 PumpSwap；需要调用方提供新鲜池状态与报价。缺失或派生错误的 creator vault 会在构建前被拒绝。详见 [非 SOL 报价池与兑换路由](docs/PUMPSWAP_QUOTE_ROUTING.md)。
+
+订阅缓存可直接调用 `prepare_pumpswap_trade` 计算完整路径，再用 `into_buy_params` / `into_sell_params` 生成高层请求；缓存路径会校验账户时效、vault 归属和当前 epoch 的 mint 费用。兑换池由调用方选择，买卖需分别准备，当前缓存路径不支持非零转账费或缺少返现费率的 cashback 池。离线示例：`cargo run -p sol-trade-sdk --example pumpswap_cached_prepare --locked -- buy 10000`。
+
+`PreparedPumpSwapTrade::build_transaction` 可检查报价年龄并在本地签名完整交易，复用生产构建器检查最终大小、版本与 ALT 配置，包含 nonce、CU、tip 和中间件处理，不广播交易。PumpSwap 组合路由即使启用 seed 优化也统一使用幂等标准 ATA，可重复使用已存在的中间币账户。
+
+已知候选兑换池时，可使用 `prepare_best_pumpswap_trade` 自动确定路径顺序和方向，并按当前输入金额选择最低保障到账量最高的路径。搜索有候选数、跳数和节点预算限制，返回选中路径及被拒绝路径的原因。完整 SOL↔TTWO↔目标币离线示例见上述文档。
+
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "6.0.0"`
+**Rust crate:** `sol-trade-sdk = "6.0.2"`
+
+本版本包含 PumpSwap 多报价池、creator 账户校验、缓存路由与离线签名准备。交易执行使用调用方提供的区块哈希／nonce 和已验证的账户快照。
+
+### 现有协议集成说明
 
 v5.0.7 适配 CPMM creator-fee 协议分成升级：两个领取指令追加必需的 share PDA/config 账户，AmmConfig 解码暴露分成比例。新增 gRPC 缓存准备、领取/交换/LP 模拟示例及离线主网样本，依赖 parser 0.7.8 和 streamer 3.0.7。参见 [CPMM 迁移说明](docs/cpmm-creator-fee-share.md)。
 
@@ -183,14 +195,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.1" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.2" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "6.0.1"
+sol-trade-sdk = "6.0.2"
 ```
 
 ## 🛠️ 使用示例
@@ -604,10 +616,12 @@ SDK 不会在每次卖出时通过 RPC 拉取 creator_vault（以避免延迟）
 
 #### PumpSwap：从事件拿 coin_creator_vault（无需 RPC）
 
-**PumpSwap**（Pump AMM）的 buy/sell 指令需要 `coin_creator_vault_ata` 与 `coin_creator_vault_authority`，二者均可从解析事件中拿到，无需 RPC：
+**PumpSwap**（Pump AMM）的 buy/sell 指令需要 `coin_creator_vault_ata` 与 `coin_creator_vault_authority`，完整旧版指令事件可提供这些账户，无需热路径 RPC：
 
 - **sol-parser-sdk**：指令解析从账户 17、18 写入；若事件来自日志，账户填充器也会从指令补全。用 `PumpSwapParams::from_trade(..., e.coin_creator_vault_ata, e.coin_creator_vault_authority, ...)` 即可。
 - **solana-streamer**：指令解析从 `accounts.get(17)`、`accounts.get(18)` 写入。同样用事件的 `coin_creator_vault_ata`、`coin_creator_vault_authority` 调用 `from_trade`。
+
+V2／多跳指令不适用上述固定索引；仅有成交日志的事件可能仍含默认地址。请先用经过校验的池缓存或 RPC 快照补全，再调用 `from_trade`。构建器会校验 creator authority 与 quote mint／Token Program 对应的 ATA，不能将缺失字段直接用于跟单。
 
 ### Pump.fun Bonding Curve 统一买卖入口与 v2 指令
 
@@ -758,6 +772,12 @@ let provider = SwqosConfig::Jito(
 ); // Minimum tip: 0.0001 SOL; use None to omit the limit.
 ```
 
+## v6.0.2 — PumpSwap 多报价池与 creator 账户修复
+
+支持按实际 quote mint/token program 构建 PumpSwap 买卖，补齐 creator vault 校验，修复显式手续费收款方与 mayhem 模式行为，并移除不必要的全局成交量写锁。新增缓存报价、转换路线选择和完整离线签名准备，包含 TTWO 池及 SOL→USDC→TTWO→目标币的买卖回归。
+
+四语言共享真实 3007 失败样本，并逐字段核对业务指令。原生本地 bank 回归使用历史公共程序／账户与合成钱包状态。说明见 [PumpSwap 修复与验证](docs/PUMPSWAP_REPORTED_FAILURE.md)。
+
 ## v6.0.1 — Pump depth-2 and SpeedLanding regional updates
 
 - 修正 Temporal 默认最低小费为 0.001 SOL，并补充 Temporal/LunarLander 阈值边界回归测试。
@@ -787,3 +807,9 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 ### SpeedLanding regional endpoints
 
 [Official region list](https://speedlanding.trade/docs.html): New York `ny.speedlanding.trade:17778`, Frankfurt `fra.speedlanding.trade:17778`, Amsterdam `ams.speedlanding.trade:17778`, Tokyo `tyo.speedlanding.trade:17778`, London `lon.speedlanding.trade:17778`, Singapore `sgp.speedlanding.trade:17778`. Use the matching `SwqosRegion`; custom endpoints take precedence. Dublin falls back to London, SLC/LosAngeles to New York, and Default to Frankfurt.
+
+### 可重复运行的离线 PumpSwap 基准
+
+在仓库中执行 `cargo run --release --locked --example pumpswap_hotpath_benchmark`。内置 JSON 配置默认预热 200 次、采样 1000 次、每次采样执行一笔交易；可在命令末尾传入 JSON 配置文件路径修改次数。买入和卖出分别报告路由搜索与准备、三跳指令构建、V1 交易构建与签名的 p50/p95/p99 微秒。历史账户快照、签名密钥及 blockhash 固定；仅在此基准内将 protocol/buyback 收款候选限制为快照中第一个非零地址，消除生产收款选择的随机性。计时前验证签名，并输出消息哈希与签名以便复现。
+
+快照读取和运行时初始化不计入计时，计时循环不调用 RPC、不广播交易。这是本机 CPU 测量，不代表生产延迟，也不执行 SBF。请在空闲机器上重复运行，以相同配置和快照比较预热后的分布。执行 `cargo test --locked --lib mixed_venue_routes_match_independent_leg_builders_for_each_quote_policy`，可独立核验两个交易方向在所有 exact-quote 策略下与各 venue 直接构建器一致。

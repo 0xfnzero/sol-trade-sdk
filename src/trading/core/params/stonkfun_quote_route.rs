@@ -1,4 +1,4 @@
-//! Explicit, externally quoted StonkFun quote-conversion routes.
+//! Explicit conversion routes shared by StonkFun and PumpSwap.
 use super::raydium_cpmm::TokenTransferFee;
 use super::{
     MeteoraDlmmParams, RaydiumAmmV4Params, RaydiumClmmParams, RaydiumCpmmParams, WhirlpoolParams,
@@ -7,12 +7,24 @@ use solana_sdk::pubkey::Pubkey;
 
 #[derive(Clone)]
 pub enum StonkFunQuoteVenue {
+    /// PumpSwap legacy exact-input leg. Supply current fee snapshots for both
+    /// mints; transfer-fee-bearing PumpSwap routes are not supported here.
+    PumpSwap {
+        pool: super::PumpSwapParams,
+        base_transfer_fee: TokenTransferFee,
+        quote_transfer_fee: TokenTransferFee,
+    },
     RaydiumCpmm(RaydiumCpmmParams),
     RaydiumAmmV4(RaydiumAmmV4Params),
     RaydiumClmm(RaydiumClmmParams),
     OrcaWhirlpool(WhirlpoolParams),
     MeteoraDlmm(MeteoraDlmmParams),
 }
+
+/// Explicit funding conversion plus PumpSwap legs, executed atomically.
+pub type PumpSwapQuoteRoute = StonkFunQuoteRoute;
+pub type PumpSwapQuoteHop = StonkFunQuoteHop;
+pub type PumpSwapQuoteVenue = StonkFunQuoteVenue;
 
 /// One exact-input swap. Obtain fresh min-out quotes and amount-appropriate
 /// tick/bin arrays before building. Historical parser amounts are not quotes.

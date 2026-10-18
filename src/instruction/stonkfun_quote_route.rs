@@ -33,6 +33,9 @@ fn pair(hop: &StonkFunQuoteHop) -> Result<(Pubkey, Pubkey)> {
     let input = normalize_native_sol(hop.input_mint);
     let output = normalize_native_sol(hop.output_mint);
     let (a, b, pa, pb) = match &hop.venue {
+        PumpSwap { pool: p, .. } => {
+            (p.base_mint, p.quote_mint, p.base_token_program, p.quote_token_program)
+        }
         RaydiumCpmm(p) => (p.base_mint, p.quote_mint, p.base_token_program, p.quote_token_program),
         RaydiumAmmV4(p) => (
             p.coin_mint,
@@ -49,7 +52,7 @@ fn pair(hop: &StonkFunQuoteHop) -> Result<(Pubkey, Pubkey)> {
     } else if input == b && output == a {
         Ok((pb, pa))
     } else {
-        bail!("StonkFun quote route hop pair does not match its pool")
+        bail!("Quote route hop pair does not match its pool")
     }
 }
 
@@ -68,10 +71,10 @@ pub(crate) fn plan_route(
     }
     let steps = if is_buy { &route.buy_hops } else { &route.sell_hops };
     if steps.is_empty() {
-        bail!("StonkFun quote route has no hops for this direction")
+        bail!("Quote route has no hops for this direction")
     }
     if source == target || amount == 0 {
-        bail!("StonkFun quote route needs distinct endpoints and nonzero input")
+        bail!("Quote route needs distinct endpoints and nonzero input")
     }
     let mut balances = HashMap::from([(source, amount)]);
     let mut programs = HashMap::new();
@@ -81,13 +84,13 @@ pub(crate) fn plan_route(
         let input = normalize_native_sol(hop.input_mint);
         let output = normalize_native_sol(hop.output_mint);
         if input == output || input == target || output == source {
-            bail!("StonkFun quote route contains a cycle or spends its final output")
+            bail!("Quote route contains a cycle or spends its final output")
         }
         let mut pending = vec![output];
         let mut visited = std::collections::HashSet::new();
         while let Some(mint) = pending.pop() {
             if mint == input {
-                bail!("StonkFun quote route contains an intermediate mint cycle")
+                bail!("Quote route contains an intermediate mint cycle")
             }
             if visited.insert(mint) {
                 pending.extend(edges.get(&mint).into_iter().flatten().copied());
@@ -110,12 +113,47 @@ pub(crate) fn plan_route(
         let available = balances.get(&input).copied().unwrap_or(0);
         let spend = hop.input_amount.unwrap_or(available);
         if spend == 0 || spend > available {
-            bail!("StonkFun quote route hop overspends guaranteed balance")
+            bail!("Quote route hop overspends guaranteed balance")
         }
         if hop.minimum_amount_out == 0 {
-            bail!("StonkFun quote route requires nonzero min-out protection")
+            bail!("Quote route requires nonzero min-out protection")
         }
         let minimum_credit = match &hop.venue {
+            StonkFunQuoteVenue::PumpSwap { pool, base_transfer_fee, quote_transfer_fee } => {
+                pool.validate_accounts()?;
+                for fee in [base_transfer_fee, quote_transfer_fee] {
+                    if fee.basis_points != 0 {
+                        bail!("PumpSwap quote routes require zero transfer fees on both mints")
+                    }
+                }
+                let actual = if input == pool.quote_mint {
+                    let quote = crate::utils::calc::pumpswap::buy_quote_input_internal_with_fees(
+                        spend,
+                        slippage,
+                        pool.pool_base_token_reserves,
+                        pool.pool_quote_token_reserves,
+                        pool.virtual_quote_reserves,
+                        &pool.fee_basis_points,
+                    )
+                    .map_err(anyhow::Error::msg)?;
+                    crate::utils::calc::pumpswap::minimum_output_with_slippage(quote.base, slippage)
+                } else {
+                    crate::utils::calc::pumpswap::sell_base_input_internal_with_fees(
+                        spend,
+                        slippage,
+                        pool.pool_base_token_reserves,
+                        pool.pool_quote_token_reserves,
+                        pool.virtual_quote_reserves,
+                        &pool.fee_basis_points,
+                    )
+                    .map_err(anyhow::Error::msg)?
+                    .min_quote
+                };
+                if hop.minimum_amount_out > actual {
+                    bail!("PumpSwap route min-out exceeds the SDK's current protected quote")
+                }
+                hop.minimum_amount_out
+            }
             StonkFunQuoteVenue::RaydiumCpmm(p) => {
                 let actual = crate::utils::calc::raydium_cpmm::compute_swap_amount_for_pool(
                     p,
@@ -199,6 +237,11 @@ pub(crate) async fn build_quote_route(
     route: &StonkFunQuoteRoute,
     is_buy: bool,
 ) -> Result<Vec<Instruction>> {
+    if matches!(params.protocol_params, DexParamEnum::PumpSwapQuoteRoute(_))
+        && (params.fixed_output_amount.is_some() || params.use_exact_sol_amount == Some(false))
+    {
+        bail!("PumpSwap quote routes require exact-input sizing")
+    }
     let amount =
         params.input_amount.ok_or_else(|| anyhow!("Quote route requires an exact input amount"))?;
     let plan = plan_route(
@@ -227,6 +270,11 @@ pub(crate) async fn build_quote_route(
         }
     }
     let payer = params.payer.pubkey();
+    // A route can reuse intermediate balances across trades. Seeded SPL account
+    // creation is not idempotent, so PumpSwap routes consistently use real ATAs
+    // for both setup and every venue's user accounts.
+    let use_seed = params.open_seed_optimize
+        && !matches!(params.protocol_params, DexParamEnum::PumpSwapQuoteRoute(_));
     let mut instructions = Vec::new();
     if params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT && !params.create_input_mint_ata {
         instructions.extend(crate::trading::common::fund_existing_wsol(&payer, amount));
@@ -250,7 +298,7 @@ pub(crate) async fn build_quote_route(
                         &mint,
                         &program,
                         amount,
-                        params.open_seed_optimize,
+                        use_seed,
                     )
                 } else {
                     token_account_setup::push_create_user_token_account(
@@ -258,7 +306,7 @@ pub(crate) async fn build_quote_route(
                         &payer,
                         &mint,
                         &program,
-                        params.open_seed_optimize,
+                        use_seed,
                     )
                 }
             }
@@ -266,6 +314,7 @@ pub(crate) async fn build_quote_route(
     }
     for hop in &plan.hops {
         let mut leg = params.clone();
+        leg.open_seed_optimize = use_seed;
         leg.input_mint = hop.input;
         leg.output_mint = hop.output;
         leg.input_amount = Some(hop.amount);
@@ -277,6 +326,12 @@ pub(crate) async fn build_quote_route(
         leg.close_output_mint_ata = false;
         use StonkFunQuoteVenue::*;
         let ixs = match &hop.hop.venue {
+            PumpSwap { pool, .. } => {
+                leg.protocol_params = DexParamEnum::PumpSwap(pool.clone());
+                leg.fixed_output_amount = None;
+                leg.use_exact_sol_amount = Some(true);
+                super::pumpswap::PumpSwapInstructionBuilder.build_buy_instructions(&leg).await?
+            }
             RaydiumCpmm(p) => {
                 leg.protocol_params = DexParamEnum::RaydiumCpmm(p.clone());
                 leg.fixed_output_amount = None;

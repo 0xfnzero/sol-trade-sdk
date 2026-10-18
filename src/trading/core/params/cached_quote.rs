@@ -92,6 +92,45 @@ impl SubscriptionAccountCache {
             .get(&hint.pool)
             .ok_or_else(|| anyhow!("Missing cached pool: {}", hint.pool))?
             .owner;
+        if owner == crate::instruction::utils::pumpswap::accounts::AMM_PROGRAM {
+            let p = self.pumpswap(hint, ctx)?;
+            let net = if hint.input_mint == p.quote_mint {
+                crate::utils::calc::pumpswap::buy_quote_input_internal_with_fees(
+                    q.amount_in,
+                    0,
+                    p.pool_base_token_reserves,
+                    p.pool_quote_token_reserves,
+                    p.virtual_quote_reserves,
+                    &p.fee_basis_points,
+                )
+                .map_err(anyhow::Error::msg)?
+                .base
+            } else {
+                crate::utils::calc::pumpswap::sell_base_input_internal_with_fees(
+                    q.amount_in,
+                    0,
+                    p.pool_base_token_reserves,
+                    p.pool_quote_token_reserves,
+                    p.virtual_quote_reserves,
+                    &p.fee_basis_points,
+                )
+                .map_err(anyhow::Error::msg)?
+                .ui_quote
+            };
+            // pumpswap() validates both mint extensions and rejects nonzero fees.
+            return finish(
+                hint,
+                StonkFunQuoteVenue::PumpSwap {
+                    pool: p,
+                    base_transfer_fee: TokenTransferFee::default(),
+                    quote_transfer_fee: TokenTransferFee::default(),
+                },
+                q,
+                ctx,
+                net,
+                TokenTransferFee::default(),
+            );
+        }
         if owner == wp::PROGRAM_ID {
             return self.quote_whirlpool(hint, q, ctx);
         }

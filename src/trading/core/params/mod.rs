@@ -10,6 +10,8 @@ mod meteora_damm_v2;
 mod meteora_dlmm;
 mod pumpfun;
 mod pumpswap;
+mod pumpswap_preparation;
+mod pumpswap_route_search;
 mod raydium_amm_v4;
 mod raydium_clmm;
 mod raydium_cpmm;
@@ -27,11 +29,14 @@ pub use meteora_damm_v2::MeteoraDammV2Params;
 pub use meteora_dlmm::MeteoraDlmmParams;
 pub use pumpfun::PumpFunParams;
 pub use pumpswap::PumpSwapParams;
+pub use pumpswap_preparation::PreparedPumpSwapTrade;
+pub use pumpswap_route_search::{PumpSwapRouteRejection, PumpSwapRouteSearch, PumpSwapRouteSelection};
 pub use raydium_amm_v4::RaydiumAmmV4Params;
 pub use raydium_clmm::RaydiumClmmParams;
 pub use raydium_cpmm::{RaydiumCpmmParams, TokenTransferFee};
 pub use stonkfun_preparation::PreparedStonkFunTrade;
 pub use stonkfun_quote_route::{
+    PumpSwapQuoteHop, PumpSwapQuoteRoute, PumpSwapQuoteVenue,
     StonkFunQuoteHop, StonkFunQuoteHopPreview, StonkFunQuoteRoute, StonkFunQuoteRoutePreview,
     StonkFunQuoteVenue,
 };

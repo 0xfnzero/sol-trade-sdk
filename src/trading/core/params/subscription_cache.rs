@@ -36,14 +36,15 @@ impl PoolTradeHint {
         ensure!(
             matches!(
                 leg.protocol,
-                sol_parser_sdk::transaction_route::SwapProtocol::LaunchLab
+                sol_parser_sdk::transaction_route::SwapProtocol::PumpSwap
+                    | sol_parser_sdk::transaction_route::SwapProtocol::LaunchLab
                     | sol_parser_sdk::transaction_route::SwapProtocol::RaydiumCpmm
                     | sol_parser_sdk::transaction_route::SwapProtocol::RaydiumClmm
                     | sol_parser_sdk::transaction_route::SwapProtocol::OrcaWhirlpool
                     | sol_parser_sdk::transaction_route::SwapProtocol::MeteoraDlmm
                     | sol_parser_sdk::transaction_route::SwapProtocol::RaydiumAmmV4
             ),
-            "Cache adapter supports LaunchLab, CPMM, CLMM, Whirlpool and DLMM legs"
+            "Cache adapter supports PumpSwap, LaunchLab, CPMM, AMM v4, CLMM, Whirlpool and DLMM legs"
         );
         Ok(Self {
             pool: leg.pool,
