@@ -95,6 +95,8 @@ pub struct SwqosSubmitTiming {
 
 #[derive(Debug, Clone)]
 pub struct TradeConfig {
+    /// Instance-scoped bridge registry and subscription snapshot handle.
+    pub pumpswap_routing: Option<std::sync::Arc<crate::client::PumpSwapRouting>>,
     pub rpc_url: String,
     pub swqos_configs: Vec<SwqosConfig>,
     pub commitment: CommitmentConfig,
@@ -162,6 +164,7 @@ impl TradeConfig {
 /// Call `.build()` to produce the final [`TradeConfig`].
 #[derive(Debug, Clone)]
 pub struct TradeConfigBuilder {
+    pumpswap_routing: Option<std::sync::Arc<crate::client::PumpSwapRouting>>,
     rpc_url: String,
     swqos_configs: Vec<SwqosConfig>,
     commitment: CommitmentConfig,
@@ -177,6 +180,7 @@ pub struct TradeConfigBuilder {
 impl TradeConfigBuilder {
     fn new(rpc_url: String, swqos_configs: Vec<SwqosConfig>, commitment: CommitmentConfig) -> Self {
         Self {
+            pumpswap_routing: None,
             rpc_url,
             swqos_configs,
             commitment,
@@ -239,9 +243,19 @@ impl TradeConfigBuilder {
         self
     }
 
+    /// Configure reusable PumpSwap bridge pools; publish live snapshots off the hot path.
+    pub fn pumpswap_routing(
+        mut self,
+        routing: std::sync::Arc<crate::client::PumpSwapRouting>,
+    ) -> Self {
+        self.pumpswap_routing = Some(routing);
+        self
+    }
+
     /// Consume the builder and produce a [`TradeConfig`].
     pub fn build(self) -> TradeConfig {
         TradeConfig {
+            pumpswap_routing: self.pumpswap_routing,
             rpc_url: self.rpc_url,
             swqos_configs: self.swqos_configs,
             commitment: self.commitment,

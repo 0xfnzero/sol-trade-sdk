@@ -49,6 +49,10 @@ pub struct PreparedPumpSwapTrade {
 }
 
 impl PreparedPumpSwapTrade {
+    pub(crate) fn into_quote_route(self) -> PumpSwapQuoteRoute {
+        self.route
+    }
+
     /// Execution-ordered pool identities and exact quoted inputs. SOL is represented
     /// as WSOL here; high-level request constructors preserve native SOL endpoints.
     pub fn steps(&self) -> &[CachedRouteStep] {

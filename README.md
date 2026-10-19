@@ -70,12 +70,24 @@ Trading SDK language versions and related Rust SDKs:
 
 | Language | Repository | Description | Version |
 |----------|------------|-------------|---------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v6.0.2` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v7.0.0` |
 | **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.10` |
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.10` |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.11` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.13` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.18` |
 | **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.4` |
+
+## v7.0.0 — Configured bridge pools and RPC-free automatic routing
+
+Register candidate bridge pools once with `TradeConfig::builder(...).pumpswap_routing(...)`, then pass `DexParamEnum::PumpSwapAutoRoute(pool)` to buy or sell. Applications publish coherent account/Clock snapshots in the background. Selection, quoting and construction read only the cache; missing, expired or unavailable routes fail without RPC fallback. This mode rejects synchronous simulation and RPC confirmation polling; submission still uses the configured senders.
+
+**One multi-hop buy or sell executes atomically in one transaction.** For example, `SOL → USDC → TTWO → target` contains three swaps in a single transaction. If a step fails, swaps and account creation roll back; transaction fees still apply. Intermediate ATAs use idempotent creation and can be reused. `Auto` account policy is applied after routing so first-time buys include WSOL and bridge accounts.
+
+Migration: `TradeConfig` and `TradingClient` gain a `pumpswap_routing` field. Struct literals must add `pumpswap_routing: None`, or use existing constructors/builders. `DexParamEnum` gains `PumpSwapAutoRoute(Pubkey)`; exhaustive matches must handle it. These source changes require a major version. Existing builder calls leave automatic routing disabled. Dependencies use published parser `0.7.18` and matching example streamer `3.0.16`, without a sibling parser path dependency.
+
+Validation: 440 library tests and one official quote comparison passed; all workspace targets compiled. Live read-only mainnet simulations on 2026-10-19 passed for repeated SOL buys, repeated WSOL buys and one buy/sell roundtrip (`err=null`). They used virtual funding and never broadcast transactions. Each complete buy/sell has three hops. Combining two buys and one sell into nine swaps exceeded the CPI trace limit; a normal multi-hop trade is not split into multiple transactions.
+
+Examples: [offline global configuration](examples/pumpswap_global_routing.rs) and [live mainnet simulation](examples/pumpswap_global_routing_simulate.rs). See the [routing guide](docs/PUMPSWAP_QUOTE_ROUTING.md) for configuration, limits and commands.
 
 ## v6.0.2 — PumpSwap custom quotes and creator account fixes
 
@@ -114,6 +126,8 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 
 PumpSwap supports direct swaps using the pool’s actual quote mint, including TTWO / Token-2022. Use `DexParamEnum::PumpSwapQuoteRoute` for explicit funding conversion plus PumpSwap legs, with fresh pool state and quotes. Missing or mismatched creator vaults are rejected before instruction construction. See [quote tokens and conversion routes](docs/PUMPSWAP_QUOTE_ROUTING.md).
 
+Register bridge pools once with `TradeConfig::builder(...).pumpswap_routing(...)`, then use `PumpSwapAutoRoute(pool)` for cached automatic routing. Background snapshot publication keeps the hot path free of RPC reads; missing/expired state fails without fallback. Run `pumpswap_global_routing` offline or `pumpswap_global_routing_simulate` for live read-only mainnet simulation.
+
 Use `SubscriptionAccountCache::prepare_pumpswap_trade` to quote the whole explicit path, then `into_buy_params` / `into_sell_params` to construct high-level requests. Cache preparation checks freshness, vault authority and epoch-specific mint fees. Select conversion pools explicitly and prepare buy/sell separately; active transfer fees and cashback pools without an observed cashback rate are unsupported by this cached path. Offline example: `cargo run -p sol-trade-sdk --example pumpswap_cached_prepare --locked -- buy 10000`.
 
 `PreparedPumpSwapTrade::build_transaction` checks quote age and locally signs the complete transaction using the production size/version/ALT checks, with nonce, compute settings, tip and middleware included. It does not submit. PumpSwap quote routes use idempotent standard ATAs even with seed optimization enabled, so existing intermediate accounts can be reused.
@@ -122,9 +136,9 @@ Given known candidate conversion pools, `prepare_best_pumpswap_trade` chooses th
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "6.0.2"`
+**Rust crate:** `sol-trade-sdk = "7.0.0"`
 
-This release includes PumpSwap custom quotes, creator account validation, cached routes and offline signing preparation. Execution uses caller-supplied blockhash/nonce and validated account snapshots.
+This release adds instance-scoped bridge configuration and automatic cached PumpSwap routing. Supply background account snapshots and a current blockhash/nonce; each multi-hop buy or sell remains one atomic transaction.
 
 ### Existing protocol integration notes
 
@@ -219,14 +233,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.2" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "7.0.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "6.0.2"
+sol-trade-sdk = "7.0.0"
 ```
 
 ## 🛠️ Usage Examples

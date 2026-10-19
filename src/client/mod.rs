@@ -1,5 +1,8 @@
 //! High-level [`TradingClient`], [`TradingInfrastructure`], and trade parameter types.
 
+mod pumpswap_routing;
+pub use pumpswap_routing::{PumpSwapRouting, PumpSwapRoutingConfig};
+
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::sdk_log;
 use crate::common::GasFeeStrategy;
@@ -865,6 +868,8 @@ pub fn recommended_sender_thread_core_indices(swqos_count: usize) -> Option<Vec<
 /// including PumpFun, PumpSwap, Bonk, Raydium AMM V4, and Raydium CPMM.
 /// It manages RPC connections, transaction signing, and SWQOS (Solana Web Quality of Service) settings.
 pub struct TradingClient {
+    /// Optional instance-scoped, RPC-free PumpSwap bridge routing.
+    pub pumpswap_routing: Option<Arc<PumpSwapRouting>>,
     /// The keypair used for signing all transactions
     pub payer: Arc<Keypair>,
     /// Shared infrastructure (RPC client, SWQOS clients)
@@ -906,6 +911,7 @@ impl Clone for TradingClient {
             infrastructure: self.infrastructure.clone(),
             middleware_manager: self.middleware_manager.clone(),
             risk_gate: self.risk_gate.clone(),
+            pumpswap_routing: self.pumpswap_routing.clone(),
             use_seed_optimize: self.use_seed_optimize,
             use_dedicated_sender_threads: self.use_dedicated_sender_threads,
             sender_thread_cores: self.sender_thread_cores.clone(),
@@ -1048,6 +1054,7 @@ fn buy_account_flags_for(policy: AccountPolicy, extension: &DexParamEnum) -> (bo
             DexParamEnum::StonkFunViaSol(_)
                 | DexParamEnum::StonkFunQuoteRoute(_)
                 | DexParamEnum::PumpSwapQuoteRoute(_)
+                | DexParamEnum::PumpSwapAutoRoute(_)
         )
     {
         return (true, true, false);
@@ -1078,6 +1085,7 @@ fn sell_account_flags_for(
             DexParamEnum::StonkFunViaSol(_)
                 | DexParamEnum::StonkFunQuoteRoute(_)
                 | DexParamEnum::PumpSwapQuoteRoute(_)
+                | DexParamEnum::PumpSwapAutoRoute(_)
         )
         && matches!(receive_as, TradeTokenType::SOL | TradeTokenType::WSOL)
     {
@@ -1192,6 +1200,7 @@ impl TradingClient {
             infrastructure,
             middleware_manager: None,
             risk_gate: None,
+            pumpswap_routing: None,
             use_seed_optimize,
             use_dedicated_sender_threads: false,
             sender_thread_cores: None,
@@ -1240,6 +1249,7 @@ impl TradingClient {
             infrastructure,
             middleware_manager: None,
             risk_gate: None,
+            pumpswap_routing: None,
             use_seed_optimize,
             use_dedicated_sender_threads: false,
             sender_thread_cores: None,
@@ -1420,6 +1430,7 @@ impl TradingClient {
             infrastructure: infrastructure.clone(),
             middleware_manager: None,
             risk_gate: None,
+            pumpswap_routing: trade_config.pumpswap_routing.clone(),
             use_seed_optimize: trade_config.use_seed_optimize,
             use_dedicated_sender_threads: false,
             sender_thread_cores: None,
@@ -1434,6 +1445,88 @@ impl TradingClient {
         *current = Some(Arc::new(instance.clone()));
 
         instance
+    }
+
+    /// Attach bridge routing when constructing a client from shared infrastructure.
+    pub fn with_pumpswap_routing(mut self, routing: Arc<PumpSwapRouting>) -> Self {
+        self.pumpswap_routing = Some(routing);
+        self
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_pumpswap_route(
+        &self,
+        dex: DexType,
+        extension: &mut DexParamEnum,
+        token: Pubkey,
+        asset: Pubkey,
+        amount: u64,
+        slippage: Option<u64>,
+        exact_output: bool,
+        simulate: bool,
+        confirm: bool,
+        is_buy: bool,
+    ) -> anyhow::Result<()> {
+        if !matches!(dex, DexType::PumpSwap) {
+            return Ok(());
+        }
+        let Some(routing) = &self.pumpswap_routing else {
+            anyhow::ensure!(
+                !matches!(extension, DexParamEnum::PumpSwapAutoRoute(_)),
+                "PumpSwapAutoRoute requires configured PumpSwapRouting"
+            );
+            return Ok(());
+        };
+        anyhow::ensure!(
+            !simulate && !confirm,
+            "Configured PumpSwap routing forbids RPC simulation/confirmation on the hot path"
+        );
+        let pool = match extension {
+            DexParamEnum::PumpSwap(p) => Some(p.pool),
+            DexParamEnum::PumpSwapAutoRoute(pool) => Some(*pool),
+            _ => None,
+        };
+        if let Some(pool) = pool {
+            anyhow::ensure!(
+                !exact_output,
+                "Configured PumpSwap routing requires exact-input sizing"
+            );
+            let prepared = routing.prepare(
+                pool,
+                token,
+                asset,
+                amount,
+                slippage.unwrap_or(crate::constants::trade::trade::DEFAULT_SLIPPAGE),
+                is_buy,
+            )?;
+            *extension = DexParamEnum::PumpSwapQuoteRoute(prepared.into_quote_route());
+        }
+        Ok(())
+    }
+
+    /// Same preparation as buy_simple, without broadcast. Auto account flags are
+    /// resolved after routing so first-time bridge/WSOL ATAs are included.
+    pub fn prepare_simple_buy(&self, params: SimpleBuyParams) -> anyhow::Result<SwapParams> {
+        let policy = params.account_policy;
+        let mut swap = self.prepare_buy(params.into())?;
+        let (input, output, close) = buy_account_flags_for(policy, &swap.protocol_params);
+        swap.create_input_mint_ata = input;
+        swap.create_output_mint_ata = output;
+        swap.close_input_mint_ata = close;
+        Ok(swap)
+    }
+
+    /// Same preparation as sell_simple, with independent reverse-route quotes.
+    pub fn prepare_simple_sell(&self, params: SimpleSellParams) -> anyhow::Result<SwapParams> {
+        let policy = params.account_policy;
+        let receive = params.receive_as;
+        let mut swap = self.prepare_sell(params.into())?;
+        let (create, close_output, close_input) =
+            sell_account_flags_for(policy, &receive, &swap.protocol_params);
+        swap.create_output_mint_ata = create;
+        swap.close_output_mint_ata = close_output;
+        swap.close_input_mint_ata = close_input;
+        Ok(swap)
     }
 
     /// Adds a middleware manager to the SolanaTrade instance
@@ -1564,6 +1657,36 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
+        let executor = TradeFactory::create_executor(params.dex_type);
+        let buy_params = self.prepare_buy(params)?;
+        let swap_result = executor.swap(buy_params).await;
+        let result = swap_result.map(|(success, sigs, err, timings)| {
+            let legacy_timings = timings
+                .into_iter()
+                .map(|timing| (timing.swqos_type, timing.submit_done_us))
+                .collect();
+            (success, sigs, err.map(TradeError::from), legacy_timings)
+        });
+        result
+    }
+
+    /// Prepare locally without submitting. Configured PumpSwap routing never uses RPC.
+    pub fn prepare_buy(&self, mut params: TradeBuyParams) -> anyhow::Result<SwapParams> {
+        self.resolve_pumpswap_route(
+            params.dex_type,
+            &mut params.extension_params,
+            params.mint,
+            params.input_token_type.mint(),
+            params.input_token_amount,
+            params.slippage_basis_points,
+            params.fixed_output_token_amount.is_some()
+                || params.use_exact_sol_amount == Some(false),
+            params.simulate,
+            params.wait_tx_confirmed,
+            true,
+        )?;
+        let rpc_free =
+            self.pumpswap_routing.is_some() && matches!(params.dex_type, DexType::PumpSwap);
         validate_trade_safety(
             "buy",
             params.input_token_amount,
@@ -1594,7 +1717,6 @@ impl TradingClient {
         }
         let protocol_params = params.extension_params;
         let input_token_mint = params.input_token_type.mint();
-        let executor = TradeFactory::create_executor(params.dex_type);
         let buy_params = SwapParams {
             rpc: Some(self.infrastructure.rpc.clone()),
             payer: self.payer.clone(),
@@ -1633,15 +1755,11 @@ impl TradingClient {
             use_exact_sol_amount: params.use_exact_sol_amount,
         };
 
-        let swap_result = executor.swap(buy_params).await;
-        let result = swap_result.map(|(success, sigs, err, timings)| {
-            let legacy_timings = timings
-                .into_iter()
-                .map(|timing| (timing.swqos_type, timing.submit_done_us))
-                .collect();
-            (success, sigs, err.map(TradeError::from), legacy_timings)
-        });
-        result
+        if rpc_free {
+            buy_params.without_rpc()
+        } else {
+            Ok(buy_params)
+        }
     }
 
     /// Execute a high-level buy request.
@@ -1653,7 +1771,17 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
-        self.buy(params.into()).await
+        let executor = TradeFactory::create_executor(params.dex_type);
+        executor.swap(self.prepare_simple_buy(params)?).await.map(
+            |(ok, signatures, error, timings)| {
+                (
+                    ok,
+                    signatures,
+                    error.map(TradeError::from),
+                    timings.into_iter().map(|t| (t.swqos_type, t.submit_done_us)).collect(),
+                )
+            },
+        )
     }
 
     /// Execute a sell order for a specified token
@@ -1689,6 +1817,35 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
+        let executor = TradeFactory::create_executor(params.dex_type);
+        let sell_params = self.prepare_sell(params)?;
+        let swap_result = executor.swap(sell_params).await;
+        let result = swap_result.map(|(success, sigs, err, timings)| {
+            let legacy_timings = timings
+                .into_iter()
+                .map(|timing| (timing.swqos_type, timing.submit_done_us))
+                .collect();
+            (success, sigs, err.map(TradeError::from), legacy_timings)
+        });
+        result
+    }
+
+    /// Prepare locally without submitting. Configured PumpSwap routing never uses RPC.
+    pub fn prepare_sell(&self, mut params: TradeSellParams) -> anyhow::Result<SwapParams> {
+        self.resolve_pumpswap_route(
+            params.dex_type,
+            &mut params.extension_params,
+            params.mint,
+            params.output_token_type.mint(),
+            params.input_token_amount,
+            params.slippage_basis_points,
+            params.fixed_output_token_amount.is_some(),
+            params.simulate,
+            params.wait_tx_confirmed,
+            false,
+        )?;
+        let rpc_free =
+            self.pumpswap_routing.is_some() && matches!(params.dex_type, DexType::PumpSwap);
         validate_trade_safety(
             "sell",
             params.input_token_amount,
@@ -1715,7 +1872,6 @@ impl TradingClient {
                 params.dex_type
             ));
         }
-        let executor = TradeFactory::create_executor(params.dex_type);
         let output_token_mint = params.output_token_type.mint();
         let sell_params = SwapParams {
             rpc: Some(self.infrastructure.rpc.clone()),
@@ -1755,15 +1911,11 @@ impl TradingClient {
             use_exact_sol_amount: None,
         };
 
-        let swap_result = executor.swap(sell_params).await;
-        let result = swap_result.map(|(success, sigs, err, timings)| {
-            let legacy_timings = timings
-                .into_iter()
-                .map(|timing| (timing.swqos_type, timing.submit_done_us))
-                .collect();
-            (success, sigs, err.map(TradeError::from), legacy_timings)
-        });
-        result
+        if rpc_free {
+            sell_params.without_rpc()
+        } else {
+            Ok(sell_params)
+        }
     }
 
     /// Execute a high-level sell request.
@@ -1775,7 +1927,17 @@ impl TradingClient {
         (bool, Vec<Signature>, Option<TradeError>, Vec<(crate::swqos::SwqosType, i64)>),
         anyhow::Error,
     > {
-        self.sell(params.into()).await
+        let executor = TradeFactory::create_executor(params.dex_type);
+        executor.swap(self.prepare_simple_sell(params)?).await.map(
+            |(ok, signatures, error, timings)| {
+                (
+                    ok,
+                    signatures,
+                    error.map(TradeError::from),
+                    timings.into_iter().map(|t| (t.swqos_type, t.submit_done_us)).collect(),
+                )
+            },
+        )
     }
 
     /// Execute a sell order for a percentage of the specified token amount
@@ -2105,7 +2267,8 @@ mod tests {
 
     #[test]
     fn normalize_swqos_configs_adds_default_rpc_route() {
-        let configs = vec![SwqosConfig::Jito("uuid".to_string(), SwqosRegion::Frankfurt, None, None)];
+        let configs =
+            vec![SwqosConfig::Jito("uuid".to_string(), SwqosRegion::Frankfurt, None, None)];
         let normalized = normalize_swqos_configs("https://rpc.example", &configs);
 
         assert_eq!(normalized.len(), 2);

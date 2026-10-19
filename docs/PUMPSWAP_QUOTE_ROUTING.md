@@ -6,6 +6,99 @@ exact output); base-to-quote uses `sell`. This works for custom quote mints such
 as TTWO, including Token-2022, and for pools whose base is WSOL or USDC.
 Amounts are raw units of the corresponding mint, not necessarily lamports.
 
+Each complete multi-hop buy or sell is assembled into **one atomic transaction**.
+For example, SOL → USDC → TTWO → target is three swaps in one transaction.
+Any failing step rolls back swaps and account creation; transaction fees still
+apply. The live examples test repeated buys and buy/sell roundtrips separately
+because combining two full buys plus one full sell (nine swaps) exceeded the
+runtime CPI trace limit. They do not split an individual route across transactions.
+
+## Configure bridge markets once per client
+
+`PumpSwapRouting` stores candidate conversion markets and an atomically replaceable
+subscription snapshot. Register it during initialization:
+
+```rust,ignore
+let routing = Arc::new(PumpSwapRouting::new(
+    PumpSwapRoutingConfig::new(vec![sol_usdc_pool, usdc_ttwo_pool]),
+)?);
+let config = TradeConfig::builder(rpc_url, senders, commitment)
+    .pumpswap_routing(routing.clone())
+    .create_wsol_ata_on_startup(false)
+    .build();
+let client = TradingClient::new(wallet, config).await;
+
+// Background subscription consumer: publish a coherent cache + current Clock.
+routing.publish(Arc::new(cache), context, chain_unix_timestamp);
+
+// Trade hot path: candidate pools are already configured.
+let request = SimpleBuyParams::new(
+    DexType::PumpSwap, TradeTokenType::SOL, target_mint,
+    BuyAmount::ExactInput(lamports),
+    DexParamEnum::PumpSwapAutoRoute(target_pool),
+    cached_blockhash, gas,
+);
+client.buy_simple(request).await?;
+```
+
+For shared infrastructure, attach the same handle using
+`TradingClient::from_infrastructure(...).with_pumpswap_routing(routing.clone())`.
+Cloned clients share the handle; unrelated instances have independent registries.
+Add any pool supported by the existing cached quote engine to `conversion_pools`.
+Adding a new DEX protocol still requires a quote/builder implementation.
+
+`PumpSwapAutoRoute` accepts only a market identity. Configured clients also
+rebuild ordinary `DexParamEnum::PumpSwap` requests from that pool's cached state.
+`PumpSwapQuoteRoute` remains an explicit per-trade override; the caller owns its
+quote freshness. Both buy and sell support exact input. Sell paths are searched
+and quoted independently. Direct trades remain possible when the funding token
+already belongs to the selected pool.
+
+Publishing does **not** subscribe automatically: the application updates accounts,
+Clock, slot and epoch in the background and publishes one coherent snapshot.
+The reader retains one immutable snapshot throughout a search. Preserve each
+account's real update slot and fork; never label old bytes as freshly fetched.
+The configured slot age and context's slot age are both enforced. A local
+snapshot timeout (default two seconds) also rejects stopped subscriptions.
+Call `clear()` on disconnect/reorg. Refresh bin/tick arrays as active liquidity
+moves. Blockhash/nonce and real ALTs must likewise be supplied from background
+state. This API does not discover markets or migrate seeded token balances.
+
+Configured PumpSwap requests have `rpc=None` and reject `simulate=true` or
+`wait_tx_confirmed=true`. Missing, stale, expired, unsupported or disconnected
+routes return errors without network fallback. `prepare_simple_buy/sell` expose
+the same local preparation used by `buy_simple/sell_simple`, without submitting;
+`prepare_buy/sell` expose the low-level equivalent and preserve manual ATA flags.
+`Auto` account flags are resolved after routing; `AssumePrepared` and
+`HotPathMinimal` require existing standard ATAs, including the bridges.
+
+The SDK's selection/quoting/build path makes no RPC reads. Custom risk gates and
+middleware must also use local data. Submission still uses the chosen senders
+(an RPC sender submits over RPC); confirmations belong in background subscriptions.
+Initialization and explicit external simulations may perform network reads.
+
+Runnable examples:
+
+```bash
+# Historical fixture; no network or broadcast.
+cargo run -p sol-trade-sdk --example pumpswap_global_routing --locked
+# Fresh mainnet pools, ephemeral wallet, virtual simulation-only funding.
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com \
+  cargo run -p sol-trade-sdk --example pumpswap_global_routing_simulate --locked -- sol-repeat sol-repeat.json
+# Other modes: wsol-repeat, roundtrip
+```
+
+The live example keeps both complete sets of ATA setup instructions. In
+`wsol-repeat`, only the simulation harness prepares the initial WSOL balance;
+the production buys spend WSOL without adding SOL transfers. `roundtrip` buys
+once, then sells the guaranteed acquired amount back to native SOL. The scenarios
+are separate because three complete three-hop routes can exceed the runtime CPI
+trace limit even when the message fits the transaction size limit. Fresh pool
+reads occur before local preparation; `simulateTransaction` occurs afterwards.
+It uses V1, requires node support, disables signature verification only for the
+virtual funder, and never calls a transaction submission endpoint. Reported
+hot-path time is one diagnostic sample, not a latency benchmark.
+
 ## Directly spending the pool quote
 
 Load a coherent pool snapshot with `PumpSwapParams::from_pool_address_by_rpc`,

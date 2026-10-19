@@ -32,6 +32,9 @@ pub struct SenderConcurrencyConfig {
 pub enum DexParamEnum {
     PumpFun(PumpFunParams),
     PumpSwap(PumpSwapParams),
+    /// Target pool identity; requires configured PumpSwapRouting on TradingClient.
+    /// Executable parameters and bridge quotes are loaded only from its cache.
+    PumpSwapAutoRoute(Pubkey),
     /// Explicit SOL/WSOL/token conversion and PumpSwap legs. Requires fresh quotes.
     PumpSwapQuoteRoute(super::PumpSwapQuoteRoute),
     LaunchLab(BonkParams),
@@ -60,6 +63,7 @@ impl DexParamEnum {
         match self {
             DexParamEnum::PumpFun(p) => p,
             DexParamEnum::PumpSwap(p) => p,
+            DexParamEnum::PumpSwapAutoRoute(p) => p,
             DexParamEnum::PumpSwapQuoteRoute(p) => p,
             DexParamEnum::LaunchLab(p) => p,
             DexParamEnum::Bonk(p) => p,

@@ -70,12 +70,24 @@
 
 | 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v6.0.2` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v7.0.0` |
 | **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.10` |
 | **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.10` |
 | **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.11` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.13` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.18` |
 | **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.4` |
+
+## v7.0.0 — 全局桥接池配置与无 RPC 自动路由
+
+初始化时通过 `TradeConfig::builder(...).pumpswap_routing(...)` 注册候选桥接池，买卖时传入 `DexParamEnum::PumpSwapAutoRoute(pool)` 即可自动选路。调用方在后台发布一致的账户／Clock 快照；选路、报价和构建只读缓存，缺失、过期或无可用路径直接返回错误，不回退 RPC。该模式拒绝同步模拟和 RPC 轮询确认；交易发送仍使用已配置的发送通道。
+
+**一次多跳买入或一次多跳卖出，均在一笔交易内原子完成。** 例如 `SOL → USDC → TTWO → 目标币` 是一笔交易中的三个兑换步骤；任一步失败，兑换及建户状态回滚，交易手续费仍会收取。桥梁 ATA 使用幂等创建，已有正确账户安全复用。`Auto` 账户策略在选路后应用，保证首次买入也能准备 WSOL 和中间账户。
+
+迁移：`TradeConfig`、`TradingClient` 新增 `pumpswap_routing` 字段；使用结构体字面量时补充 `pumpswap_routing: None`，或改用现有构造器／builder。`DexParamEnum` 新增 `PumpSwapAutoRoute(Pubkey)`，穷尽匹配需要处理新分支，因此本次升级主版本。普通 builder 用法默认不启用自动路由。依赖使用已发布的 parser `0.7.18` 与匹配的示例 streamer `3.0.16`，不再依赖相邻 parser 仓库路径。
+
+验证：440 项库测试及 1 项官方报价对照通过，workspace 全目标编译通过。2026-10-19 的真实主网只读模拟覆盖 SOL 连续买入、WSOL 连续买入和一次买入后卖回 SOL，均 `err=null`；使用虚拟注资，未广播交易。每次完整买卖都是三跳；将两次买入和一次卖出合并为九跳的压力场景超出 CPI trace 限制，不代表单次多跳买卖需要拆成多笔交易。
+
+示例：[离线全局配置](examples/pumpswap_global_routing.rs)、[真实主网模拟](examples/pumpswap_global_routing_simulate.rs)。完整配置、约束与运行命令见 [路由说明](docs/PUMPSWAP_QUOTE_ROUTING.md)。
 
 ## 这个 SDK 适合什么场景
 
@@ -94,13 +106,15 @@ PumpSwap 支持以任意池内 quote mint 直接买卖（含 TTWO / Token-2022�
 
 `PreparedPumpSwapTrade::build_transaction` 可检查报价年龄并在本地签名完整交易，复用生产构建器检查最终大小、版本与 ALT 配置，包含 nonce、CU、tip 和中间件处理，不广播交易。PumpSwap 组合路由即使启用 seed 优化也统一使用幂等标准 ATA，可重复使用已存在的中间币账户。
 
+初始化时可通过 `TradeConfig::builder(...).pumpswap_routing(...)` 配置桥接池，随后使用 `PumpSwapAutoRoute(pool)` 自动选路。后台发布订阅快照，交易热路径只读缓存；缺失或过期直接报错，不回退 RPC。标准 ATA 幂等创建支持连续买卖。示例：`pumpswap_global_routing`（离线）与 `pumpswap_global_routing_simulate`（真实主网只读模拟）。
+
 已知候选兑换池时，可使用 `prepare_best_pumpswap_trade` 自动确定路径顺序和方向，并按当前输入金额选择最低保障到账量最高的路径。搜索有候选数、跳数和节点预算限制，返回选中路径及被拒绝路径的原因。完整 SOL↔TTWO↔目标币离线示例见上述文档。
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "6.0.2"`
+**Rust crate:** `sol-trade-sdk = "7.0.0"`
 
-本版本包含 PumpSwap 多报价池、creator 账户校验、缓存路由与离线签名准备。交易执行使用调用方提供的区块哈希／nonce 和已验证的账户快照。
+本版本新增实例级桥接池配置与基于缓存的 PumpSwap 自动路由。调用方在后台提供账户快照及最新区块哈希／nonce；每次多跳买入或卖出仍是一笔原子交易。
 
 ### 现有协议集成说明
 
@@ -195,14 +209,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "6.0.2" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "7.0.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "6.0.2"
+sol-trade-sdk = "7.0.0"
 ```
 
 ## 🛠️ 使用示例
