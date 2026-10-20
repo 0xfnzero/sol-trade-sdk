@@ -27,6 +27,6 @@ let client = SolanaTrade::new(Arc::new(payer), trade_config).await.with_risk_gat
 | `DEXRA_LIMIT` | `20` | launches per poll; above 20 needs a paid plan |
 | `DEXRA_URL` | `https://api.dexra.dev` | API base URL |
 
-Each poll is one paid call. A free key covers about a hundred a day, so poll every 15 minutes or so on it; polling every minute needs a plan (https://dexra.dev/pricing). Without a key the API answers `402` with an [x402](https://x402.org) USDC payment challenge instead.
+Each poll is one paid call. A free key covers about a hundred a day, so poll every 15 minutes or so on it; polling every minute needs a plan (https://dexra.dev/#pricing). Without a key the API answers `402` with an [x402](https://x402.org) USDC payment challenge instead.
 
 Timing: the creator's history is known from a launch's first second, while the first-buyer analysis completes seconds to a minute after launch, and until it does the verdict is usually `unknown`. The gate suits strategies that buy after the first trades, not in the creation block. For mints you already hold or found elsewhere, `POST /new_launches/batch` with `{"mints": [...]}` returns the same checks.
