@@ -31,6 +31,48 @@ pub struct PoolTradeHint {
 }
 
 impl PoolTradeHint {
+    /// Extract caller-approved conversion pools across DEXes, regardless of the
+    /// transaction's launch platform. Never copies historical amounts into quotes.
+    /// Unapproved/target pools are ignored. Approval is by pool identity, not mint
+    /// symbol or platform. Cached owner/mint/state checks still apply at quote time.
+    #[cfg(feature = "parser-adapter")]
+    pub fn from_transaction_route(
+        route: &sol_parser_sdk::transaction_route::TransactionRoute,
+        approved_pools: &[Pubkey],
+    ) -> Result<Vec<Self>> {
+        ensure!(route.succeeded, "Failed transaction cannot supply executed route candidates");
+        let mut hints: Vec<Self> = Vec::new();
+        for leg in &route.legs {
+            if !approved_pools.contains(&leg.pool) {
+                continue;
+            }
+            let hint = Self::from_route_leg(leg)?;
+            ensure!(
+                hint.pool != Pubkey::default()
+                    && hint.input_mint != Pubkey::default()
+                    && hint.output_mint != Pubkey::default()
+                    && hint.input_mint != hint.output_mint,
+                "Invalid conversion pool identity"
+            );
+            if let Some(old) = hints.iter().find(|old| old.pool == hint.pool) {
+                ensure!(
+                    (old.input_mint == hint.input_mint && old.output_mint == hint.output_mint)
+                        || (old.input_mint == hint.output_mint
+                            && old.output_mint == hint.input_mint),
+                    "Conflicting conversion pool mint pair"
+                );
+            } else {
+                hints.push(hint);
+            }
+        }
+        Ok(hints)
+    }
+
+    /// Reverse the direction for an independent sell quote; no network access.
+    pub fn reversed(self) -> Self {
+        Self { input_mint: self.output_mint, output_mint: self.input_mint, ..self }
+    }
+
     #[cfg(feature = "parser-adapter")]
     pub fn from_route_leg(leg: &sol_parser_sdk::transaction_route::RouteSwapLeg) -> Result<Self> {
         ensure!(
@@ -74,8 +116,13 @@ impl PoolTradeHint {
 #[derive(Clone, Default)]
 pub struct SubscriptionAccountCache {
     pub(super) accounts: HashMap<Pubkey, CachedAccount>,
+    // Set only for a coherently bootstrapped, continuously observed subscription.
+    observed_through: Option<u64>,
 }
 impl SubscriptionAccountCache {
+    pub(crate) fn observe_through(&mut self, slot: u64) {
+        self.observed_through = Some(slot);
+    }
     /// Consume a raw gRPC event without copying its account-data buffer. Use the
     /// borrowing adapter when the caller still needs to retain the original event.
     #[cfg(feature = "parser-adapter")]
@@ -118,6 +165,7 @@ impl SubscriptionAccountCache {
             account.pubkey,
             CachedAccount { owner: account.owner, data: data.to_vec(), slot, write_version },
         );
+        self.observed_through = None;
         Ok(true)
     }
     /// Returns false for stale or identical replay updates; conflicting equal versions fail.
@@ -132,6 +180,7 @@ impl SubscriptionAccountCache {
             return Ok(false);
         }
         self.accounts.insert(key, account);
+        self.observed_through = None;
         Ok(true)
     }
 
@@ -166,7 +215,10 @@ impl SubscriptionAccountCache {
         let a = self.accounts.get(&key).ok_or_else(|| anyhow!("Missing cached account: {key}"))?;
         ensure!(a.owner == owner, "Cached account owner mismatch: {key}");
         ensure!(
-            a.slot <= ctx.slot && ctx.slot - a.slot <= ctx.maximum_slot_age,
+            a.slot <= ctx.slot
+                && self.observed_through.unwrap_or(a.slot) <= ctx.slot
+                && ctx.slot - self.observed_through.unwrap_or(a.slot).max(a.slot)
+                    <= ctx.maximum_slot_age,
             "Cached account is stale or ahead of snapshot: {key}"
         );
         Ok(&a.data)
@@ -397,7 +449,8 @@ impl SubscriptionAccountCache {
                 .map_err(|error| anyhow!("Invalid cached vault layout: {error}"))?;
             ensure!(
                 account.base.mint.to_bytes() == mint.to_bytes()
-                    && account.base.owner.to_bytes() == raydium_cpmm::accounts::AUTHORITY.to_bytes()
+                    && account.base.owner.to_bytes()
+                        == raydium_cpmm::accounts::AUTHORITY.to_bytes()
                     && account.base.state == AccountState::Initialized,
                 "Invalid cached vault"
             );
@@ -454,6 +507,25 @@ impl SubscriptionAccountCache {
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    #[test]
+    fn observation_watermark_preserves_write_versions_and_expires_with_the_stream() {
+        let mut cache = SubscriptionAccountCache::default();
+        let key = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let account = CachedAccount { owner, data: vec![7], slot: 1, write_version: 4 };
+        cache.update(key, account.clone()).unwrap();
+        assert!(cache.get(key, owner, ctx()).is_err());
+        cache.observe_through(100);
+        assert_eq!(cache.get(key, owner, ctx()).unwrap(), &[7]);
+        assert_eq!(cache.accounts[&key], account);
+        assert!(cache.get(Pubkey::new_unique(), owner, ctx()).is_err());
+        assert!(cache.get(key, owner, CacheReadContext { slot: 99, ..ctx() }).is_err());
+        assert!(cache.get(key, owner, CacheReadContext { slot: 106, ..ctx() }).is_err());
+        assert!(!cache.update(key, account.clone()).unwrap());
+        assert!(cache.get(key, owner, CacheReadContext { slot: 106, ..ctx() }).is_err());
+        cache.update(key, CachedAccount { slot: 2, ..account }).unwrap();
+        assert!(cache.get(key, owner, ctx()).is_err(), "manual mutation invalidates continuity");
+    }
     fn ctx() -> CacheReadContext {
         CacheReadContext { slot: 100, epoch: 3, maximum_slot_age: 5 }
     }
@@ -639,12 +711,14 @@ pub(super) mod tests {
                 assert_eq!(
                     fee.basis_points as u64,
                     case["basis_points"].as_u64().unwrap(),
-                    "{}", case["name"]
+                    "{}",
+                    case["name"]
                 );
                 assert_eq!(
                     fee.maximum_fee,
                     case["maximum_fee"].as_u64().unwrap(),
-                    "{}", case["name"]
+                    "{}",
+                    case["name"]
                 );
             }
         }
@@ -823,8 +897,8 @@ pub(super) mod tests {
             let data = &mut trial.accounts.get_mut(&vault).unwrap().data;
             match case {
                 0 => data[32..64].fill(0),
-                1 => data[108] = 2, // frozen
-                2 => data[108] = 0, // uninitialized
+                1 => data[108] = 2,                                     // frozen
+                2 => data[108] = 0,                                     // uninitialized
                 3 => data[72..76].copy_from_slice(&2u32.to_le_bytes()), // invalid delegate COption
                 4 => {
                     data.pop();

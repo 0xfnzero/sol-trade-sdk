@@ -76,8 +76,9 @@ pub fn configured_client(
     snapshot: &DemoSnapshot,
     wallet: Arc<Keypair>,
 ) -> Result<(TradingClient, Arc<PumpSwapRouting>)> {
-    let routing =
-        Arc::new(PumpSwapRouting::new(PumpSwapRoutingConfig::new(snapshot.candidates.clone()))?);
+    let mut markets = PumpSwapRoutingConfig::default();
+    markets.extend_pools(snapshot.candidates.clone())?; // duplicates are harmless
+    let routing = Arc::new(PumpSwapRouting::new(markets)?);
     let config =
         TradeConfig::builder("http://127.0.0.1:1".into(), vec![], CommitmentConfig::processed())
             .pumpswap_routing(routing.clone())

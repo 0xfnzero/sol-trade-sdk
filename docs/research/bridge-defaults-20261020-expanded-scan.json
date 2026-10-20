@@ -1,0 +1,3619 @@
+{
+  "captured_at_utc": "2026-10-19T20:49:58.126147+00:00",
+  "sampling_limits": "Four broad sources, 1000 recent signatures each; 26 Backpack targets with up to 25 signatures and 14 xStocks targets with up to 10. Also reuses the earlier 30/100 samples. Targeted sampling is not market share.",
+  "broad_sources": {
+    "stonk": {
+      "address": "4E876qZTE9FJMrBzgVtBrSrzz2TLivB5Y5QXPjB4gZL7",
+      "signatures": 1000,
+      "successful_signatures": 179,
+      "captured": 178,
+      "missing_signatures": [
+        "4gvLPH8bCw477fFvBn4NPRSAxAm6YYaFpvPKnGNqzwCcBdYRFh15AFPvwL7ajJEPrFkz9cs52H82N14WQ41H7pFG"
+      ],
+      "oldest_block_time": 1792439789,
+      "newest_block_time": 1792442221
+    },
+    "stonk_reward": {
+      "address": "6BwHHDg3u1854jC8PDLXvR4spTcLNaoBxLJNGC4nTESt",
+      "signatures": 1000,
+      "successful_signatures": 274,
+      "captured": 265,
+      "missing_signatures": [
+        "iWWEtgJPZ6EmzayGxLV9eUdWnErCgRSidAwG7r7ijYjXcwst6jb7CpFX6fYJqC1YpybM1gDfs5giy4YiPjvCFyU",
+        "Cv9xKTXR7Z9ocXEaPW2yW1vFm52yzZ3EwvykBhFsQHiQonufTwua73oCpEBFbSkgyEGsQFeJAUJa3FzDVPzizBF",
+        "34TqaX5yvWpo7Lucch1eGaLvqAUnZqnhD36JeT6Q2WSZ7voaaTu5ADZJEb3ofYPqYfaAF7ki7B2qeQtiLpsoRW95",
+        "36xdWEU36gozSaqT8MN9EHUJ2pJBCyM7oTeMTgZGDijFQCGWVH1Tn1ngBAB5tqUEPPYHEdGaxR4FjUwAqU8wDWt8",
+        "u1bZXih112uWnQBmAeHhiGQDmtK4fyjAnQkWbTctYJWiw2ZmNbaveCceys4HauGfRrTbsfWqETur6r2yDvS9bUr",
+        "exHViGzrra9GjxusGG2G1PqYrV8FiiSSHN8h9KhCZnkxjoTsaUyKVRQRA4Nh5VFRmqvFevnWZxdzQZAPdkkFqj9",
+        "42zney2xvXkkfT4PPYiu9etEfzhoggmB1qj18eciNATLykgYH6tYyKG3LX3pTdtsjDntENFHQaVpCKDxrnx98L8K",
+        "64FGXK2J9r6BbP6vAeQirUmqHNo11CPgm7mPcoVpZVkJDQwP5eLogDbzCdVZiT2by1Wto6m47QzVKckgsnmaRyok",
+        "gtdeSNoMUZEpTkS7cfRiUZobrS4CpotgnGGcqGTaj3CoWRqiN3QV9k7TUCN8Y4q1TaZmFfdGYonxgNnGcZ5v6Gb"
+      ],
+      "oldest_block_time": 1792441781,
+      "newest_block_time": 1792442310
+    },
+    "pump": {
+      "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+      "signatures": 1000,
+      "successful_signatures": 344,
+      "captured": 343,
+      "missing_signatures": [
+        "58oPkjsk2KLZN93FJ4Xcx6YKbFPowH9caZqxLXHA5VxsoXHyvCKkoYdCPTePUzygzSPUMbbppXM29fxC6wdHz9iw"
+      ],
+      "oldest_block_time": 1792442320,
+      "newest_block_time": 1792442324
+    },
+    "pumpswap": {
+      "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+      "signatures": 1000,
+      "successful_signatures": 812,
+      "captured": 811,
+      "missing_signatures": [
+        "29DvvCsNkVzqqZMyNfG3xu5Zpm7uGQSTFr3jdyd66iBW7hp1TBxEjyDX2bnJNNFmStXaAmtYPMVow2iSkNCrX4Yy"
+      ],
+      "oldest_block_time": 1792442322,
+      "newest_block_time": 1792442325
+    }
+  },
+  "targeted_sources": {
+    "HOOD.US": {
+      "signatures": 25,
+      "successful_signatures": 22,
+      "captured": 22
+    },
+    "TSM.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "TSLA.US": {
+      "signatures": 4,
+      "successful_signatures": 4,
+      "captured": 3
+    },
+    "HOODx": {
+      "signatures": 10,
+      "successful_signatures": 7,
+      "captured": 7
+    },
+    "COIN.US": {
+      "signatures": 21,
+      "successful_signatures": 21,
+      "captured": 21
+    },
+    "METAx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 9
+    },
+    "STRC.US": {
+      "signatures": 21,
+      "successful_signatures": 21,
+      "captured": 21
+    },
+    "GOOGL.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "QQQ.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "INTC.US": {
+      "signatures": 25,
+      "successful_signatures": 21,
+      "captured": 20
+    },
+    "NFLX.US": {
+      "signatures": 25,
+      "successful_signatures": 23,
+      "captured": 23
+    },
+    "AAPL.US": {
+      "signatures": 8,
+      "successful_signatures": 8,
+      "captured": 8
+    },
+    "MSTR.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "COINx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "AMD.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "MSTRx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "NVDAx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 9
+    },
+    "QQQx": {
+      "signatures": 10,
+      "successful_signatures": 9,
+      "captured": 9
+    },
+    "GOOGLx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 9
+    },
+    "AAPLx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "GME.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "NKE.US": {
+      "signatures": 25,
+      "successful_signatures": 22,
+      "captured": 21
+    },
+    "MSFTx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "AVGO.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "BABA.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 25
+    },
+    "CRCL.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "DIS.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "GLDx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "SPYx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "AMZNx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "PLTR.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "MU.US": {
+      "signatures": 25,
+      "successful_signatures": 21,
+      "captured": 21
+    },
+    "TSLAx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "META.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "AMZN.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "GLD.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "AVGOx": {
+      "signatures": 10,
+      "successful_signatures": 10,
+      "captured": 10
+    },
+    "MSFT.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    },
+    "NVDA.US": {
+      "signatures": 25,
+      "successful_signatures": 25,
+      "captured": 24
+    },
+    "SPY.US": {
+      "signatures": 3,
+      "successful_signatures": 3,
+      "captured": 3
+    }
+  },
+  "captured_successful_transactions_including_previous": 2218,
+  "observed_verified_mints": 55,
+  "stock_mint_counts": {
+    "ABNB.US": 150,
+    "TTWO.US": 57,
+    "AMD.US": 27,
+    "GME.US": 25,
+    "AVGO.US": 25,
+    "TSM.US": 25,
+    "MSTR.US": 25,
+    "BABA.US": 25,
+    "NFLX.US": 23,
+    "HOOD.US": 22,
+    "MU.US": 21,
+    "SPCXx": 20,
+    "NKE.US": 20,
+    "INTC.US": 20,
+    "COIN.US": 18,
+    "STRC.US": 18,
+    "MSTRx": 15,
+    "GLDx": 14,
+    "SPYx": 12,
+    "AVGOx": 12,
+    "TSLAx": 11,
+    "NVDAx": 10,
+    "QQQx": 9,
+    "NVDA.US": 9,
+    "SPCX.US": 9,
+    "GOOGLx": 8,
+    "METAx": 6,
+    "MSFTx": 4,
+    "AAPLx": 4,
+    "HOODx": 4,
+    "GMEx": 3,
+    "AMZNx": 3,
+    "CHWY.US": 2,
+    "AMC.US": 2,
+    "INTCx": 2,
+    "AAPL.US": 2,
+    "RACE.US": 2,
+    "COINx": 2,
+    "DJT.US": 2,
+    "UVXY.US": 1,
+    "WEN.US": 1,
+    "SQQQ.US": 1,
+    "RKLB.US": 1,
+    "SOXXx": 1,
+    "WMTx": 1,
+    "RDDT.US": 1,
+    "Vx": 1,
+    "SCHH.US": 1,
+    "EWQx": 1,
+    "GRND.US": 1,
+    "MGM.US": 1,
+    "SPHR.US": 1,
+    "BE.US": 1,
+    "COPX.US": 1,
+    "MRNA.US": 1
+  },
+  "decoded_liquid_bridge_candidates": 69,
+  "depth_passed": 55,
+  "selected_stock_pools": 30,
+  "selected_stock_mints": 30,
+  "xstocks_source_sha256": "9fd2a28ca56688fd7dd4700841ce81994476a415838be7d7584650627c0388d6",
+  "candidate_results": [
+    {
+      "pool": "ANyCzRPgiCLeJx3nH4SKS1jxtaxMk9qzG5SmJooh55ie",
+      "symbol": "UVXY.US",
+      "mint": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 35868.212848,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.087305744718158,
+              "buy_output": 572695,
+              "eligible": true,
+              "liquid_side_reserve_usd": 35868.212848,
+              "sell_10_usd_impact_bps": 0.07448242367869007,
+              "sell_output": 9800897
+            },
+            "pool": "ANyCzRPgiCLeJx3nH4SKS1jxtaxMk9qzG5SmJooh55ie"
+          }
+        ],
+        "slot": 458982123,
+        "unix_timestamp": 1792445269
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982123,
+        "unix_timestamp": 1792445269,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "52PqYh77gmA6AbM5Hs6gHe9mhGBey5CwmD7sDybaYj27",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 38081.040138,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.8868393047190004,
+              "buy_output": 56385,
+              "eligible": true,
+              "liquid_side_reserve_usd": 38081.040138,
+              "sell_10_usd_impact_bps": 0.04623594201169645,
+              "sell_output": 9948924
+            },
+            "pool": "52PqYh77gmA6AbM5Hs6gHe9mhGBey5CwmD7sDybaYj27"
+          }
+        ],
+        "slot": 458982126,
+        "unix_timestamp": 1792445269
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982126,
+        "unix_timestamp": 1792445269,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "GqejCG4yTgEtA4kDtz5MGdxoeyQ9Y8eXdcarsDuQsWhY",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 309.055298,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500",
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458978732,
+        "unix_timestamp": 1792444529,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      },
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 1.603135019594415,
+              "buy_output": 56131,
+              "eligible": false,
+              "liquid_side_reserve_usd": 396.192557,
+              "sell_10_usd_impact_bps": 6.292649287541474,
+              "sell_output": 9970442
+            },
+            "pool": "GqejCG4yTgEtA4kDtz5MGdxoeyQ9Y8eXdcarsDuQsWhY"
+          }
+        ],
+        "slot": 458982984,
+        "unix_timestamp": 1792445455
+      }
+    },
+    {
+      "pool": "DNcGcbmmmvjrmVsT4DTMh2FLrbBchxXd66njTKo6zDAc",
+      "symbol": "SPCXx",
+      "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 936405.0077795511,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.0015091492167051967,
+              "buy_output": 6626251,
+              "eligible": true,
+              "liquid_side_reserve_usd": 938752.7184841172,
+              "sell_10_usd_impact_bps": 0.0011752268591624926,
+              "sell_output": 93598939
+            },
+            "pool": "DNcGcbmmmvjrmVsT4DTMh2FLrbBchxXd66njTKo6zDAc"
+          }
+        ],
+        "slot": 458982128,
+        "unix_timestamp": 1792445270
+      },
+      "fees": {
+        "base_fee_bps": 80.0,
+        "snapshot_start_fee_bps": 80.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982128,
+        "unix_timestamp": 1792445270,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "AHNN6JmvaGG6XUoSg7sEr38gRYDB2jTbUvqXVuqaRHpq",
+      "symbol": "SPCXx",
+      "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 398690.273796,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.002985734162130882,
+              "buy_output": 6698522,
+              "eligible": true,
+              "liquid_side_reserve_usd": 398690.273796,
+              "sell_10_usd_impact_bps": 0.004064784535628974,
+              "sell_output": 9840616
+            },
+            "pool": "AHNN6JmvaGG6XUoSg7sEr38gRYDB2jTbUvqXVuqaRHpq"
+          }
+        ],
+        "slot": 458982131,
+        "unix_timestamp": 1792445271
+      },
+      "fees": {
+        "base_fee_bps": 80.0,
+        "snapshot_start_fee_bps": 80.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982131,
+        "unix_timestamp": 1792445271,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "BS9uyGV6XmNnPkM4f3xgxCdQEaFv7RSKs6fwrpvYHxfL",
+      "symbol": "SPYx",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 821341.5737379328,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.023335952146208427,
+              "buy_output": 1285573,
+              "eligible": true,
+              "liquid_side_reserve_usd": 823412.3166649161,
+              "sell_10_usd_impact_bps": -0.038039840815073944,
+              "sell_output": 94637980
+            },
+            "pool": "BS9uyGV6XmNnPkM4f3xgxCdQEaFv7RSKs6fwrpvYHxfL"
+          }
+        ],
+        "slot": 458982133,
+        "unix_timestamp": 1792445271
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982133,
+        "unix_timestamp": 1792445271,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "Bu2A9LUZaMRnf7ZyC1nzREn6dVGVVuPwxz5aFBFkJLTa",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 1341.724729961563,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.4227280810952259,
+              "buy_output": 56238,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1345.1074480454438,
+              "sell_10_usd_impact_bps": 2.5983423651820825,
+              "sell_output": 94389508
+            },
+            "pool": "Bu2A9LUZaMRnf7ZyC1nzREn6dVGVVuPwxz5aFBFkJLTa"
+          }
+        ],
+        "slot": 458982135,
+        "unix_timestamp": 1792445272
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.00917,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982135,
+        "unix_timestamp": 1792445272,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "7qZPiJ2Lvwh9DV9gUBH2EwConBE3RUrAvGRjpN8vTjtT",
+      "symbol": "TTWO.US",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 5274.034652783488,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.4477766287490645,
+              "buy_output": 48357,
+              "eligible": true,
+              "liquid_side_reserve_usd": 5287.331398380103,
+              "sell_10_usd_impact_bps": 2.0937594567416173,
+              "sell_output": 94885969
+            },
+            "pool": "7qZPiJ2Lvwh9DV9gUBH2EwConBE3RUrAvGRjpN8vTjtT"
+          }
+        ],
+        "slot": 458982138,
+        "unix_timestamp": 1792445272
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.00042,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982138,
+        "unix_timestamp": 1792445272,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "GJmMTjiE2dZiAQgENapnBxzsTWNX4KLbiNnjzovwv1KE",
+      "symbol": "CHWY.US",
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 17657.126167,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.020487604999175346,
+              "buy_output": 488099,
+              "eligible": true,
+              "liquid_side_reserve_usd": 17657.126167,
+              "sell_10_usd_impact_bps": 0.0271356511194476,
+              "sell_output": 9949983
+            },
+            "pool": "GJmMTjiE2dZiAQgENapnBxzsTWNX4KLbiNnjzovwv1KE"
+          }
+        ],
+        "slot": 458982140,
+        "unix_timestamp": 1792445273
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982140,
+        "unix_timestamp": 1792445273,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze",
+      "symbol": "GLDx",
+      "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 181207.540091,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.019008154499289276,
+              "buy_output": 2630455,
+              "eligible": true,
+              "liquid_side_reserve_usd": 181207.540091,
+              "sell_10_usd_impact_bps": -0.032064321027203135,
+              "sell_output": 9979972
+            },
+            "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze"
+          }
+        ],
+        "slot": 458982142,
+        "unix_timestamp": 1792445273
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982142,
+        "unix_timestamp": 1792445273,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5Ra7fy99EuaZHhNKkT96LZBAXJ7ECW1mkFUCEgKRkJDD",
+      "symbol": "GME.US",
+      "mint": "GMETpjLMbTGTcJVhnxQLv1kxje2E7ZMR9Hnziu5Mt7oo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 0.0,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF",
+      "symbol": "TSLAx",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 958920.844059,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.014731445743265681,
+              "buy_output": 2715284,
+              "eligible": true,
+              "liquid_side_reserve_usd": 958920.844059,
+              "sell_10_usd_impact_bps": -0.010020080241091023,
+              "sell_output": 9979970
+            },
+            "pool": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF"
+          }
+        ],
+        "slot": 458982145,
+        "unix_timestamp": 1792445274
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982145,
+        "unix_timestamp": 1792445274,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "9bmMb56nV9vtMb9rNYiP1E8Z97VkaYh4RENhiAukuRzi",
+      "symbol": "TSM.US",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 476.5784585312762,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "4V7CrUiP46jcJpZzPKzRerKS2VxHUt9bjiJPnT7gXFAU",
+      "symbol": "NKE.US",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 31978.356396453008,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.2634550244640099,
+              "buy_output": 265693,
+              "eligible": true,
+              "liquid_side_reserve_usd": 32058.244540458614,
+              "sell_10_usd_impact_bps": 0.08256359649183587,
+              "sell_output": 94350731
+            },
+            "pool": "4V7CrUiP46jcJpZzPKzRerKS2VxHUt9bjiJPnT7gXFAU"
+          }
+        ],
+        "slot": 458982146,
+        "unix_timestamp": 1792445274
+      },
+      "fees": {
+        "base_fee_bps": 40.0,
+        "snapshot_start_fee_bps": 40.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982146,
+        "unix_timestamp": 1792445274,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL",
+      "symbol": "TTWO.US",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 341050.376191,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.2350761630308682,
+              "buy_output": 48586,
+              "eligible": true,
+              "liquid_side_reserve_usd": 341050.376191,
+              "sell_10_usd_impact_bps": -0.0010041531783855362,
+              "sell_output": 9958641
+            },
+            "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL"
+          }
+        ],
+        "slot": 458982149,
+        "unix_timestamp": 1792445275
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982149,
+        "unix_timestamp": 1792445275,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "F1mbBZYKXGFx5nraY3cK4RgNR5EuShntQ8xDKDD5HY1z",
+      "symbol": "TTWO.US",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 34690.464268,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.6460905349791055,
+              "buy_output": 48608,
+              "eligible": true,
+              "liquid_side_reserve_usd": 34218.629079,
+              "sell_10_usd_impact_bps": -0.008007959912958995,
+              "sell_output": 9990068
+            },
+            "pool": "F1mbBZYKXGFx5nraY3cK4RgNR5EuShntQ8xDKDD5HY1z"
+          }
+        ],
+        "slot": 458982151,
+        "unix_timestamp": 1792445275
+      },
+      "fees": {
+        "base_fee_bps": 4.0,
+        "snapshot_start_fee_bps": 4.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982151,
+        "unix_timestamp": 1792445275,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "3L7KbPVaAQA4UTecaGQYsm6UCq5F3sZM9zAYkxqYt63j",
+      "symbol": "METAx",
+      "mint": "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 294500.526135,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.035470552346428263,
+              "buy_output": 1409625,
+              "eligible": true,
+              "liquid_side_reserve_usd": 294500.526135,
+              "sell_10_usd_impact_bps": -0.03316596247637804,
+              "sell_output": 9949993
+            },
+            "pool": "3L7KbPVaAQA4UTecaGQYsm6UCq5F3sZM9zAYkxqYt63j"
+          }
+        ],
+        "slot": 458982154,
+        "unix_timestamp": 1792445276
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982154,
+        "unix_timestamp": 1792445276,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "8YU7gLMh4T8RuGepxAuigTqZeGfBn3TDS6tnuj951XbW",
+      "symbol": "BABA.US",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 1516.442241,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.3266550522651457,
+              "buy_output": 91837,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1516.442241,
+              "sell_10_usd_impact_bps": 0.1976453119434396,
+              "sell_output": 9967153
+            },
+            "pool": "8YU7gLMh4T8RuGepxAuigTqZeGfBn3TDS6tnuj951XbW"
+          }
+        ],
+        "slot": 458982156,
+        "unix_timestamp": 1792445276
+      },
+      "fees": {
+        "base_fee_bps": 16.0,
+        "snapshot_start_fee_bps": 16.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982156,
+        "unix_timestamp": 1792445276,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "8cdMW3EGziaxzQqgGJx46xnzaxQuVg5acThQxCLiJMrE",
+      "symbol": "BABA.US",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 7314.347026688609,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.5469262743384995,
+              "buy_output": 91425,
+              "eligible": true,
+              "liquid_side_reserve_usd": 7332.276644017391,
+              "sell_10_usd_impact_bps": 0.06496353236240537,
+              "sell_output": 94821814
+            },
+            "pool": "8cdMW3EGziaxzQqgGJx46xnzaxQuVg5acThQxCLiJMrE"
+          }
+        ],
+        "slot": 458982157,
+        "unix_timestamp": 1792445276
+      },
+      "fees": {
+        "base_fee_bps": 15.0,
+        "snapshot_start_fee_bps": 15.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982157,
+        "unix_timestamp": 1792445276,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "6kRoMyYBuz4ReLmLyuqiTtSpVB61hAGRrD6xYBrotsBC",
+      "symbol": "NKE.US",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 50766.216157,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.22358859698146105,
+              "buy_output": 268356,
+              "eligible": true,
+              "liquid_side_reserve_usd": 50766.216157,
+              "sell_10_usd_impact_bps": 0.045182401354759705,
+              "sell_output": 9959585
+            },
+            "pool": "6kRoMyYBuz4ReLmLyuqiTtSpVB61hAGRrD6xYBrotsBC"
+          }
+        ],
+        "slot": 458982160,
+        "unix_timestamp": 1792445277
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.04,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982160,
+        "unix_timestamp": 1792445277,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "G58weZ4Z6gWUbePy4c9XcgMNcwSEyXb2Z99jfEQunAXB",
+      "symbol": "TSM.US",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 26929.57042,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -2.983802216538489,
+              "buy_output": 23467,
+              "eligible": true,
+              "liquid_side_reserve_usd": 26929.57042,
+              "sell_10_usd_impact_bps": 0.06327964089836158,
+              "sell_output": 9797718
+            },
+            "pool": "G58weZ4Z6gWUbePy4c9XcgMNcwSEyXb2Z99jfEQunAXB"
+          }
+        ],
+        "slot": 458982162,
+        "unix_timestamp": 1792445277
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982162,
+        "unix_timestamp": 1792445277,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "HdnzKiiGQT4vbhrRnXqAts9ogQBPpekQNbL46JVvW1Fn",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 8145.639357026389,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.0,
+              "buy_output": 55910,
+              "eligible": true,
+              "liquid_side_reserve_usd": 8165.731194080989,
+              "sell_10_usd_impact_bps": 0.03850893820378509,
+              "sell_output": 93224751
+            },
+            "pool": "HdnzKiiGQT4vbhrRnXqAts9ogQBPpekQNbL46JVvW1Fn"
+          }
+        ],
+        "slot": 458982164,
+        "unix_timestamp": 1792445278
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982164,
+        "unix_timestamp": 1792445278,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "3R6j7hY8SQSwBeP7QYoZSzsZNE6TwcVUpMAjZUCwnEUb",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 307.945859,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "7SkLUhZoyTYYgKLVuK6E1Q1fQykR7wFiLxSiEohVcowu",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 2105.270668,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.4206688634933453,
+              "buy_output": 142624,
+              "eligible": true,
+              "liquid_side_reserve_usd": 2105.270668,
+              "sell_10_usd_impact_bps": 0.8432635404609368,
+              "sell_output": 9948601
+            },
+            "pool": "7SkLUhZoyTYYgKLVuK6E1Q1fQykR7wFiLxSiEohVcowu"
+          }
+        ],
+        "slot": 458982165,
+        "unix_timestamp": 1792445278
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982165,
+        "unix_timestamp": 1792445278,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo",
+      "symbol": "NVDAx",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 56915.400764,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.008716533957953132,
+              "buy_output": 4588976,
+              "eligible": true,
+              "liquid_side_reserve_usd": 56916.344352,
+              "sell_10_usd_impact_bps": 0.006002436989671622,
+              "sell_output": 9995934
+            },
+            "pool": "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo"
+          }
+        ],
+        "slot": 458982168,
+        "unix_timestamp": 1792445279
+      },
+      "fees": {
+        "base_fee_bps": 2.0,
+        "snapshot_start_fee_bps": 2.01,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982168,
+        "unix_timestamp": 1792445279,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "6KoZB86BFDk6TZbB4CTBoAA8PPbpmEwSWFjCyfkt1Uw4",
+      "symbol": "INTCx",
+      "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 9972.867333,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.38248123451434246,
+              "buy_output": 10666782,
+              "eligible": true,
+              "liquid_side_reserve_usd": 9972.867333,
+              "sell_10_usd_impact_bps": 0.36527257700869065,
+              "sell_output": 9800542
+            },
+            "pool": "6KoZB86BFDk6TZbB4CTBoAA8PPbpmEwSWFjCyfkt1Uw4"
+          }
+        ],
+        "slot": 458982170,
+        "unix_timestamp": 1792445279
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982170,
+        "unix_timestamp": 1792445279,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "E3mugzPiMhKGrDcfcz5ojo7HJBbYA6UMaJvSzbabPLAM",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 28488.864058,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.4929577464785062,
+              "buy_output": 142007,
+              "eligible": true,
+              "liquid_side_reserve_usd": 28488.864058,
+              "sell_10_usd_impact_bps": 0.036733157082746715,
+              "sell_output": 9800374
+            },
+            "pool": "E3mugzPiMhKGrDcfcz5ojo7HJBbYA6UMaJvSzbabPLAM"
+          }
+        ],
+        "slot": 458982172,
+        "unix_timestamp": 1792445280
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982172,
+        "unix_timestamp": 1792445280,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "97r9NLqYoyGFbQesPduwuTHq4fJjbk8pHVUGawEqfnva",
+      "symbol": "HOOD.US",
+      "mint": "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 87836.938335,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.5815080441951004,
+              "buy_output": 103186,
+              "eligible": true,
+              "liquid_side_reserve_usd": 87836.938335,
+              "sell_10_usd_impact_bps": -0.07538355150993326,
+              "sell_output": 9949195
+            },
+            "pool": "97r9NLqYoyGFbQesPduwuTHq4fJjbk8pHVUGawEqfnva"
+          }
+        ],
+        "slot": 458982175,
+        "unix_timestamp": 1792445280
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982175,
+        "unix_timestamp": 1792445280,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "BCvzjDbADhnT3K35kc5TSeMAafNgu9KZVywUq9zWH2mA",
+      "symbol": "MSTRx",
+      "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 672.748797,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 14.407847445999655,
+              "buy_output": 7306997,
+              "eligible": true,
+              "liquid_side_reserve_usd": 672.748797,
+              "sell_10_usd_impact_bps": 14.453913759048254,
+              "sell_output": 9974552
+            },
+            "pool": "BCvzjDbADhnT3K35kc5TSeMAafNgu9KZVywUq9zWH2mA"
+          }
+        ],
+        "slot": 458982176,
+        "unix_timestamp": 1792445280
+      },
+      "fees": {
+        "base_fee_bps": 4.0,
+        "snapshot_start_fee_bps": 4.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982176,
+        "unix_timestamp": 1792445280,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "Bo3TAJ1qSQjc9unYBsvJH9XMs8x8G6onzbknk9eTbxvv",
+      "symbol": "GME.US",
+      "mint": "GMETpjLMbTGTcJVhnxQLv1kxje2E7ZMR9Hnziu5Mt7oo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 0.0,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "4BRhq3WHdyM1itQuXgL8ua8KMXdXzhi8fcL9MUp9BZUc",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 6548.570983768283,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.4222675768883466,
+              "buy_output": 142084,
+              "eligible": true,
+              "liquid_side_reserve_usd": 6564.571698468862,
+              "sell_10_usd_impact_bps": 0.20530326980572333,
+              "sell_output": 94638537
+            },
+            "pool": "4BRhq3WHdyM1itQuXgL8ua8KMXdXzhi8fcL9MUp9BZUc"
+          }
+        ],
+        "slot": 458982179,
+        "unix_timestamp": 1792445281
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982179,
+        "unix_timestamp": 1792445281,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "Dbgoyn9PHeDTHQ1qxYA8yCKLNMdp8b3QUdFniNgHtqg6",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 204.72991334433266,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "3GVB4bXtcrP3MM376mrcJDwfTNThvyorLmVgSTf6kxFt",
+      "symbol": "QQQx",
+      "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 6419.319634,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.5704630137781663,
+              "buy_output": 1384761,
+              "eligible": true,
+              "liquid_side_reserve_usd": 6419.319634,
+              "sell_10_usd_impact_bps": 0.5638137889585337,
+              "sell_output": 9967268
+            },
+            "pool": "3GVB4bXtcrP3MM376mrcJDwfTNThvyorLmVgSTf6kxFt"
+          }
+        ],
+        "slot": 458982181,
+        "unix_timestamp": 1792445281
+      },
+      "fees": {
+        "base_fee_bps": 16.0,
+        "snapshot_start_fee_bps": 16.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982181,
+        "unix_timestamp": 1792445281,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5B2egsXDewp7f132hs8A98zanisKV62nsdbyhZb9vS8y",
+      "symbol": "NVDA.US",
+      "mint": "NVDAVuiB7hwd3m5Wa1JuHNovPaPG6BH1QNztbKFxNjv",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 69.899201,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "Dprwg5xHQ8jJryfh3okeTDCZK16Gz1wtX47JeZZv3HXZ",
+      "symbol": "AVGOx",
+      "mint": "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 14766.415369,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.010129249219392733,
+              "buy_output": 2961723,
+              "eligible": true,
+              "liquid_side_reserve_usd": 14766.415369,
+              "sell_10_usd_impact_bps": 2.7988128068712204,
+              "sell_output": 9987154
+            },
+            "pool": "Dprwg5xHQ8jJryfh3okeTDCZK16Gz1wtX47JeZZv3HXZ"
+          }
+        ],
+        "slot": 458982182,
+        "unix_timestamp": 1792445282
+      },
+      "fees": {
+        "base_fee_bps": 5.0,
+        "snapshot_start_fee_bps": 5.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982182,
+        "unix_timestamp": 1792445282,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "13MEx6gjRadJNUdmToaGSzgeWHLH7FzScUQS9Mc5nYF5",
+      "symbol": "MU.US",
+      "mint": "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 1263016.980356,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -2.724795640327571,
+              "buy_output": 11013,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1263016.980356,
+              "sell_10_usd_impact_bps": -0.009039203023863962,
+              "sell_output": 9956639
+            },
+            "pool": "13MEx6gjRadJNUdmToaGSzgeWHLH7FzScUQS9Mc5nYF5"
+          }
+        ],
+        "slot": 458982183,
+        "unix_timestamp": 1792445282
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982183,
+        "unix_timestamp": 1792445282,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "2ngTuP7xA581dqX9uJkGRqxmKuehY3k4SDfPebeoRG2J",
+      "symbol": "MSTRx",
+      "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 285945.72472076904,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.016506530395865582,
+              "buy_output": 7269838,
+              "eligible": true,
+              "liquid_side_reserve_usd": 286638.22422900744,
+              "sell_10_usd_impact_bps": 0.011516395490573927,
+              "sell_output": 94647561
+            },
+            "pool": "2ngTuP7xA581dqX9uJkGRqxmKuehY3k4SDfPebeoRG2J"
+          }
+        ],
+        "slot": 458982185,
+        "unix_timestamp": 1792445282
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982185,
+        "unix_timestamp": 1792445282,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "J7riKjqgLoZCES7MRyxHxL7iXybwHKXgfAot8muHKciZ",
+      "symbol": "INTCx",
+      "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 2188.990595060305,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 1.235013088148884,
+              "buy_output": 10703018,
+              "eligible": true,
+              "liquid_side_reserve_usd": 2194.2863267253333,
+              "sell_10_usd_impact_bps": 1.2295337786372151,
+              "sell_output": 94349368
+            },
+            "pool": "J7riKjqgLoZCES7MRyxHxL7iXybwHKXgfAot8muHKciZ"
+          }
+        ],
+        "slot": 458982188,
+        "unix_timestamp": 1792445283
+      },
+      "fees": {
+        "base_fee_bps": 40.0,
+        "snapshot_start_fee_bps": 40.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982188,
+        "unix_timestamp": 1792445283,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5FPucPvtgnAgQzGzZBfF7Simw5B3qMbuvTcLkioJ3qhC",
+      "symbol": "TSM.US",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 3939.805838595338,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.0,
+              "buy_output": 23170,
+              "eligible": true,
+              "liquid_side_reserve_usd": 3949.3372429698447,
+              "sell_10_usd_impact_bps": 0.6665978685604923,
+              "sell_output": 93213406
+            },
+            "pool": "5FPucPvtgnAgQzGzZBfF7Simw5B3qMbuvTcLkioJ3qhC"
+          }
+        ],
+        "slot": 458982189,
+        "unix_timestamp": 1792445283
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982189,
+        "unix_timestamp": 1792445283,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "D1zm9kMhXRQyr3JyAcW9cbj7XvRjQE1pF7MBBKpnbA1n",
+      "symbol": "TSM.US",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 11924.495772,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.268498942916807,
+              "buy_output": 23653,
+              "eligible": true,
+              "liquid_side_reserve_usd": 11924.495772,
+              "sell_10_usd_impact_bps": 0.18998392675717568,
+              "sell_output": 9948021
+            },
+            "pool": "D1zm9kMhXRQyr3JyAcW9cbj7XvRjQE1pF7MBBKpnbA1n"
+          }
+        ],
+        "slot": 458982192,
+        "unix_timestamp": 1792445284
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982192,
+        "unix_timestamp": 1792445284,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "62sHycti7wLRMT16xA3cSpaiEiJCMBtjkLW2tNXUVmGL",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 1383.859566,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 2.450637165662961,
+              "buy_output": 142785,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1383.859566,
+              "sell_10_usd_impact_bps": 2.2651785032956617,
+              "sell_output": 9957224
+            },
+            "pool": "62sHycti7wLRMT16xA3cSpaiEiJCMBtjkLW2tNXUVmGL"
+          }
+        ],
+        "slot": 458982194,
+        "unix_timestamp": 1792445284
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982194,
+        "unix_timestamp": 1792445284,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5QgXfdEtmJhEMhLbNDdrP2KLcEMb9Tosf4fUTccddixR",
+      "symbol": "NFLX.US",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 486.008503,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "gef4pD5g6GJSjX7hfXKUfhCVpE89BzX9TXnXJNW6kSt",
+      "symbol": "SPYx",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 5374.531232,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 1.381471305529347,
+              "buy_output": 1295541,
+              "eligible": true,
+              "liquid_side_reserve_usd": 5374.531232,
+              "sell_10_usd_impact_bps": 1.2643122851341282,
+              "sell_output": 9996266
+            },
+            "pool": "gef4pD5g6GJSjX7hfXKUfhCVpE89BzX9TXnXJNW6kSt"
+          }
+        ],
+        "slot": 458982196,
+        "unix_timestamp": 1792445285
+      },
+      "fees": {
+        "base_fee_bps": 1.0,
+        "snapshot_start_fee_bps": 1.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982196,
+        "unix_timestamp": 1792445285,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "ESzRTaF7jBZgFTe1xJHGyRYctEneMuwk2XiwqJS9sJD4",
+      "symbol": "INTC.US",
+      "mint": "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 789.6228612543948,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 4.745951982132457,
+              "buy_output": 107409,
+              "eligible": true,
+              "liquid_side_reserve_usd": 791.5246747143995,
+              "sell_10_usd_impact_bps": 4.629027918929829,
+              "sell_output": 94593772
+            },
+            "pool": "ESzRTaF7jBZgFTe1xJHGyRYctEneMuwk2XiwqJS9sJD4"
+          }
+        ],
+        "slot": 458982198,
+        "unix_timestamp": 1792445285
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982198,
+        "unix_timestamp": 1792445285,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "DirR9nP5jk7fYifaYArCwZuq6pBqGWjhKgESiTuQByTf",
+      "symbol": "TTWO.US",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 40605.25544291043,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.6211180124227056,
+              "buy_output": 48303,
+              "eligible": true,
+              "liquid_side_reserve_usd": 40703.049271315125,
+              "sell_10_usd_impact_bps": -0.585025644750381,
+              "sell_output": 94736432
+            },
+            "pool": "DirR9nP5jk7fYifaYArCwZuq6pBqGWjhKgESiTuQByTf"
+          }
+        ],
+        "slot": 458982201,
+        "unix_timestamp": 1792445286
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982201,
+        "unix_timestamp": 1792445286,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "94afGPYHkDyYbSjkbUrkaAdCAbBVyeS4h5hLtmREWYph",
+      "symbol": "NKE.US",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 927.242032,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 6.291649603514804,
+              "buy_output": 268441,
+              "eligible": true,
+              "liquid_side_reserve_usd": 927.242032,
+              "sell_10_usd_impact_bps": 5.665850283894658,
+              "sell_output": 9961083
+            },
+            "pool": "94afGPYHkDyYbSjkbUrkaAdCAbBVyeS4h5hLtmREWYph"
+          }
+        ],
+        "slot": 458982203,
+        "unix_timestamp": 1792445286
+      },
+      "fees": {
+        "base_fee_bps": 16.0,
+        "snapshot_start_fee_bps": 16.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982203,
+        "unix_timestamp": 1792445286,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5tGLudhm9pHtqbtfymvdarbD59AyMyYimXXwbFfzETV9",
+      "symbol": "GLDx",
+      "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 46467.695401,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.011399215733565171,
+              "buy_output": 2631757,
+              "eligible": true,
+              "liquid_side_reserve_usd": 46539.202545,
+              "sell_10_usd_impact_bps": -0.014011279079184646,
+              "sell_output": 9991964
+            },
+            "pool": "5tGLudhm9pHtqbtfymvdarbD59AyMyYimXXwbFfzETV9"
+          }
+        ],
+        "slot": 458982206,
+        "unix_timestamp": 1792445287
+      },
+      "fees": {
+        "base_fee_bps": 4.0,
+        "snapshot_start_fee_bps": 4.01,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982206,
+        "unix_timestamp": 1792445287,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw",
+      "symbol": "SPYx",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 218517.759731,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.046301655283187415,
+              "buy_output": 1295856,
+              "eligible": true,
+              "liquid_side_reserve_usd": 218517.759731,
+              "sell_10_usd_impact_bps": 0.0010002060424341153,
+              "sell_output": 9997939
+            },
+            "pool": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw"
+          }
+        ],
+        "slot": 458982208,
+        "unix_timestamp": 1792445287
+      },
+      "fees": {
+        "base_fee_bps": 1.0,
+        "snapshot_start_fee_bps": 1.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982208,
+        "unix_timestamp": 1792445287,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "HQVUahL1Mu3TMTUFhoHBhX8syFVd2WyjQv1SMze14mhq",
+      "symbol": "GME.US",
+      "mint": "GMETpjLMbTGTcJVhnxQLv1kxje2E7ZMR9Hnziu5Mt7oo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 0.0,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "B8YAwjGYk6qidWzGBXMAxP7nYfG8g74EZ3Y4gFSsobRw",
+      "symbol": "GOOGLx",
+      "mint": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 643437.817876,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.020809272611721497,
+              "buy_output": 2883336,
+              "eligible": true,
+              "liquid_side_reserve_usd": 643437.817876,
+              "sell_10_usd_impact_bps": 0.001005022095545982,
+              "sell_output": 9950029
+            },
+            "pool": "B8YAwjGYk6qidWzGBXMAxP7nYfG8g74EZ3Y4gFSsobRw"
+          }
+        ],
+        "slot": 458982209,
+        "unix_timestamp": 1792445288
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982209,
+        "unix_timestamp": 1792445288,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "6E12HKuZkyQoMwhTtN4WFs95uMEoW2zXJMFSE4jNcjHE",
+      "symbol": "CHWY.US",
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 2129.9754036008467,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.020784835383924616,
+              "buy_output": 481121,
+              "eligible": true,
+              "liquid_side_reserve_usd": 2135.105018790187,
+              "sell_10_usd_impact_bps": -0.19092366607242894,
+              "sell_output": 93704159
+            },
+            "pool": "6E12HKuZkyQoMwhTtN4WFs95uMEoW2zXJMFSE4jNcjHE"
+          }
+        ],
+        "slot": 458982211,
+        "unix_timestamp": 1792445288
+      },
+      "fees": {
+        "base_fee_bps": 50.0,
+        "snapshot_start_fee_bps": 50.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982211,
+        "unix_timestamp": 1792445288,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "FcxLv8B82hakWDZJjJWDkk4MRcyUNzcQ3DyNS1VqZYr1",
+      "symbol": "SPCX.US",
+      "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 4755.290532,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.2979293907345859,
+              "buy_output": 67128,
+              "eligible": true,
+              "liquid_side_reserve_usd": 4755.290532,
+              "sell_10_usd_impact_bps": 0.5231752637135934,
+              "sell_output": 9996127
+            },
+            "pool": "FcxLv8B82hakWDZJjJWDkk4MRcyUNzcQ3DyNS1VqZYr1"
+          }
+        ],
+        "slot": 458982213,
+        "unix_timestamp": 1792445289
+      },
+      "fees": {
+        "base_fee_bps": 1.0,
+        "snapshot_start_fee_bps": 1.41,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982213,
+        "unix_timestamp": 1792445289,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "9J6VcB1d9Dod87Cu4dfKd7Bo86uqJJE7EBmh9XzDrYoQ",
+      "symbol": "RACE.US",
+      "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 367.705202,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "9p7abUFv31ycgu9kckvnoqMMvBy67dqTDM2m6HP9xokN",
+      "symbol": "TSLAx",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 25615.80877,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.1287318442122487,
+              "buy_output": 2718795,
+              "eligible": true,
+              "liquid_side_reserve_usd": 25615.80877,
+              "sell_10_usd_impact_bps": 0.14906230804467846,
+              "sell_output": 9995671
+            },
+            "pool": "9p7abUFv31ycgu9kckvnoqMMvBy67dqTDM2m6HP9xokN"
+          }
+        ],
+        "slot": 458982215,
+        "unix_timestamp": 1792445289
+      },
+      "fees": {
+        "base_fee_bps": 2.0,
+        "snapshot_start_fee_bps": 2.05,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982215,
+        "unix_timestamp": 1792445289,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "49iMatQtoyabsYAQc8GafVq6aeBFVDxSRH44oiatyyw6",
+      "symbol": "NVDAx",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 1298141.378047,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.015258988634858639,
+              "buy_output": 4587467,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1298141.268097,
+              "sell_10_usd_impact_bps": -0.003006018047813086,
+              "sell_output": 9979983
+            },
+            "pool": "49iMatQtoyabsYAQc8GafVq6aeBFVDxSRH44oiatyyw6"
+          }
+        ],
+        "slot": 458982217,
+        "unix_timestamp": 1792445289
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982217,
+        "unix_timestamp": 1792445289,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "HrkeM8zFLiLp7ShhZKkM3b6Tvt8Aq2AKFcCvxRnfwKaq",
+      "symbol": "MSFTx",
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 31665.961525736308,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.0,
+              "buy_output": 1852930,
+              "eligible": true,
+              "liquid_side_reserve_usd": 32880.6169504643,
+              "sell_10_usd_impact_bps": -0.00422617294271177,
+              "sell_output": 94648320
+            },
+            "pool": "HrkeM8zFLiLp7ShhZKkM3b6Tvt8Aq2AKFcCvxRnfwKaq"
+          }
+        ],
+        "slot": 458982220,
+        "unix_timestamp": 1792445290
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982220,
+        "unix_timestamp": 1792445290,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "97dsAVDg9dE5DwrZcBtfa9z6RNtXZKVkPCuwRMqDF84G",
+      "symbol": "GME.US",
+      "mint": "GMETpjLMbTGTcJVhnxQLv1kxje2E7ZMR9Hnziu5Mt7oo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 0.0,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "DXWbip5LducMAbDSSpLYz9Xik3253EPeAYQufQtx7LXs",
+      "symbol": "HOODx",
+      "mint": "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 71502.825949,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.11896814308465231,
+              "buy_output": 10170669,
+              "eligible": true,
+              "liquid_side_reserve_usd": 71502.825949,
+              "sell_10_usd_impact_bps": 0.11019328718830934,
+              "sell_output": 9800852
+            },
+            "pool": "DXWbip5LducMAbDSSpLYz9Xik3253EPeAYQufQtx7LXs"
+          }
+        ],
+        "slot": 458982221,
+        "unix_timestamp": 1792445290
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982221,
+        "unix_timestamp": 1792445290,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "7YZVp47ddDLMHCFtYY7nNdMQNfXRi57YQwqxTvGY1SAA",
+      "symbol": "SPHR.US",
+      "mint": "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 19050.19177,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.3151922672839369,
+              "buy_output": 95183,
+              "eligible": true,
+              "liquid_side_reserve_usd": 19050.19177,
+              "sell_10_usd_impact_bps": 0.3428508455971535,
+              "sell_output": 9799844
+            },
+            "pool": "7YZVp47ddDLMHCFtYY7nNdMQNfXRi57YQwqxTvGY1SAA"
+          }
+        ],
+        "slot": 458982223,
+        "unix_timestamp": 1792445291
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982223,
+        "unix_timestamp": 1792445291,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "3bCkqSFZcYs7fthurTzPDRu4r9kQycq1sCUDykBuYnRB",
+      "symbol": "DJT.US",
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 4486.467443,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.045119372970026106,
+              "buy_output": 1551433,
+              "eligible": true,
+              "liquid_side_reserve_usd": 4550.50597,
+              "sell_10_usd_impact_bps": 0.020022705747857472,
+              "sell_output": 9988640
+            },
+            "pool": "3bCkqSFZcYs7fthurTzPDRu4r9kQycq1sCUDykBuYnRB"
+          }
+        ],
+        "slot": 458982224,
+        "unix_timestamp": 1792445291
+      },
+      "fees": {
+        "base_fee_bps": 5.0,
+        "snapshot_start_fee_bps": 5.63,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982224,
+        "unix_timestamp": 1792445291,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "9NnBCfSu43iJpW17eVYBstfV9TiQMSmnARThbHAWNRDJ",
+      "symbol": "ABNB.US",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 0.32303653857087217,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "9JsDnmZonykBmrybuYaZUYxr4DCbZZQTdYQzdFXtDr5F",
+      "symbol": "AAPLx",
+      "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 22590.521501,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.01032190583671877,
+              "buy_output": 2906437,
+              "eligible": true,
+              "liquid_side_reserve_usd": 22622.203476,
+              "sell_10_usd_impact_bps": 0.010016055737027685,
+              "sell_output": 9983960
+            },
+            "pool": "9JsDnmZonykBmrybuYaZUYxr4DCbZZQTdYQzdFXtDr5F"
+          }
+        ],
+        "slot": 458982226,
+        "unix_timestamp": 1792445292
+      },
+      "fees": {
+        "base_fee_bps": 8.0,
+        "snapshot_start_fee_bps": 8.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982226,
+        "unix_timestamp": 1792445292,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "4XhCWxdmoRrUX4Kde4RQ2bmWWgNLur5DQJn9Jzt8pN3e",
+      "symbol": "SPCX.US",
+      "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 5123.73846,
+      "eligible": false,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "eligible": false,
+              "error": "Missing cached account: 9ZP4xUa9kgtBAczoFwPo43uvr7nATZrtaWdoepJqxoVC"
+            },
+            "pool": "4XhCWxdmoRrUX4Kde4RQ2bmWWgNLur5DQJn9Jzt8pN3e"
+          }
+        ],
+        "slot": 458982227,
+        "unix_timestamp": 1792445292
+      },
+      "fees": {
+        "base_fee_bps": 2.0,
+        "snapshot_start_fee_bps": 2.33,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982227,
+        "unix_timestamp": 1792445292,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL",
+      "symbol": "MSFTx",
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 742634.289785,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.021489894377335617,
+              "buy_output": 1861344,
+              "eligible": true,
+              "liquid_side_reserve_usd": 745426.914608,
+              "sell_10_usd_impact_bps": -0.03618090452350842,
+              "sell_output": 9950036
+            },
+            "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL"
+          }
+        ],
+        "slot": 458982229,
+        "unix_timestamp": 1792445292
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982229,
+        "unix_timestamp": 1792445292,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "56eGajrdCczGK6m8faSimtMJLVBjfarSDVPvoMhYooRi",
+      "symbol": "BABA.US",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 1847.700120613988,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.21927420239098439,
+              "buy_output": 91212,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1852.1497381368954,
+              "sell_10_usd_impact_bps": -2.2195292633164776,
+              "sell_output": 94076856
+            },
+            "pool": "56eGajrdCczGK6m8faSimtMJLVBjfarSDVPvoMhYooRi"
+          }
+        ],
+        "slot": 458982231,
+        "unix_timestamp": 1792445293
+      },
+      "fees": {
+        "base_fee_bps": 15.0,
+        "snapshot_start_fee_bps": 15.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982231,
+        "unix_timestamp": 1792445293,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "yrNqjGSrZmUdcSNqzEjbrEouvazH9XbpxRCiJEa8AVJ",
+      "symbol": "GMEx",
+      "mint": "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 1321.478183,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 2.4050864953040207,
+              "buy_output": 37686044,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1321.478183,
+              "sell_10_usd_impact_bps": 2.4009291074578165,
+              "sell_output": 9977074
+            },
+            "pool": "yrNqjGSrZmUdcSNqzEjbrEouvazH9XbpxRCiJEa8AVJ"
+          }
+        ],
+        "slot": 458982233,
+        "unix_timestamp": 1792445293
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982233,
+        "unix_timestamp": 1792445293,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "5vJcDWLBQSh767DzHACeEmfMh7nGCWZc8eb76v6cCFVr",
+      "symbol": "COPX.US",
+      "mint": "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "preliminary_liquid_reserve_usd": 1194.20325,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.08000640051131214,
+              "buy_output": 124991,
+              "eligible": true,
+              "liquid_side_reserve_usd": 1194.20325,
+              "sell_10_usd_impact_bps": 0.17206442901929186,
+              "sell_output": 9879850
+            },
+            "pool": "5vJcDWLBQSh767DzHACeEmfMh7nGCWZc8eb76v6cCFVr"
+          }
+        ],
+        "slot": 458982235,
+        "unix_timestamp": 1792445294
+      },
+      "fees": {
+        "base_fee_bps": 60.0,
+        "snapshot_start_fee_bps": 60.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982235,
+        "unix_timestamp": 1792445294,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "3CDMEBSE5EveuXkZM3SpXqzpMc9yuQET8DgKLLArAN2x",
+      "symbol": "GME.US",
+      "mint": "GMETpjLMbTGTcJVhnxQLv1kxje2E7ZMR9Hnziu5Mt7oo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "preliminary_liquid_reserve_usd": 0.0,
+      "eligible": false,
+      "reason": "Liquid-side reserve below $500"
+    },
+    {
+      "pool": "7gkB2D1SqhUYgKrSpDU5cma4tK9efijHouYituABdJcG",
+      "symbol": "DJT.US",
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "preliminary_liquid_reserve_usd": 51627.807524,
+      "eligible": true,
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.0,
+              "buy_output": 1545350,
+              "eligible": true,
+              "liquid_side_reserve_usd": 51156.35932,
+              "sell_10_usd_impact_bps": -0.008048257351678245,
+              "sell_output": 9940048
+            },
+            "pool": "7gkB2D1SqhUYgKrSpDU5cma4tK9efijHouYituABdJcG"
+          }
+        ],
+        "slot": 458982238,
+        "unix_timestamp": 1792445294
+      },
+      "fees": {
+        "base_fee_bps": 30.0,
+        "snapshot_start_fee_bps": 30.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458982238,
+        "unix_timestamp": 1792445294,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "next_basis_points": 0
+        }
+      }
+    },
+    {
+      "pool": "7iqWWNjubSTjmWXk9eYJViDLZjBN2KjrYt5Z9j8n8exQ",
+      "signatures": [
+        "2GXMXByCrh7SCPy5TVLtr3MTZ3Tu2AJFRVZRn4XB9Yv5aPqwoWrK6b1H93kNzHUyucyZifivM4gsBewty2j5L4Do",
+        "5U46vKBbdNaNpH9rGHd1SKosEqAEo4h4NeBLBisW15WLdyThzd5SjC2iBNZjZBgEiBVDQ9GyMprZhUqbgn4RwFGT",
+        "5ihD9ehX1FVWo4YrWAM2Dr1xZcwDpigDkaN8UhsXBnyeZWoHUZVWu7PVuvkCaSXowjXMEXWrETrRWd5JGFa8ZM69",
+        "5pb8NRN6TSkv8WjCsVwZSkDu1fKQgpFbyvXBfiGMZhQHvSmE34VizkVEoft5B8dxfWWq9Wyf5vYTp5ydxBsChP8k"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "HIMS.US",
+      "owner": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.05644774350166415,
+              "buy_output": 354312,
+              "eligible": true,
+              "liquid_side_reserve_usd": 66820.358359,
+              "sell_10_usd_impact_bps": -0.18913899502814857,
+              "sell_output": 9939968
+            },
+            "pool": "7iqWWNjubSTjmWXk9eYJViDLZjBN2KjrYt5Z9j8n8exQ"
+          }
+        ],
+        "slot": 458985825,
+        "unix_timestamp": 1792446073
+      },
+      "fees": {
+        "base_fee_bps": 30.0,
+        "snapshot_start_fee_bps": 30.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985825,
+        "unix_timestamp": 1792446073,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
+      "signatures": [
+        "2pb5nzCjYWzzjCgqjdBTmEDA32nJLngTEVSmkqM9G19X9uHUz8g4tuA7DocPcgDxJCJL4hMVW1reNVqZT9LvCL7S",
+        "3E7GWmYbySjPM1k1U78CSjtU1sKQijrhnrd9mTWqDqHqNWaGgTHiJe2t8judJTny1mh9jyMLyLHV9u2KoF1FsHtF",
+        "4i3EyzqW8q3wPu33okh6trtnpfmFVrzH8u43CtWg88Sj4MXDKQ7mEhm1QfJRGK22ZiAMtseARjUFXZU1fyQdJ2f4"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "AAPLx",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.01380100333348011,
+              "buy_output": 2898336,
+              "eligible": true,
+              "liquid_side_reserve_usd": 181789.737601,
+              "sell_10_usd_impact_bps": 0.013065287239877321,
+              "sell_output": 9950017
+            },
+            "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y"
+          }
+        ],
+        "slot": 458985832,
+        "unix_timestamp": 1792446075
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985832,
+        "unix_timestamp": 1792446075,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "ASvFi45yphKhx6ej9gJEDvTedXcXjhKjkhm3hRERuU2",
+      "signatures": [
+        "3JfGZmmfxsZhiEVw4MEfab1xKjjezztLToif7NVxwbEHAKRESFRsS5CuAEvAgU4K4wLCny96VjBDLwxoScicaNXG"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "AMD.US",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -3.243243243242766,
+              "buy_output": 18506,
+              "eligible": true,
+              "liquid_side_reserve_usd": 17797.898972,
+              "sell_10_usd_impact_bps": 0.029156160394894215,
+              "sell_output": 9946411
+            },
+            "pool": "ASvFi45yphKhx6ej9gJEDvTedXcXjhKjkhm3hRERuU2"
+          }
+        ],
+        "slot": 458985834,
+        "unix_timestamp": 1792446075
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.0,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985834,
+        "unix_timestamp": 1792446075,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "CB8XEbWETgadadx9t9GhxJbRbYvDE5U1KqS4ycZtwKmK",
+      "signatures": [
+        "3nqWEho7zCNcv5ez3TdjWei64E7dWUH6tq8v82ESnLcQi48ShkenfpMhvtksL6HpeoDNsPtXM1XTEVijB9W5qQ57",
+        "3yhTT6S3qEz5QcKiydwtdBcJb8HuvFSZC8doW64XHA5xq8dNn79Cb3xntxK9aAi9qQwxknYfZizTJixbjPJ1QwCt",
+        "54a7uY3hHkZUQR3XTDJSRpsAw8EmZ1HxVR3NHY3dARuLA2Aiuw3a2eLTK8hYb2VAoaaoTbfMTbPpcvMdjPsgs7Q1",
+        "qcEPbYZrzrpRWXGvaursp3PcZ4LbTanvR9QVsYbkcEgJJyganakW7YZn1Pv48zCT6sZQuJP98CvS71TSJytxD94"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "ABNB.US",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -1.2587664089203088,
+              "buy_output": 55617,
+              "eligible": true,
+              "liquid_side_reserve_usd": 33887.699192,
+              "sell_10_usd_impact_bps": 0.2132774934082704,
+              "sell_output": 9799231
+            },
+            "pool": "CB8XEbWETgadadx9t9GhxJbRbYvDE5U1KqS4ycZtwKmK"
+          }
+        ],
+        "slot": 458985835,
+        "unix_timestamp": 1792446075
+      },
+      "fees": {
+        "base_fee_bps": 100.0,
+        "snapshot_start_fee_bps": 100.01,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985835,
+        "unix_timestamp": 1792446075,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "95rgf1NY3NMz8vQaPX8X5XmX3njjKEcVtduPHcq75vCV",
+      "signatures": [
+        "4n2tDsg8LbMqwaoHzsYA7DW4F1VGe81xy1kvdKSw87DjxaQRogBbhLEe8kn1ctJcZgsJUxjm8ZxYXxJSjQ8vTPQz"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "RACE.US",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.3946329913184776,
+              "buy_output": 25339,
+              "eligible": true,
+              "liquid_side_reserve_usd": 2271.857252,
+              "sell_10_usd_impact_bps": 2.0305751187266186,
+              "sell_output": 9955748
+            },
+            "pool": "95rgf1NY3NMz8vQaPX8X5XmX3njjKEcVtduPHcq75vCV"
+          }
+        ],
+        "slot": 458985838,
+        "unix_timestamp": 1792446076
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985838,
+        "unix_timestamp": 1792446076,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "D6bRhQUcR9B7bPbbqgxpE17MjyUjBtr8hHQCcJoHrrv1",
+      "signatures": [
+        "Eq1TEf4hVPggWM38zphYRAVNHoyVBeUrRPvLgtBnJjtC1X5CHBz49iS42k2JoQWJthSJXYAnveGQdFMriCKCvAB"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "MSFTx",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": -0.02146579157757955,
+              "buy_output": 1863434,
+              "eligible": true,
+              "liquid_side_reserve_usd": 214465.450326,
+              "sell_10_usd_impact_bps": -0.01002013044315575,
+              "sell_output": 9979920
+            },
+            "pool": "D6bRhQUcR9B7bPbbqgxpE17MjyUjBtr8hHQCcJoHrrv1"
+          }
+        ],
+        "slot": 458985845,
+        "unix_timestamp": 1792446078
+      },
+      "fees": {
+        "base_fee_bps": 10.0,
+        "snapshot_start_fee_bps": 10.0,
+        "dynamic": false,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985845,
+        "unix_timestamp": 1792446078,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "6jYPqgpYqPoTFX9eGVHndxe4B6cxPzu1N3zLMuYJ8Bqe",
+      "signatures": [
+        "pkprGXuCa5YsephQ37FYNHik5ZoeVxoTV7HKGWrcSKXv6tC3d1oHikwMqjzVqrzDMch2cKoGzPrHQGftf7b6LHF"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "symbol": "RDDT.US",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.6271558482284778,
+              "buy_output": 63776,
+              "eligible": true,
+              "liquid_side_reserve_usd": 4299.036784058495,
+              "sell_10_usd_impact_bps": 1.1167115980270648,
+              "sell_output": 94830369
+            },
+            "pool": "6jYPqgpYqPoTFX9eGVHndxe4B6cxPzu1N3zLMuYJ8Bqe"
+          }
+        ],
+        "slot": 458985848,
+        "unix_timestamp": 1792446078
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.18,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985848,
+        "unix_timestamp": 1792446078,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    },
+    {
+      "pool": "9A6inBGN9nXd8TUMGoFRgCQGUAjVs9QYtumZhDzbLH5s",
+      "signatures": [
+        "pkprGXuCa5YsephQ37FYNHik5ZoeVxoTV7HKGWrcSKXv6tC3d1oHikwMqjzVqrzDMch2cKoGzPrHQGftf7b6LHF"
+      ],
+      "previously_audited": false,
+      "accepted": false,
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "symbol": "RDDT.US",
+      "owner": "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 138.3479899497486,
+              "buy_output": 62799,
+              "eligible": false,
+              "liquid_side_reserve_usd": 29.24455008012627,
+              "sell_10_usd_impact_bps": 138.5807832072916,
+              "sell_output": 93262824
+            },
+            "pool": "9A6inBGN9nXd8TUMGoFRgCQGUAjVs9QYtumZhDzbLH5s"
+          }
+        ],
+        "slot": 458985854,
+        "unix_timestamp": 1792446079
+      },
+      "fees": {
+        "base_fee_bps": 20.0,
+        "snapshot_start_fee_bps": 20.08,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985854,
+        "unix_timestamp": 1792446079,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        }
+      },
+      "eligible": false
+    },
+    {
+      "pool": "7r3igmqpnJwLS372AFDtAAAvPadCCmb5NRDPwBGaPGPu",
+      "signatures": [
+        "pkprGXuCa5YsephQ37FYNHik5ZoeVxoTV7HKGWrcSKXv6tC3d1oHikwMqjzVqrzDMch2cKoGzPrHQGftf7b6LHF"
+      ],
+      "previously_audited": false,
+      "accepted": true,
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "RDDT.US",
+      "owner": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+      "depth": {
+        "minimum_liquid_side_usd": 500,
+        "probe_usd": 10,
+        "reference_probe_usd": 1,
+        "reports": [
+          {
+            "audit": {
+              "buy_10_usd_impact_bps": 0.0,
+              "buy_output": 63970,
+              "eligible": true,
+              "liquid_side_reserve_usd": 27298.094559,
+              "sell_10_usd_impact_bps": 0.02010100756288935,
+              "sell_output": 9949730
+            },
+            "pool": "7r3igmqpnJwLS372AFDtAAAvPadCCmb5NRDPwBGaPGPu"
+          }
+        ],
+        "slot": 458985856,
+        "unix_timestamp": 1792446080
+      },
+      "fees": {
+        "base_fee_bps": 25.0,
+        "snapshot_start_fee_bps": 25.06,
+        "dynamic": true,
+        "scope": "Initial active bin/tick rate at snapshot Clock; may change during swap; protocol share not added twice.",
+        "slot": 458985856,
+        "unix_timestamp": 1792446080,
+        "stock_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "quote_transfer_fee": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        }
+      },
+      "eligible": true
+    }
+  ],
+  "minimum_liquid_side_usd": 500,
+  "selection_policy": "Minimum $500, successful $10 bidirectional probes; lowest snapshot-start fee per mint, depth breaks ties. Runtime per-order bridge tolerance and impact limits default to 100bps each.",
+  "additional_discovery": "stock-discovery-20261020.json"
+}

@@ -275,6 +275,27 @@ impl SubscriptionAccountCache {
         ctx: CacheReadContext,
         is_buy: bool,
     ) -> Result<PreparedPumpSwapTrade> {
+        self.prepare_pumpswap_trade_with_bridge_limits(
+            steps,
+            input_mint,
+            output_mint,
+            request,
+            ctx,
+            is_buy,
+            None,
+        )
+    }
+
+    pub(super) fn prepare_pumpswap_trade_with_bridge_limits(
+        &self,
+        steps: &[CachedRouteStep],
+        input_mint: Pubkey,
+        output_mint: Pubkey,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+        is_buy: bool,
+        bridge_limits: Option<super::cached_quote::BridgeQuoteLimits>,
+    ) -> Result<PreparedPumpSwapTrade> {
         ensure!(
             steps.iter().any(|step| self
                 .accounts
@@ -293,13 +314,14 @@ impl SubscriptionAccountCache {
                 input_amount: step.input_amount,
             })
             .collect();
-        let route = self.quote_route_exact_in(
+        let route = self.quote_route_exact_in_with_bridge_limits(
             &steps,
             canonical(input_mint),
             canonical(output_mint),
             request,
             ctx,
             is_buy,
+            bridge_limits,
         )?;
         let preview = route.preview(
             input_mint,
@@ -692,8 +714,9 @@ mod tests {
         let thin = conversion_pool(&mut cache, pump.input_mint, wsol, 10_000_000, 5_000_000, ctx);
         let deep =
             conversion_pool(&mut cache, pump.input_mint, wsol, 1_000_000_000, 1_000_000_000, ctx);
-        let search =
+        let mut search =
             PumpSwapRouteSearch::new(pump.pool, pump.output_mint, sol, vec![reversed(deep), thin]);
+        search.maximum_bridge_price_impact_basis_points = 9_999;
         for (amount, expected) in [(10_000, thin.pool), (100_000_000, deep.pool)] {
             let selected =
                 cache.prepare_best_pumpswap_trade(&search, request(amount), ctx, true).unwrap();
@@ -734,6 +757,56 @@ mod tests {
             sell.trade.into_sell_params(Hash::default(), GasFeeStrategy::new()).unwrap().receive_as,
             TradeTokenType::SOL
         );
+    }
+
+    #[test]
+    fn bridge_limits_apply_to_conversion_pumpswap_legs_in_both_directions() {
+        let (mut cache, pump, ctx) = fixture();
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let bridge =
+            conversion_pool(&mut cache, pump.input_mint, wsol, 1_000_000_000, 1_000_000_000, ctx);
+        let mut search = PumpSwapRouteSearch::new(pump.pool, pump.output_mint, wsol, vec![bridge]);
+        assert_eq!(search.bridge_slippage_basis_points, 100);
+        assert_eq!(search.maximum_bridge_price_impact_basis_points, 100);
+        let error = cache
+            .prepare_best_pumpswap_trade(&search, request(100_000_000), ctx, true)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("Bridge price impact"), "{error}");
+        search.maximum_bridge_price_impact_basis_points = 2_000;
+        assert!(cache
+            .prepare_best_pumpswap_trade(&search, request(100_000_000), ctx, true)
+            .is_ok());
+        for is_buy in [true, false] {
+            search.bridge_slippage_basis_points = 50;
+            let mut req = request(if is_buy { 10_000 } else { 1_000_000_000 });
+            req.slippage_basis_points = 500; // Final PumpSwap tolerance is independent.
+            let selected = cache.prepare_best_pumpswap_trade(&search, req, ctx, is_buy).unwrap();
+            let idx = if is_buy { 0 } else { 1 };
+            let step = selected.trade.steps()[idx];
+            let raw = cache
+                .quote_exact_in(
+                    step.pool,
+                    CachedQuoteRequest {
+                        amount_in: step.input_amount.unwrap(),
+                        slippage_basis_points: 0,
+                        ..req
+                    },
+                    ctx,
+                )
+                .unwrap();
+            assert_eq!(
+                selected.trade.preview().hops[idx].minimum_amount_out,
+                (u128::from(raw.estimated_net_amount_out) * 9_950 / 10_000) as u64
+            );
+        }
+        for bad in [10_000, u16::MAX] {
+            search.bridge_slippage_basis_points = bad;
+            assert!(cache
+                .prepare_best_pumpswap_trade(&search, request(10_000), ctx, true)
+                .is_err());
+        }
     }
 
     #[test]
@@ -946,13 +1019,13 @@ mod tests {
         }
         search.maximum_conversion_hops = 2;
         search.maximum_search_nodes = 128;
-        search.conversion_pools = vec![direct; 33];
+        search.conversion_pools = vec![direct; 129];
         assert!(cache
             .prepare_best_pumpswap_trade(&search, request(10_000), ctx, true)
             .err()
             .unwrap()
             .to_string()
-            .contains("at most 32"));
+            .contains("at most 128"));
     }
 
     #[test]

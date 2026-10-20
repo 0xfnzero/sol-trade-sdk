@@ -118,6 +118,9 @@ pub(crate) fn plan_route(
         if hop.minimum_amount_out == 0 {
             bail!("Quote route requires nonzero min-out protection")
         }
+        // Each prepared hop owns its execution tolerance. Validate its explicit
+        // minimum against the un-discounted quote, not the final market's global
+        // tolerance: a bridge may intentionally require a tighter minimum.
         let minimum_credit = match &hop.venue {
             StonkFunQuoteVenue::PumpSwap { pool, base_transfer_fee, quote_transfer_fee } => {
                 pool.validate_accounts()?;
@@ -129,18 +132,18 @@ pub(crate) fn plan_route(
                 let actual = if input == pool.quote_mint {
                     let quote = crate::utils::calc::pumpswap::buy_quote_input_internal_with_fees(
                         spend,
-                        slippage,
+                        0,
                         pool.pool_base_token_reserves,
                         pool.pool_quote_token_reserves,
                         pool.virtual_quote_reserves,
                         &pool.fee_basis_points,
                     )
                     .map_err(anyhow::Error::msg)?;
-                    crate::utils::calc::pumpswap::minimum_output_with_slippage(quote.base, slippage)
+                    crate::utils::calc::pumpswap::minimum_output_with_slippage(quote.base, 0)
                 } else {
                     crate::utils::calc::pumpswap::sell_base_input_internal_with_fees(
                         spend,
-                        slippage,
+                        0,
                         pool.pool_base_token_reserves,
                         pool.pool_quote_token_reserves,
                         pool.virtual_quote_reserves,
@@ -159,7 +162,7 @@ pub(crate) fn plan_route(
                     p,
                     cpmm_is_base_in(p, input, output)?,
                     spend,
-                    slippage,
+                    0,
                 )?
                 .min_amount_out;
                 if hop.minimum_amount_out > actual {
@@ -172,7 +175,7 @@ pub(crate) fn plan_route(
                     p,
                     amm_v4_is_coin_in(p, input, output)?,
                     spend,
-                    slippage,
+                    0,
                 )?
                 .min_amount_out;
                 if hop.minimum_amount_out > actual {

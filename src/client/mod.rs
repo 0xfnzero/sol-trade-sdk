@@ -1,6 +1,8 @@
 //! High-level [`TradingClient`], [`TradingInfrastructure`], and trade parameter types.
 
 mod pumpswap_routing;
+mod pumpswap_routing_feed;
+pub use pumpswap_routing_feed::PumpSwapRoutingFeed;
 pub use pumpswap_routing::{PumpSwapRouting, PumpSwapRoutingConfig};
 
 use crate::common::nonce_cache::DurableNonceInfo;

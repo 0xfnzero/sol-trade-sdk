@@ -480,3 +480,9 @@ through automatic candidate selection using newly fetched account snapshots.
 buys with seed optimization enabled and preserves all eight ATA setup instructions
 without deduplication. This exercises creation against already initialized ATAs
 within one simulation. It uses virtual funding and does not broadcast.
+
+## Default bridge catalog
+
+Use `PumpSwapRoutingConfig::default()` and `extend_pools(...)` for screened mainnet
+markets plus deduplicated user additions. `new(...)` remains custom-only. See
+[pool selection and depth evidence](PUMPSWAP_BRIDGE_DEFAULTS.md).

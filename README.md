@@ -1,3 +1,7 @@
+Current version: **8.0.0**. SDK, native-language tests, examples and documentation are synchronized in this release. See [RELEASE_NOTES.md](RELEASE_NOTES.md) for migration details.
+
+[Examples](examples/README.md) · [Documentation](docs/README.md)
+
 <div align="center">
     <h1>🚀 Sol Trade SDK</h1>
     <h3><em>A comprehensive Rust SDK for seamless Solana DEX trading</em></h3>
@@ -70,12 +74,12 @@ Trading SDK language versions and related Rust SDKs:
 
 | Language | Repository | Description | Version |
 |----------|------------|-------------|---------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v7.0.0` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.1.10` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.1.10` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.1.11` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.7.18` |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.4` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Ultra-low latency with zero-copy optimization | `v8.0.0` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript for Node.js | `v0.2.0` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Async/await native support | `v0.2.0` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Concurrent-safe with goroutine support | `v0.2.0` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing | `v0.8.0` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v5.0.0` |
 
 ## v7.0.0 — Configured bridge pools and RPC-free automatic routing
 
@@ -128,6 +132,25 @@ PumpSwap supports direct swaps using the pool’s actual quote mint, including T
 
 Register bridge pools once with `TradeConfig::builder(...).pumpswap_routing(...)`, then use `PumpSwapAutoRoute(pool)` for cached automatic routing. Background snapshot publication keeps the hot path free of RPC reads; missing/expired state fails without fallback. Run `pumpswap_global_routing` offline or `pumpswap_global_routing_simulate` for live read-only mainnet simulation.
 
+### Default bridge markets
+
+Initialize `PumpSwapRoutingConfig::default()` once, then call
+`extend_pools(custom_pools)?` to merge user markets by address. Conflicting mint
+pairs fail; duplicates (including reversed SOL/WSOL pairs) are removed. Use
+`PumpSwapRoutingConfig::new(pools)` for custom-only markets. The screened mainnet
+catalog contains 63 stock pools covering 34 verified stock/ETF mints from Backpack
+and xStocks, plus WSOL/USDC (64 pools total). Historical preferences rank qualifying
+pools by snapshot-start fees, then reserve depth. Admission uses at least $500 liquid-side reserve
+and bidirectional depth quotes; configuration performs no RPC.
+The catalog is identical to sol-parser-sdk's price subscription catalog.
+Historical preferences are hints; live cached quotes select the best protected output.
+Historical pool fees and token transfer taxes are retained separately.
+For cross-DEX Stonk/Pump transaction captures, run
+`cargo run --features parser-adapter --example stock_conversion_replay`.
+It extracts approved conversion pools by each leg's identity, independently of
+the target's launch platform, without copying historical order amounts.
+[Depth criteria, sampling evidence and background subscription setup](docs/PUMPSWAP_BRIDGE_DEFAULTS.md).
+
 Use `SubscriptionAccountCache::prepare_pumpswap_trade` to quote the whole explicit path, then `into_buy_params` / `into_sell_params` to construct high-level requests. Cache preparation checks freshness, vault authority and epoch-specific mint fees. Select conversion pools explicitly and prepare buy/sell separately; active transfer fees and cashback pools without an observed cashback rate are unsupported by this cached path. Offline example: `cargo run -p sol-trade-sdk --example pumpswap_cached_prepare --locked -- buy 10000`.
 
 `PreparedPumpSwapTrade::build_transaction` checks quote age and locally signs the complete transaction using the production size/version/ALT checks, with nonce, compute settings, tip and middleware included. It does not submit. PumpSwap quote routes use idempotent standard ATAs even with seed optimization enabled, so existing intermediate accounts can be reused.
@@ -136,7 +159,7 @@ Given known candidate conversion pools, `prepare_best_pumpswap_trade` chooses th
 
 ## 🔖 Current Release
 
-**Rust crate:** `sol-trade-sdk = "7.0.0"`
+**Rust crate:** `sol-trade-sdk = "8.0.0"`
 
 This release adds instance-scoped bridge configuration and automatic cached PumpSwap routing. Supply background account snapshots and a current blockhash/nonce; each multi-hop buy or sell remains one atomic transaction.
 
@@ -233,14 +256,14 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "7.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "8.0.0" }
 ```
 
 ### Use crates.io
 
 ```toml
 # Add to your Cargo.toml
-sol-trade-sdk = "7.0.0"
+sol-trade-sdk = "8.0.0"
 ```
 
 ## 🛠️ Usage Examples
@@ -371,7 +394,7 @@ let buy_params = SimpleBuyParams::new(
 
 #### 3b. StonkFun: buy meme with SOL / WSOL in one transaction
 
-Most StonkFun pools are priced in a stock quote (SPYx / NVDAx / STONK / CARDS, etc.). If the wallet only holds native SOL (or WSOL), you do **not** need to pre-buy the quote — use `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` for an atomic `SOL ↔ quote ↔ meme` two-hop in one transaction:
+StonkFun pools may use stock/ETF tokens or other quote assets; a quote token is not necessarily a security. If the wallet only holds native SOL (or WSOL), you do **not** need to pre-buy the quote — use `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` for an atomic `SOL ↔ quote ↔ meme` two-hop in one transaction:
 
 ```rust
 use sol_trade_sdk::{
@@ -833,3 +856,15 @@ Tests compare 12 signed instructions against official Pump SDK 4.1.0. Local Lite
 Run `cargo run --release --locked --example pumpswap_hotpath_benchmark` from this repository. The bundled JSON config defaults to 200 warmup calls, 1000 samples and one transaction per sample; pass a JSON config path as the final argument to change these counts. Buy and sell measurements separately report route search/preparation, three-hop instruction construction and V1 transaction construction/signing as p50/p95/p99 microseconds. The historical account fixture, signing key and blockhash are fixed. For this benchmark only, each protocol/buyback recipient array is restricted to its first captured nonzero recipient to remove production recipient-selection randomness; signatures are verified before timing and message hashes/signatures are included for reproducibility.
 
 Fixture loading and runtime setup happen outside timing. The measured loops perform no RPC and broadcast no transactions. These are local CPU measurements, not production latency or SBF execution. Repeat runs on an idle machine; compare warmed distributions using the same config and fixture. `cargo test --locked --lib mixed_venue_routes_match_independent_leg_builders_for_each_quote_policy` separately checks both route directions against independent venue builders for all exact-quote policies.
+
+### Streaming signals and cached quote tools
+
+[Four transport examples and quote helpers](docs/STREAMING_QUOTES.md) cover
+parser/streamer × gRPC/shred. `PumpSwapRoutingFeed` publishes background account
+caches; `quote_pool_exact_in` and `quote_exact_in_with_impact` quote locally.
+Call `confirm_bootstrap` only after a coherent startup snapshot and catch-up;
+publish at verified complete batch boundaries. Unchanged accounts then remain
+fresh under continuous observation, while same-slot new writes can be published.
+The generic live example collects updates until you wire this provider contract.
+Bridge execution tolerance and size-impact limits are separately configurable,
+defaulting to 100 bps each per conversion hop, not 1% for the entire route.

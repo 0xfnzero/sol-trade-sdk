@@ -1,0 +1,84 @@
+{
+  "source": "https://api.backpack.exchange/api/v1/assets",
+  "retrieved_at_unix": 1792441923,
+  "full_response_sha256": "991c3564f08094580e2bc5039558e12b42bc6762c072385b9735f2636a7097d3",
+  "selection": "Exact official symbols; entries copied without modification. This verifies recognized mint identity, not an audit of reserves or legal ownership rights.",
+  "assets": [
+    {
+      "coingeckoId": null,
+      "displayName": "Airbnb, Inc.",
+      "symbol": "ABNB.US",
+      "tokens": [
+        {
+          "blockchain": "Solana",
+          "contractAddress": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "depositEnabled": true,
+          "displayName": "Airbnb, Inc.",
+          "maximumWithdrawal": null,
+          "minimumDeposit": "0.003",
+          "minimumWithdrawal": "0.006",
+          "nativeDecimals": 6,
+          "withdrawEnabled": true,
+          "withdrawalFee": "0.003"
+        }
+      ]
+    },
+    {
+      "coingeckoId": null,
+      "displayName": "Take-Two Interactive Software, Inc.",
+      "symbol": "TTWO.US",
+      "tokens": [
+        {
+          "blockchain": "Solana",
+          "contractAddress": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+          "depositEnabled": true,
+          "displayName": "Take-Two Interactive Software, Inc.",
+          "maximumWithdrawal": null,
+          "minimumDeposit": "0.0025",
+          "minimumWithdrawal": "0.005",
+          "nativeDecimals": 6,
+          "withdrawEnabled": true,
+          "withdrawalFee": "0.0025"
+        }
+      ]
+    },
+    {
+      "coingeckoId": null,
+      "displayName": "ProShares Ultra VIX Short-Term Futures ETF",
+      "symbol": "UVXY.US",
+      "tokens": [
+        {
+          "blockchain": "Solana",
+          "contractAddress": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+          "depositEnabled": true,
+          "displayName": "ProShares Ultra VIX Short-Term Futures ETF",
+          "maximumWithdrawal": null,
+          "minimumDeposit": "0.03",
+          "minimumWithdrawal": "0.06",
+          "nativeDecimals": 6,
+          "withdrawEnabled": true,
+          "withdrawalFee": "0.03"
+        }
+      ]
+    },
+    {
+      "coingeckoId": null,
+      "displayName": "Chewy, Inc.",
+      "symbol": "CHWY.US",
+      "tokens": [
+        {
+          "blockchain": "Solana",
+          "contractAddress": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+          "depositEnabled": true,
+          "displayName": "Chewy, Inc.",
+          "maximumWithdrawal": null,
+          "minimumDeposit": "0.025",
+          "minimumWithdrawal": "0.05",
+          "nativeDecimals": 6,
+          "withdrawEnabled": true,
+          "withdrawalFee": "0.025"
+        }
+      ]
+    }
+  ]
+}

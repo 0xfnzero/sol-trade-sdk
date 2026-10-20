@@ -1,0 +1,2232 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "minimum_liquid_side_usd": 500,
+    "volume_filter": false,
+    "fee_preference": "Known nominal snapshot-start swap plus transfer rates, then deeper reserve; unknown last. Not a live or whole-order quote."
+  },
+  "tokens": [
+    {
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "symbol": "ABNB.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+      "symbol": "AMD.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "symbol": "BABA.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "symbol": "CHWY.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5",
+      "symbol": "COPX.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "symbol": "DJT.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+      "symbol": "HIMS.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A",
+      "symbol": "HOOD.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1",
+      "symbol": "MU.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "symbol": "NFLX.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "symbol": "NKE.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+      "symbol": "RACE.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "symbol": "RDDT.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+      "symbol": "SPCX.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju",
+      "symbol": "SPHR.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "symbol": "TSM.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "symbol": "TTWO.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+      "symbol": "UVXY.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    },
+    {
+      "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+      "symbol": "SPCXx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+      "symbol": "QQQx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN",
+      "symbol": "GOOGLx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "symbol": "TSLAx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+      "symbol": "MSTRx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu",
+      "symbol": "METAx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      "symbol": "AAPLx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "symbol": "NVDAx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc",
+      "symbol": "GMEx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo",
+      "symbol": "AVGOx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+      "symbol": "INTCx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "symbol": "SPYx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "symbol": "MSFTx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+      "symbol": "GLDx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg",
+      "symbol": "HOODx",
+      "decimals": 8,
+      "catalog_source": "https://xstocks.com/products"
+    },
+    {
+      "mint": "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF",
+      "symbol": "INTC.US",
+      "decimals": 6,
+      "catalog_source": "https://api.backpack.exchange/api/v1/assets"
+    }
+  ],
+  "pools": [
+    {
+      "pool": "52PqYh77gmA6AbM5Hs6gHe9mhGBey5CwmD7sDybaYj27",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "52PqYh77gmA6AbM5Hs6gHe9mhGBey5CwmD7sDybaYj27",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982126,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445269,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 38081.040138,
+      "preferred": true
+    },
+    {
+      "pool": "Bu2A9LUZaMRnf7ZyC1nzREn6dVGVVuPwxz5aFBFkJLTa",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "Bu2A9LUZaMRnf7ZyC1nzREn6dVGVVuPwxz5aFBFkJLTa",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982135,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445272,
+        "snapshot_start_swap_fee_bps": 25.00917
+      },
+      "nominal_snapshot_fee_bps": 25.009169999999912,
+      "liquid_side_reserve_usd": 1345.1074480454438,
+      "preferred": false
+    },
+    {
+      "pool": "HdnzKiiGQT4vbhrRnXqAts9ogQBPpekQNbL46JVvW1Fn",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "HdnzKiiGQT4vbhrRnXqAts9ogQBPpekQNbL46JVvW1Fn",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982164,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445278,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 8165.731194080989,
+      "preferred": false
+    },
+    {
+      "pool": "CB8XEbWETgadadx9t9GhxJbRbYvDE5U1KqS4ycZtwKmK",
+      "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "CB8XEbWETgadadx9t9GhxJbRbYvDE5U1KqS4ycZtwKmK",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985835,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "ABNB56TteaTZG1S3DY2W8VMncQmHMvNCGaZgAba49CLP",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792446075,
+        "snapshot_start_swap_fee_bps": 100.01
+      },
+      "nominal_snapshot_fee_bps": 100.01000000000037,
+      "liquid_side_reserve_usd": 33887.699192,
+      "preferred": false
+    },
+    {
+      "pool": "ASvFi45yphKhx6ej9gJEDvTedXcXjhKjkhm3hRERuU2",
+      "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "ASvFi45yphKhx6ej9gJEDvTedXcXjhKjkhm3hRERuU2",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985834,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "AMD8XwJXgQ9WV45Wyj9yFLejxzf2J6VM1PJY8bJEjeES",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792446075,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 17797.898972,
+      "preferred": true
+    },
+    {
+      "pool": "8cdMW3EGziaxzQqgGJx46xnzaxQuVg5acThQxCLiJMrE",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 15.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "8cdMW3EGziaxzQqgGJx46xnzaxQuVg5acThQxCLiJMrE",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982157,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445276,
+        "snapshot_start_swap_fee_bps": 15.0
+      },
+      "nominal_snapshot_fee_bps": 14.999999999999458,
+      "liquid_side_reserve_usd": 7332.276644017391,
+      "preferred": true
+    },
+    {
+      "pool": "56eGajrdCczGK6m8faSimtMJLVBjfarSDVPvoMhYooRi",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 15.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "56eGajrdCczGK6m8faSimtMJLVBjfarSDVPvoMhYooRi",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982231,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445293,
+        "snapshot_start_swap_fee_bps": 15.0
+      },
+      "nominal_snapshot_fee_bps": 14.999999999999458,
+      "liquid_side_reserve_usd": 1852.1497381368954,
+      "preferred": false
+    },
+    {
+      "pool": "8YU7gLMh4T8RuGepxAuigTqZeGfBn3TDS6tnuj951XbW",
+      "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 16.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "8YU7gLMh4T8RuGepxAuigTqZeGfBn3TDS6tnuj951XbW",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982156,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "BABANGA4JE7Kkam4nTrALAwAVgsNJUuFJnnkF7S16BZp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 16.0,
+        "unix_timestamp": 1792445276,
+        "snapshot_start_swap_fee_bps": 16.0
+      },
+      "nominal_snapshot_fee_bps": 16.00000000000046,
+      "liquid_side_reserve_usd": 1516.442241,
+      "preferred": false
+    },
+    {
+      "pool": "GJmMTjiE2dZiAQgENapnBxzsTWNX4KLbiNnjzovwv1KE",
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "GJmMTjiE2dZiAQgENapnBxzsTWNX4KLbiNnjzovwv1KE",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982140,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445273,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 17657.126167,
+      "preferred": true
+    },
+    {
+      "pool": "6E12HKuZkyQoMwhTtN4WFs95uMEoW2zXJMFSE4jNcjHE",
+      "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 50.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "6E12HKuZkyQoMwhTtN4WFs95uMEoW2zXJMFSE4jNcjHE",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982211,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "CHWYHz2zfKajomqPV9it26n7vu7AgZZfqGHXCWtGWuJg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445288,
+        "snapshot_start_swap_fee_bps": 50.0
+      },
+      "nominal_snapshot_fee_bps": 50.00000000000004,
+      "liquid_side_reserve_usd": 2135.105018790187,
+      "preferred": false
+    },
+    {
+      "pool": "5vJcDWLBQSh767DzHACeEmfMh7nGCWZc8eb76v6cCFVr",
+      "mint": "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 60.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "5vJcDWLBQSh767DzHACeEmfMh7nGCWZc8eb76v6cCFVr",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982235,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "CzLTZppPdZtTjyq3WGpHLstoc3GLhu7zH5Zg6xUa6Gv5",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445294,
+        "snapshot_start_swap_fee_bps": 60.0
+      },
+      "nominal_snapshot_fee_bps": 60.00000000000006,
+      "liquid_side_reserve_usd": 1194.20325,
+      "preferred": true
+    },
+    {
+      "pool": "3bCkqSFZcYs7fthurTzPDRu4r9kQycq1sCUDykBuYnRB",
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 5.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "3bCkqSFZcYs7fthurTzPDRu4r9kQycq1sCUDykBuYnRB",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982224,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445291,
+        "snapshot_start_swap_fee_bps": 5.63
+      },
+      "nominal_snapshot_fee_bps": 5.629999999999802,
+      "liquid_side_reserve_usd": 4550.50597,
+      "preferred": true
+    },
+    {
+      "pool": "7gkB2D1SqhUYgKrSpDU5cma4tK9efijHouYituABdJcG",
+      "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 30.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "7gkB2D1SqhUYgKrSpDU5cma4tK9efijHouYituABdJcG",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982238,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "DJTu7vi8norVzdVAffgvb39VP7wjKeTsgaMBJrzfxvoF",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445294,
+        "snapshot_start_swap_fee_bps": 30.0
+      },
+      "nominal_snapshot_fee_bps": 30.00000000000003,
+      "liquid_side_reserve_usd": 51156.35932,
+      "preferred": false
+    },
+    {
+      "pool": "7iqWWNjubSTjmWXk9eYJViDLZjBN2KjrYt5Z9j8n8exQ",
+      "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 30.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "7iqWWNjubSTjmWXk9eYJViDLZjBN2KjrYt5Z9j8n8exQ",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985825,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "HiMSSzzwkZkrXJ4PGVJRdtfLaANeAztjjcgk5Dxe7Lwx",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792446073,
+        "snapshot_start_swap_fee_bps": 30.0
+      },
+      "nominal_snapshot_fee_bps": 30.00000000000003,
+      "liquid_side_reserve_usd": 66820.358359,
+      "preferred": true
+    },
+    {
+      "pool": "97r9NLqYoyGFbQesPduwuTHq4fJjbk8pHVUGawEqfnva",
+      "mint": "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "97r9NLqYoyGFbQesPduwuTHq4fJjbk8pHVUGawEqfnva",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982175,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "HooDYv5RewLRiMLnEVq3VJqdqxhuE6c5eYvqejMC3e9A",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445280,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 87836.938335,
+      "preferred": true
+    },
+    {
+      "pool": "13MEx6gjRadJNUdmToaGSzgeWHLH7FzScUQS9Mc5nYF5",
+      "mint": "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "13MEx6gjRadJNUdmToaGSzgeWHLH7FzScUQS9Mc5nYF5",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982183,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "MUxEsUKSMACyw5fZf68wxf5FLnZVhtU9CwH8uNNGay1",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445282,
+        "snapshot_start_swap_fee_bps": 20.0
+      },
+      "nominal_snapshot_fee_bps": 20.000000000000018,
+      "liquid_side_reserve_usd": 1263016.980356,
+      "preferred": true
+    },
+    {
+      "pool": "62sHycti7wLRMT16xA3cSpaiEiJCMBtjkLW2tNXUVmGL",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "62sHycti7wLRMT16xA3cSpaiEiJCMBtjkLW2tNXUVmGL",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982194,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445284,
+        "snapshot_start_swap_fee_bps": 20.0
+      },
+      "nominal_snapshot_fee_bps": 20.000000000000018,
+      "liquid_side_reserve_usd": 1383.859566,
+      "preferred": true
+    },
+    {
+      "pool": "4BRhq3WHdyM1itQuXgL8ua8KMXdXzhi8fcL9MUp9BZUc",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "4BRhq3WHdyM1itQuXgL8ua8KMXdXzhi8fcL9MUp9BZUc",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982179,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445281,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 6564.571698468862,
+      "preferred": false
+    },
+    {
+      "pool": "7SkLUhZoyTYYgKLVuK6E1Q1fQykR7wFiLxSiEohVcowu",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "7SkLUhZoyTYYgKLVuK6E1Q1fQykR7wFiLxSiEohVcowu",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982165,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445278,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 2105.270668,
+      "preferred": false
+    },
+    {
+      "pool": "E3mugzPiMhKGrDcfcz5ojo7HJBbYA6UMaJvSzbabPLAM",
+      "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "E3mugzPiMhKGrDcfcz5ojo7HJBbYA6UMaJvSzbabPLAM",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982172,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445280,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 28488.864058,
+      "preferred": false
+    },
+    {
+      "pool": "94afGPYHkDyYbSjkbUrkaAdCAbBVyeS4h5hLtmREWYph",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 16.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "94afGPYHkDyYbSjkbUrkaAdCAbBVyeS4h5hLtmREWYph",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982203,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445286,
+        "snapshot_start_swap_fee_bps": 16.0
+      },
+      "nominal_snapshot_fee_bps": 16.00000000000046,
+      "liquid_side_reserve_usd": 927.242032,
+      "preferred": true
+    },
+    {
+      "pool": "6kRoMyYBuz4ReLmLyuqiTtSpVB61hAGRrD6xYBrotsBC",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "6kRoMyYBuz4ReLmLyuqiTtSpVB61hAGRrD6xYBrotsBC",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982160,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445277,
+        "snapshot_start_swap_fee_bps": 20.04
+      },
+      "nominal_snapshot_fee_bps": 20.040000000000056,
+      "liquid_side_reserve_usd": 50766.216157,
+      "preferred": false
+    },
+    {
+      "pool": "4V7CrUiP46jcJpZzPKzRerKS2VxHUt9bjiJPnT7gXFAU",
+      "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 40.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "4V7CrUiP46jcJpZzPKzRerKS2VxHUt9bjiJPnT7gXFAU",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982146,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "NKEda5nHhNGgjrE9nDdMvaEmkmJ96qqxzBVZEcKmjSg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445274,
+        "snapshot_start_swap_fee_bps": 40.0
+      },
+      "nominal_snapshot_fee_bps": 40.000000000000036,
+      "liquid_side_reserve_usd": 32058.244540458614,
+      "preferred": false
+    },
+    {
+      "pool": "95rgf1NY3NMz8vQaPX8X5XmX3njjKEcVtduPHcq75vCV",
+      "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "95rgf1NY3NMz8vQaPX8X5XmX3njjKEcVtduPHcq75vCV",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985838,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RACEyWiM2ztEZcJx2AHXU2eWjhxU57x3vXn92b39dLD",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 20.0,
+        "unix_timestamp": 1792446076,
+        "snapshot_start_swap_fee_bps": 20.0
+      },
+      "nominal_snapshot_fee_bps": 20.000000000000018,
+      "liquid_side_reserve_usd": 2271.857252,
+      "preferred": true
+    },
+    {
+      "pool": "6jYPqgpYqPoTFX9eGVHndxe4B6cxPzu1N3zLMuYJ8Bqe",
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "6jYPqgpYqPoTFX9eGVHndxe4B6cxPzu1N3zLMuYJ8Bqe",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985848,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792446078,
+        "snapshot_start_swap_fee_bps": 20.18
+      },
+      "nominal_snapshot_fee_bps": 20.179999999999644,
+      "liquid_side_reserve_usd": 4299.036784058495,
+      "preferred": true
+    },
+    {
+      "pool": "7r3igmqpnJwLS372AFDtAAAvPadCCmb5NRDPwBGaPGPu",
+      "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "7r3igmqpnJwLS372AFDtAAAvPadCCmb5NRDPwBGaPGPu",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985856,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "RDDTGbhHwVXfyCvQMXzzowKjf5qrYBZAnehoXW83ooh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792446080,
+        "snapshot_start_swap_fee_bps": 25.06
+      },
+      "nominal_snapshot_fee_bps": 25.06000000000008,
+      "liquid_side_reserve_usd": 27298.094559,
+      "preferred": false
+    },
+    {
+      "pool": "FcxLv8B82hakWDZJjJWDkk4MRcyUNzcQ3DyNS1VqZYr1",
+      "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 1.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "FcxLv8B82hakWDZJjJWDkk4MRcyUNzcQ3DyNS1VqZYr1",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982213,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "SPCXxcqXj6e5dJDVNovHN8744zkbhM2bYudU45BimGb",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445289,
+        "snapshot_start_swap_fee_bps": 1.41
+      },
+      "nominal_snapshot_fee_bps": 1.4099999999994672,
+      "liquid_side_reserve_usd": 4755.290532,
+      "preferred": true
+    },
+    {
+      "pool": "7YZVp47ddDLMHCFtYY7nNdMQNfXRi57YQwqxTvGY1SAA",
+      "mint": "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "7YZVp47ddDLMHCFtYY7nNdMQNfXRi57YQwqxTvGY1SAA",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982223,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "SPHRp8cZaSQBTp1KMNP4V1X821SXhXWt4Q2yLdyHzju",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445291,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 19050.19177,
+      "preferred": true
+    },
+    {
+      "pool": "D1zm9kMhXRQyr3JyAcW9cbj7XvRjQE1pF7MBBKpnbA1n",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "D1zm9kMhXRQyr3JyAcW9cbj7XvRjQE1pF7MBBKpnbA1n",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982192,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445284,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 11924.495772,
+      "preferred": true
+    },
+    {
+      "pool": "G58weZ4Z6gWUbePy4c9XcgMNcwSEyXb2Z99jfEQunAXB",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "G58weZ4Z6gWUbePy4c9XcgMNcwSEyXb2Z99jfEQunAXB",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982162,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445277,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 26929.57042,
+      "preferred": false
+    },
+    {
+      "pool": "5FPucPvtgnAgQzGzZBfF7Simw5B3qMbuvTcLkioJ3qhC",
+      "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "5FPucPvtgnAgQzGzZBfF7Simw5B3qMbuvTcLkioJ3qhC",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982189,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TSM2Hiuf7Z9REcwZFQvsBEekBYCYziWBABfFnj6V6gQ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445283,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 3949.3372429698447,
+      "preferred": false
+    },
+    {
+      "pool": "F1mbBZYKXGFx5nraY3cK4RgNR5EuShntQ8xDKDD5HY1z",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 4.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "F1mbBZYKXGFx5nraY3cK4RgNR5EuShntQ8xDKDD5HY1z",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982151,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445275,
+        "snapshot_start_swap_fee_bps": 4.0
+      },
+      "nominal_snapshot_fee_bps": 3.9999999999995595,
+      "liquid_side_reserve_usd": 34218.629079,
+      "preferred": true
+    },
+    {
+      "pool": "7qZPiJ2Lvwh9DV9gUBH2EwConBE3RUrAvGRjpN8vTjtT",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "7qZPiJ2Lvwh9DV9gUBH2EwConBE3RUrAvGRjpN8vTjtT",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982138,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445272,
+        "snapshot_start_swap_fee_bps": 10.00042
+      },
+      "nominal_snapshot_fee_bps": 10.000420000000343,
+      "liquid_side_reserve_usd": 5287.331398380103,
+      "preferred": false
+    },
+    {
+      "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "6PTm7MkUmtsLU7w6dWrMHJAt8PnzoCgcZdKyTKEhUAPL",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982149,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445275,
+        "snapshot_start_swap_fee_bps": 20.0
+      },
+      "nominal_snapshot_fee_bps": 20.000000000000018,
+      "liquid_side_reserve_usd": 341050.376191,
+      "preferred": false
+    },
+    {
+      "pool": "DirR9nP5jk7fYifaYArCwZuq6pBqGWjhKgESiTuQByTf",
+      "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 20.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "DirR9nP5jk7fYifaYArCwZuq6pBqGWjhKgESiTuQByTf",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982201,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 20.0,
+        "unix_timestamp": 1792445286,
+        "snapshot_start_swap_fee_bps": 20.0
+      },
+      "nominal_snapshot_fee_bps": 20.000000000000018,
+      "liquid_side_reserve_usd": 40703.049271315125,
+      "preferred": false
+    },
+    {
+      "pool": "ANyCzRPgiCLeJx3nH4SKS1jxtaxMk9qzG5SmJooh55ie",
+      "mint": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "ANyCzRPgiCLeJx3nH4SKS1jxtaxMk9qzG5SmJooh55ie",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982123,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "UVXY4ojmAMTaPwUmrRmcuxWHjMHCbz3BxX2RBMzjYKx",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445269,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 35868.212848,
+      "preferred": true
+    },
+    {
+      "pool": "DNcGcbmmmvjrmVsT4DTMh2FLrbBchxXd66njTKo6zDAc",
+      "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 80.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "DNcGcbmmmvjrmVsT4DTMh2FLrbBchxXd66njTKo6zDAc",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982128,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 80.0,
+        "unix_timestamp": 1792445270,
+        "snapshot_start_swap_fee_bps": 80.0
+      },
+      "nominal_snapshot_fee_bps": 80.00000000000007,
+      "liquid_side_reserve_usd": 938752.7184841172,
+      "preferred": true
+    },
+    {
+      "pool": "AHNN6JmvaGG6XUoSg7sEr38gRYDB2jTbUvqXVuqaRHpq",
+      "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 80.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "AHNN6JmvaGG6XUoSg7sEr38gRYDB2jTbUvqXVuqaRHpq",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982131,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 80.0,
+        "unix_timestamp": 1792445271,
+        "snapshot_start_swap_fee_bps": 80.0
+      },
+      "nominal_snapshot_fee_bps": 80.00000000000007,
+      "liquid_side_reserve_usd": 398690.273796,
+      "preferred": false
+    },
+    {
+      "pool": "3GVB4bXtcrP3MM376mrcJDwfTNThvyorLmVgSTf6kxFt",
+      "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 16.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "3GVB4bXtcrP3MM376mrcJDwfTNThvyorLmVgSTf6kxFt",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982181,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445281,
+        "snapshot_start_swap_fee_bps": 16.0
+      },
+      "nominal_snapshot_fee_bps": 16.00000000000046,
+      "liquid_side_reserve_usd": 6419.319634,
+      "preferred": true
+    },
+    {
+      "pool": "B8YAwjGYk6qidWzGBXMAxP7nYfG8g74EZ3Y4gFSsobRw",
+      "mint": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "B8YAwjGYk6qidWzGBXMAxP7nYfG8g74EZ3Y4gFSsobRw",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982209,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445288,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 643437.817876,
+      "preferred": true
+    },
+    {
+      "pool": "9p7abUFv31ycgu9kckvnoqMMvBy67dqTDM2m6HP9xokN",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 2.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "9p7abUFv31ycgu9kckvnoqMMvBy67dqTDM2m6HP9xokN",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982215,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445289,
+        "snapshot_start_swap_fee_bps": 2.05
+      },
+      "nominal_snapshot_fee_bps": 2.0500000000001073,
+      "liquid_side_reserve_usd": 25615.80877,
+      "preferred": true
+    },
+    {
+      "pool": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF",
+      "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "8aDaBQkTrS6HVMjyc6EZebgdiaXhLYGriDWKWWp1NpFF",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982145,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 10.0,
+        "unix_timestamp": 1792445274,
+        "snapshot_start_swap_fee_bps": 10.0
+      },
+      "nominal_snapshot_fee_bps": 10.000000000000009,
+      "liquid_side_reserve_usd": 958920.844059,
+      "preferred": false
+    },
+    {
+      "pool": "BCvzjDbADhnT3K35kc5TSeMAafNgu9KZVywUq9zWH2mA",
+      "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 4.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "BCvzjDbADhnT3K35kc5TSeMAafNgu9KZVywUq9zWH2mA",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982176,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445280,
+        "snapshot_start_swap_fee_bps": 4.0
+      },
+      "nominal_snapshot_fee_bps": 3.9999999999995595,
+      "liquid_side_reserve_usd": 672.748797,
+      "preferred": true
+    },
+    {
+      "pool": "2ngTuP7xA581dqX9uJkGRqxmKuehY3k4SDfPebeoRG2J",
+      "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "2ngTuP7xA581dqX9uJkGRqxmKuehY3k4SDfPebeoRG2J",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982185,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445282,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 286638.22422900744,
+      "preferred": false
+    },
+    {
+      "pool": "3L7KbPVaAQA4UTecaGQYsm6UCq5F3sZM9zAYkxqYt63j",
+      "mint": "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "3L7KbPVaAQA4UTecaGQYsm6UCq5F3sZM9zAYkxqYt63j",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982154,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445276,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 294500.526135,
+      "preferred": true
+    },
+    {
+      "pool": "9JsDnmZonykBmrybuYaZUYxr4DCbZZQTdYQzdFXtDr5F",
+      "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 8.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "9JsDnmZonykBmrybuYaZUYxr4DCbZZQTdYQzdFXtDr5F",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982226,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 8.0,
+        "unix_timestamp": 1792445292,
+        "snapshot_start_swap_fee_bps": 8.0
+      },
+      "nominal_snapshot_fee_bps": 8.00000000000023,
+      "liquid_side_reserve_usd": 22622.203476,
+      "preferred": true
+    },
+    {
+      "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
+      "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "CKwJZwm7oj3nu4653N1EpDrqXbXAYXoPFiPeEnLouF8y",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985832,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792446075,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 181789.737601,
+      "preferred": false
+    },
+    {
+      "pool": "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 2.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "6R4r93V5fcMzc13CL2enEepDSYcr4Qx3ptZBDwudTXCo",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982168,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445279,
+        "snapshot_start_swap_fee_bps": 2.01
+      },
+      "nominal_snapshot_fee_bps": 2.0100000000000673,
+      "liquid_side_reserve_usd": 56916.344352,
+      "preferred": true
+    },
+    {
+      "pool": "49iMatQtoyabsYAQc8GafVq6aeBFVDxSRH44oiatyyw6",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "49iMatQtoyabsYAQc8GafVq6aeBFVDxSRH44oiatyyw6",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982217,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 10.0,
+        "unix_timestamp": 1792445289,
+        "snapshot_start_swap_fee_bps": 10.0
+      },
+      "nominal_snapshot_fee_bps": 10.000000000000009,
+      "liquid_side_reserve_usd": 1298141.268097,
+      "preferred": false
+    },
+    {
+      "pool": "yrNqjGSrZmUdcSNqzEjbrEouvazH9XbpxRCiJEa8AVJ",
+      "mint": "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "yrNqjGSrZmUdcSNqzEjbrEouvazH9XbpxRCiJEa8AVJ",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982233,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 10.0,
+        "unix_timestamp": 1792445293,
+        "snapshot_start_swap_fee_bps": 10.0
+      },
+      "nominal_snapshot_fee_bps": 10.000000000000009,
+      "liquid_side_reserve_usd": 1321.478183,
+      "preferred": true
+    },
+    {
+      "pool": "Dprwg5xHQ8jJryfh3okeTDCZK16Gz1wtX47JeZZv3HXZ",
+      "mint": "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "meteora_dlmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 5.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "Dprwg5xHQ8jJryfh3okeTDCZK16Gz1wtX47JeZZv3HXZ",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982182,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445282,
+        "snapshot_start_swap_fee_bps": 5.0
+      },
+      "nominal_snapshot_fee_bps": 4.999999999999449,
+      "liquid_side_reserve_usd": 14766.415369,
+      "preferred": true
+    },
+    {
+      "pool": "J7riKjqgLoZCES7MRyxHxL7iXybwHKXgfAot8muHKciZ",
+      "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 40.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "J7riKjqgLoZCES7MRyxHxL7iXybwHKXgfAot8muHKciZ",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982188,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 40.0,
+        "unix_timestamp": 1792445283,
+        "snapshot_start_swap_fee_bps": 40.0
+      },
+      "nominal_snapshot_fee_bps": 40.000000000000036,
+      "liquid_side_reserve_usd": 2194.2863267253333,
+      "preferred": true
+    },
+    {
+      "pool": "6KoZB86BFDk6TZbB4CTBoAA8PPbpmEwSWFjCyfkt1Uw4",
+      "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "6KoZB86BFDk6TZbB4CTBoAA8PPbpmEwSWFjCyfkt1Uw4",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982170,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 100.0,
+        "unix_timestamp": 1792445279,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 9972.867333,
+      "preferred": false
+    },
+    {
+      "pool": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 1.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "4pCZCVEiYyT4efNdXUdL2tJF8VGMgiMXrZWq6FiNXhRw",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982208,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 1.0,
+        "unix_timestamp": 1792445287,
+        "snapshot_start_swap_fee_bps": 1.0
+      },
+      "nominal_snapshot_fee_bps": 0.9999999999998899,
+      "liquid_side_reserve_usd": 218517.759731,
+      "preferred": true
+    },
+    {
+      "pool": "gef4pD5g6GJSjX7hfXKUfhCVpE89BzX9TXnXJNW6kSt",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 1.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "gef4pD5g6GJSjX7hfXKUfhCVpE89BzX9TXnXJNW6kSt",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982196,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445285,
+        "snapshot_start_swap_fee_bps": 1.0
+      },
+      "nominal_snapshot_fee_bps": 0.9999999999998899,
+      "liquid_side_reserve_usd": 5374.531232,
+      "preferred": false
+    },
+    {
+      "pool": "BS9uyGV6XmNnPkM4f3xgxCdQEaFv7RSKs6fwrpvYHxfL",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "BS9uyGV6XmNnPkM4f3xgxCdQEaFv7RSKs6fwrpvYHxfL",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982133,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445271,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 823412.3166649161,
+      "preferred": false
+    },
+    {
+      "pool": "D6bRhQUcR9B7bPbbqgxpE17MjyUjBtr8hHQCcJoHrrv1",
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "D6bRhQUcR9B7bPbbqgxpE17MjyUjBtr8hHQCcJoHrrv1",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458985845,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 10.0,
+        "unix_timestamp": 1792446078,
+        "snapshot_start_swap_fee_bps": 10.0
+      },
+      "nominal_snapshot_fee_bps": 10.000000000000009,
+      "liquid_side_reserve_usd": 214465.450326,
+      "preferred": true
+    },
+    {
+      "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL",
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "CLu4kFM4nb67xrdN7vJnMxXXir8Z5hA4HJUzPFccXjsL",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982229,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445292,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 745426.914608,
+      "preferred": false
+    },
+    {
+      "pool": "HrkeM8zFLiLp7ShhZKkM3b6Tvt8Aq2AKFcCvxRnfwKaq",
+      "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "HrkeM8zFLiLp7ShhZKkM3b6Tvt8Aq2AKFcCvxRnfwKaq",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982220,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445290,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 32880.6169504643,
+      "preferred": false
+    },
+    {
+      "pool": "5tGLudhm9pHtqbtfymvdarbD59AyMyYimXXwbFfzETV9",
+      "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "orca_whirlpool",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 4.0,
+        "dynamic_swap_fee": true,
+        "epoch": 1062,
+        "pool": "5tGLudhm9pHtqbtfymvdarbD59AyMyYimXXwbFfzETV9",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982206,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": null,
+        "unix_timestamp": 1792445287,
+        "snapshot_start_swap_fee_bps": 4.01
+      },
+      "nominal_snapshot_fee_bps": 4.009999999999847,
+      "liquid_side_reserve_usd": 46539.202545,
+      "preferred": true
+    },
+    {
+      "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze",
+      "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 10.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "78ReVNMLGRWmjtf2HmBoHUe2pRcsctXTTbxJnbhchyze",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982142,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 10.0,
+        "unix_timestamp": 1792445273,
+        "snapshot_start_swap_fee_bps": 10.0
+      },
+      "nominal_snapshot_fee_bps": 10.000000000000009,
+      "liquid_side_reserve_usd": 181207.540091,
+      "preferred": false
+    },
+    {
+      "pool": "DXWbip5LducMAbDSSpLYz9Xik3253EPeAYQufQtx7LXs",
+      "mint": "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg",
+      "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 100.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "DXWbip5LducMAbDSSpLYz9Xik3253EPeAYQufQtx7LXs",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982221,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 100.0,
+        "unix_timestamp": 1792445290,
+        "snapshot_start_swap_fee_bps": 100.0
+      },
+      "nominal_snapshot_fee_bps": 100.00000000000009,
+      "liquid_side_reserve_usd": 71502.825949,
+      "preferred": true
+    },
+    {
+      "pool": "ESzRTaF7jBZgFTe1xJHGyRYctEneMuwk2XiwqJS9sJD4",
+      "mint": "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF",
+      "quote_mint": "So11111111111111111111111111111111111111112",
+      "dex_type": "raydium_clmm",
+      "catalog_fee_snapshot": {
+        "base_swap_fee_bps": 25.0,
+        "dynamic_swap_fee": false,
+        "epoch": 1062,
+        "pool": "ESzRTaF7jBZgFTe1xJHGyRYctEneMuwk2XiwqJS9sJD4",
+        "quote_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "So11111111111111111111111111111111111111112",
+          "transfer_hook": false
+        },
+        "snapshot_slot": 458982198,
+        "stock_transfer_tax": {
+          "basis_points": 0,
+          "maximum_fee_raw": 0,
+          "mint": "iNTCy1qTsUEZQe3DSocLz1ZXXai34Gdw8THQh5rxFaF",
+          "transfer_hook": false,
+          "transfer_hook_program": null
+        },
+        "swap_fee_bps": 25.0,
+        "unix_timestamp": 1792445285,
+        "snapshot_start_swap_fee_bps": 25.0
+      },
+      "nominal_snapshot_fee_bps": 24.999999999999467,
+      "liquid_side_reserve_usd": 791.5246747143995,
+      "preferred": true
+    }
+  ]
+}

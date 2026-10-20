@@ -1,0 +1,42 @@
+{
+  "maximum_impact_bps": 100,
+  "minimum_liquid_side_usd": 25000,
+  "probe_usd": 1000,
+  "reports": [
+    {
+      "audit": {
+        "buy_1000_usd_impact_bps": 8.632232212666402,
+        "buy_output": 57249738,
+        "eligible": true,
+        "liquid_side_reserve_usd": 38698.064135,
+        "sell_1000_usd_impact_bps": 8.638093547274073,
+        "sell_output": 979235396
+      },
+      "pool": "ANyCzRPgiCLeJx3nH4SKS1jxtaxMk9qzG5SmJooh55ie"
+    },
+    {
+      "audit": {
+        "buy_1000_usd_impact_bps": -0.11292475105229016,
+        "buy_output": 4870555,
+        "eligible": true,
+        "liquid_side_reserve_usd": 26419.348669,
+        "sell_1000_usd_impact_bps": -0.19173381737402906,
+        "sell_output": 999164757
+      },
+      "pool": "F1mbBZYKXGFx5nraY3cK4RgNR5EuShntQ8xDKDD5HY1z"
+    },
+    {
+      "audit": {
+        "buy_1000_usd_impact_bps": 1.007801878563086,
+        "buy_output": 9559080237,
+        "eligible": true,
+        "liquid_side_reserve_usd": 9796886.329048,
+        "sell_1000_usd_impact_bps": 1.0052118372971819,
+        "sell_output": 994904181
+      },
+      "pool": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"
+    }
+  ],
+  "slot": 458965734,
+  "unix_timestamp": 1792441691
+}

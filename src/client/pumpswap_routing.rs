@@ -1,13 +1,16 @@
 //! Instance-scoped bridge markets with atomically published subscription snapshots.
 use crate::trading::core::params::{
-    CacheReadContext, CachedQuoteRequest, PoolTradeHint, PreparedPumpSwapTrade,
-    PumpSwapRouteSearch, SubscriptionAccountCache,
+    canonical_conversion_pools, CacheReadContext, CachedQuoteRequest, ConversionGraph,
+    PoolTradeHint, PreparedPumpSwapTrade, PumpSwapRouteSearch, SubscriptionAccountCache,
 };
 use anyhow::{ensure, Result};
 use arc_swap::ArcSwapOption;
 use solana_sdk::pubkey::Pubkey;
 use std::{
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
@@ -16,6 +19,10 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct PumpSwapRoutingConfig {
     pub conversion_pools: Vec<PoolTradeHint>,
+    /// Per conversion hop execution tolerance in bps (100 = 1%).
+    pub bridge_slippage_basis_points: u16,
+    /// Per conversion hop price deterioration vs a 1/100-size cached probe.
+    pub maximum_bridge_price_impact_basis_points: u16,
     pub maximum_conversion_hops: usize,
     pub maximum_search_nodes: usize,
     pub maximum_arrays: usize,
@@ -23,18 +30,56 @@ pub struct PumpSwapRoutingConfig {
     /// Local timeout also rejects a stopped subscription whose slot never advances.
     pub maximum_snapshot_age: Duration,
 }
+impl Default for PumpSwapRoutingConfig {
+    /// Mainnet bridge identities screened on 2026-10-20. No network access.
+    /// State must still be subscribed and published; defaults are not a depth guarantee.
+    /// See docs/PUMPSWAP_BRIDGE_DEFAULTS.md for sampling and admission criteria.
+    fn default() -> Self {
+        use solana_sdk::pubkey;
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../stock_token_catalog.json"))
+                .expect("tested shared stock catalog");
+        let mut pools = vec![PoolTradeHint {
+            pool: pubkey!("58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"),
+            input_mint: crate::constants::WSOL_TOKEN_ACCOUNT,
+            output_mint: crate::constants::USDC_TOKEN_ACCOUNT,
+        }];
+        for row in catalog["pools"].as_array().expect("catalog pools") {
+            let key = |field: &str| row[field].as_str().unwrap().parse().expect("catalog pubkey");
+            pools.push(PoolTradeHint {
+                pool: key("pool"),
+                input_mint: key("quote_mint"),
+                output_mint: key("mint"),
+            });
+        }
+        Self::new(pools)
+    }
+}
 impl PumpSwapRoutingConfig {
+    /// Use only the supplied markets (no built-in defaults).
     pub fn new(conversion_pools: Vec<PoolTradeHint>) -> Self {
         Self {
             conversion_pools,
+            bridge_slippage_basis_points: 100,
+            maximum_bridge_price_impact_basis_points: 100,
             maximum_conversion_hops: 2,
-            maximum_search_nodes: 128,
+            maximum_search_nodes: 512,
             maximum_arrays: 6,
             maximum_slot_age: 32,
             maximum_snapshot_age: Duration::from_secs(2),
         }
     }
+
+    /// Append custom markets, deduplicating by pool address. Reversed pairs and
+    /// SOL/WSOL aliases are equivalent; conflicting identities fail atomically.
+    /// The 128-market budget applies after deduplication.
+    pub fn extend_pools(&mut self, pools: impl IntoIterator<Item = PoolTradeHint>) -> Result<()> {
+        let combined = self.conversion_pools.iter().copied().chain(pools);
+        self.conversion_pools = canonical_conversion_pools(combined)?;
+        Ok(())
+    }
 }
+
 struct Snapshot {
     cache: Arc<SubscriptionAccountCache>,
     context: CacheReadContext,
@@ -47,7 +92,9 @@ struct Snapshot {
 /// snapshot for the complete search. No RPC client or network fallback exists here.
 pub struct PumpSwapRouting {
     config: PumpSwapRoutingConfig,
+    graph: ConversionGraph,
     snapshot: ArcSwapOption<Snapshot>,
+    invalidation_generation: AtomicU64,
 }
 impl std::fmt::Debug for PumpSwapRouting {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -55,35 +102,29 @@ impl std::fmt::Debug for PumpSwapRouting {
     }
 }
 impl PumpSwapRouting {
-    pub fn new(config: PumpSwapRoutingConfig) -> Result<Self> {
-        ensure!(config.conversion_pools.len() <= 32, "Too many bridge pools");
+    pub fn new(mut config: PumpSwapRoutingConfig) -> Result<Self> {
+        config.conversion_pools = canonical_conversion_pools(config.conversion_pools)?;
+        ensure!(
+            config.bridge_slippage_basis_points < 10_000
+                && config.maximum_bridge_price_impact_basis_points < 10_000,
+            "Invalid bridge slippage or price impact limit"
+        );
         ensure!(config.maximum_conversion_hops <= 3, "Too many bridge hops");
         ensure!((1..=4096).contains(&config.maximum_search_nodes), "Invalid search budget");
         ensure!((1..=32).contains(&config.maximum_arrays), "Invalid array budget");
         ensure!(!config.maximum_snapshot_age.is_zero(), "Snapshot timeout must be positive");
-        let mut pools = std::collections::HashMap::new();
-        for hint in &config.conversion_pools {
-            let normalize = |mint| {
-                if mint == crate::constants::SOL_TOKEN_ACCOUNT {
-                    crate::constants::WSOL_TOKEN_ACCOUNT
-                } else {
-                    mint
-                }
-            };
-            let a = normalize(hint.input_mint);
-            let b = normalize(hint.output_mint);
-            ensure!(
-                hint.pool != Pubkey::default()
-                    && a != b
-                    && a != Pubkey::default()
-                    && b != Pubkey::default(),
-                "Invalid bridge pool identity"
-            );
-            if let Some(previous) = pools.insert(hint.pool, (a.min(b), a.max(b))) {
-                ensure!(previous == (a.min(b), a.max(b)), "Conflicting bridge pool identity");
-            }
-        }
-        Ok(Self { config, snapshot: ArcSwapOption::empty() })
+        let graph = ConversionGraph::new(&config.conversion_pools)?;
+        Ok(Self {
+            config,
+            graph,
+            snapshot: ArcSwapOption::empty(),
+            invalidation_generation: AtomicU64::new(0),
+        })
+    }
+
+    /// Normalized, deduplicated identities for background subscription setup.
+    pub fn conversion_pools(&self) -> &[PoolTradeHint] {
+        &self.config.conversion_pools
     }
 
     /// Background ingestion only. Supply a coherent cache and current chain Clock
@@ -106,6 +147,16 @@ impl PumpSwapRouting {
     /// Invalidate immediately on disconnect/reorg until a coherent snapshot is ready.
     pub fn clear(&self) {
         self.snapshot.store(None);
+        self.invalidation_generation.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn ensure_generation(&self, generation: u64) -> Result<()> {
+        ensure!(
+            self.snapshot.load().is_some()
+                && self.invalidation_generation.load(Ordering::SeqCst) == generation,
+            "PumpSwap routing snapshot invalidated during search"
+        );
+        Ok(())
     }
 
     /// Local exact-input route preparation. Pool addresses are supplied per trade;
@@ -119,17 +170,19 @@ impl PumpSwapRouting {
         slippage: u64,
         is_buy: bool,
     ) -> Result<PreparedPumpSwapTrade> {
-        let snapshot = self
-            .snapshot
-            .load_full()
+        let generation = self.invalidation_generation.load(Ordering::SeqCst);
+        let snapshot_guard = self.snapshot.load();
+        let snapshot = snapshot_guard
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("PumpSwap routing snapshot is not ready"))?;
         ensure!(
             snapshot.received_at.elapsed() <= self.config.maximum_snapshot_age,
             "PumpSwap routing snapshot expired"
         );
-        let candidates =
-            self.config.conversion_pools.iter().copied().filter(|hint| hint.pool != pool).collect();
-        let mut search = PumpSwapRouteSearch::new(pool, token, asset, candidates);
+        let mut search = PumpSwapRouteSearch::new(pool, token, asset, Vec::new());
+        search.bridge_slippage_basis_points = self.config.bridge_slippage_basis_points;
+        search.maximum_bridge_price_impact_basis_points =
+            self.config.maximum_bridge_price_impact_basis_points;
         search.maximum_conversion_hops = self.config.maximum_conversion_hops;
         search.maximum_search_nodes = self.config.maximum_search_nodes;
         let request = CachedQuoteRequest {
@@ -142,12 +195,18 @@ impl PumpSwapRouting {
         };
         let mut context = snapshot.context;
         context.maximum_slot_age = context.maximum_slot_age.min(self.config.maximum_slot_age);
-        let selected =
-            snapshot.cache.prepare_best_pumpswap_trade(&search, request, context, is_buy)?;
+        let selected = snapshot.cache.prepare_best_pumpswap_trade_with_graph(
+            &search,
+            request,
+            context,
+            is_buy,
+            &self.graph,
+        )?;
         ensure!(
             snapshot.received_at.elapsed() <= self.config.maximum_snapshot_age,
             "PumpSwap routing snapshot expired during search"
         );
+        self.ensure_generation(generation)?;
         Ok(selected.trade)
     }
 }
@@ -176,6 +235,207 @@ mod tests {
     use base64::{engine::general_purpose::STANDARD, Engine};
     use solana_commitment_config::CommitmentConfig;
     use solana_sdk::{hash::Hash, signature::Keypair};
+
+    #[test]
+    fn defaults_include_every_shared_stock_pool_and_the_sol_usdc_bridge() {
+        let catalog: serde_json::Value =
+            serde_json::from_str(include_str!("../stock_token_catalog.json")).unwrap();
+        let config = PumpSwapRoutingConfig::default();
+        let rows = catalog["pools"].as_array().unwrap();
+        assert_eq!(config.conversion_pools.len(), rows.len() + 1);
+        assert!(rows.iter().any(|row| row["preferred"] == false));
+        for row in rows {
+            let key = |field: &str| row[field].as_str().unwrap().parse::<Pubkey>().unwrap();
+            let matches: Vec<_> =
+                config.conversion_pools.iter().filter(|hint| hint.pool == key("pool")).collect();
+            assert_eq!(matches.len(), 1);
+            assert_eq!(matches[0].input_mint, key("quote_mint"));
+            assert_eq!(matches[0].output_mint, key("mint"));
+            assert!(row["liquid_side_reserve_usd"].as_f64().unwrap() >= 500.0);
+        }
+        assert_eq!(
+            config
+                .conversion_pools
+                .iter()
+                .filter(|hint| hint.pool == config_pool_wsol_usdc())
+                .count(),
+            1
+        );
+        PumpSwapRouting::new(config).unwrap();
+    }
+
+    #[test]
+    fn preferred_pool_mints_match_mainnet_accounts_and_official_issuer_records() {
+        let evidence: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/research/bridge-defaults-20261020-expanded.json"
+        ))
+        .unwrap();
+        let mut official = Vec::<Pubkey>::new();
+        for entry in evidence["issuer_records"].as_array().unwrap() {
+            let record = &entry["record"];
+            match entry["source"].as_str().unwrap() {
+                "https://api.backpack.exchange/api/v1/assets" => {
+                    for token in record["tokens"].as_array().unwrap() {
+                        if token["blockchain"] == "Solana" {
+                            official
+                                .push(token["contractAddress"].as_str().unwrap().parse().unwrap());
+                        }
+                    }
+                }
+                "https://xstocks.com/products" => {
+                    official.push(record["addresses"]["solana"].as_str().unwrap().parse().unwrap());
+                }
+                other => panic!("Unrecognized issuer source: {other}"),
+            }
+        }
+        let config = PumpSwapRoutingConfig::default();
+        let pools = evidence["pools"].as_array().unwrap();
+        // This capture covers the historical preferred subset; all alternatives
+        // are checked against the shared screened catalog in the parity test.
+        assert_eq!(
+            config
+                .conversion_pools
+                .iter()
+                .filter(|hint| pools
+                    .iter()
+                    .any(|p| p["pool"].as_str() == Some(&hint.pool.to_string())))
+                .count(),
+            pools.len()
+        );
+        for hint in &config.conversion_pools {
+            for mint in [hint.input_mint, hint.output_mint] {
+                assert!(
+                    [WSOL_TOKEN_ACCOUNT, crate::constants::USDC_TOKEN_ACCOUNT].contains(&mint)
+                        || official.contains(&mint),
+                    "Unverified default mint: {mint}"
+                );
+            }
+        }
+        assert!(config.conversion_pools.len() <= 128);
+        for hint in config
+            .conversion_pools
+            .into_iter()
+            .filter(|hint| pools.iter().any(|p| p["pool"].as_str() == Some(&hint.pool.to_string())))
+        {
+            let captured =
+                pools.iter().find(|p| p["pool"].as_str() == Some(&hint.pool.to_string())).unwrap();
+            let account = &captured["pool_account"];
+            let data = STANDARD.decode(account["data"][0].as_str().unwrap()).unwrap();
+            let owner: Pubkey = account["owner"].as_str().unwrap().parse().unwrap();
+            use crate::instruction::utils::{
+                meteora_dlmm, raydium_amm_v4_types, raydium_clmm, raydium_cpmm, raydium_cpmm_types,
+                whirlpool,
+            };
+            let (a, b) = if owner == meteora_dlmm::PROGRAM_ID {
+                let p = meteora_dlmm::decode_lb_pair(&data).unwrap();
+                (p.token_x_mint, p.token_y_mint)
+            } else if owner == raydium_clmm::PROGRAM_ID {
+                let p = raydium_clmm::decode_pool_state(&data).unwrap();
+                (p.token_mint_0, p.token_mint_1)
+            } else if owner == whirlpool::PROGRAM_ID {
+                let p = whirlpool::decode_whirlpool(&data).unwrap();
+                (p.token_mint_a, p.token_mint_b)
+            } else if owner == raydium_cpmm::accounts::RAYDIUM_CPMM {
+                assert_eq!(data[..8], raydium_cpmm_types::POOL_STATE_DISCRIMINATOR);
+                let p = raydium_cpmm_types::pool_state_decode(&data[8..]).unwrap();
+                (p.token0_mint, p.token1_mint)
+            } else {
+                assert_eq!(owner.to_string(), "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8");
+                let p = raydium_amm_v4_types::amm_info_decode(&data).unwrap();
+                (p.coin_mint, p.pc_mint)
+            };
+            assert_eq!(
+                (a.min(b), a.max(b)),
+                (hint.input_mint.min(hint.output_mint), hint.input_mint.max(hint.output_mint))
+            );
+            for mint in [a, b] {
+                assert!(
+                    [WSOL_TOKEN_ACCOUNT, crate::constants::USDC_TOKEN_ACCOUNT].contains(&mint)
+                        || official.contains(&mint),
+                    "Unverified default stock mint: {mint}"
+                );
+            }
+            if hint.pool != config_pool_wsol_usdc() {
+                let audit = &captured["depth"]["reports"][0]["audit"];
+                assert_eq!(audit["eligible"], true);
+                assert!(audit["liquid_side_reserve_usd"].as_f64().unwrap() >= 500.0);
+                // Catalog membership must respect fee preference after depth admission.
+                let scan: serde_json::Value = serde_json::from_str(include_str!(
+                    "../../docs/research/bridge-defaults-20261020-expanded-scan.json"
+                ))
+                .unwrap();
+                let fee = captured["fees"]["snapshot_start_fee_bps"].as_f64().unwrap();
+                assert_eq!(captured["fees"]["stock_transfer_fee"]["basis_points"], 0);
+                for candidate in scan["candidate_results"].as_array().unwrap() {
+                    if candidate["eligible"] == true
+                        && candidate["mint"].as_str() == Some(&hint.output_mint.to_string())
+                    {
+                        let other_fee =
+                            candidate["fees"]["snapshot_start_fee_bps"].as_f64().unwrap();
+                        assert!(fee <= other_fee, "A cheaper qualifying pool was skipped");
+                        if fee == other_fee {
+                            assert!(
+                                audit["liquid_side_reserve_usd"].as_f64().unwrap()
+                                    >= candidate["depth"]["reports"][0]["audit"]
+                                        ["liquid_side_reserve_usd"]
+                                        .as_f64()
+                                        .unwrap()
+                            );
+                        }
+                    }
+                }
+                assert!(audit["buy_output"].as_u64().unwrap() > 0);
+                assert!(audit["sell_output"].as_u64().unwrap() > 0);
+            }
+        }
+    }
+
+    fn config_pool_wsol_usdc() -> Pubkey {
+        solana_sdk::pubkey!("58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2")
+    }
+
+    #[test]
+    fn registry_extensions_are_atomic_normalized_and_deduplicated_before_limits() {
+        let mut config = PumpSwapRoutingConfig::default();
+        let original = config.conversion_pools.len();
+        let hint = config.conversion_pools[0];
+        let reverse =
+            PoolTradeHint { input_mint: hint.output_mint, output_mint: SOL_TOKEN_ACCOUNT, ..hint };
+        config.extend_pools(std::iter::repeat(reverse).take(64)).unwrap();
+        assert_eq!(config.conversion_pools.len(), original);
+        let custom = PoolTradeHint { pool: Pubkey::new_unique(), ..hint };
+        config.extend_pools([custom, custom]).unwrap();
+        assert_eq!(config.conversion_pools.len(), original + 1);
+        let conflict = PoolTradeHint { output_mint: Pubkey::new_unique(), ..hint };
+        let extra = PoolTradeHint { pool: Pubkey::new_unique(), ..hint };
+        assert!(config.extend_pools([extra, conflict]).is_err());
+        assert_eq!(config.conversion_pools.len(), original + 1);
+        assert!(!config.conversion_pools.iter().any(|p| p.pool == extra.pool));
+        assert!(config
+            .extend_pools((0..129).map(|_| PoolTradeHint { pool: Pubkey::new_unique(), ..hint }))
+            .is_err());
+        assert_eq!(config.conversion_pools.len(), original + 1);
+        // Direct public-field construction also goes through the same validation.
+        let routing = PumpSwapRouting::new(PumpSwapRoutingConfig::new(vec![reverse; 64])).unwrap();
+        assert_eq!(routing.conversion_pools().len(), 1);
+        assert_eq!(routing.conversion_pools()[0].output_mint, WSOL_TOKEN_ACCOUNT);
+        assert!(PumpSwapRouting::new(PumpSwapRoutingConfig::new(vec![]))
+            .unwrap()
+            .conversion_pools()
+            .is_empty());
+    }
+
+    #[test]
+    fn defaults_allow_cached_routes_without_unrelated_default_accounts() {
+        let (existing, cache, ctx, time, pool, token) = fixture();
+        let mut config = PumpSwapRoutingConfig::default();
+        let original = config.conversion_pools.len();
+        config.extend_pools(existing.config.conversion_pools.clone()).unwrap();
+        assert_eq!(config.conversion_pools.len(), original);
+        let routing = PumpSwapRouting::new(config).unwrap();
+        routing.publish(cache, ctx, time);
+        assert!(routing.prepare(pool, token, SOL_TOKEN_ACCOUNT, 1_000_000, 100, true).is_ok());
+    }
 
     fn fixture(
     ) -> (Arc<PumpSwapRouting>, Arc<SubscriptionAccountCache>, CacheReadContext, u64, Pubkey, Pubkey)
@@ -224,6 +484,44 @@ mod tests {
             key(&s["pool"]),
             key(&s["token_mint"]),
         )
+    }
+    #[test]
+    fn compiled_graph_matches_public_search_for_both_directions() {
+        let (routing, cache, context, time, pool, token) = fixture();
+        routing.publish(cache.clone(), context, time);
+        for is_buy in [true, false] {
+            for amount in [100_000, 1_000_000] {
+                let search = PumpSwapRouteSearch::new(
+                    pool,
+                    token,
+                    SOL_TOKEN_ACCOUNT,
+                    routing.conversion_pools().to_vec(),
+                );
+                let expected = cache.prepare_best_pumpswap_trade(
+                    &search,
+                    CachedQuoteRequest::new(amount, time),
+                    context,
+                    is_buy,
+                );
+                let actual = routing.prepare(pool, token, SOL_TOKEN_ACCOUNT, amount, 100, is_buy);
+                match (expected, actual) {
+                    (Ok(expected), Ok(actual)) => {
+                        assert_eq!(
+                            expected.trade.preview().minimum_output_credit,
+                            actual.preview().minimum_output_credit,
+                        );
+                        let pools = |trade: &PreparedPumpSwapTrade| {
+                            trade.steps().iter().map(|s| s.pool.pool).collect::<Vec<_>>()
+                        };
+                        assert_eq!(pools(&expected.trade), pools(&actual));
+                    }
+                    (Err(expected), Err(actual)) => {
+                        assert_eq!(expected.to_string(), actual.to_string())
+                    }
+                    _ => panic!("compiled routing and public search disagree"),
+                }
+            }
+        }
     }
     fn client(routing: Arc<PumpSwapRouting>, url: &str) -> TradingClient {
         let config = TradeConfig::builder(url.into(), vec![], CommitmentConfig::processed())
@@ -287,6 +585,23 @@ mod tests {
         // No connect attempt is allowed even though the infrastructure has an RPC client.
         assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
     }
+    #[test]
+    fn clearing_rejects_retained_search_even_after_republication() {
+        let (routing, cache, context, time, _, _) = fixture();
+        routing.publish(cache.clone(), context, time);
+        let generation = routing.invalidation_generation.load(Ordering::SeqCst);
+        let retained = routing.snapshot.load_full().unwrap();
+        // A normal update does not invalidate an otherwise fresh coherent search.
+        routing.publish(cache.clone(), context, time);
+        routing.ensure_generation(generation).unwrap();
+        routing.clear();
+        assert!(routing.ensure_generation(generation).is_err());
+        routing.publish(cache, context, time);
+        assert!(routing.ensure_generation(generation).is_err());
+        assert!(retained.received_at.elapsed() < Duration::from_secs(10));
+        routing.ensure_generation(routing.invalidation_generation.load(Ordering::SeqCst)).unwrap();
+    }
+
     #[test]
     fn pumpswap_configured_routing_rejects_missing_expired_and_stale_state() {
         let (routing, cache, context, time, pool, token) = fixture();

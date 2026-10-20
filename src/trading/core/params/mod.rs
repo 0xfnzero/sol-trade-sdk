@@ -2,9 +2,9 @@
 
 mod bonk;
 mod cached_quote;
-mod cpmm_creator_fee_preparation;
 #[cfg(test)]
 mod cached_quote_mainnet;
+mod cpmm_creator_fee_preparation;
 mod dex_swap;
 mod meteora_damm_v2;
 mod meteora_dlmm;
@@ -12,6 +12,7 @@ mod pumpfun;
 mod pumpswap;
 mod pumpswap_preparation;
 mod pumpswap_route_search;
+pub(crate) use pumpswap_route_search::{canonical_conversion_pools, ConversionGraph};
 mod raydium_amm_v4;
 mod raydium_clmm;
 mod raydium_cpmm;
@@ -22,7 +23,9 @@ mod subscription_cache;
 mod whirlpool;
 
 pub use bonk::{BonkParams, LaunchLabParams, StonkFunParams};
-pub use cached_quote::{CachedQuoteRequest, CachedRouteStep, CachedSwapQuote};
+pub use cached_quote::{
+    CachedQuoteRequest, CachedQuoteWithImpact, CachedRouteStep, CachedSwapQuote,
+};
 pub use cpmm_creator_fee_preparation::PreparedCpmmCreatorFeeCollection;
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
 pub use meteora_damm_v2::MeteoraDammV2Params;
@@ -30,15 +33,16 @@ pub use meteora_dlmm::MeteoraDlmmParams;
 pub use pumpfun::PumpFunParams;
 pub use pumpswap::PumpSwapParams;
 pub use pumpswap_preparation::PreparedPumpSwapTrade;
-pub use pumpswap_route_search::{PumpSwapRouteRejection, PumpSwapRouteSearch, PumpSwapRouteSelection};
+pub use pumpswap_route_search::{
+    PumpSwapRouteRejection, PumpSwapRouteSearch, PumpSwapRouteSelection,
+};
 pub use raydium_amm_v4::RaydiumAmmV4Params;
 pub use raydium_clmm::RaydiumClmmParams;
 pub use raydium_cpmm::{RaydiumCpmmParams, TokenTransferFee};
 pub use stonkfun_preparation::PreparedStonkFunTrade;
 pub use stonkfun_quote_route::{
-    PumpSwapQuoteHop, PumpSwapQuoteRoute, PumpSwapQuoteVenue,
-    StonkFunQuoteHop, StonkFunQuoteHopPreview, StonkFunQuoteRoute, StonkFunQuoteRoutePreview,
-    StonkFunQuoteVenue,
+    PumpSwapQuoteHop, PumpSwapQuoteRoute, PumpSwapQuoteVenue, StonkFunQuoteHop,
+    StonkFunQuoteHopPreview, StonkFunQuoteRoute, StonkFunQuoteRoutePreview, StonkFunQuoteVenue,
 };
 pub use stonkfun_via_sol::{
     StonkFunMemeLeg, StonkFunSolHop, StonkFunViaQuoteParams, StonkFunViaSolParams,

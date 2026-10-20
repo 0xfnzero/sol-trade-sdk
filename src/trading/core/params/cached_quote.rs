@@ -7,6 +7,14 @@ use crate::instruction::utils::{meteora_dlmm as dl, raydium_clmm as cl, whirlpoo
 use anyhow::{anyhow, bail, ensure, Result};
 use solana_sdk::pubkey::Pubkey;
 
+/// Conversion-hop policy, separate from the target market's slippage.
+#[derive(Clone, Copy)]
+pub(super) struct BridgeQuoteLimits {
+    pub slippage_basis_points: u16,
+    pub maximum_price_impact_basis_points: u16,
+    pub target_pool: Pubkey,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct CachedQuoteRequest {
     pub amount_in: u64,
@@ -16,6 +24,29 @@ pub struct CachedQuoteRequest {
     /// Bounded work and transaction size. Fail rather than silently truncate a route.
     pub maximum_arrays: usize,
 }
+impl CachedQuoteRequest {
+    /// Amounts use raw token units; time must come from the cached chain Clock.
+    /// Defaults to 1% execution tolerance and at most six tick/bin arrays.
+    pub fn new(amount_in: u64, unix_timestamp: u64) -> Self {
+        Self { amount_in, slippage_basis_points: 100, unix_timestamp, maximum_arrays: 6 }
+    }
+    pub fn with_slippage_basis_points(mut self, bps: u16) -> Self {
+        self.slippage_basis_points = bps;
+        self
+    }
+}
+
+/// A cached exact-input quote plus incremental price deterioration against a
+/// 1/100-size probe in the same direction and snapshot. Not an external fair price.
+#[derive(Clone)]
+pub struct CachedQuoteWithImpact {
+    pub quote: CachedSwapQuote,
+    pub probe_amount_in: u64,
+    pub probe_amount_out: u64,
+    /// Informational floating-point bps. Admission uses exact integer arithmetic.
+    pub price_impact_basis_points: f64,
+}
+
 #[derive(Clone)]
 pub struct CachedSwapQuote {
     pub hop: StonkFunQuoteHop,
@@ -73,6 +104,71 @@ fn finish(
     })
 }
 impl SubscriptionAccountCache {
+    /// Buy or sell any supported pool by explicitly choosing input/output mints.
+    /// Supported: PumpSwap, AMM v4, CPMM, CLMM, Whirlpool, DLMM. No RPC fallback.
+    pub fn quote_pool_exact_in(
+        &self,
+        pool: Pubkey,
+        input_mint: Pubkey,
+        output_mint: Pubkey,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+    ) -> Result<CachedSwapQuote> {
+        self.quote_exact_in(PoolTradeHint { pool, input_mint, output_mint }, request, ctx)
+    }
+
+    /// Reject the quote when order-size price deterioration exceeds the supplied
+    /// limit. Both full-size and reference quotes use this immutable cache only.
+    /// Tiny/low-decimal probes that cannot produce a protected output fail closed.
+    pub fn quote_exact_in_with_impact(
+        &self,
+        hint: PoolTradeHint,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+        maximum_impact_basis_points: u16,
+    ) -> Result<CachedQuoteWithImpact> {
+        ensure!(maximum_impact_basis_points < 10_000, "Invalid price impact limit");
+        let quote = self.quote_exact_in(hint, request, ctx)?;
+        let (probe_amount_in, probe_amount_out, price_impact_basis_points) =
+            self.check_quote_impact(hint, request, ctx, &quote, maximum_impact_basis_points)?;
+        Ok(CachedQuoteWithImpact {
+            quote,
+            probe_amount_in,
+            probe_amount_out,
+            price_impact_basis_points,
+        })
+    }
+
+    fn check_quote_impact(
+        &self,
+        hint: PoolTradeHint,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+        quote: &CachedSwapQuote,
+        maximum_impact: u16,
+    ) -> Result<(u64, u64, f64)> {
+        let probe_amount = (request.amount_in / 100).max(1);
+        let probe = self.quote_exact_in(
+            hint,
+            CachedQuoteRequest { amount_in: probe_amount, slippage_basis_points: 0, ..request },
+            ctx,
+        )?;
+        let actual = u128::from(quote.estimated_net_amount_out) * u128::from(probe_amount);
+        let reference = u128::from(probe.estimated_net_amount_out) * u128::from(request.amount_in);
+        let allowed_loss = reference / 10_000 * u128::from(maximum_impact)
+            + reference % 10_000 * u128::from(maximum_impact) / 10_000;
+        ensure!(
+            actual >= reference - allowed_loss,
+            "Bridge price impact exceeds configured limit for {}",
+            hint.pool
+        );
+        Ok((
+            probe_amount,
+            probe.estimated_net_amount_out,
+            (1.0 - actual as f64 / reference as f64) * 10_000.0,
+        ))
+    }
+
     /// Quotes and produces fresh execution accounts for a quote-conversion pool.
     /// Does not discover pools, fetch state, copy wallets, or sign/send transactions.
     pub fn quote_exact_in(
@@ -1362,6 +1458,27 @@ impl SubscriptionAccountCache {
         ctx: CacheReadContext,
         is_buy: bool,
     ) -> Result<super::StonkFunQuoteRoute> {
+        self.quote_route_exact_in_with_bridge_limits(
+            steps,
+            input_mint,
+            output_mint,
+            request,
+            ctx,
+            is_buy,
+            None,
+        )
+    }
+
+    pub(super) fn quote_route_exact_in_with_bridge_limits(
+        &self,
+        steps: &[CachedRouteStep],
+        input_mint: Pubkey,
+        output_mint: Pubkey,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+        is_buy: bool,
+        bridge_limits: Option<BridgeQuoteLimits>,
+    ) -> Result<super::StonkFunQuoteRoute> {
         use std::collections::{HashMap, HashSet};
         let mut balances = HashMap::new();
         balances.insert(input_mint, request.amount_in);
@@ -1376,11 +1493,27 @@ impl SubscriptionAccountCache {
                 amount > 0 && amount <= available,
                 "Cached quote route overspends guaranteed balance"
             );
+            let limits = bridge_limits.filter(|limits| step.pool.pool != limits.target_pool);
             let quote = self.quote_exact_in(
                 step.pool,
-                CachedQuoteRequest { amount_in: amount, ..request },
+                CachedQuoteRequest {
+                    amount_in: amount,
+                    slippage_basis_points: limits.map_or(request.slippage_basis_points, |limits| {
+                        limits.slippage_basis_points
+                    }),
+                    ..request
+                },
                 ctx,
             )?;
+            if let Some(limits) = limits {
+                self.check_quote_impact(
+                    step.pool,
+                    CachedQuoteRequest { amount_in: amount, ..request },
+                    ctx,
+                    &quote,
+                    limits.maximum_price_impact_basis_points,
+                )?;
+            }
             balances.insert(step.pool.input_mint, available - amount);
             let credit = balances.entry(step.pool.output_mint).or_default();
             *credit = credit

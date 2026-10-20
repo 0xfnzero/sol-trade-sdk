@@ -1,3 +1,7 @@
+当前版本：**8.0.0**。本轮同步 SDK、原生语言测试、示例及文档。升级说明见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
+
+[示例索引](examples/README_CN.md) · [文档索引](docs/README.md)
+
 <div align="center">
     <h1>🚀 Sol Trade SDK</h1>
     <h3><em>全面的 Rust SDK，用于无缝 Solana DEX 交易</em></h3>
@@ -70,12 +74,12 @@
 
 | 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v7.0.0` |
-| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.1.10` |
-| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.1.10` |
-| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.1.11` |
-| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.18` |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.4` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 超低延迟，零拷贝优化 | `v8.0.0` |
+| **Node.js** | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.2.0` |
+| **Python** | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 原生 async/await 支持 | `v0.2.0` |
+| **Go** | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 并发安全，goroutine 支持 | `v0.2.0` |
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.8.0` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v5.0.0` |
 
 ## v7.0.0 — 全局桥接池配置与无 RPC 自动路由
 
@@ -108,11 +112,29 @@ PumpSwap 支持以任意池内 quote mint 直接买卖（含 TTWO / Token-2022�
 
 初始化时可通过 `TradeConfig::builder(...).pumpswap_routing(...)` 配置桥接池，随后使用 `PumpSwapAutoRoute(pool)` 自动选路。后台发布订阅快照，交易热路径只读缓存；缺失或过期直接报错，不回退 RPC。标准 ATA 幂等创建支持连续买卖。示例：`pumpswap_global_routing`（离线）与 `pumpswap_global_routing_simulate`（真实主网只读模拟）。
 
+### 默认桥梁池与用户扩展
+
+初始化时使用 `PumpSwapRoutingConfig::default()`，再通过
+`extend_pools(custom_pools)?` 合并用户池子。按池地址去重，反向币对及 SOL/WSOL
+视为等价；同地址币对冲突会报错。`PumpSwapRoutingConfig::new(pools)` 保留仅使用
+自定义池的行为。默认包含 64 个池，覆盖 Backpack 与 xStocks 的 34 种官方
+股票/ETF mint，并提供 WSOL/USDC 中转。入选要求流动侧储备至少 500 美元并通过
+双向深度报价；历史首选标记按快照起始手续费排序，同费率优先更深的池，
+其他合格池也全部保留供实时选路。
+动态手续费会变化，实际交易仍按缓存净到账报价选择路径。默认配置、合并、交易准备均不调用 RPC。
+深度会变化，后台仍需更新账户缓存并复核池子深度。
+与 sol-parser-sdk 使用同一份 34 mint / 63 池目录及费用快照：解析订阅保留全部
+合格池，交易也默认纳入全部 63 个股票池，另加 WSOL/USDC 中转池。池子手续费与代币转账税分别记录。
+跨 DEX 示例：`cargo run --features parser-adapter --example stock_conversion_replay`。
+回放 6 笔真实交易，逐跳提取已核验的兑换池；不按 Stonk/Pump 平台限制 DEX，
+不复制历史成交金额下单，也不调用 RPC。
+[筛选标准、链上样本与初始化说明](docs/PUMPSWAP_BRIDGE_DEFAULTS.md)。
+
 已知候选兑换池时，可使用 `prepare_best_pumpswap_trade` 自动确定路径顺序和方向，并按当前输入金额选择最低保障到账量最高的路径。搜索有候选数、跳数和节点预算限制，返回选中路径及被拒绝路径的原因。完整 SOL↔TTWO↔目标币离线示例见上述文档。
 
 ## 🔖 当前版本
 
-**Rust crate:** `sol-trade-sdk = "7.0.0"`
+**Rust crate:** `sol-trade-sdk = "8.0.0"`
 
 本版本新增实例级桥接池配置与基于缓存的 PumpSwap 自动路由。调用方在后台提供账户快照及最新区块哈希／nonce；每次多跳买入或卖出仍是一笔原子交易。
 
@@ -209,14 +231,14 @@ git clone https://github.com/0xfnzero/sol-trade-sdk
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = { path = "./sol-trade-sdk", version = "7.0.0" }
+sol-trade-sdk = { path = "./sol-trade-sdk", version = "8.0.0" }
 ```
 
 ### 使用 crates.io
 
 ```toml
 # 添加到您的 Cargo.toml
-sol-trade-sdk = "7.0.0"
+sol-trade-sdk = "8.0.0"
 ```
 
 ## 🛠️ 使用示例
@@ -343,7 +365,7 @@ let buy_params = SimpleBuyParams::new(
 
 #### 3b. StonkFun：只用 SOL / WSOL 一步买到 meme
 
-多数 StonkFun 池以股票代币（SPYx / NVDAx / STONK / CARDS 等）计价。钱包只有原生 SOL（或 WSOL）时，不必先换 quote，再用 `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` 在**同一笔交易**内完成 `SOL ↔ quote ↔ meme`：
+StonkFun 池可使用股票/ETF 代币或其他报价币，不能把所有报价币都视为股票代币。钱包只有原生 SOL（或 WSOL）时，不必先换 quote，再用 `SimpleBuyParams::stonkfun_with_sol` / `SimpleSellParams::stonkfun_to_sol` 在**同一笔交易**内完成 `SOL ↔ quote ↔ meme`：
 
 ```rust
 use sol_trade_sdk::{
@@ -827,3 +849,14 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 在仓库中执行 `cargo run --release --locked --example pumpswap_hotpath_benchmark`。内置 JSON 配置默认预热 200 次、采样 1000 次、每次采样执行一笔交易；可在命令末尾传入 JSON 配置文件路径修改次数。买入和卖出分别报告路由搜索与准备、三跳指令构建、V1 交易构建与签名的 p50/p95/p99 微秒。历史账户快照、签名密钥及 blockhash 固定；仅在此基准内将 protocol/buyback 收款候选限制为快照中第一个非零地址，消除生产收款选择的随机性。计时前验证签名，并输出消息哈希与签名以便复现。
 
 快照读取和运行时初始化不计入计时，计时循环不调用 RPC、不广播交易。这是本机 CPU 测量，不代表生产延迟，也不执行 SBF。请在空闲机器上重复运行，以相同配置和快照比较预热后的分布。执行 `cargo test --locked --lib mixed_venue_routes_match_independent_leg_builders_for_each_quote_policy`，可独立核验两个交易方向在所有 exact-quote 策略下与各 venue 直接构建器一致。
+
+### 行情接入与缓存报价示例
+
+[四种接入方式与报价工具](docs/STREAMING_QUOTES.md)：parser/streamer 分别支持
+gRPC 和 shred 交易信号；后台账户缓存独立维护。`PumpSwapRoutingFeed` 封装缓存
+发布，`quote_pool_exact_in`/`quote_exact_in_with_impact` 提供统一报价入口。
+完整启动快照与增量追平后调用 `confirm_bootstrap`，仅在确认完整批次后发布缓存。
+连续订阅中未变更的账户不会因最后写入 slot 过旧而失效，同 slot 新写入也能发布。
+通用实时示例先采集数据，接入数据源的上述保证后再启用缓存发布。
+`bridge_slippage_basis_points` 和 `maximum_bridge_price_impact_basis_points`
+均默认 100（1%），可在初始化时设置。它们按每个中转跳生效，并非整条路径总计 1%。

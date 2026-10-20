@@ -5,6 +5,7 @@ use super::{
 };
 use crate::instruction::utils::{pumpswap as ps, pumpswap_types as types};
 use anyhow::{anyhow, ensure, Context, Result};
+use smallvec::{smallvec, SmallVec};
 use solana_sdk::pubkey::Pubkey;
 use std::collections::BTreeMap;
 
@@ -21,6 +22,10 @@ pub struct PumpSwapRouteSearch {
     pub conversion_pools: Vec<PoolTradeHint>,
     /// Excludes the selected PumpSwap leg. Supported range: 0..=3.
     pub maximum_conversion_hops: usize,
+    /// Execution tolerance per conversion hop; 100 bps by default.
+    pub bridge_slippage_basis_points: u16,
+    /// Maximum deterioration vs a 1/100-size probe per conversion hop.
+    pub maximum_bridge_price_impact_basis_points: u16,
     /// Bounds all explored partial paths, including dead ends. Range: 1..=4096.
     /// Exhaustion returns an error even if a valid route was already found.
     pub maximum_search_nodes: usize,
@@ -39,7 +44,9 @@ impl PumpSwapRouteSearch {
             asset_mint,
             conversion_pools,
             maximum_conversion_hops: 2,
-            maximum_search_nodes: 128,
+            bridge_slippage_basis_points: 100,
+            maximum_bridge_price_impact_basis_points: 100,
+            maximum_search_nodes: 512,
         }
     }
 }
@@ -59,21 +66,68 @@ pub struct PumpSwapRouteSelection {
     pub rejected_routes: Vec<PumpSwapRouteRejection>,
 }
 
+pub(crate) fn canonical_conversion_pools(
+    pools: impl IntoIterator<Item = PoolTradeHint>,
+) -> Result<Vec<PoolTradeHint>> {
+    let mut seen = std::collections::HashMap::new();
+    let mut unique = Vec::new();
+    for hint in pools {
+        let a = canonical(hint.input_mint);
+        let b = canonical(hint.output_mint);
+        ensure!(
+            hint.pool != Pubkey::default()
+                && a != b
+                && a != Pubkey::default()
+                && b != Pubkey::default(),
+            "Invalid bridge pool identity"
+        );
+        let pair = (a.min(b), a.max(b));
+        if let Some(previous) = seen.insert(hint.pool, pair) {
+            ensure!(previous == pair, "Conflicting bridge pool identity");
+        } else {
+            unique.push(PoolTradeHint { pool: hint.pool, input_mint: a, output_mint: b });
+            ensure!(unique.len() <= 128, "Too many bridge pools");
+        }
+    }
+    Ok(unique)
+}
+
+/// Immutable adjacency, validated and sorted once for a routing instance.
+pub(crate) struct ConversionGraph {
+    adjacency: BTreeMap<Pubkey, Vec<PoolTradeHint>>,
+}
+impl ConversionGraph {
+    pub(crate) fn new(pools: &[PoolTradeHint]) -> Result<Self> {
+        ensure!(pools.len() <= 128, "PumpSwap search accepts at most 128 conversion pool hints");
+        let mut candidates = canonical_conversion_pools(pools.iter().copied())?;
+        // Preserve deterministic traversal and tie-breaking by pool identity.
+        candidates.sort_unstable_by_key(|hint| hint.pool);
+        let mut adjacency: BTreeMap<Pubkey, Vec<PoolTradeHint>> = BTreeMap::new();
+        for hint in candidates {
+            adjacency.entry(hint.input_mint).or_default().push(hint);
+            adjacency.entry(hint.output_mint).or_default().push(hint.reversed());
+        }
+        Ok(Self { adjacency })
+    }
+}
+
 struct PathSearch<'a> {
-    pools: &'a [PoolTradeHint],
+    graph: &'a ConversionGraph,
+    excluded_pool: Pubkey,
     target: Pubkey,
     excluded_mint: Pubkey,
     maximum_hops: usize,
     nodes_remaining: usize,
-    paths: Vec<Vec<PoolTradeHint>>,
+    // At most three conversion hops plus the selected PumpSwap leg.
+    paths: Vec<SmallVec<[PoolTradeHint; 4]>>,
 }
 
 impl PathSearch<'_> {
     fn walk(
         &mut self,
         mint: Pubkey,
-        path: &mut Vec<PoolTradeHint>,
-        visited: &mut Vec<Pubkey>,
+        path: &mut SmallVec<[PoolTradeHint; 4]>,
+        visited: &mut SmallVec<[Pubkey; 4]>,
     ) -> Result<()> {
         ensure!(self.nodes_remaining > 0,
             "PumpSwap route search budget exhausted; reduce candidates/hops or increase maximum_search_nodes");
@@ -85,14 +139,11 @@ impl PathSearch<'_> {
         if path.len() == self.maximum_hops {
             return Ok(());
         }
-        for pool in self.pools {
-            let output = if mint == pool.input_mint {
-                pool.output_mint
-            } else if mint == pool.output_mint {
-                pool.input_mint
-            } else {
+        for pool in self.graph.adjacency.get(&mint).into_iter().flatten() {
+            if pool.pool == self.excluded_pool {
                 continue;
-            };
+            }
+            let output = pool.output_mint;
             if output == self.excluded_mint || visited.contains(&output) {
                 continue;
             }
@@ -119,11 +170,29 @@ impl SubscriptionAccountCache {
         is_buy: bool,
     ) -> Result<PumpSwapRouteSelection> {
         ensure!(
-            search.conversion_pools.len() <= 32,
-            "PumpSwap search accepts at most 32 conversion pool hints"
+            search.conversion_pools.iter().all(|hint| hint.pool != search.pool),
+            "Conversion candidates must not reuse the selected PumpSwap pool"
+        );
+        let graph = ConversionGraph::new(&search.conversion_pools)?;
+        self.prepare_best_pumpswap_trade_with_graph(search, request, ctx, is_buy, &graph)
+    }
+
+    pub(crate) fn prepare_best_pumpswap_trade_with_graph(
+        &self,
+        search: &PumpSwapRouteSearch,
+        request: CachedQuoteRequest,
+        ctx: CacheReadContext,
+        is_buy: bool,
+        graph: &ConversionGraph,
+    ) -> Result<PumpSwapRouteSelection> {
+        ensure!(
+            search.conversion_pools.len() <= 128,
+            "PumpSwap search accepts at most 128 conversion pool hints"
         );
         ensure!(
-            search.maximum_conversion_hops <= 3
+            search.bridge_slippage_basis_points < 10_000
+                && search.maximum_bridge_price_impact_basis_points < 10_000
+                && search.maximum_conversion_hops <= 3
                 && (1..=4096).contains(&search.maximum_search_nodes),
             "Invalid PumpSwap route search limits"
         );
@@ -159,50 +228,17 @@ impl SubscriptionAccountCache {
         };
         self.pumpswap(pump, ctx).context("Selected PumpSwap pool is not ready")?;
 
-        // Canonical sorting makes ties deterministic regardless of hint order.
-        // Duplicate/reversed hints collapse; conflicting identities are rejected.
-        let mut candidates = BTreeMap::new();
-        for hint in &search.conversion_pools {
-            ensure!(
-                hint.pool != search.pool,
-                "Conversion candidates must not reuse the selected PumpSwap pool"
-            );
-            let a = canonical(hint.input_mint);
-            let b = canonical(hint.output_mint);
-            ensure!(
-                hint.pool != Pubkey::default()
-                    && a != b
-                    && a != Pubkey::default()
-                    && b != Pubkey::default(),
-                "Invalid conversion pool identity"
-            );
-            let pair = (a.min(b), a.max(b));
-            if let Some(previous) = candidates.insert(hint.pool, pair) {
-                ensure!(
-                    previous == pair,
-                    "Conflicting conversion mint pairs for pool {}",
-                    hint.pool
-                );
-            }
-        }
-        let candidates: Vec<_> = candidates
-            .into_iter()
-            .map(|(pool, (input_mint, output_mint))| PoolTradeHint {
-                pool,
-                input_mint,
-                output_mint,
-            })
-            .collect();
         let (from, to) = if is_buy { (asset, quote) } else { (quote, asset) };
         let mut paths = PathSearch {
-            pools: &candidates,
+            graph,
+            excluded_pool: search.pool,
             target: to,
             excluded_mint: token,
             maximum_hops: search.maximum_conversion_hops,
             nodes_remaining: search.maximum_search_nodes,
             paths: Vec::new(),
         };
-        paths.walk(from, &mut Vec::new(), &mut vec![from])?;
+        paths.walk(from, &mut SmallVec::new(), &mut smallvec![from])?;
         ensure!(
             !paths.paths.is_empty(),
             "No conversion path from {from} to {to} within the supplied candidates and hop limit"
@@ -216,14 +252,27 @@ impl SubscriptionAccountCache {
             } else {
                 path.insert(0, pump);
             }
-            let steps: Vec<_> =
+            let steps: SmallVec<[_; 4]> =
                 path.iter().map(|h| CachedRouteStep { pool: *h, input_amount: None }).collect();
             let (input, output) = if is_buy {
                 (search.asset_mint, search.token_mint)
             } else {
                 (search.token_mint, search.asset_mint)
             };
-            match self.prepare_pumpswap_trade(&steps, input, output, request, ctx, is_buy) {
+            match self.prepare_pumpswap_trade_with_bridge_limits(
+                &steps,
+                input,
+                output,
+                request,
+                ctx,
+                is_buy,
+                Some(super::cached_quote::BridgeQuoteLimits {
+                    slippage_basis_points: search.bridge_slippage_basis_points,
+                    maximum_price_impact_basis_points: search
+                        .maximum_bridge_price_impact_basis_points,
+                    target_pool: search.pool,
+                }),
+            ) {
                 Ok(trade) => {
                     let better = best.as_ref().is_none_or(|previous| {
                         let output = trade.preview().minimum_output_credit;
@@ -249,5 +298,41 @@ impl SubscriptionAccountCache {
             )
         })?;
         Ok(PumpSwapRouteSelection { trade, routes_evaluated, rejected_routes })
+    }
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn usdc_input_starts_at_usdc_and_never_loops_back() {
+        let usdc = crate::constants::USDC_TOKEN_ACCOUNT;
+        let wsol = crate::constants::WSOL_TOKEN_ACCOUNT;
+        let stock = Pubkey::new_unique();
+        let pools = vec![
+            PoolTradeHint { pool: Pubkey::new_unique(), input_mint: wsol, output_mint: usdc },
+            PoolTradeHint { pool: Pubkey::new_unique(), input_mint: usdc, output_mint: stock },
+            PoolTradeHint { pool: Pubkey::new_unique(), input_mint: wsol, output_mint: stock },
+        ];
+        let graph = ConversionGraph::new(&pools).unwrap();
+        let mut search = PathSearch {
+            graph: &graph,
+            excluded_pool: Pubkey::default(),
+            target: stock,
+            excluded_mint: Pubkey::new_unique(),
+            maximum_hops: 3,
+            nodes_remaining: 512,
+            paths: Vec::new(),
+        };
+        search.walk(usdc, &mut SmallVec::new(), &mut smallvec![usdc]).unwrap();
+        assert_eq!(search.paths.len(), 2);
+        assert!(search.paths.iter().any(|p| p.len() == 1 && p[0].pool == pools[1].pool));
+        assert!(search.paths.iter().any(|p| p.len() == 2 && p[0].output_mint == wsol));
+        for path in search.paths {
+            assert_eq!(path[0].input_mint, usdc);
+            assert!(path.iter().all(|hop| hop.output_mint != usdc));
+            assert_eq!(path.last().unwrap().output_mint, stock);
+        }
     }
 }
