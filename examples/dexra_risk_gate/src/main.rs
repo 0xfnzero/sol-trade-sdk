@@ -111,9 +111,9 @@ impl Refresher {
             .await?;
         match response.status().as_u16() {
             200 => Ok(response.json::<Envelope>().await?.result.launches),
-            401 => bail!("DEXRA_API_KEY is invalid or revoked"),
+            401 => bail!("DEXRA_API_KEY is not a Dexra key, or it was revoked"),
             402 => {
-                bail!("payment required: the key is not recognized, or today's credits are spent")
+                bail!("payment required: today's credits are spent or the plan does not cover this feed")
             }
             429 => bail!("rate limited; raise DEXRA_POLL_SECS"),
             status => bail!("HTTP {status}: {}", response.text().await.unwrap_or_default()),
