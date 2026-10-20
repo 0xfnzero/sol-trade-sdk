@@ -58,6 +58,7 @@ cargo run --features parser-adapter --example pumpswap_streaming_quotes -- --sou
   `raydium_cpmm_trading`、`meteora_damm_v2_direct_trading`。
 - 基础设施：`address_lookup`、`nonce_cache`、`middleware_system`、`seed_trading`、
   `gas_fee_strategy`、`wsol_wrapper`、`cli_trading`。
+- 风控：`dexra_risk_gate`（由托管审计 API 刷新的买入前闸门；无需钱包）。
 
 生产用法参考 [低延迟指南](../docs/LOW_LATENCY_BOTS_CN.md)。在回调里查询 RPC
 的旧模板只用于展示协议参数映射；热路径应使用后台刷新状态和自己的下单金额。

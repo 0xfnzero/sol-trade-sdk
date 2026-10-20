@@ -119,6 +119,8 @@ match client.buy_simple(buy_params).await {
 
 The snippets use application-specific placeholders such as `client`, `safe_mint`, `risky_mint`, `buy_params`, and the result handlers. Replace them with values from your trading application.
 
+The [`dexra_risk_gate`](../examples/dexra_risk_gate/README.md) example is a complete gate of this shape whose snapshot is refreshed from a hosted audit API.
+
 ## Cache policy
 
 A snapshot should contain enough metadata for your application to decide whether it is still trustworthy. Common metadata includes the source slot, fetch time, expiry time, provider version, and the checks that produced the verdict.

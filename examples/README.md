@@ -62,6 +62,7 @@ Read each directory's README before configuring keys and mainnet accounts.
   `raydium_cpmm_trading`, `meteora_damm_v2_direct_trading`.
 - Infrastructure: `address_lookup`, `nonce_cache`, `middleware_system`,
   `seed_trading`, `gas_fee_strategy`, `wsol_wrapper`, `cli_trading`.
+- Risk: `dexra_risk_gate` (pre-buy gate fed by a hosted audit API; no wallet needed).
 
 For production patterns, use [low-latency guidance](../docs/LOW_LATENCY_BOTS.md).
 An event callback that fetches RPC state is a protocol demonstration, not the

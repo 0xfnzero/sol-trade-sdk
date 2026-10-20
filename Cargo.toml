@@ -36,6 +36,7 @@ members = [
     "examples/meteora_damm_v2_direct_trading",
     "examples/simple_trading",
     "examples/stonkfun_via_sol_simulate",
+    "examples/dexra_risk_gate",
 ]
 [workspace.dependencies]
 sol-parser-sdk = { path = "../sol-parser-sdk", version = "=0.8.0" }

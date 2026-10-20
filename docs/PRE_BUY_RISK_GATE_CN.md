@@ -119,6 +119,8 @@ match client.buy_simple(buy_params).await {
 
 示例中的 `client`、`safe_mint`、`risky_mint`、`buy_params` 和结果处理函数是应用占位符，需要替换为交易程序中的实际对象。
 
+[`dexra_risk_gate`](../examples/dexra_risk_gate/README_CN.md) 示例是这种结构的完整闸门，其快照由托管审计 API 刷新。
+
 ## 缓存策略
 
 风险快照应携带足够的元数据，供应用判断它是否仍然可信，例如数据源 slot、抓取时间、过期时间、服务版本和已完成的检查项目。
