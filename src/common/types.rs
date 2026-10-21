@@ -93,8 +93,19 @@ pub struct SwqosSubmitTiming {
     pub submit_done_us: i64,
 }
 
+/// Pump.fun instruction version, independent of the Solana transaction format.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PumpFunVersion {
+    Legacy,
+    V2,
+    #[default]
+    V3,
+}
+
 #[derive(Debug, Clone)]
 pub struct TradeConfig {
+    /// Default Pump.fun version for unversioned requests and curve route legs.
+    pub pumpfun_version: PumpFunVersion,
     /// Instance-scoped bridge registry and subscription snapshot handle.
     pub pumpswap_routing: Option<std::sync::Arc<crate::client::PumpSwapRouting>>,
     pub rpc_url: String,
@@ -130,6 +141,7 @@ impl TradeConfig {
     /// - `.swqos_cores_from_end(bool)`        — bind SWQOS to last N cores (default: false)
     /// - `.mev_protection(bool)`              — MEV protection for Astralane/BlockRazor/Glaive (default: false)
     /// - `.transaction_version(version)`      — use V0-compatible mode (default) or V1
+    /// - `.pumpfun_version(version)`          — Pump.fun instructions: V3 (default), V2 or Legacy
     ///
     /// # Example
     /// ```rust,ignore
@@ -164,6 +176,7 @@ impl TradeConfig {
 /// Call `.build()` to produce the final [`TradeConfig`].
 #[derive(Debug, Clone)]
 pub struct TradeConfigBuilder {
+    pumpfun_version: PumpFunVersion,
     pumpswap_routing: Option<std::sync::Arc<crate::client::PumpSwapRouting>>,
     rpc_url: String,
     swqos_configs: Vec<SwqosConfig>,
@@ -180,6 +193,7 @@ pub struct TradeConfigBuilder {
 impl TradeConfigBuilder {
     fn new(rpc_url: String, swqos_configs: Vec<SwqosConfig>, commitment: CommitmentConfig) -> Self {
         Self {
+            pumpfun_version: PumpFunVersion::default(),
             pumpswap_routing: None,
             rpc_url,
             swqos_configs,
@@ -209,6 +223,12 @@ impl TradeConfigBuilder {
     /// Select the Solana transaction construction mode. Default: [`TradeTransactionVersion::V0`].
     pub fn transaction_version(mut self, version: TradeTransactionVersion) -> Self {
         self.transaction_version = version;
+        self
+    }
+
+    /// Select the default Pump.fun instruction version. Default: V3.
+    pub fn pumpfun_version(mut self, version: PumpFunVersion) -> Self {
+        self.pumpfun_version = version;
         self
     }
 
@@ -260,6 +280,7 @@ impl TradeConfigBuilder {
             swqos_configs: self.swqos_configs,
             commitment: self.commitment,
             transaction_version: self.transaction_version,
+            pumpfun_version: self.pumpfun_version,
             create_wsol_ata_on_startup: self.create_wsol_ata_on_startup,
             use_seed_optimize: self.use_seed_optimize,
             log_enabled: self.log_enabled,
@@ -285,6 +306,7 @@ mod tests {
             CommitmentConfig::processed(),
         );
         assert_eq!(config.transaction_version, TradeTransactionVersion::V0);
+        assert_eq!(config.pumpfun_version, PumpFunVersion::V3);
         assert!(!config.log_enabled);
     }
 
@@ -296,9 +318,11 @@ mod tests {
             CommitmentConfig::processed(),
         )
         .transaction_version(TradeTransactionVersion::V1)
+        .pumpfun_version(PumpFunVersion::V2)
         .log_enabled(true)
         .build();
         assert_eq!(config.transaction_version, TradeTransactionVersion::V1);
+        assert_eq!(config.pumpfun_version, PumpFunVersion::V2);
         assert!(config.log_enabled);
     }
 }

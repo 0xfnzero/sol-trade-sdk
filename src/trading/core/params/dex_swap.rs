@@ -31,6 +31,14 @@ pub struct SenderConcurrencyConfig {
 #[derive(Clone)]
 pub enum DexParamEnum {
     PumpFun(PumpFunParams),
+    /// Explicit per-request version; overrides TradeConfig's default.
+    PumpFunVersioned {
+        params: PumpFunParams,
+        version: crate::common::PumpFunVersion,
+    },
+    PumpFunV3(super::PumpFunV3Params),
+    /// Explicit funding/receipt conversion and Pump.fun inner-curve trade.
+    PumpFunQuoteRoute(super::PumpFunQuoteRoute),
     PumpSwap(PumpSwapParams),
     /// Target pool identity; requires configured PumpSwapRouting on TradingClient.
     /// Executable parameters and bridge quotes are loaded only from its cache.
@@ -62,6 +70,9 @@ impl DexParamEnum {
     pub fn as_any(&self) -> &dyn std::any::Any {
         match self {
             DexParamEnum::PumpFun(p) => p,
+            DexParamEnum::PumpFunVersioned { params, .. } => params,
+            DexParamEnum::PumpFunV3(p) => p,
+            DexParamEnum::PumpFunQuoteRoute(p) => p,
             DexParamEnum::PumpSwap(p) => p,
             DexParamEnum::PumpSwapAutoRoute(p) => p,
             DexParamEnum::PumpSwapQuoteRoute(p) => p,

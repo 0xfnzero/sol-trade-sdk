@@ -16,6 +16,17 @@ pub struct TokenTransferFee {
 }
 
 impl TokenTransferFee {
+    /// Cold-path mint validation and active fee snapshot. Do not call while
+    /// assembling a route; subscriptions should refresh this outside the hot path.
+    pub async fn from_mint_by_rpc(
+        rpc: &SolanaRpcClient,
+        mint: &Pubkey,
+    ) -> anyhow::Result<(Pubkey, Self)> {
+        let account = rpc.get_account(mint).await?;
+        let epoch = rpc.get_epoch_info().await?.epoch;
+        Ok((account.owner, token_transfer_fee_for_epoch(&account.data, account.owner, epoch)?))
+    }
+
     #[inline]
     pub fn calculate(&self, amount: u64) -> u64 {
         if self.basis_points == 0 || amount == 0 {

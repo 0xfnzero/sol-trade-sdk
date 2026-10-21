@@ -33,6 +33,34 @@ fn pair(hop: &StonkFunQuoteHop) -> Result<(Pubkey, Pubkey)> {
     let input = normalize_native_sol(hop.input_mint);
     let output = normalize_native_sol(hop.output_mint);
     let (a, b, pa, pb) = match &hop.venue {
+        PumpFunV3 { mint, params } => {
+            let (quote, base_program, quote_program) = super::pumpfun_v3::validate(params, *mint)?;
+            if quote == crate::constants::WSOL_TOKEN_ACCOUNT {
+                bail!("V3 multi-hop curve requires a token quote; native SOL curves use direct V3 trades")
+            }
+            (*mint, quote, base_program, quote_program)
+        }
+        PumpFun { mint, curve, quote_token_program, .. } => {
+            let quote = curve.bonding_curve.effective_quote_mint();
+            let expected_curve = crate::instruction::utils::pumpfun::get_bonding_curve_pda(mint)
+                .ok_or_else(|| anyhow!("Invalid PumpFun bonding-curve mint"))?;
+            if curve.bonding_curve.complete || curve.bonding_curve.account != expected_curve {
+                bail!("PumpFun route requires the matching, uncompleted bonding curve")
+            }
+            if *mint == quote
+                || *mint == Pubkey::default()
+                || quote == crate::constants::WSOL_TOKEN_ACCOUNT
+                || curve.quote_mint != quote
+            {
+                bail!("PumpFun route requires a consistent non-native quote mint")
+            }
+            (
+                *mint,
+                quote,
+                super::pumpfun::effective_pump_mint_token_program(curve, mint),
+                *quote_token_program,
+            )
+        }
         PumpSwap { pool: p, .. } => {
             (p.base_mint, p.quote_mint, p.base_token_program, p.quote_token_program)
         }
@@ -122,6 +150,15 @@ pub(crate) fn plan_route(
         // minimum against the un-discounted quote, not the final market's global
         // tolerance: a bridge may intentionally require a tighter minimum.
         let minimum_credit = match &hop.venue {
+            StonkFunQuoteVenue::PumpFunV3 { .. } => hop.minimum_amount_out,
+            StonkFunQuoteVenue::PumpFun { base_transfer_fee, quote_transfer_fee, .. } => {
+                if base_transfer_fee.basis_points != 0 || quote_transfer_fee.basis_points != 0 {
+                    bail!("PumpFun quote routes require zero transfer fees on both mints")
+                }
+                // Explicit caller quote, enforced by buy_exact_quote_in_v2/sell_v2.
+                // Do not apply SOL reserve assumptions to an arbitrary stock quote.
+                hop.minimum_amount_out
+            }
             StonkFunQuoteVenue::PumpSwap { pool, base_transfer_fee, quote_transfer_fee } => {
                 pool.validate_accounts()?;
                 for fee in [base_transfer_fee, quote_transfer_fee] {
@@ -240,10 +277,12 @@ pub(crate) async fn build_quote_route(
     route: &StonkFunQuoteRoute,
     is_buy: bool,
 ) -> Result<Vec<Instruction>> {
-    if matches!(params.protocol_params, DexParamEnum::PumpSwapQuoteRoute(_))
-        && (params.fixed_output_amount.is_some() || params.use_exact_sol_amount == Some(false))
+    if matches!(
+        params.protocol_params,
+        DexParamEnum::PumpSwapQuoteRoute(_) | DexParamEnum::PumpFunQuoteRoute(_)
+    ) && (params.fixed_output_amount.is_some() || params.use_exact_sol_amount == Some(false))
     {
-        bail!("PumpSwap quote routes require exact-input sizing")
+        bail!("Pump quote routes require exact-input sizing")
     }
     let amount =
         params.input_amount.ok_or_else(|| anyhow!("Quote route requires an exact input amount"))?;
@@ -277,7 +316,11 @@ pub(crate) async fn build_quote_route(
     // creation is not idempotent, so PumpSwap routes consistently use real ATAs
     // for both setup and every venue's user accounts.
     let use_seed = params.open_seed_optimize
-        && !matches!(params.protocol_params, DexParamEnum::PumpSwapQuoteRoute(_));
+        && !plan.hops.iter().any(|h| matches!(h.hop.venue, StonkFunQuoteVenue::PumpFunV3 { .. }))
+        && !matches!(
+            params.protocol_params,
+            DexParamEnum::PumpSwapQuoteRoute(_) | DexParamEnum::PumpFunQuoteRoute(_)
+        );
     let mut instructions = Vec::new();
     if params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT && !params.create_input_mint_ata {
         instructions.extend(crate::trading::common::fund_existing_wsol(&payer, amount));
@@ -328,7 +371,28 @@ pub(crate) async fn build_quote_route(
         leg.close_input_mint_ata = false;
         leg.close_output_mint_ata = false;
         use StonkFunQuoteVenue::*;
-        let ixs = match &hop.hop.venue {
+        let mut ixs = match &hop.hop.venue {
+            PumpFunV3 { mint, params } => {
+                let mut v3 = params.clone();
+                v3.minimum_output_amount = hop.hop.minimum_amount_out;
+                v3.curve.close_token_account_when_sell = Some(false);
+                leg.fixed_output_amount = None;
+                leg.use_exact_sol_amount = Some(true);
+                super::pumpfun_v3::build(&leg, &v3, hop.output == *mint)?
+            }
+            PumpFun { mint, curve, quote_token_program, .. } => {
+                let mut curve = curve.clone();
+                curve.close_token_account_when_sell = Some(false);
+                leg.protocol_params = DexParamEnum::PumpFun(curve);
+                leg.fixed_output_amount = None;
+                leg.use_exact_sol_amount = Some(true);
+                super::pumpfun::build_quote_hop(
+                    &leg,
+                    hop.hop.minimum_amount_out,
+                    hop.output == *mint,
+                    *quote_token_program,
+                )?
+            }
             PumpSwap { pool, .. } => {
                 leg.protocol_params = DexParamEnum::PumpSwap(pool.clone());
                 leg.fixed_output_amount = None;
@@ -369,6 +433,10 @@ pub(crate) async fn build_quote_route(
                     .await?
             }
         };
+        // Reserve-based builders derive a minimum from the top-level tolerance.
+        // The route's independently quoted per-hop threshold is authoritative:
+        // later hops may spend exactly this guaranteed credit.
+        set_route_minimum(&mut ixs, hop)?;
         instructions.extend(ixs);
     }
     if params.close_input_mint_ata {
@@ -378,6 +446,44 @@ pub(crate) async fn build_quote_route(
         token_account_setup::push_close_wsol_if_needed(&mut instructions, &payer, &target)
     }
     Ok(instructions)
+}
+
+fn set_route_minimum(ixs: &mut [Instruction], hop: &PlannedHop<'_>) -> Result<()> {
+    use super::utils::{pumpswap, raydium_amm_v4, raydium_cpmm};
+    let (program, offset) = match &hop.hop.venue {
+        StonkFunQuoteVenue::PumpSwap { .. } => (pumpswap::accounts::AMM_PROGRAM, 16),
+        StonkFunQuoteVenue::RaydiumCpmm(_) => (raydium_cpmm::accounts::RAYDIUM_CPMM, 16),
+        StonkFunQuoteVenue::RaydiumAmmV4(_) => (raydium_amm_v4::accounts::RAYDIUM_AMM_V4, 9),
+        _ => return Ok(()), // These builders already receive the explicit threshold.
+    };
+    let mut matches = ixs.iter_mut().filter(|ix| {
+        ix.program_id == program
+            && match &hop.hop.venue {
+                StonkFunQuoteVenue::PumpSwap { .. } => {
+                    ix.data.starts_with(&pumpswap::BUY_EXACT_QUOTE_IN_DISCRIMINATOR)
+                        || ix.data.starts_with(&pumpswap::SELL_DISCRIMINATOR)
+                }
+                StonkFunQuoteVenue::RaydiumCpmm(_) => {
+                    ix.data.starts_with(raydium_cpmm::SWAP_BASE_IN_DISCRIMINATOR)
+                }
+                StonkFunQuoteVenue::RaydiumAmmV4(_) => {
+                    ix.data.starts_with(raydium_amm_v4::SWAP_BASE_IN_DISCRIMINATOR)
+                        || ix.data.starts_with(raydium_amm_v4::SWAP_BASE_IN_V2_DISCRIMINATOR)
+                }
+                _ => false,
+            }
+    });
+    let ix = matches
+        .next()
+        .ok_or_else(|| anyhow!("Route builder omitted the expected exact-input swap"))?;
+    if matches.next().is_some() {
+        bail!("Ambiguous route swap instructions")
+    }
+    ix.data
+        .get_mut(offset..offset + 8)
+        .ok_or_else(|| anyhow!("Truncated route swap"))?
+        .copy_from_slice(&hop.hop.minimum_amount_out.to_le_bytes());
+    Ok(())
 }
 
 #[cfg(test)]

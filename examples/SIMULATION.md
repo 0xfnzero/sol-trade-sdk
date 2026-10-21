@@ -2,6 +2,68 @@
 
 所有命令均在本仓库运行，使用 Rust 示例，不需要工作区外的 Python 测试脚本。离线测试与示例索引见 [README](README_CN.md)。以下银行模拟需要网络，不广播交易。
 
+## Pump.fun V1 / V2 / V3 内盘模拟
+
+统一入口为 `pumpfun_simulate`。默认 V3；`--version v1` 对应 Legacy。
+读取当前 mint/内盘和费用账户后构建指令，再调用 `simulateTransaction`。
+不传 `--pool` 为直接买卖，传 CPMM 池为股票报价币多跳。V1 不支持股票币多跳。
+
+```sh
+cargo run --example pumpfun_simulate -- --help
+export SOLANA_RPC_URL='YOUR_RPC_URL'
+
+# V1/V2 原生 SOL 内盘买入。替换 mint、金额和本地钱包路径；v1 可替换为 v2。
+cargo run --example pumpfun_simulate -- --version v1 \
+  --mint CURRENT_ACTIVE_MINT --amount RAW_SOL_INPUT --keypair /path/to/wallet.json \
+  --slippage-bps 100 --report /tmp/pump-v1-buy.json
+
+# V2 原生 SOL 内盘独立卖出。钱包必须真实持有输入币。
+cargo run --example pumpfun_simulate -- --version v2 --sell \
+  --mint CURRENT_ACTIVE_MINT --amount RAW_TOKEN_INPUT --keypair /path/to/wallet.json \
+  --slippage-bps 100 --report /tmp/pump-v2-sell.json
+
+# V3 直接买入；--sell 切换独立卖出。
+cargo run --example pumpfun_simulate -- --version v3 \
+  --mint CURRENT_ACTIVE_MINT --amount RAW_INPUT --curve-min-out RAW_MIN_OUTPUT \
+  --keypair /path/to/wallet.json --report /tmp/pump-v3-buy.json
+
+# V2/V3 股票币多跳；买入 USDC → 股票币 → 内盘币。
+cargo run --example pumpfun_simulate -- --version v3 --asset USDC \
+  --mint CURRENT_STOCK_QUOTED_MINT --pool CURRENT_CPMM_POOL \
+  --amount RAW_USDC_INPUT --curve-min-out RAW_TARGET_MIN \
+  --keypair /path/to/wallet.json --report /tmp/pump-stock-buy.json
+
+# 卖出 内盘币 → 股票币 → SOL。CPMM 必须连接股票币与 WSOL。
+cargo run --example pumpfun_simulate -- --version v2 --sell --asset SOL \
+  --mint CURRENT_STOCK_QUOTED_MINT --pool CURRENT_CPMM_POOL \
+  --amount RAW_TOKEN_INPUT --curve-min-out RAW_STOCK_MIN \
+  --keypair /path/to/wallet.json --report /tmp/pump-stock-sell.json
+```
+
+以上大写参数是占位符，必须替换为当前有效账户与独立报价。不要用历史签名中的
+金额冒充当前报价；已毕业的内盘会报错。各版本都支持独立买/卖：增加或移除
+`--sell` 即可，金额和最低输出也必须换成相应币的单位。
+
+V1/V2 原生 SOL 直接交易使用 SDK 快照报价和 `--slippage-bps`，打印实际编码的
+输入/最低输出；该模式拒绝 `--curve-min-out`，防止参数被忽略。V2 非原生报价币
+直接交易、V3 直接交易和所有股票多跳均要求显式 `--curve-min-out`。
+买入时它是目标币最低数量，卖出时是内盘报价币最低数量。多跳中
+`--slippage-bps` 只控制 CPMM 兑换跳；`--asset` 可选 SOL、WSOL、USDC。
+
+钱包密钥文件仅供 SDK 获取正确钱包身份与派生 ATA，交易签名保持空值，
+使用 `sigVerify=false`；不签名、不广播。钱包仍必须在当前链上有足够 SOL
+支付模拟中的费用/租金，以及所需输入代币。模拟买入不会持久化余额，不能据此
+直接进行下一次独立卖出模拟。V3 不接受 cashback 内盘，当前集成要求零转账税。
+
+报告包括请求版本、方向、账户/指令数据、未签名 wire、模拟 slot、CU、日志和
+`response.value.err`；银行执行失败也会保存报告并返回非零退出码。
+预检查、构建或 RPC 传输失败不会生成成功报告。报告路径必须不存在。
+当前入口使用 **Solana V1 交易消息**，与 Pump.fun 指令 V1/V2/V3 是不同概念；
+RPC 必须支持该消息格式。该模拟不验证签名授权，也不等价于真实成交。
+
+`pumpfun_stock_route` 仍然只构建，默认离线；`--live` 只加载账户，不会模拟。
+两个入口共享 `support/pumpfun_example.rs`，避免两套路由组装逻辑。
+
 ## gRPC → 本地报价 → 模拟
 
 配置 `GRPC_URL`、`GRPC_TOKEN` 和可选的 `RPC_URL`。RPC 仅用于冷启动、模拟资金准备和显式模拟；报价与指令构建热路径使用订阅缓存。

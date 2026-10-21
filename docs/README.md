@@ -6,6 +6,7 @@ Start with the [examples](../examples/README.md) / [中文示例索引](../examp
 
 - [Streaming quotes](STREAMING_QUOTES.md): parser/streamer sources and account-cache lifecycle.
 - [PumpSwap quote routing](PUMPSWAP_QUOTE_ROUTING.md): quoting, route selection and protection.
+- [Pump.fun stock routes](PUMPFUN_STOCK_ROUTES.md): bonding-curve buys/sells through a stock quote mint.
 - [Bridge defaults](PUMPSWAP_BRIDGE_DEFAULTS.md): catalog policy and cross-DEX pool candidates.
 - [StonkFun routes](STONKFUN_ROUTES.md): explicit target and funding legs.
 - [StonkFun gRPC examples](STONKFUN_GRPC_EXAMPLES.md): online simulation prerequisites.

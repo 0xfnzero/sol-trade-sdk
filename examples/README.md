@@ -8,6 +8,11 @@ Run from the repository root. A root `examples/*.rs` target uses
 
 ## Offline replay and preparation
 
+- `pumpfun_stock_route`: SOL/WSOL/USDC → stock quote → **Pump.fun bonding curve**,
+  V3 by default (`--version v2` for V2),
+  or an independently prepared sell. Synthetic construction by default;
+  `--live` loads current curve/CPMM accounts without sending a transaction.
+  See [commands and quote requirements](../docs/PUMPFUN_STOCK_ROUTES.md).
 - `stock_conversion_replay`: extract approved conversion pools from six signed
   Stonk/Pump transactions; keeps each leg's DEX identity.
 - `pumpswap_streaming_quotes`: captured-account quote replay by default.
@@ -25,6 +30,10 @@ Use `-- --help` for either entry point. The stock replay accepts `--fixture FILE
 with a raw saved RPC response or a cases capture. Historical data is not live state.
 
 ## Online quotes and simulations
+
+- `pumpfun_simulate`: current-account RPC simulation for V1/V2/V3 direct buys/sells
+  and V2/V3 stock routes. No broadcast; prints logs, CU and execution errors.
+  Run `cargo run --example pumpfun_simulate -- --help`; see [commands](SIMULATION.md).
 
 Quote/depth tools share `support/account_snapshot.rs`. It requires base64 account
 data and validates the Clock owner and snapshot slot before creating a cache.

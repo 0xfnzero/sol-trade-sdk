@@ -8,6 +8,10 @@
 
 ## 离线回放与构建
 
+- `pumpfun_stock_route`：SOL/WSOL/USDC → 股票报价币 → **Pump.fun 内盘**，
+  默认 V3，`--version v2` 可选择 V2；
+  并支持独立构建卖出路径。默认使用合成账户；`--live` 加载当前内盘与 CPMM
+  账户，只构建、不发送交易。[运行命令与报价要求](../docs/PUMPFUN_STOCK_ROUTES.md)。
 - `stock_conversion_replay`：回放 6 笔 Stonk/Pump 真实交易，逐跳提取已核验兑换池。
 - `pumpswap_streaming_quotes`：默认使用保存的账户快照验证报价，不连接网络。
 - `pumpswap_cached_prepare`、`stonkfun_cached_prepare`：基于缓存构建交易参数。
@@ -24,6 +28,9 @@ cargo run --features parser-adapter --example pumpswap_streaming_quotes
 可读取单笔 RPC 保存结果或 cases 集合；历史数据不会变成实时状态。
 
 ## 在线订阅与模拟
+
+- `pumpfun_simulate`：V1/V2/V3 内盘独立买卖，以及 V2/V3 股票币多跳，
+  输出 RPC 模拟日志、CU 和错误，不广播。[参数与命令](SIMULATION.md#pumpfun-v1--v2--v3-内盘模拟)。
 
 报价与深度工具共用 `support/account_snapshot.rs`，要求 base64 账户数据，
 并在创建缓存前校验 Clock 的 owner 与快照 slot。公共输入处理放在 `support/`，

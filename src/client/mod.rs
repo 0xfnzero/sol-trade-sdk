@@ -2,8 +2,8 @@
 
 mod pumpswap_routing;
 mod pumpswap_routing_feed;
-pub use pumpswap_routing_feed::PumpSwapRoutingFeed;
 pub use pumpswap_routing::{PumpSwapRouting, PumpSwapRoutingConfig};
+pub use pumpswap_routing_feed::PumpSwapRoutingFeed;
 
 use crate::common::nonce_cache::DurableNonceInfo;
 use crate::common::sdk_log;
@@ -24,7 +24,6 @@ use crate::swqos::TradeType;
 use crate::trading::core::params::DexParamEnum;
 use crate::trading::core::params::MeteoraDammV2Params;
 use crate::trading::core::params::MeteoraDlmmParams;
-use crate::trading::core::params::PumpFunParams;
 use crate::trading::core::params::RaydiumAmmV4Params;
 use crate::trading::core::params::RaydiumClmmParams;
 use crate::trading::core::params::RaydiumCpmmParams;
@@ -48,7 +47,13 @@ use tracing::{debug, error, info, warn};
 #[inline(always)]
 fn validate_protocol_params(dex_type: DexType, params: &DexParamEnum) -> bool {
     match dex_type {
-        DexType::PumpFun => params.as_any().downcast_ref::<PumpFunParams>().is_some(),
+        DexType::PumpFun => matches!(
+            params,
+            DexParamEnum::PumpFun(_)
+                | DexParamEnum::PumpFunVersioned { .. }
+                | DexParamEnum::PumpFunV3(_)
+                | DexParamEnum::PumpFunQuoteRoute(_)
+        ),
         DexType::PumpSwap => {
             matches!(params, DexParamEnum::PumpSwap(_) | DexParamEnum::PumpSwapQuoteRoute(_))
         }
@@ -70,6 +75,54 @@ fn validate_protocol_params(dex_type: DexType, params: &DexParamEnum) -> bool {
         DexType::OrcaWhirlpool => params.as_any().downcast_ref::<WhirlpoolParams>().is_some(),
         DexType::MeteoraDlmm => params.as_any().downcast_ref::<MeteoraDlmmParams>().is_some(),
     }
+}
+
+fn resolve_pumpfun_version(
+    mut params: DexParamEnum,
+    version: crate::common::PumpFunVersion,
+) -> anyhow::Result<DexParamEnum> {
+    use crate::common::PumpFunVersion;
+    if let DexParamEnum::PumpFun(curve) = params {
+        return Ok(DexParamEnum::PumpFunVersioned { params: curve, version });
+    }
+    let route = match &mut params {
+        DexParamEnum::PumpFunQuoteRoute(r)
+        | DexParamEnum::PumpSwapQuoteRoute(r)
+        | DexParamEnum::StonkFunQuoteRoute(r) => Some(r),
+        _ => None,
+    };
+    if let Some(route) = route {
+        for hop in route.buy_hops.iter_mut().chain(&mut route.sell_hops) {
+            if let crate::PumpFunQuoteVenue::PumpFun {
+                mint,
+                curve,
+                quote_token_program,
+                base_transfer_fee,
+                quote_transfer_fee,
+            } = &hop.venue
+            {
+                match version {
+                    PumpFunVersion::Legacy => anyhow::bail!(
+                        "Legacy Pump.fun does not support stock quote routes; select V2 or V3"
+                    ),
+                    PumpFunVersion::V2 => {}
+                    PumpFunVersion::V3 => {
+                        hop.venue = crate::PumpFunQuoteVenue::PumpFunV3 {
+                            mint: *mint,
+                            params: crate::PumpFunV3Params {
+                                curve: curve.clone(),
+                                quote_token_program: *quote_token_program,
+                                minimum_output_amount: hop.minimum_amount_out,
+                                base_transfer_fee: *base_transfer_fee,
+                                quote_transfer_fee: *quote_transfer_fee,
+                            },
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(params)
 }
 
 /// Optional pre-buy gate for cached token/routing risk checks.
@@ -899,6 +952,7 @@ pub struct TradingClient {
     pub check_min_tip: bool,
     /// Solana transaction construction mode selected in `TradeConfig`.
     pub transaction_version: TradeTransactionVersion,
+    pub pumpfun_version: crate::common::PumpFunVersion,
 }
 
 static INSTANCE: Mutex<Option<Arc<TradingClient>>> = Mutex::new(None);
@@ -922,6 +976,7 @@ impl Clone for TradingClient {
             log_enabled: self.log_enabled,
             check_min_tip: self.check_min_tip,
             transaction_version: self.transaction_version,
+            pumpfun_version: self.pumpfun_version,
         }
     }
 }
@@ -1054,6 +1109,7 @@ fn buy_account_flags_for(policy: AccountPolicy, extension: &DexParamEnum) -> (bo
         && matches!(
             extension,
             DexParamEnum::StonkFunViaSol(_)
+                | DexParamEnum::PumpFunQuoteRoute(_)
                 | DexParamEnum::StonkFunQuoteRoute(_)
                 | DexParamEnum::PumpSwapQuoteRoute(_)
                 | DexParamEnum::PumpSwapAutoRoute(_)
@@ -1085,6 +1141,7 @@ fn sell_account_flags_for(
         && matches!(
             extension,
             DexParamEnum::StonkFunViaSol(_)
+                | DexParamEnum::PumpFunQuoteRoute(_)
                 | DexParamEnum::StonkFunQuoteRoute(_)
                 | DexParamEnum::PumpSwapQuoteRoute(_)
                 | DexParamEnum::PumpSwapAutoRoute(_)
@@ -1211,6 +1268,7 @@ impl TradingClient {
             log_enabled: false,
             check_min_tip: false,
             transaction_version: TradeTransactionVersion::V0,
+            pumpfun_version: crate::common::PumpFunVersion::default(),
         }
     }
 
@@ -1260,6 +1318,7 @@ impl TradingClient {
             log_enabled: false,
             check_min_tip: false,
             transaction_version: TradeTransactionVersion::V0,
+            pumpfun_version: crate::common::PumpFunVersion::default(),
         }
     }
 
@@ -1441,6 +1500,7 @@ impl TradingClient {
             log_enabled: trade_config.log_enabled,
             check_min_tip: trade_config.check_min_tip,
             transaction_version: trade_config.transaction_version,
+            pumpfun_version: trade_config.pumpfun_version,
         };
 
         let mut current = INSTANCE.lock();
@@ -1452,6 +1512,12 @@ impl TradingClient {
     /// Attach bridge routing when constructing a client from shared infrastructure.
     pub fn with_pumpswap_routing(mut self, routing: Arc<PumpSwapRouting>) -> Self {
         self.pumpswap_routing = Some(routing);
+        self
+    }
+
+    /// Configure Pump.fun on clients built from shared infrastructure. Default: V3.
+    pub fn with_pumpfun_version(mut self, version: crate::common::PumpFunVersion) -> Self {
+        self.pumpfun_version = version;
         self
     }
 
@@ -1717,7 +1783,8 @@ impl TradingClient {
         if let Some(risk_gate) = self.risk_gate.as_deref() {
             risk_gate.check_buy(&params)?;
         }
-        let protocol_params = params.extension_params;
+        let protocol_params =
+            resolve_pumpfun_version(params.extension_params, self.pumpfun_version)?;
         let input_token_mint = params.input_token_type.mint();
         let buy_params = SwapParams {
             rpc: Some(self.infrastructure.rpc.clone()),
@@ -1867,7 +1934,8 @@ impl TradingClient {
                 "Must provide either recent_blockhash or durable_nonce for sell (required for transaction validity)"
             ));
         }
-        let protocol_params = params.extension_params;
+        let protocol_params =
+            resolve_pumpfun_version(params.extension_params, self.pumpfun_version)?;
         if !validate_protocol_params(params.dex_type, &protocol_params) {
             return Err(anyhow::anyhow!(
                 "Invalid protocol params for Trade (dex={:?})",
@@ -2220,6 +2288,7 @@ mod tests {
     use super::*;
     use crate::instruction::utils::pumpfun::global_constants;
     use crate::swqos::SwqosRegion;
+    use crate::trading::core::params::PumpFunParams;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -2251,6 +2320,123 @@ mod tests {
             fee_recipient: global_constants::FEE_RECIPIENT,
             quote_mint: Pubkey::default(),
         })
+    }
+
+    #[tokio::test]
+    async fn pumpfun_client_version_controls_both_instruction_directions() {
+        use crate::common::PumpFunVersion;
+        use crate::instruction::pumpfun::PumpFunInstructionBuilder;
+        use crate::trading::core::traits::InstructionBuilder;
+        let infra = Arc::new(TradingInfrastructure {
+            rpc: Arc::new(SolanaRpcClient::new("https://example.invalid".into())),
+            swqos_clients: Arc::new(Vec::new()),
+            config: InfrastructureConfig::new(
+                "https://example.invalid".into(),
+                Vec::new(),
+                solana_commitment_config::CommitmentConfig::processed(),
+            ),
+            max_sender_concurrency: 1,
+            effective_core_ids: Arc::new(Vec::new()),
+        });
+        let client = TradingClient::from_infrastructure(Arc::new(Keypair::new()), infra, true);
+        assert_eq!(client.pumpfun_version, PumpFunVersion::V3);
+        let mint = Pubkey::new_unique();
+        let DexParamEnum::PumpFun(mut curve) = dummy_pumpfun_params() else { unreachable!() };
+        let state = Arc::make_mut(&mut curve.bonding_curve);
+        state.account = crate::instruction::utils::pumpfun::get_bonding_curve_pda(&mint).unwrap();
+        state.virtual_token_reserves = 1_000_000_000_000;
+        state.virtual_sol_reserves = 30_000_000_000;
+        state.real_token_reserves = 800_000_000_000;
+        state.creator = Pubkey::new_unique();
+        curve.creator_vault =
+            crate::instruction::utils::pumpfun::get_creator_vault_pda(&state.creator).unwrap();
+        for version in [PumpFunVersion::V3, PumpFunVersion::V2, PumpFunVersion::Legacy] {
+            let selected = client.clone().with_pumpfun_version(version);
+            let buy = selected
+                .prepare_simple_buy(SimpleBuyParams::new(
+                    DexType::PumpFun,
+                    TradeTokenType::SOL,
+                    mint,
+                    BuyAmount::ExactInput(1_000_000),
+                    DexParamEnum::PumpFun(curve.clone()),
+                    Hash::new_unique(),
+                    GasFeeStrategy::new(),
+                ))
+                .unwrap();
+            let sell = selected
+                .prepare_simple_sell(SimpleSellParams::new(
+                    DexType::PumpFun,
+                    TradeTokenType::SOL,
+                    mint,
+                    SellAmount::ExactInput(1_000_000),
+                    DexParamEnum::PumpFun(curve.clone()),
+                    Hash::new_unique(),
+                    GasFeeStrategy::new(),
+                ))
+                .unwrap();
+            let buy_ixs = PumpFunInstructionBuilder.build_buy_instructions(&buy).await.unwrap();
+            let sell_ixs = PumpFunInstructionBuilder.build_sell_instructions(&sell).await.unwrap();
+            let program = crate::instruction::utils::pumpfun::accounts::PUMPFUN;
+            let buy_ix = buy_ixs.iter().find(|ix| ix.program_id == program).unwrap();
+            let sell_ix = sell_ixs.iter().find(|ix| ix.program_id == program).unwrap();
+            use crate::instruction::utils::pumpfun::*;
+            let (b, s) = match version {
+                PumpFunVersion::V3 => {
+                    ([225, 247, 80, 30, 213, 179, 132, 136], [28, 146, 222, 119, 38, 196, 105, 213])
+                }
+                PumpFunVersion::V2 => (BUY_EXACT_QUOTE_IN_V2_DISCRIMINATOR, SELL_V2_DISCRIMINATOR),
+                PumpFunVersion::Legacy => (BUY_EXACT_SOL_IN_DISCRIMINATOR, SELL_DISCRIMINATOR),
+            };
+            assert_eq!(&buy_ix.data[..8], &b);
+            assert_eq!(&sell_ix.data[..8], &s);
+            // Explicit request versions override the client default.
+            assert!(matches!(
+                resolve_pumpfun_version(
+                    DexParamEnum::PumpFunVersioned {
+                        params: curve.clone(),
+                        version: PumpFunVersion::V2
+                    },
+                    version
+                )
+                .unwrap(),
+                DexParamEnum::PumpFunVersioned { version: PumpFunVersion::V2, .. }
+            ));
+        }
+        // A stock route inherits the default without losing its caller's limit.
+        let mut stock_curve = curve;
+        let quote = Pubkey::new_unique();
+        stock_curve.quote_mint = quote;
+        Arc::make_mut(&mut stock_curve.bonding_curve).quote_mint = quote;
+        let route = crate::PumpFunQuoteRoute::buy(vec![crate::PumpFunQuoteHop::exact_in(
+            crate::PumpFunQuoteVenue::PumpFun {
+                mint,
+                curve: stock_curve,
+                quote_token_program: crate::constants::TOKEN_PROGRAM_2022,
+                base_transfer_fee: Default::default(),
+                quote_transfer_fee: Default::default(),
+            },
+            quote,
+            mint,
+            100,
+        )]);
+        for version in [PumpFunVersion::V2, PumpFunVersion::V3] {
+            let DexParamEnum::PumpFunQuoteRoute(resolved) =
+                resolve_pumpfun_version(DexParamEnum::PumpFunQuoteRoute(route.clone()), version)
+                    .unwrap()
+            else {
+                unreachable!()
+            };
+            assert_eq!(
+                matches!(resolved.buy_hops[0].venue, crate::PumpFunQuoteVenue::PumpFunV3 { .. }),
+                version == PumpFunVersion::V3
+            );
+            assert_eq!(resolved.buy_hops[0].minimum_amount_out, 100);
+        }
+        assert!(resolve_pumpfun_version(
+            DexParamEnum::PumpFunQuoteRoute(route),
+            PumpFunVersion::Legacy
+        )
+        .is_err());
     }
 
     #[test]

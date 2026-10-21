@@ -4,6 +4,44 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 use std::collections::HashMap;
+pub(super) const PUMP_V3_ACCOUNT_LAYOUT: [(&str, bool, bool); 17] = [
+    ("global", false, false),
+    ("base_mint", false, false),
+    ("quote_mint", false, false),
+    ("base_token_program", false, false),
+    ("quote_token_program", false, false),
+    ("bonding_curve", true, false),
+    ("associated_base_bonding_curve", true, false),
+    ("associated_quote_bonding_curve", true, false),
+    ("user", true, true),
+    ("associated_base_user", true, false),
+    ("associated_quote_user", true, false),
+    ("user_volume_accumulator", true, false),
+    ("fee_config", false, false),
+    ("buyback_fee_recipient", true, false),
+    ("system_program", false, false),
+    ("event_authority", false, false),
+    ("program", false, false),
+];
+
+#[derive(Clone, Copy)]
+pub(super) enum PumpV3Instruction {
+    Buy,
+    BuyExactQuoteIn,
+    Sell,
+}
+impl PumpV3Instruction {
+    pub(super) const fn discriminator(self) -> [u8; 8] {
+        match self {
+            Self::Buy => [7, 5, 29, 196, 245, 23, 101, 80],
+            Self::BuyExactQuoteIn => [225, 247, 80, 30, 213, 179, 132, 136],
+            Self::Sell => [28, 146, 222, 119, 38, 196, 105, 213],
+        }
+    }
+    pub(super) const fn is_buy(self) -> bool {
+        !matches!(self, Self::Sell)
+    }
+}
 struct Spec {
     program: &'static str,
     disc: [u8; 8],
@@ -15,76 +53,22 @@ fn spec(name: &str) -> Option<Spec> {
     Some(match name {
         "pump_buy_v3" => Spec {
             program: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
-            disc: [7, 5, 29, 196, 245, 23, 101, 80],
-            accounts: &[
-                ("global", false, false),
-                ("base_mint", false, false),
-                ("quote_mint", false, false),
-                ("base_token_program", false, false),
-                ("quote_token_program", false, false),
-                ("bonding_curve", true, false),
-                ("associated_base_bonding_curve", true, false),
-                ("associated_quote_bonding_curve", true, false),
-                ("user", true, true),
-                ("associated_base_user", true, false),
-                ("associated_quote_user", true, false),
-                ("user_volume_accumulator", true, false),
-                ("fee_config", false, false),
-                ("buyback_fee_recipient", true, false),
-                ("system_program", false, false),
-                ("event_authority", false, false),
-                ("program", false, false),
-            ],
+            disc: PumpV3Instruction::Buy.discriminator(),
+            accounts: &PUMP_V3_ACCOUNT_LAYOUT,
             args: 2,
             partial: true,
         },
         "pump_buy_exact_quote_in_v3" => Spec {
             program: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
-            disc: [225, 247, 80, 30, 213, 179, 132, 136],
-            accounts: &[
-                ("global", false, false),
-                ("base_mint", false, false),
-                ("quote_mint", false, false),
-                ("base_token_program", false, false),
-                ("quote_token_program", false, false),
-                ("bonding_curve", true, false),
-                ("associated_base_bonding_curve", true, false),
-                ("associated_quote_bonding_curve", true, false),
-                ("user", true, true),
-                ("associated_base_user", true, false),
-                ("associated_quote_user", true, false),
-                ("user_volume_accumulator", true, false),
-                ("fee_config", false, false),
-                ("buyback_fee_recipient", true, false),
-                ("system_program", false, false),
-                ("event_authority", false, false),
-                ("program", false, false),
-            ],
+            disc: PumpV3Instruction::BuyExactQuoteIn.discriminator(),
+            accounts: &PUMP_V3_ACCOUNT_LAYOUT,
             args: 2,
             partial: true,
         },
         "pump_sell_v3" => Spec {
             program: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
-            disc: [28, 146, 222, 119, 38, 196, 105, 213],
-            accounts: &[
-                ("global", false, false),
-                ("base_mint", false, false),
-                ("quote_mint", false, false),
-                ("base_token_program", false, false),
-                ("quote_token_program", false, false),
-                ("bonding_curve", true, false),
-                ("associated_base_bonding_curve", true, false),
-                ("associated_quote_bonding_curve", true, false),
-                ("user", true, true),
-                ("associated_base_user", true, false),
-                ("associated_quote_user", true, false),
-                ("user_volume_accumulator", true, false),
-                ("fee_config", false, false),
-                ("buyback_fee_recipient", true, false),
-                ("system_program", false, false),
-                ("event_authority", false, false),
-                ("program", false, false),
-            ],
+            disc: PumpV3Instruction::Sell.discriminator(),
+            accounts: &PUMP_V3_ACCOUNT_LAYOUT,
             args: 2,
             partial: false,
         },

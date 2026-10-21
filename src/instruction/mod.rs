@@ -40,6 +40,7 @@ mod whirlpool_mainnet;
 pub mod pump_upgrade;
 
 pub mod pump_v3_quote;
+pub(crate) mod pumpfun_v3;
 
 pub mod pump_compact_accounts;
 

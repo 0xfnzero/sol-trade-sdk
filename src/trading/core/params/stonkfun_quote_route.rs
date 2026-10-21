@@ -1,4 +1,4 @@
-//! Explicit conversion routes shared by StonkFun and PumpSwap.
+//! Explicit conversion routes shared by StonkFun, PumpSwap and Pump.fun curves.
 use super::raydium_cpmm::TokenTransferFee;
 use super::{
     MeteoraDlmmParams, RaydiumAmmV4Params, RaydiumClmmParams, RaydiumCpmmParams, WhirlpoolParams,
@@ -7,6 +7,21 @@ use solana_sdk::pubkey::Pubkey;
 
 #[derive(Clone)]
 pub enum StonkFunQuoteVenue {
+    /// Compact V3 inner curve. The hop minimum overrides params.minimum_output_amount.
+    PumpFunV3 {
+        mint: Pubkey,
+        params: super::PumpFunV3Params,
+    },
+    /// Pump.fun bonding curve, not PumpSwap or LaunchLab. Supply a current
+    /// curve snapshot and verified zero transfer-fee snapshots for both mints.
+    /// Use the quote mint's actual owner (SPL Token or Token-2022).
+    PumpFun {
+        mint: Pubkey,
+        curve: super::PumpFunParams,
+        quote_token_program: Pubkey,
+        base_transfer_fee: TokenTransferFee,
+        quote_transfer_fee: TokenTransferFee,
+    },
     /// PumpSwap legacy exact-input leg. Supply current fee snapshots for both
     /// mints; transfer-fee-bearing PumpSwap routes are not supported here.
     PumpSwap {
@@ -25,6 +40,11 @@ pub enum StonkFunQuoteVenue {
 pub type PumpSwapQuoteRoute = StonkFunQuoteRoute;
 pub type PumpSwapQuoteHop = StonkFunQuoteHop;
 pub type PumpSwapQuoteVenue = StonkFunQuoteVenue;
+
+/// Explicit funding conversion plus a Pump.fun bonding-curve trade.
+pub type PumpFunQuoteRoute = StonkFunQuoteRoute;
+pub type PumpFunQuoteHop = StonkFunQuoteHop;
+pub type PumpFunQuoteVenue = StonkFunQuoteVenue;
 
 /// One exact-input swap. Obtain fresh min-out quotes and amount-appropriate
 /// tick/bin arrays before building. Historical parser amounts are not quotes.

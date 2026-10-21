@@ -53,41 +53,6 @@ pub struct PumpCompactAccountParams {
     pub cashback: bool,
     pub complete: bool,
 }
-pub fn derive_pump_v3_accounts(p: PumpCompactAccountParams) -> Result<HashMap<String, Pubkey>> {
-    let p = normalize_params(p);
-    ensure!(!p.cashback, "cashback requires legacy trades");
-    ensure!(!p.complete, "BondingCurveComplete");
-    let curve = pda(PUMP, "bonding-curve", Some(p.base_mint));
-    Ok(HashMap::from([
-        ("base_mint".to_owned(), p.base_mint),
-        ("quote_mint".to_owned(), p.quote_mint),
-        ("base_token_program".to_owned(), p.base_token_program),
-        ("quote_token_program".to_owned(), p.quote_token_program),
-        ("bonding_curve".to_owned(), curve),
-        ("associated_base_bonding_curve".to_owned(), ata(curve, p.base_mint, p.base_token_program)),
-        (
-            "associated_quote_bonding_curve".to_owned(),
-            ata(curve, p.quote_mint, p.quote_token_program),
-        ),
-        ("user".to_owned(), p.user),
-        ("associated_base_user".to_owned(), ata(p.user, p.base_mint, p.base_token_program)),
-        ("associated_quote_user".to_owned(), ata(p.user, p.quote_mint, p.quote_token_program)),
-        ("user_volume_accumulator".to_owned(), pda(PUMP, "user_volume_accumulator", Some(p.user))),
-        ("fee_config".to_owned(), pda(FEES, "fee_config", Some(PUMP))),
-        (
-            "buyback_fee_recipient".to_owned(),
-            if p.quote_mint == WSOL {
-                p.buyback_recipient
-            } else {
-                ata(p.buyback_recipient, p.quote_mint, p.quote_token_program)
-            },
-        ),
-        ("system_program".to_owned(), Pubkey::default()),
-        ("event_authority".to_owned(), pda(PUMP, "__event_authority", None)),
-        ("program".to_owned(), PUMP),
-        ("global".to_owned(), pda(PUMP, "global", None)),
-    ]))
-}
 pub fn derive_pump_swap_v2_accounts(
     p: PumpCompactAccountParams,
     pool: Pubkey,
@@ -119,7 +84,91 @@ pub fn derive_pump_swap_v2_accounts(
         ("program".to_owned(), AMM),
     ]))
 }
+/// Fixed IDL order for the V3 hot path. The public map helper below remains compatible.
+pub(super) struct PumpV3Accounts {
+    keys: [Pubkey; 17],
+}
+impl PumpV3Accounts {
+    pub(super) fn derive(p: PumpCompactAccountParams) -> Result<Self> {
+        use super::utils::pumpfun::{
+            accounts, get_bonding_curve_pda, get_user_volume_accumulator_pda, global_constants,
+        };
+        use crate::common::fast_fn::get_associated_token_address_with_program_id_fast as cached_ata;
+        let p = normalize_params(p);
+        ensure!(!p.cashback, "cashback requires legacy trades");
+        ensure!(!p.complete, "BondingCurveComplete");
+        let curve = get_bonding_curve_pda(&p.base_mint)
+            .ok_or_else(|| anyhow::anyhow!("Unable to derive bonding curve"))?;
+        let volume = get_user_volume_accumulator_pda(&p.user)
+            .ok_or_else(|| anyhow::anyhow!("Unable to derive user volume accumulator"))?;
+        Ok(Self {
+            keys: [
+                global_constants::GLOBAL_ACCOUNT,
+                p.base_mint,
+                p.quote_mint,
+                p.base_token_program,
+                p.quote_token_program,
+                curve,
+                cached_ata(&curve, &p.base_mint, &p.base_token_program),
+                cached_ata(&curve, &p.quote_mint, &p.quote_token_program),
+                p.user,
+                cached_ata(&p.user, &p.base_mint, &p.base_token_program),
+                cached_ata(&p.user, &p.quote_mint, &p.quote_token_program),
+                volume,
+                accounts::FEE_CONFIG,
+                if p.quote_mint == WSOL {
+                    p.buyback_recipient
+                } else {
+                    cached_ata(&p.buyback_recipient, &p.quote_mint, &p.quote_token_program)
+                },
+                Pubkey::default(),
+                accounts::EVENT_AUTHORITY,
+                PUMP,
+            ],
+        })
+    }
 
+    pub(super) fn associated_base_user(&self) -> Pubkey {
+        self.keys[9]
+    }
+
+    pub(super) fn instruction(
+        &self,
+        kind: super::pump_upgrade::PumpV3Instruction,
+        amount: u64,
+        limit: u64,
+    ) -> solana_sdk::instruction::Instruction {
+        use solana_sdk::instruction::{AccountMeta, Instruction};
+        let accounts = self
+            .keys
+            .iter()
+            .zip(super::pump_upgrade::PUMP_V3_ACCOUNT_LAYOUT)
+            .map(|(&key, (_, writable, signer))| {
+                if writable {
+                    AccountMeta::new(key, signer)
+                } else {
+                    AccountMeta::new_readonly(key, signer)
+                }
+            })
+            .collect();
+        let mut data = Vec::with_capacity(if kind.is_buy() { 25 } else { 24 });
+        data.extend_from_slice(&kind.discriminator());
+        data.extend_from_slice(&amount.to_le_bytes());
+        data.extend_from_slice(&limit.to_le_bytes());
+        if kind.is_buy() {
+            data.push(0);
+        } // Disable partial fill.
+        Instruction { program_id: PUMP, accounts, data }
+    }
+}
+
+pub fn derive_pump_v3_accounts(p: PumpCompactAccountParams) -> Result<HashMap<String, Pubkey>> {
+    Ok(super::pump_upgrade::PUMP_V3_ACCOUNT_LAYOUT
+        .into_iter()
+        .zip(PumpV3Accounts::derive(p)?.keys)
+        .map(|((name, _, _), key)| (name.to_owned(), key))
+        .collect())
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PumpMultiHopVenue {
     Curve,

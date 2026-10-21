@@ -30,7 +30,7 @@ pub use cpmm_creator_fee_preparation::PreparedCpmmCreatorFeeCollection;
 pub use dex_swap::{DexParamEnum, SenderConcurrencyConfig, SwapParams};
 pub use meteora_damm_v2::MeteoraDammV2Params;
 pub use meteora_dlmm::MeteoraDlmmParams;
-pub use pumpfun::PumpFunParams;
+pub use pumpfun::{PumpFunParams, PumpFunV3Params};
 pub use pumpswap::PumpSwapParams;
 pub use pumpswap_preparation::PreparedPumpSwapTrade;
 pub use pumpswap_route_search::{
@@ -41,8 +41,9 @@ pub use raydium_clmm::RaydiumClmmParams;
 pub use raydium_cpmm::{RaydiumCpmmParams, TokenTransferFee};
 pub use stonkfun_preparation::PreparedStonkFunTrade;
 pub use stonkfun_quote_route::{
-    PumpSwapQuoteHop, PumpSwapQuoteRoute, PumpSwapQuoteVenue, StonkFunQuoteHop,
-    StonkFunQuoteHopPreview, StonkFunQuoteRoute, StonkFunQuoteRoutePreview, StonkFunQuoteVenue,
+    PumpFunQuoteHop, PumpFunQuoteRoute, PumpFunQuoteVenue, PumpSwapQuoteHop, PumpSwapQuoteRoute,
+    PumpSwapQuoteVenue, StonkFunQuoteHop, StonkFunQuoteHopPreview, StonkFunQuoteRoute,
+    StonkFunQuoteRoutePreview, StonkFunQuoteVenue,
 };
 pub use stonkfun_via_sol::{
     StonkFunMemeLeg, StonkFunSolHop, StonkFunViaQuoteParams, StonkFunViaSolParams,
