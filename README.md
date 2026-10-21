@@ -16,7 +16,7 @@
 
 `sol-trade-sdk` provides transaction construction, signing and multi-provider submission for PumpFun, PumpSwap, LaunchLab, Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4 and Raydium CPMM. Use it for trading bots, copy trading and arbitrage systems.
 
-Current Rust version: **9.0.0**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
+Current Rust version: **9.0.1**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
 
 ## Contents
 
@@ -37,15 +37,15 @@ Repositories are versioned independently; follow each SDK’s installation guide
 
 | Language | Repository | Purpose | Version |
 |----------|------------|-------------|---------|
-| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX transaction and account event parsing | `v0.9.0` |
-| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX transaction and account event parsing | `v0.9.0` |
-| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX transaction and account event parsing | `v0.9.0` |
-| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX transaction and account event parsing | `v0.9.0` |
-| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Transaction building, signing and multi-channel submission | `v9.0.0` |
-| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | Transaction building, signing and multi-channel submission | `v9.0.0` |
-| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Transaction building, signing and multi-channel submission | `v9.0.0` |
-| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Transaction building, signing and multi-channel submission | `v9.0.0` |
-| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw shred decoding and ShredStream instruction events | `v6.0.0` |
+| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX transaction and account event parsing | `v0.9.1` |
+| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX transaction and account event parsing | `v0.9.1` |
+| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX transaction and account event parsing | `v0.9.1` |
+| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX transaction and account event parsing | `v0.9.1` |
+| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Transaction building, signing and multi-channel submission | `v9.0.1` |
+| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | Transaction building, signing and multi-channel submission | `v9.0.1` |
+| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Transaction building, signing and multi-channel submission | `v9.0.1` |
+| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Transaction building, signing and multi-channel submission | `v9.0.1` |
+| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw shred decoding and ShredStream instruction events | `v6.0.1` |
 | Rust | [solana-streamer](https://github.com/0xfnzero/solana-streamer) | gRPC / ShredStream subscriptions and event streaming | `v5.0.0` |
 | Rust | [sol-trade-router-sdk](https://github.com/0xfnzero/sol-trade-router-sdk) | On-chain multi-hop router and client SDK | `v0.3.0` |
 
@@ -57,13 +57,13 @@ Add the dependency to `Cargo.toml`:
 
 ```toml
 [dependencies]
-sol-trade-sdk = "9.0.0"
+sol-trade-sdk = "9.0.1"
 ```
 
 Enable the optional `parser-adapter` feature to connect parsed events to cached quote preparation:
 
 ```toml
-sol-trade-sdk = { version = "9.0.0", features = ["parser-adapter"] }
+sol-trade-sdk = { version = "9.0.1", features = ["parser-adapter"] }
 ```
 
 To run the repository examples:
@@ -111,8 +111,8 @@ Initialize `PumpSwapRoutingConfig::default()` once, then call
 `extend_pools(custom_pools)?` to merge user markets by address. Conflicting mint
 pairs fail; duplicates (including reversed SOL/WSOL pairs) are removed. Use
 `PumpSwapRoutingConfig::new(pools)` for custom-only markets. The screened mainnet
-catalog contains 63 stock pools covering 34 verified stock/ETF mints from Backpack
-and xStocks, plus WSOL/USDC (64 pools total). Historical preferences rank qualifying
+catalog contains 58 stock pools covering 33 verified stock/ETF mints from Backpack
+and xStocks, plus WSOL/USDC (59 pools total). Historical preferences rank qualifying
 pools by snapshot-start fees, then reserve depth. Admission uses at least $500 liquid-side reserve
 and bidirectional depth quotes; configuration performs no RPC.
 The catalog is identical to sol-parser-sdk's price subscription catalog.
@@ -727,4 +727,4 @@ MIT License
 - Discord: https://discord.gg/vuazbGkqQE
 
 
-Shared stock bridges: 34 official stock/ETF mints and 63 pools. See [eleven-SDK catalog and routing alignment](docs/STOCK_BRIDGE_SYNC.md) for configuration, USDC routing and cache-only boundaries.
+Shared stock bridges: 33 official stock/ETF mints and 58 pools. See [eleven-SDK catalog and routing alignment](docs/STOCK_BRIDGE_SYNC.md) for configuration, USDC routing and cache-only boundaries.

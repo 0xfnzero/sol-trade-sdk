@@ -1,10 +1,10 @@
 # Mainnet bridge defaults
 
-`PumpSwapRoutingConfig::default()` provides **64 offline pool identities**:
-63 stock/ETF conversion pools covering **34 verified mints**, plus WSOL/USDC.
-The 2026-10-20 expanded catalog contains:
+`PumpSwapRoutingConfig::default()` provides **59 offline pool identities**:
+58 stock/ETF conversion pools covering **33 verified mints**, plus WSOL/USDC.
+The catalog after the 2026-10-22 reserve and withdrawal review contains:
 
-- Backpack: ABNB, AMD, BABA, CHWY, COPX, DJT, HIMS, HOOD, INTC, MU, NFLX, NKE,
+- Backpack: ABNB, AMD, BABA, CHWY, DJT, HIMS, HOOD, INTC, MU, NFLX, NKE,
   RACE, RDDT, SPCX, SPHR, TSM, TTWO, UVXY.
 - xStocks: AAPLx, AVGOx, GLDx, GMEx, GOOGLx, HOODx, INTCx, METAx, MSFTx, MSTRx, NVDAx,
   QQQx, SPCXx, SPYx, TSLAx.
@@ -19,8 +19,14 @@ its lowest-fee qualifying pool; other qualifying pools remain available.
 This is a bounded sample, not an exhaustive market registry or popularity ranking.
 CARDS is excluded because it is not a verified stock/ETF token.
 
+The [2026-10-22 removals](STOCK_BRIDGE_SYNC.md#pool-removals-on-2026-10-22)
+exclude two pools with large historical withdrawals and four below the $500
+reserve floor, with one overlap (five distinct pools). These exclusions are
+recorded in the current catalog-generation input. The retained defaults do not
+constitute lock certification or an automatically enforced live reserve floor.
+
 The defaults now read the same packaged `src/stock_token_catalog.json` as
-sol-parser-sdk: 34 mints and 63 qualified pools, including historical fee/tax
+sol-parser-sdk: 33 mints and 58 qualified pools, including historical fee/tax
 snapshots. Both SDKs include all qualified stock pools; trading additionally
 includes the WSOL/USDC bridge. Historical preference combines
 known snapshot-start swap and nominal transfer fees; unknown fees or active
@@ -138,7 +144,7 @@ deduplicated transactions from 1,000 signatures per source, covering source wind
 within 2026-10-20 05:34:02–05:37:19 UTC+8. Eight new pools qualified (seven CLMM,
 one Orca), adding HIMS.US, AMD.US, RACE.US and RDDT.US plus existing-mint alternatives.
 The new RACE.US pool has usable quotes; it is distinct from the earlier rejected
-pool. Current totals are 34 mints / 63 qualified pools, with 64 trading defaults
+pool. Current totals are 33 mints / 58 qualified pools, with 59 trading defaults
 including WSOL/USDC. These short windows do not establish exhaustive coverage.
 User-configured per-order protection determines whether a route is executable.
 
