@@ -1,20 +1,43 @@
 <div align="center">
-    <h1>Sol Trade SDK</h1>
-    <p>A low-latency Rust trading SDK for Solana DEXs</p>
-    <a href="https://crates.io/crates/sol-trade-sdk"><img src="https://img.shields.io/crates/v/sol-trade-sdk.svg" alt="Crates.io"></a>
-    <a href="https://docs.rs/sol-trade-sdk"><img src="https://docs.rs/sol-trade-sdk/badge.svg" alt="API documentation"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+    <h1>🚀 Sol Trade SDK</h1>
+    <h3><em>A comprehensive Rust SDK for seamless Solana DEX trading</em></h3>
 </div>
 
 <p align="center">
-    <a href="README.md">English</a> · <a href="README_CN.md">中文</a> ·
-    <a href="examples/README.md">Examples</a> ·
-    <a href="docs/README.md">Documentation</a> ·
-    <a href="RELEASE_NOTES.md">Release &amp; migration</a> ·
-    <a href="#related-sdks">Related SDKs</a>
+    <strong>A high-performance Rust SDK for low-latency Solana DEX trading bots. Built for speed and efficiency, it enables seamless, high-throughput interaction with PumpFun, Pump AMM (PumpSwap), Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4, and Raydium CPMM for latency-critical trading strategies.</strong>
 </p>
 
-`sol-trade-sdk` provides transaction construction, signing and multi-provider submission for PumpFun, PumpSwap, LaunchLab, Bonk, StonkFun, Meteora DAMM v2, Raydium AMM v4 and Raydium CPMM. Use it for trading bots, copy trading and arbitrage systems.
+<p align="center">
+    <a href="https://crates.io/crates/sol-trade-sdk">
+        <img src="https://img.shields.io/crates/v/sol-trade-sdk.svg" alt="Crates.io">
+    </a>
+    <a href="https://docs.rs/sol-trade-sdk">
+        <img src="https://docs.rs/sol-trade-sdk/badge.svg" alt="Documentation">
+    </a>
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/LICENSE">
+        <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+    </a>
+    <a href="https://github.com/0xfnzero/sol-trade-sdk">
+        <img src="https://img.shields.io/github/stars/0xfnzero/sol-trade-sdk?style=social" alt="GitHub stars">
+    </a>
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/network">
+        <img src="https://img.shields.io/github/forks/0xfnzero/sol-trade-sdk?style=social" alt="GitHub forks">
+    </a>
+</p>
+
+<p align="center">
+    <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
+    <img src="https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white" alt="Solana">
+    <img src="https://img.shields.io/badge/DEX-4B8BBE?style=for-the-badge&logo=bitcoin&logoColor=white" alt="DEX Trading">
+</p>
+
+<p align="center">
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-trade-sdk/blob/main/README.md">English</a> |
+    <a href="https://fnzero.dev/">Website</a> |
+    <a href="https://t.me/fnzero_group">Telegram</a> |
+    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
+</p>
 
 Current Rust version: **9.0.1**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
 
