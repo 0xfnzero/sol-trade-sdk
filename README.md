@@ -110,7 +110,7 @@ This example replays saved transactions offline; it needs no private key and bro
 5. **Raydium CPMM Trading**: Support for Raydium constant-product pools
 6. **Raydium AMM V4 Trading**: Support for Raydium AMM V4 (Automated Market Maker) trading operations
 7. **Meteora DAMM V2 Trading**: Support for Meteora DAMM V2 (Dynamic AMM) trading operations
-8. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Node1, Astralane, Glaive, LunarLander and other services
+8. **Multiple MEV Protection**: Support for Jito, Nextblock, ZeroSlot, Temporal, Bloxroute, FlashBlock, BlockRazor, Astralane, Glaive, LunarLander and other services
 9. **Concurrent Trading**: Submit through every configured SWQoS provider plus the default RPC lane; the first accepted result can return early while slower routes continue submitting
 10. **Unified Trading Interface**: Use unified trading protocol enums for trading operations
 11. **Middleware System**: Support for custom instruction middleware to modify, add, or remove instructions before transaction execution
@@ -677,7 +677,6 @@ You can apply for a key through the official website: [Community Website](https:
 - **Astralane**: Blockchain network acceleration (Binary/Plain HTTP and QUIC)
 - **Glaive**: Persistent QUIC and binary HTTP transaction delivery (minimum tip: 0.0001 SOL)
 - **SpeedLanding**: High-speed transaction execution with API key authentication
-- **Node1**: High-speed transaction execution with API key authentication
 - **LunarLander**: HelloMoon transaction landing service (minimum tip: 0.001 SOL)
 
 <a id="documentation"></a>
