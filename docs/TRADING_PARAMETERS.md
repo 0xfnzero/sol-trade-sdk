@@ -329,3 +329,18 @@ Synthetic execution emits TradeEvent, CompleteEvent and PostCompleteBuyEvent. Su
 All six compact buy/sell variants executed successfully with `simulateTransaction` (`sigVerify=false`, no broadcasts). Their instruction bytes and account flags are retained as cross-language regression fixtures. Standard `create_v2` also simulated successfully.
 
 The announced features were not all available in the tested mainnet deployment: `multi_hop_swap` returned `InstructionFallbackNotFound` (101); creating with an unlisted Pump coin quote returned `UnsupportedQuoteMint` (6063), both for curve and migrated-pool quotes; buys above the remaining curve supply returned `NotEnoughTokensToBuy` (6021). The live Global account was 1087 bytes and did not yet include `max_curve_depth`. These outcomes are recorded as unresolved deployment validation, not successful feature tests. The announced-interface builders and synthetic quote math remain opt-in; validate program availability with a fresh simulation before using them.
+
+### Multi-hop deployment confirmed on 2026-10-25
+
+The historical `multi_hop_swap` availability result above is superseded by the successful mainnet transaction
+[`g1fC9wYK…BqxApvFZ`](https://solscan.io/tx/g1fC9wYKdndDZAyMCWkfFAqUNBCzj1brvNb3aAnRjxkrVhaSzsvELXFXz11U3DdmbM2AeFbwcaSgG86BqxApvFZ),
+slot 460910106. It executes the official PumpSwap instruction followed by a Pump.fun
+`multi_hop_curve_swap` CPI. The existing `derive_pump_multi_hop_accounts` and
+`build_pump_amm_multi_hop_swap_instruction` APIs build this route from caller-supplied
+state and accounts. Ordinary `buy`/`sell` and stock conversion routes do not automatically
+switch to this instruction. This observation does not revalidate the other historical failures above.
+
+中文：该笔真实交易已确认官方多跳在主网执行成功。SDK 已提供账户派生与指令构建接口，
+普通买卖入口暂不自动选择官方多跳；调用者仍需准备最新状态、账户和最终滑点限制。
+See the [official multi-hop example](../examples/SIMULATION.md#official-pump-multi-hop)
+for current-account curve/pool buys and sells, including unsigned RPC simulation.

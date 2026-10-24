@@ -29,6 +29,9 @@ cargo run --features parser-adapter --example pumpswap_streaming_quotes
 
 ## 在线订阅与模拟
 
+- `pump_multi_hop`：官方 `multi_hop_swap`，支持以 Pump.fun 内盘或已迁移的
+  PumpSwap 外盘为目标的独立买卖。读取当前账户，构建一条多跳交换指令，
+  `--simulate` 可模拟执行；无需私钥，不广播。[参数与命令](SIMULATION.md#official-pump-multi-hop)。
 - `pumpfun_simulate`：V1/V2/V3 内盘独立买卖，以及 V2/V3 股票币多跳，
   输出 RPC 模拟日志、CU 和错误，不广播。[参数与命令](SIMULATION.md#pumpfun-v1--v2--v3-内盘模拟)。
 

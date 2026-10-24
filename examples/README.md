@@ -31,6 +31,10 @@ with a raw saved RPC response or a cases capture. Historical data is not live st
 
 ## Online quotes and simulations
 
+- `pump_multi_hop`: official `multi_hop_swap`, with a Pump.fun curve or migrated
+  PumpSwap pool as the target; independent buys and sells. Reads current accounts,
+  constructs one swap instruction, and optionally simulates it with `--simulate`.
+  No private key or broadcast. See [commands and requirements](SIMULATION.md#official-pump-multi-hop).
 - `pumpfun_simulate`: current-account RPC simulation for V1/V2/V3 direct buys/sells
   and V2/V3 stock routes. No broadcast; prints logs, CU and execution errors.
   Run `cargo run --example pumpfun_simulate -- --help`; see [commands](SIMULATION.md).

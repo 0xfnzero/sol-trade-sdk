@@ -126,6 +126,9 @@ PumpSwap supports direct swaps using the pool’s actual quote mint, including T
 
 Pump.fun client trades default to V3. Set `TradeConfig::builder(...).pumpfun_version(PumpFunVersion::V2)` to select V2, or `Legacy` for native legacy curves. Explicit per-request versions override the client default. See [V3 direct trades and stock quote routes](docs/PUMPFUN_STOCK_ROUTES.md) for quote requirements and examples.
 
+For official `multi_hop_swap` buys/sells through Pump.fun curves and migrated PumpSwap pools,
+use the [pump_multi_hop example](examples/SIMULATION.md#official-pump-multi-hop).
+
 Register bridge pools once with `TradeConfig::builder(...).pumpswap_routing(...)`, then use `PumpSwapAutoRoute(pool)` for cached automatic routing. Background snapshot publication keeps the hot path free of RPC reads; missing/expired state fails without fallback. Run `pumpswap_global_routing` offline or `pumpswap_global_routing_simulate` for live read-only mainnet simulation.
 
 ### Default bridge markets

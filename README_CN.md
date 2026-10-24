@@ -126,6 +126,9 @@ PumpSwap 支持以任意池内 quote mint 直接买卖（含 TTWO / Token-2022�
 
 Pump.fun 内盘使用股票币报价时，可通过 `DexParamEnum::PumpFunQuoteRoute` 组合资金兑换与内盘买卖，见 [内盘股票报价币路由与示例](docs/PUMPFUN_STOCK_ROUTES.md)。
 
+Pump.fun 内盘与已迁移 PumpSwap 外盘的官方 `multi_hop_swap` 买卖，
+见 [pump_multi_hop 示例](examples/SIMULATION.md#official-pump-multi-hop)。
+
 Pump.fun 客户端买卖默认使用 V3，可通过 `TradeConfig::builder(...).pumpfun_version(PumpFunVersion::V2)` 切换 V2，或选择 `Legacy` 使用原生旧版。单笔显式版本优先于客户端默认值；这与 Solana 交易消息的 `transaction_version` 无关。V3 的报价要求与限制见上方文档。
 
 订阅缓存可直接调用 `prepare_pumpswap_trade` 计算完整路径，再用 `into_buy_params` / `into_sell_params` 生成高层请求；缓存路径会校验账户时效、vault 归属和当前 epoch 的 mint 费用。兑换池由调用方选择，买卖需分别准备，当前缓存路径不支持非零转账费或缺少返现费率的 cashback 池。离线示例：`cargo run -p sol-trade-sdk --example pumpswap_cached_prepare --locked -- buy 10000`。
