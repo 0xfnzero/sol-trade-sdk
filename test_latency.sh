@@ -1,4 +1,5 @@
 #!/bin/bash
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 # PumpFun 真实买入延迟测试
 # 测试从调用buy到提交交易的完整流程

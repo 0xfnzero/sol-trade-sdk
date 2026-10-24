@@ -1,0 +1,18 @@
+# Standard Cargo settings; sccache is optional, and no local path is required.
+# Optional: RUSTC_WRAPPER=sccache SCCACHE_CACHE_SIZE=10G cargo build --release
+# Keep target-dir, release optimization and linker settings project-specific.
+
+[build]
+incremental = false
+
+[profile.dev]
+debug = 1
+
+[profile.dev.package."*"]
+debug = 0
+
+[profile.test]
+debug = 1
+
+[profile.test.package."*"]
+debug = 0
