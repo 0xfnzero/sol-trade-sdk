@@ -32,7 +32,7 @@ quote/search and preparation perform no RPC; no cache miss triggers a fallback.
 Parser SDKs own parsing, stock monitoring and historical identities. Streamer and
 Shred transport signals; incomplete Shred observations never become confirmed
 prices or executable reserves. Trade SDKs own quoting and transaction preparation.
-The router reuses parser 0.9.1 and trade 9.0.1; its re-exported PumpSwapRouting
+The router reuses parser 0.10.0 and trade 10.0.0; its re-exported PumpSwapRouting
 builds trade-sdk direct instructions, not automatic router-program CPI dispatch.
 Single-market conversion cannot resolve PumpSwapAutoRoute without a routing cache.
 

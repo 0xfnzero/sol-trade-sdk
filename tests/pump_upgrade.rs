@@ -164,6 +164,58 @@ fn nested_curve_route() {
         derive_pump_multi_hop_accounts(user, wsol, b, user, &hops, false).unwrap();
     assert_eq!(accounts.len(), 16);
     assert_eq!(remaining.len(), 10);
+    use sol_trade_sdk::instruction::pump_route::select_pump_route;
+    use sol_trade_sdk::{PumpRouteExecution as E, PumpRouteOptions};
+    let options = PumpRouteOptions {
+        minimum_output_amount: Some(9),
+        buyback_recipient: Some(user),
+        ..Default::default()
+    };
+    let ix = select_pump_route(options, user, wsol, b, 7, Some(&hops)).unwrap().unwrap();
+    assert_eq!(
+        ix.data,
+        [
+            vec![43, 100, 73, 19, 233, 246, 111, 148],
+            7u64.to_le_bytes().to_vec(),
+            9u64.to_le_bytes().to_vec()
+        ]
+        .concat()
+    );
+    assert_eq!(ix.accounts.len(), 26);
+    assert!(select_pump_route(Default::default(), user, wsol, b, 7, Some(&hops))
+        .unwrap()
+        .is_none());
+    assert!(select_pump_route(
+        PumpRouteOptions { execution: E::Sequential, ..options },
+        user,
+        wsol,
+        b,
+        7,
+        Some(&hops)
+    )
+    .unwrap()
+    .is_none());
+    assert!(select_pump_route(options, user, wsol, b, 7, None).unwrap().is_none());
+    assert!(select_pump_route(
+        PumpRouteOptions { execution: E::Official, ..options },
+        user,
+        wsol,
+        b,
+        7,
+        None
+    )
+    .is_err());
+    assert!(select_pump_route(
+        PumpRouteOptions { minimum_output_amount: Some(0), ..options },
+        user,
+        wsol,
+        b,
+        7,
+        Some(&hops)
+    )
+    .is_err());
+    let reverse: Vec<_> = hops.iter().copied().rev().collect();
+    assert!(select_pump_route(options, user, b, wsol, 7, Some(&reverse)).unwrap().is_some());
     hops[1].cashback = true;
     assert!(derive_pump_multi_hop_accounts(user, wsol, b, user, &hops, false).is_err());
     hops.reverse();

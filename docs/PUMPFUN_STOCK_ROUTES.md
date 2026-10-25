@@ -11,6 +11,49 @@
 目标内盘必须实际使用该股票币作为
 `quote_mint`，不能把普通 SOL 内盘随意改成股票币报价。
 
+## Official or sequential execution
+
+`PumpRouteExecution` is independent of `PumpFunVersion`. On an explicit
+`PumpFunQuoteRoute`, `PumpSwapQuoteRoute` or `StonkFunQuoteRoute`, set separate
+`with_buy_execution(PumpRouteOptions { .. })` and `with_sell_execution(...)`
+options; buy and sell limits use different output units.
+
+- `Auto` (default): prefer official `multi_hop_swap` for a supported chain of
+  2–3 Pump.fun curves/canonical migrated PumpSwap pools when both a fresh
+  `minimum_output_amount` and current PumpSwap `GlobalConfig` recipient wallet
+  (`buyback_recipient`) are supplied. Otherwise keep sequential execution.
+- `Official`: require those inputs and an eligible path; return an error otherwise.
+- `Sequential`: retain the existing independent swaps in one atomic transaction,
+  with their per-hop minima. Raydium/Orca/Meteora conversions and splits stay here.
+
+```rust
+let route = route.with_buy_execution(PumpRouteOptions {
+    execution: PumpRouteExecution::Auto,
+    minimum_output_amount: Some(fresh_final_minimum),
+    buyback_recipient: Some(current_buyback_recipient),
+});
+```
+
+The selector reads supplied state only; it never queries RPC or retries a failed
+simulation/submission with a different route. The official fee placement differs
+from separate swaps: do not reuse sequential hop quotes as an official quote.
+An Auto fallback fails if its protected final output is below the supplied
+minimum. `preview()` describes only the sequential hop plan, not official fees
+or expected fills. Existing prepared-cache/global-routing entry points retain
+sequential execution unless their explicit quote route is configured; selecting
+`PumpFunVersion::V3` alone does not enable official multi-hop.
+
+Native SOL at a currency **curve** is paid/received through the wallet; a currency
+**pool** uses WSOL. The selector preserves this distinction and rejects using a
+WSOL-only balance as wallet SOL. It creates endpoint/buyback ATAs, without user
+intermediate ATAs. Low-level `derive_pump_multi_hop_accounts` still supports
+4+ hops with v0 + caller-provided ALTs; the selector is limited to 2–3.
+The separate `sol-trade-router-sdk` CPI router remains an explicit alternative.
+
+中文：默认 Auto 仅在路径可用、提供官方最终到账下限和当前回购收款人时选择官方多跳；
+否则保留逐跳原子交易。强制 Official 不满足条件即报错，Sequential 固定使用旧路径。
+买卖分别配置下限，不能复用逐跳报价推断官方报价。全程不在热路径查 RPC，也不会在模拟或发送失败后换路重试。
+
 ## 直接运行
 
 ```sh

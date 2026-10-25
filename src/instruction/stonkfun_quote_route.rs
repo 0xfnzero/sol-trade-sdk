@@ -272,6 +272,198 @@ pub(crate) fn plan_route(
     Ok(RoutePlan { hops: planned, minimum_credit })
 }
 
+fn official_pump_hops(
+    steps: &[StonkFunQuoteHop],
+) -> Option<Vec<super::pump_compact_accounts::PumpMultiHop>> {
+    use super::pump_compact_accounts::{PumpMultiHop, PumpMultiHopVenue};
+    use crate::common::spl_associated_token_account::get_associated_token_address_with_program_id as ata;
+    steps
+        .iter()
+        .map(|hop| {
+            if hop.input_amount.is_some() {
+                return None;
+            } // Splits retain per-hop protection.
+            let curve_hop = |mint: Pubkey,
+                             curve: &crate::trading::core::params::PumpFunParams,
+                             quote_token_program: Pubkey| {
+                let quote_mint = curve.bonding_curve.effective_quote_mint();
+                PumpMultiHop {
+                    venue: PumpMultiHopVenue::Curve,
+                    base_mint: mint,
+                    quote_mint,
+                    address: curve.bonding_curve.account,
+                    base_vault: curve.associated_bonding_curve,
+                    quote_vault: ata(
+                        &curve.bonding_curve.account,
+                        &quote_mint,
+                        &quote_token_program,
+                    ),
+                    base_token_program: curve.token_program,
+                    quote_token_program,
+                    mayhem: curve.bonding_curve.is_mayhem_mode,
+                    cashback: curve.bonding_curve.is_cashback_coin,
+                    complete: curve.bonding_curve.complete,
+                    index: 0,
+                    creator: curve.bonding_curve.creator,
+                }
+            };
+            let zero = |fee: &crate::trading::core::params::TokenTransferFee| {
+                fee.basis_points == 0 || fee.maximum_fee == 0
+            };
+            match &hop.venue {
+                StonkFunQuoteVenue::PumpFunV3 { mint, params }
+                    if zero(&params.base_transfer_fee) && zero(&params.quote_transfer_fee) =>
+                {
+                    Some(curve_hop(*mint, &params.curve, params.quote_token_program))
+                }
+                StonkFunQuoteVenue::PumpFun {
+                    mint,
+                    curve,
+                    quote_token_program,
+                    base_transfer_fee,
+                    quote_transfer_fee,
+                } if zero(base_transfer_fee) && zero(quote_transfer_fee) => {
+                    Some(curve_hop(*mint, curve, *quote_token_program))
+                }
+                StonkFunQuoteVenue::PumpSwap { pool: p, base_transfer_fee, quote_transfer_fee }
+                    if zero(base_transfer_fee) && zero(quote_transfer_fee) =>
+                {
+                    Some(PumpMultiHop {
+                        venue: PumpMultiHopVenue::Pool,
+                        base_mint: p.base_mint,
+                        quote_mint: p.quote_mint,
+                        address: p.pool,
+                        base_vault: p.pool_base_token_account,
+                        quote_vault: p.pool_quote_token_account,
+                        base_token_program: p.base_token_program,
+                        quote_token_program: p.quote_token_program,
+                        mayhem: p.is_mayhem_mode,
+                        cashback: p.is_cashback_coin,
+                        complete: true,
+                        index: 0,
+                        creator: p.pool_creator,
+                    })
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+fn build_official_pump_route(
+    params: &SwapParams,
+    route: &StonkFunQuoteRoute,
+    is_buy: bool,
+) -> Result<Option<Vec<Instruction>>> {
+    use crate::PumpRouteExecution;
+    let options = if is_buy { route.buy_execution } else { route.sell_execution };
+    if options.execution == PumpRouteExecution::Sequential
+        || (options.execution == PumpRouteExecution::Auto
+            && (options.minimum_output_amount.is_none() || options.buyback_recipient.is_none()))
+    {
+        // Validate supplied limits even when Auto cannot attempt an official route.
+        super::pump_route::select_pump_route(
+            options,
+            params.payer.pubkey(),
+            normalize_native_sol(params.input_mint),
+            normalize_native_sol(params.output_mint),
+            params.input_amount.ok_or_else(|| anyhow!("Quote route requires input amount"))?,
+            None,
+        )?;
+        return Ok(None);
+    }
+    let steps = if is_buy { &route.buy_hops } else { &route.sell_hops };
+    let source = normalize_native_sol(params.input_mint);
+    let target = normalize_native_sol(params.output_mint);
+    let hops = official_pump_hops(steps).filter(|hops| {
+        let mut current = source;
+        steps.iter().zip(hops).all(|(step, hop)| {
+            let output = if current == hop.quote_mint { hop.base_mint } else { hop.quote_mint };
+            let valid = normalize_native_sol(step.input_mint) == current
+                && normalize_native_sol(step.output_mint) == output;
+            current = output;
+            valid
+        }) && current == target
+            && hops.first().is_some_and(|first| {
+                let buy = source == first.quote_mint;
+                let currency = if buy { first } else { hops.last().unwrap() };
+                currency.venue != super::pump_compact_accounts::PumpMultiHopVenue::Curve
+                    || currency.quote_mint != crate::constants::WSOL_TOKEN_ACCOUNT
+                    || if buy {
+                        params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT
+                    } else {
+                        params.output_mint == crate::constants::SOL_TOKEN_ACCOUNT
+                    }
+            })
+    });
+    let payer = params.payer.pubkey();
+    let Some(ix) = super::pump_route::select_pump_route(
+        options,
+        payer,
+        source,
+        target,
+        params.input_amount.ok_or_else(|| anyhow!("Quote route requires input amount"))?,
+        hops.as_deref(),
+    )?
+    else {
+        return Ok(None);
+    };
+    let hops = hops.as_ref().unwrap(); // An instruction is returned only for a validated chain.
+    let buy = source == hops[0].quote_mint;
+    let input_program = if buy { hops[0].quote_token_program } else { hops[0].base_token_program };
+    let last = hops.last().unwrap();
+    let output_program = if buy { last.base_token_program } else { last.quote_token_program };
+    if params.input_token_program.is_some_and(|p| p != input_program)
+        || params.output_token_program.is_some_and(|p| p != output_program)
+    {
+        bail!("Official Pump endpoint token program mismatch");
+    }
+    if params.fixed_output_amount.is_some_and(|m| m > options.minimum_output_amount.unwrap()) {
+        bail!("Official Pump route minimum is below the requested final output");
+    }
+    let mut instructions = Vec::with_capacity(7);
+    for (mint, program, create) in [
+        (source, input_program, params.create_input_mint_ata),
+        (target, output_program, params.create_output_mint_ata),
+    ] {
+        if create {
+            token_account_setup::push_create_user_token_account(
+                &mut instructions,
+                &payer,
+                &mint,
+                &program,
+                false,
+            );
+        }
+    }
+    let currency = if buy { &hops[0] } else { last };
+    let native_curve = currency.venue == super::pump_compact_accounts::PumpMultiHopVenue::Curve
+        && currency.quote_mint == crate::constants::WSOL_TOKEN_ACCOUNT;
+    if params.input_mint == crate::constants::SOL_TOKEN_ACCOUNT && !native_curve {
+        instructions.extend(crate::trading::common::fund_existing_wsol(
+            &payer,
+            params.input_amount.unwrap(),
+        ));
+    }
+    instructions.extend(
+        crate::common::fast_fn::create_associated_token_account_idempotent_fast_use_seed(
+            &payer,
+            &options.buyback_recipient.unwrap(),
+            &currency.quote_mint,
+            &currency.quote_token_program,
+            false,
+        ),
+    );
+    instructions.push(ix);
+    if params.close_input_mint_ata && !native_curve {
+        token_account_setup::push_close_wsol_if_needed(&mut instructions, &payer, &source);
+    }
+    if params.close_output_mint_ata && !native_curve {
+        token_account_setup::push_close_wsol_if_needed(&mut instructions, &payer, &target);
+    }
+    Ok(Some(instructions))
+}
+
 pub(crate) async fn build_quote_route(
     params: &SwapParams,
     route: &StonkFunQuoteRoute,
@@ -284,6 +476,9 @@ pub(crate) async fn build_quote_route(
     {
         bail!("Pump quote routes require exact-input sizing")
     }
+    if let Some(instructions) = build_official_pump_route(params, route, is_buy)? {
+        return Ok(instructions);
+    }
     let amount =
         params.input_amount.ok_or_else(|| anyhow!("Quote route requires an exact input amount"))?;
     let plan = plan_route(
@@ -294,6 +489,14 @@ pub(crate) async fn build_quote_route(
         params.slippage_basis_points.unwrap_or(DEFAULT_SLIPPAGE),
         is_buy,
     )?;
+    let options = if is_buy { route.buy_execution } else { route.sell_execution };
+    if options.execution != crate::PumpRouteExecution::Sequential
+        && options.minimum_output_amount.is_some_and(|minimum| minimum > plan.minimum_credit)
+    {
+        bail!(
+            "Sequential route cannot guarantee the requested final output; refresh its hop quotes"
+        );
+    }
     if params.fixed_output_amount.is_some_and(|minimum| minimum > plan.minimum_credit) {
         bail!("Quote route cannot guarantee the requested final output; refresh its hop quotes")
     }

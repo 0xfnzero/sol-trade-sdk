@@ -25,3 +25,4 @@ pub use trading::core::params::{
     StonkFunViaQuoteParams, StonkFunViaSolParams,
 };
 pub use common::PumpFunVersion;
+pub use instruction::pump_route::{PumpRouteExecution, PumpRouteOptions};

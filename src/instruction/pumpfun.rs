@@ -1165,6 +1165,96 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn official_curve_route_preserves_final_limit_and_native_sol_settlement() {
+        use crate::constants::{SOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT, WSOL_TOKEN_ACCOUNT};
+        use crate::{PumpFunQuoteHop, PumpFunQuoteRoute, PumpFunQuoteVenue, PumpRouteOptions};
+        for asset in [SOL_TOKEN_ACCOUNT, USDC_TOKEN_ACCOUNT] {
+            for buy in [true, false] {
+                let middle = Pubkey::new_unique();
+                let target = Pubkey::new_unique();
+                let mut params = swap_params_for_buy(target, TOKEN_PROGRAM_2022);
+                let venue = |mint, quote| {
+                    let DexParamEnum::PumpFun(mut curve) =
+                        swap_params_for_buy(mint, TOKEN_PROGRAM_2022).protocol_params
+                    else {
+                        unreachable!()
+                    };
+                    curve.quote_mint = quote;
+                    Arc::make_mut(&mut curve.bonding_curve).quote_mint = quote;
+                    curve.associated_bonding_curve =
+                        crate::common::fast_fn::get_associated_token_address_with_program_id_fast(
+                            &curve.bonding_curve.account,
+                            &mint,
+                            &TOKEN_PROGRAM_2022,
+                        );
+                    PumpFunQuoteVenue::PumpFun {
+                        mint,
+                        curve,
+                        quote_token_program: TOKEN_PROGRAM_2022,
+                        base_transfer_fee: Default::default(),
+                        quote_transfer_fee: Default::default(),
+                    }
+                };
+                let currency = if asset == SOL_TOKEN_ACCOUNT { WSOL_TOKEN_ACCOUNT } else { asset };
+                let mut steps = vec![
+                    PumpFunQuoteHop::exact_in(venue(middle, currency), asset, middle, 900),
+                    PumpFunQuoteHop::exact_in(venue(target, middle), middle, target, 800),
+                ];
+                if asset == SOL_TOKEN_ACCOUNT {
+                    if let PumpFunQuoteVenue::PumpFun { quote_token_program, .. } =
+                        &mut steps[0].venue
+                    {
+                        *quote_token_program = crate::constants::TOKEN_PROGRAM;
+                    }
+                }
+                if !buy {
+                    steps.reverse();
+                    for step in &mut steps {
+                        std::mem::swap(&mut step.input_mint, &mut step.output_mint);
+                    }
+                }
+                let options = PumpRouteOptions {
+                    minimum_output_amount: Some(700),
+                    buyback_recipient: Some(params.payer.pubkey()),
+                    ..Default::default()
+                };
+                let route = if buy {
+                    PumpFunQuoteRoute::buy(steps).with_buy_execution(options)
+                } else {
+                    PumpFunQuoteRoute::sell(steps).with_sell_execution(options)
+                };
+                params.input_mint = if buy { asset } else { target };
+                params.output_mint = if buy { target } else { asset };
+                params.protocol_params = DexParamEnum::PumpFunQuoteRoute(route);
+                params.create_input_mint_ata = true;
+                params.close_output_mint_ata = !buy;
+                let ixs = if buy {
+                    PumpFunInstructionBuilder.build_buy_instructions(&params).await
+                } else {
+                    PumpFunInstructionBuilder.build_sell_instructions(&params).await
+                }
+                .unwrap();
+                let swaps: Vec<_> = ixs
+                    .iter()
+                    .filter(|ix| ix.data.starts_with(&[43, 100, 73, 19, 233, 246, 111, 148]))
+                    .collect();
+                assert_eq!(swaps.len(), 1);
+                assert_eq!(&swaps[0].data[8..16], &params.input_amount.unwrap().to_le_bytes());
+                assert_eq!(&swaps[0].data[16..24], &700u64.to_le_bytes());
+                assert_eq!(swaps[0].accounts.len(), 26);
+                assert!(
+                    !ixs.iter().any(|ix| ix.program_id == Pubkey::default()),
+                    "curve currency uses wallet SOL without wrapping"
+                );
+                assert!(
+                    !ixs.iter().any(|ix| ix.data == [9]),
+                    "do not close the unused native curve WSOL ATA"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn stock_curve_route_preserves_amounts_programs_and_account_lifecycle() {
         use crate::trading::core::params::{RaydiumCpmmParams, TokenTransferFee};
         use crate::{PumpFunQuoteHop, PumpFunQuoteRoute, PumpFunQuoteVenue};

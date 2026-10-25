@@ -13,8 +13,8 @@ use sol_trade_sdk::{
     },
     constants::{TOKEN_PROGRAM, TOKEN_PROGRAM_2022, WSOL_TOKEN_ACCOUNT as WSOL},
     instruction::{
-        pump_compact_accounts::{derive_pump_multi_hop_accounts, PumpMultiHop, PumpMultiHopVenue},
-        pump_upgrade::build_pump_amm_multi_hop_swap_instruction,
+        pump_compact_accounts::{PumpMultiHop, PumpMultiHopVenue},
+        pump_route::select_pump_route,
         utils::{
             pumpfun::accounts::PUMPFUN as PUMP,
             pumpswap::{accounts::AMM_PROGRAM as AMM, decode_global_config},
@@ -269,8 +269,7 @@ fn build_instructions(
             target.base_token_program,
         )
     };
-    let (fixed, remaining) =
-        derive_pump_multi_hop_accounts(options.user, input, output, recipient, &hops, false)?;
+    let input_ata = ata(&options.user, &input, &input_program);
     let mut instructions = vec![
         create_ata(&options.user, &options.user, &input, &input_program),
         create_ata(&options.user, &options.user, &output, &output_program),
@@ -279,20 +278,27 @@ fn build_instructions(
     if !options.sell && input == WSOL && currency.venue == PumpMultiHopVenue::Pool {
         instructions.push(solana_system_interface::instruction::transfer(
             &options.user,
-            &fixed["user_in_token_account"],
+            &input_ata,
             options.amount,
         ));
-        instructions.push(spl_token_2022_interface::instruction::sync_native(
-            &TOKEN_PROGRAM,
-            &fixed["user_in_token_account"],
-        )?);
+        instructions
+            .push(spl_token_2022_interface::instruction::sync_native(&TOKEN_PROGRAM, &input_ata)?);
     }
-    instructions.push(build_pump_amm_multi_hop_swap_instruction(
-        &fixed,
-        options.amount,
-        options.min_out,
-        &remaining,
-    )?);
+    instructions.push(
+        select_pump_route(
+            sol_trade_sdk::PumpRouteOptions {
+                execution: sol_trade_sdk::PumpRouteExecution::Official,
+                minimum_output_amount: Some(options.min_out),
+                buyback_recipient: Some(recipient),
+            },
+            options.user,
+            input,
+            output,
+            options.amount,
+            Some(&hops),
+        )?
+        .context("Official execution was required")?,
+    );
     Ok(instructions)
 }
 

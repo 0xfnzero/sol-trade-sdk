@@ -39,7 +39,7 @@
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
-Current Rust version: **9.0.1**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
+Current Rust version: **10.0.0**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
 
 ## Contents
 
@@ -60,17 +60,17 @@ Repositories are versioned independently; follow each SDK’s installation guide
 
 | Language | Repository | Purpose | Version |
 |----------|------------|-------------|---------|
-| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX transaction and account event parsing | `v0.9.1` |
-| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX transaction and account event parsing | `v0.9.1` |
-| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX transaction and account event parsing | `v0.9.1` |
-| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX transaction and account event parsing | `v0.9.1` |
-| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Transaction building, signing and multi-channel submission | `v9.0.1` |
-| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | Transaction building, signing and multi-channel submission | `v9.0.1` |
-| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Transaction building, signing and multi-channel submission | `v9.0.1` |
-| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Transaction building, signing and multi-channel submission | `v9.0.1` |
-| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw shred decoding and ShredStream instruction events | `v6.0.1` |
-| Rust | [solana-streamer](https://github.com/0xfnzero/solana-streamer) | gRPC / ShredStream subscriptions and event streaming | `v5.0.0` |
-| Rust | [sol-trade-router-sdk](https://github.com/0xfnzero/sol-trade-router-sdk) | On-chain multi-hop router and client SDK | `v0.3.0` |
+| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX transaction and account event parsing | `v0.10.0` |
+| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX transaction and account event parsing | `v0.10.0` |
+| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX transaction and account event parsing | `v0.10.0` |
+| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX transaction and account event parsing | `v0.10.0` |
+| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Transaction building, signing and multi-channel submission | `v10.0.0` |
+| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | Transaction building, signing and multi-channel submission | `v10.0.0` |
+| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | Transaction building, signing and multi-channel submission | `v10.0.0` |
+| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | Transaction building, signing and multi-channel submission | `v10.0.0` |
+| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw shred decoding and ShredStream instruction events | `v6.0.2` |
+| Rust | [solana-streamer](https://github.com/0xfnzero/solana-streamer) | gRPC / ShredStream subscriptions and event streaming | `v5.0.1` |
+| Rust | [sol-trade-router-sdk](https://github.com/0xfnzero/sol-trade-router-sdk) | On-chain multi-hop router and client SDK | `v0.4.0` |
 
 <a id="installation"></a>
 
@@ -80,13 +80,13 @@ Add the dependency to `Cargo.toml`:
 
 ```toml
 [dependencies]
-sol-trade-sdk = "9.0.1"
+sol-trade-sdk = "10.0.0"
 ```
 
 Enable the optional `parser-adapter` feature to connect parsed events to cached quote preparation:
 
 ```toml
-sol-trade-sdk = { version = "9.0.1", features = ["parser-adapter"] }
+sol-trade-sdk = { version = "10.0.0", features = ["parser-adapter"] }
 ```
 
 To run the repository examples:
@@ -128,6 +128,12 @@ Pump.fun client trades default to V3. Set `TradeConfig::builder(...).pumpfun_ver
 
 For official `multi_hop_swap` buys/sells through Pump.fun curves and migrated PumpSwap pools,
 use the [pump_multi_hop example](examples/SIMULATION.md#official-pump-multi-hop).
+
+Explicit quote routes support `PumpRouteExecution::{Auto, Official, Sequential}`.
+Auto prefers an eligible official path when supplied with a fresh final minimum
+and current buyback recipient; cross-DEX routes retain sequential execution.
+See [selection and quote boundaries](docs/PUMPFUN_STOCK_ROUTES.md#official-or-sequential-execution).
+
 
 Register bridge pools once with `TradeConfig::builder(...).pumpswap_routing(...)`, then use `PumpSwapAutoRoute(pool)` for cached automatic routing. Background snapshot publication keeps the hot path free of RPC reads; missing/expired state fails without fallback. Run `pumpswap_global_routing` offline or `pumpswap_global_routing_simulate` for live read-only mainnet simulation.
 

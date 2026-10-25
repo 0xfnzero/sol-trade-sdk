@@ -415,8 +415,10 @@ describes requested execution and is not proof of a filled trade.
 The reported `WSOL → hi → OK` samples use Pump's native `multi_hop_swap`, including
 a PumpFun curve leg. Existing low-level `derive_pump_multi_hop_accounts` and
 `build_pump_amm_multi_hop_swap_instruction` support that separate path. The
-quote-conversion wrapper above does not automatically convert a native route
-intent into a new copy trade or discover an external SOL/TTWO market.
+quote-conversion wrapper supports [explicit execution selection](PUMPFUN_STOCK_ROUTES.md#official-or-sequential-execution)
+for eligible Pump-only chains with a fresh official final minimum and buyback
+recipient. It does not turn historical route intents into quotes or discover an
+external SOL/TTWO market. Cross-DEX routes retain sequential execution.
 
 ### Confirmed reported 3007 failure
 

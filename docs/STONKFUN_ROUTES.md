@@ -267,7 +267,7 @@ cargo check --workspace --examples --features parser-adapter
 ```
 
 Math dependencies are pinned to `orca_whirlpools_core` 2.1.1 (Orca license),
-`solana-clmm-raydium` 0.3.0 (MIT/Apache-2.0), and `meteora-dlmm` 0.2.0 (MIT).
+`solana-clmm-raydium` 0.4.0 (MIT/Apache-2.0), and `meteora-dlmm` 0.2.0 (MIT).
 Local orchestration validates subscription layouts and bounded traversal around
 these pure math dependencies. No router contract is involved.
 

@@ -337,10 +337,12 @@ The historical `multi_hop_swap` availability result above is superseded by the s
 slot 460910106. It executes the official PumpSwap instruction followed by a Pump.fun
 `multi_hop_curve_swap` CPI. The existing `derive_pump_multi_hop_accounts` and
 `build_pump_amm_multi_hop_swap_instruction` APIs build this route from caller-supplied
-state and accounts. Ordinary `buy`/`sell` and stock conversion routes do not automatically
-switch to this instruction. This observation does not revalidate the other historical failures above.
+state and accounts. Explicit quote routes now support `PumpRouteOptions` with
+`Auto`, `Official` or `Sequential`; see [execution selection](PUMPFUN_STOCK_ROUTES.md#official-or-sequential-execution).
+Auto requires a supported chain plus an explicit official final minimum and current
+buyback recipient. This observation does not revalidate the other historical failures above.
 
 中文：该笔真实交易已确认官方多跳在主网执行成功。SDK 已提供账户派生与指令构建接口，
-普通买卖入口暂不自动选择官方多跳；调用者仍需准备最新状态、账户和最终滑点限制。
+显式 quote route 支持选择执行方式；调用者仍需准备最新状态、账户和官方最终滑点限制。
 See the [official multi-hop example](../examples/SIMULATION.md#official-pump-multi-hop)
 for current-account curve/pool buys and sells, including unsigned RPC simulation.

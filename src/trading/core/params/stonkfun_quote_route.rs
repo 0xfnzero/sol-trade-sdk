@@ -110,6 +110,9 @@ impl StonkFunQuoteHop {
 pub struct StonkFunQuoteRoute {
     pub buy_hops: Vec<StonkFunQuoteHop>,
     pub sell_hops: Vec<StonkFunQuoteHop>,
+    /// Auto prefers official Pump execution only with an explicit official final limit.
+    pub buy_execution: crate::PumpRouteOptions,
+    pub sell_execution: crate::PumpRouteOptions,
 }
 
 /// Preflight amounts and account requirements for an explicitly quoted route.
@@ -130,7 +133,9 @@ pub struct StonkFunQuoteHopPreview {
 }
 
 impl StonkFunQuoteRoute {
-    /// Validate without RPC or instructions. Pool state and quotes must be fresh.
+    /// Preview the sequential hop plan without RPC or instructions.
+    /// This is not an official multi_hop_swap quote; execution options are not applied.
+    /// Pool state and quotes must be fresh.
     pub fn preview(
         &self,
         input_mint: Pubkey,
@@ -164,13 +169,23 @@ impl StonkFunQuoteRoute {
         })
     }
     pub fn buy(hops: Vec<StonkFunQuoteHop>) -> Self {
-        Self { buy_hops: hops, sell_hops: Vec::new() }
+        Self { buy_hops: hops, sell_hops: Vec::new(), ..Self::default() }
     }
     pub fn sell(hops: Vec<StonkFunQuoteHop>) -> Self {
-        Self { buy_hops: Vec::new(), sell_hops: hops }
+        Self { buy_hops: Vec::new(), sell_hops: hops, ..Self::default() }
     }
     pub fn with_sell_hops(mut self, hops: Vec<StonkFunQuoteHop>) -> Self {
         self.sell_hops = hops;
+        self
+    }
+
+    pub fn with_buy_execution(mut self, options: crate::PumpRouteOptions) -> Self {
+        self.buy_execution = options;
+        self
+    }
+
+    pub fn with_sell_execution(mut self, options: crate::PumpRouteOptions) -> Self {
+        self.sell_execution = options;
         self
     }
 }

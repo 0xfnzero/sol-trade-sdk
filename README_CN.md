@@ -39,7 +39,7 @@
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
-当前 Rust 版本：**9.0.1**。升级前请阅读 [迁移说明](RELEASE_NOTES.md)；历史变更见 [版本记录](CHANGELOG_CN.md)。
+当前 Rust 版本：**10.0.0**。升级前请阅读 [迁移说明](RELEASE_NOTES.md)；历史变更见 [版本记录](CHANGELOG_CN.md)。
 
 ## 目录
 
@@ -60,17 +60,17 @@
 
 | 语言 | 仓库 | 用途 | 版本 |
 |----------|------------|-------------|---------|
-| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX 交易与账户事件解析 | `v0.9.1` |
-| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX 交易与账户事件解析 | `v0.9.1` |
-| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX 交易与账户事件解析 | `v0.9.1` |
-| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX 交易与账户事件解析 | `v0.9.1` |
-| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 交易构建、签名与多通道提交 | `v9.0.1` |
-| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | 交易构建、签名与多通道提交 | `v9.0.1` |
-| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 交易构建、签名与多通道提交 | `v9.0.1` |
-| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 交易构建、签名与多通道提交 | `v9.0.1` |
-| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | 原始 Shred 解码与 ShredStream 指令事件 | `v6.0.1` |
-| Rust | [solana-streamer](https://github.com/0xfnzero/solana-streamer) | gRPC / ShredStream 订阅与事件流封装 | `v5.0.0` |
-| Rust | [sol-trade-router-sdk](https://github.com/0xfnzero/sol-trade-router-sdk) | 链上多跳 Router 与客户端 SDK | `v0.3.0` |
+| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | DEX 交易与账户事件解析 | `v0.10.0` |
+| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | DEX 交易与账户事件解析 | `v0.10.0` |
+| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | DEX 交易与账户事件解析 | `v0.10.0` |
+| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | DEX 交易与账户事件解析 | `v0.10.0` |
+| Rust | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | 交易构建、签名与多通道提交 | `v10.0.0` |
+| Node.js | [sol-trade-sdk-nodejs](https://github.com/0xfnzero/sol-trade-sdk-nodejs) | 交易构建、签名与多通道提交 | `v10.0.0` |
+| Python | [sol-trade-sdk-python](https://github.com/0xfnzero/sol-trade-sdk-python) | 交易构建、签名与多通道提交 | `v10.0.0` |
+| Go | [sol-trade-sdk-golang](https://github.com/0xfnzero/sol-trade-sdk-golang) | 交易构建、签名与多通道提交 | `v10.0.0` |
+| Rust | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | 原始 Shred 解码与 ShredStream 指令事件 | `v6.0.2` |
+| Rust | [solana-streamer](https://github.com/0xfnzero/solana-streamer) | gRPC / ShredStream 订阅与事件流封装 | `v5.0.1` |
+| Rust | [sol-trade-router-sdk](https://github.com/0xfnzero/sol-trade-router-sdk) | 链上多跳 Router 与客户端 SDK | `v0.4.0` |
 
 <a id="installation"></a>
 
@@ -80,13 +80,13 @@
 
 ```toml
 [dependencies]
-sol-trade-sdk = "9.0.1"
+sol-trade-sdk = "10.0.0"
 ```
 
 需要将解析事件连接到缓存报价时，启用可选的 `parser-adapter`：
 
 ```toml
-sol-trade-sdk = { version = "9.0.1", features = ["parser-adapter"] }
+sol-trade-sdk = { version = "10.0.0", features = ["parser-adapter"] }
 ```
 
 运行仓库中的示例：
@@ -128,6 +128,11 @@ Pump.fun 内盘使用股票币报价时，可通过 `DexParamEnum::PumpFunQuoteR
 
 Pump.fun 内盘与已迁移 PumpSwap 外盘的官方 `multi_hop_swap` 买卖，
 见 [pump_multi_hop 示例](examples/SIMULATION.md#official-pump-multi-hop)。
+
+显式 quote route 支持 `PumpRouteExecution::{Auto, Official, Sequential}`。
+Auto 在路径可用且提供官方最终到账下限、当前回购收款人时优先官方多跳；跨 DEX 保留逐跳原子交易。
+详见[执行选择与报价边界](docs/PUMPFUN_STOCK_ROUTES.md#official-or-sequential-execution)。
+
 
 Pump.fun 客户端买卖默认使用 V3，可通过 `TradeConfig::builder(...).pumpfun_version(PumpFunVersion::V2)` 切换 V2，或选择 `Legacy` 使用原生旧版。单笔显式版本优先于客户端默认值；这与 Solana 交易消息的 `transaction_version` 无关。V3 的报价要求与限制见上方文档。
 

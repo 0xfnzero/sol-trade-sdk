@@ -394,6 +394,42 @@ async fn mixed_venue_routes_match_independent_leg_builders_for_each_quote_policy
             DexParamEnum::PumpSwapQuoteRoute(route) => route.clone(),
             _ => unreachable!(),
         };
+        let options = crate::PumpRouteOptions {
+            minimum_output_amount: Some(1),
+            buyback_recipient: Some(applied.payer.pubkey()),
+            ..Default::default()
+        };
+        let with_options = |options| {
+            if is_buy {
+                route.clone().with_buy_execution(options)
+            } else {
+                route.clone().with_sell_execution(options)
+            }
+        };
+        assert_eq!(
+            build_quote_route(&applied, &route, is_buy).await.unwrap(),
+            build_quote_route(&applied, &with_options(options), is_buy).await.unwrap()
+        );
+        assert!(build_quote_route(
+            &applied,
+            &with_options(crate::PumpRouteOptions {
+                execution: crate::PumpRouteExecution::Official,
+                ..options
+            }),
+            is_buy
+        )
+        .await
+        .is_err());
+        assert!(build_quote_route(
+            &applied,
+            &with_options(crate::PumpRouteOptions {
+                minimum_output_amount: Some(u64::MAX),
+                ..options
+            }),
+            is_buy
+        )
+        .await
+        .is_err());
         // Test the generic conversion-route contract as well as PumpSwap's
         // forced exact-input leg, independently of its dedicated route guard.
         applied.protocol_params = DexParamEnum::StonkFunQuoteRoute(route.clone());
