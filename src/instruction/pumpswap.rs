@@ -197,6 +197,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Determine fee recipient based on mayhem mode (pump-public-docs: 10th = Mayhem fee recipient, 11th = WSOL ATA of Mayhem; use any one randomly)
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
         let (fee_recipient, fee_recipient_meta) = if let Some(recipient) = protocol_params.protocol_fee_recipient_override {
+            let recipient = if is_mayhem_mode {
+                recipient
+            } else {
+                crate::instruction::utils::pumpfun::current_normal_fee_recipient(recipient)
+            };
             (recipient, AccountMeta::new_readonly(recipient, false))
         } else if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
@@ -429,6 +434,11 @@ impl InstructionBuilder for PumpSwapInstructionBuilder {
         // Determine fee recipient based on mayhem mode (pump-public-docs: 10th = Mayhem fee recipient, 11th = WSOL ATA of Mayhem; use any one randomly)
         let is_mayhem_mode = protocol_params.is_mayhem_mode;
         let (fee_recipient, fee_recipient_meta) = if let Some(recipient) = protocol_params.protocol_fee_recipient_override {
+            let recipient = if is_mayhem_mode {
+                recipient
+            } else {
+                crate::instruction::utils::pumpfun::current_normal_fee_recipient(recipient)
+            };
             (recipient, AccountMeta::new_readonly(recipient, false))
         } else if is_mayhem_mode {
             get_mayhem_fee_recipient_random()
@@ -929,6 +939,34 @@ mod tests {
 
         assert_eq!(create_ix.program_id, crate::constants::ASSOCIATED_TOKEN_PROGRAM_ID);
         assert_eq!(create_ix.accounts[3].pubkey, crate::constants::USDC_TOKEN_ACCOUNT);
+    }
+
+    #[tokio::test]
+    async fn pumpswap_fee_rotation_updates_buy_sell_recipient_and_ata() {
+        use crate::instruction::utils::pumpfun::global_constants::{
+            NORMAL_FEE_RECIPIENTS, RETIRED_NORMAL_FEE_RECIPIENTS,
+        };
+        for (old, new) in RETIRED_NORMAL_FEE_RECIPIENTS.iter().zip(NORMAL_FEE_RECIPIENTS) {
+            for direction in [TradeType::Buy, TradeType::Sell] {
+                let mut params = swap_params(direction, None);
+                let buyback = pk(91);
+                params.protocol_params = DexParamEnum::PumpSwap(
+                    pumpswap_params().with_fee_recipients(*old, buyback),
+                );
+                let instructions = match direction {
+                    TradeType::Buy => PumpSwapInstructionBuilder.build_buy_instructions(&params).await,
+                    TradeType::Sell => PumpSwapInstructionBuilder.build_sell_instructions(&params).await,
+                    _ => unreachable!(),
+                }.unwrap();
+                let ix = instructions.last().unwrap();
+                assert_eq!(ix.accounts[9].pubkey, new);
+                assert_eq!(
+                    ix.accounts[10].pubkey,
+                    fee_recipient_ata(new, ix.accounts[4].pubkey, ix.accounts[12].pubkey),
+                );
+                assert_eq!(ix.accounts[ix.accounts.len() - 2].pubkey, buyback);
+            }
+        }
     }
 
     #[tokio::test]

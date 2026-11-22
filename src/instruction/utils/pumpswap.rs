@@ -51,7 +51,7 @@ pub mod accounts {
     use solana_sdk::{pubkey, pubkey::Pubkey};
 
     /// Public key for the fee recipient
-    pub const FEE_RECIPIENT: Pubkey = pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
+    pub const FEE_RECIPIENT: Pubkey = crate::instruction::utils::pumpfun::global_constants::FEE_RECIPIENT;
 
     /// Public key for the global PDA
     pub const GLOBAL_ACCOUNT: Pubkey = pubkey!("ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw");
@@ -65,7 +65,7 @@ pub mod accounts {
 
     // PumpSwap protocol fee recipient
     pub const PROTOCOL_FEE_RECIPIENT: Pubkey =
-        pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
+        crate::instruction::utils::pumpfun::global_constants::FEE_RECIPIENT;
 
     pub const AMM_PROGRAM: Pubkey = pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
     /// Pump Bonding Curve program（canonical pool 的 creator 来自此程序的 pool-authority PDA）
@@ -740,9 +740,11 @@ pub fn get_mayhem_fee_recipient_random() -> (Pubkey, AccountMeta) {
 
 #[inline]
 pub fn get_protocol_fee_recipient_random() -> Pubkey {
-    cached_global_config()
-        .and_then(|config| choose_nonzero(&config.protocol_fee_recipients))
-        .unwrap_or(accounts::FEE_RECIPIENT)
+    super::pumpfun::current_normal_fee_recipient(
+        cached_global_config()
+            .and_then(|config| choose_nonzero(&config.protocol_fee_recipients))
+            .unwrap_or(accounts::FEE_RECIPIENT),
+    )
 }
 
 /// Random entry from [`accounts::PROTOCOL_EXTRA_FEE_RECIPIENTS`] (readonly; paired with [`fee_recipient_ata`] as last account).

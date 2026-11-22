@@ -126,7 +126,13 @@ async fn pumpswap_reported_cross_language_guards_and_export() {
                 PumpSwapInstructionBuilder.build_sell_instructions(&params).await
             }
             .unwrap();
-            assert_eq!(ixs[0].accounts[9].pubkey, key(9));
+            // Keep the historical fixture intact; new normal trades use the rotated pool.
+            let expected_recipient = if is_mayhem_mode {
+                key(9)
+            } else {
+                crate::instruction::utils::pumpfun::global_constants::FEE_RECIPIENT
+            };
+            assert_eq!(ixs[0].accounts[9].pubkey, expected_recipient);
             assert_eq!(ixs[0].accounts[ixs[0].accounts.len() - 2].pubkey, key(24));
         }
     }

@@ -41,6 +41,8 @@
 
 Current Rust version: **11.0.1**. Read the [migration notes](RELEASE_NOTES.md) before upgrading; earlier changes are in the [changelog](CHANGELOG.md).
 
+Protocol fee rotation (November 21, 2026 announcement): this source revision uses the 8 new normal fee recipients shared by Pump.fun and Pump AMM. When building trades, known old recipients from events, caches, or normal-mode overrides are replaced locally; Mayhem and buyback recipients are unchanged. Old recipients expire November 25. No additional RPC calls are made.
+
 ## Contents
 
 - [Related SDKs](#related-sdks)

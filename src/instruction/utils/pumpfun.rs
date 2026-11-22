@@ -49,7 +49,31 @@ pub mod global_constants {
     pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
     pub const COMPLETION_LAMPORTS: u64 = 85 * LAMPORTS_PER_SOL;
 
-    pub const FEE_RECIPIENT: Pubkey = pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV");
+    /// Normal protocol fee recipients shared by Pump.fun and Pump AMM.
+    /// Announced November 21, 2026; old recipients expire November 25.
+    pub const NORMAL_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("2aSWZ3QXsNLVVBr1UB1HxSw7sqMRR2pv2qa5ohsTi5Gp"),
+        pubkey!("DrcDxWxLi3i7Yd7cTyCyd44DE7pwS9BvFxSsPx1c7XTv"),
+        pubkey!("EAN7utdjyxhKVaqA69DRyxW5ffBhnidRZfifmfhwUgPm"),
+        pubkey!("Fso3Ggq2Um1pQT6Uzq8wDicgRh62vANYZUT8uqJd2fXh"),
+        pubkey!("BWNNnhN6id5j71h5wfkzmXjnV2fgF9zA61FqGJJjnakw"),
+        pubkey!("Eh7hTLi6iMbT55jAEYVgtN5QaSb6z9Ytzwxs2LGG5qg4"),
+        pubkey!("3Mqk6qHEj7r3TFNFYjCP85a5venbp2mefYQTSKVVchBC"),
+        pubkey!("A3cm36KqisUXVTSRCK6VQ7kvXLene4gsbQedhcd5MujQ"),
+    ];
+
+    pub(crate) const RETIRED_NORMAL_FEE_RECIPIENTS: [Pubkey; 8] = [
+        pubkey!("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV"),
+        pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ"),
+        pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX"),
+        pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz"),
+        pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY"),
+        pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM"),
+        pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz"),
+        pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP"),
+    ];
+
+    pub const FEE_RECIPIENT: Pubkey = NORMAL_FEE_RECIPIENTS[0];
     pub const FEE_RECIPIENT_META: solana_sdk::instruction::AccountMeta =
         solana_sdk::instruction::AccountMeta {
             pubkey: FEE_RECIPIENT,
@@ -86,13 +110,13 @@ pub mod global_constants {
     pub const AUTHORITY: Pubkey = pubkey!("FFWtrEQ4B4PKQoVuHYzZq8FabGkVatYzDpEVHsK5rrhF");
     pub const WITHDRAW_AUTHORITY: Pubkey = pubkey!("39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg");
 
-    pub const PUMPFUN_AMM_FEE_1: Pubkey = pubkey!("7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ");
-    pub const PUMPFUN_AMM_FEE_2: Pubkey = pubkey!("7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX");
-    pub const PUMPFUN_AMM_FEE_3: Pubkey = pubkey!("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz");
-    pub const PUMPFUN_AMM_FEE_4: Pubkey = pubkey!("AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY");
-    pub const PUMPFUN_AMM_FEE_5: Pubkey = pubkey!("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
-    pub const PUMPFUN_AMM_FEE_6: Pubkey = pubkey!("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz");
-    pub const PUMPFUN_AMM_FEE_7: Pubkey = pubkey!("G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP");
+    pub const PUMPFUN_AMM_FEE_1: Pubkey = NORMAL_FEE_RECIPIENTS[1];
+    pub const PUMPFUN_AMM_FEE_2: Pubkey = NORMAL_FEE_RECIPIENTS[2];
+    pub const PUMPFUN_AMM_FEE_3: Pubkey = NORMAL_FEE_RECIPIENTS[3];
+    pub const PUMPFUN_AMM_FEE_4: Pubkey = NORMAL_FEE_RECIPIENTS[4];
+    pub const PUMPFUN_AMM_FEE_5: Pubkey = NORMAL_FEE_RECIPIENTS[5];
+    pub const PUMPFUN_AMM_FEE_6: Pubkey = NORMAL_FEE_RECIPIENTS[6];
+    pub const PUMPFUN_AMM_FEE_7: Pubkey = NORMAL_FEE_RECIPIENTS[7];
 
     pub const PROTOCOL_EXTRA_FEE_RECIPIENTS: [Pubkey; 8] = [
         pubkey!("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"),
@@ -216,14 +240,26 @@ pub fn is_amm_fee_recipient(pubkey: &Pubkey) -> bool {
         || pubkey == &global_constants::PUMPFUN_AMM_FEE_7
 }
 
+/// Replace only the known retired normal pool; preserve custom and reserved recipients.
+/// No RPC, allocation, or clock lookup is needed on the transaction-building path.
+#[inline]
+pub(crate) fn current_normal_fee_recipient(recipient: Pubkey) -> Pubkey {
+    match global_constants::RETIRED_NORMAL_FEE_RECIPIENTS.iter().position(|key| *key == recipient) {
+        Some(index) => global_constants::NORMAL_FEE_RECIPIENTS[index],
+        None => recipient,
+    }
+}
+
 #[inline]
 pub fn is_normal_fee_recipient(pubkey: &Pubkey) -> bool {
-    is_standard_bonding_fee_recipient(pubkey) || is_amm_fee_recipient(pubkey)
+    global_constants::NORMAL_FEE_RECIPIENTS.contains(pubkey)
+        || global_constants::RETIRED_NORMAL_FEE_RECIPIENTS.contains(pubkey)
 }
 
 #[inline]
 pub fn is_standard_bonding_fee_recipient(pubkey: &Pubkey) -> bool {
     *pubkey == global_constants::FEE_RECIPIENT
+        || *pubkey == global_constants::RETIRED_NORMAL_FEE_RECIPIENTS[0]
 }
 
 #[inline]
@@ -273,9 +309,7 @@ pub fn get_mayhem_fee_recipient_meta_random() -> AccountMeta {
 
 #[inline]
 pub fn get_standard_fee_recipient_meta_random() -> AccountMeta {
-    // Historical name kept for API compatibility. Do not randomize across static AMM fee
-    // recipients for bonding-curve buy/sell; stale AMM protocol fee accounts can fail
-    // Pump.fun authorization with error 6000 when Global has rotated.
+    // Historical name kept for API compatibility; use the first current normal recipient.
     AccountMeta { pubkey: global_constants::FEE_RECIPIENT, is_signer: false, is_writable: true }
 }
 
@@ -299,6 +333,7 @@ pub fn pump_fun_fee_recipient_meta(
     observed_fee_recipient: Pubkey,
     is_mayhem_mode: bool,
 ) -> AccountMeta {
+    let observed_fee_recipient = current_normal_fee_recipient(observed_fee_recipient);
     let trust_observation = observed_fee_recipient != Pubkey::default()
         && fee_recipient_ok_for_bonding_curve_mode(&observed_fee_recipient, is_mayhem_mode);
     if trust_observation {
@@ -798,6 +833,24 @@ mod tests {
         assert_eq!(m.pubkey, fee);
         assert!(m.is_writable);
         assert!(!m.is_signer);
+    }
+
+    #[test]
+    fn fee_rotation_handles_stale_observations_and_preserves_reserved_pools() {
+        for (old, new) in global_constants::RETIRED_NORMAL_FEE_RECIPIENTS.iter()
+            .zip(global_constants::NORMAL_FEE_RECIPIENTS)
+        {
+            assert_eq!(pump_fun_fee_recipient_meta(*old, false).pubkey, new);
+            assert_eq!(pump_fun_fee_recipient_meta(new, false).pubkey, new);
+            assert!(is_mayhem_fee_recipient(&pump_fun_fee_recipient_meta(*old, true).pubkey));
+        }
+        for recipient in global_constants::MAYHEM_FEE_RECIPIENTS {
+            assert_eq!(pump_fun_fee_recipient_meta(recipient, true).pubkey, recipient);
+            assert_eq!(current_normal_fee_recipient(recipient), recipient);
+        }
+        for recipient in global_constants::BUYBACK_FEE_RECIPIENTS {
+            assert_eq!(current_normal_fee_recipient(recipient), recipient);
+        }
     }
 
     #[test]
